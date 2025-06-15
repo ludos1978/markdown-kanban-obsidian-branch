@@ -118,6 +118,9 @@ Supports a structured task format for better readability and organization:
 - **Show Hidden Columns**: Click the "Manage Columns" button and enter the column number when prompted.
 - **Reorder Columns**: Drag and drop column titles to reorder them.
 
+#### 6. Enable or Disable File Switching
+- **Change the setting**: Use the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) → Type "Enable/Disable File Switcher"
+
 ## 📝 Markdown Format Guide
 
 ### 🆕 New Format (v1.2.0+)
