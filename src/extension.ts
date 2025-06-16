@@ -7,7 +7,7 @@ import { KanbanWebviewPanel } from './kanbanWebviewPanel';
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-
+	let fileListenerEnabled = true;
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Markdown Kanban extension is now active!');
@@ -67,9 +67,13 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	const disableFileListenerCommand = vscode.commands.registerCommand('markdown-kanban.disableFileListener', async () => {
+		fileListenerEnabled = !fileListenerEnabled;
+	});
+
 	// 监听文档变化，自动更新看板（实时同步）
 	const documentChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {
-		if (event.document.languageId === 'markdown') {
+		if (event.document.languageId === 'markdown' && fileListenerEnabled) {
 			// 延迟更新，避免频繁刷新
 			setTimeout(() => {
 				// 更新面板中的看板
@@ -82,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// 监听活动编辑器变化
 	const activeEditorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
-		if (editor && editor.document.languageId === 'markdown') {
+		if (editor && editor.document.languageId === 'markdown' && fileListenerEnabled) {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
 			// 如果有面板打开，自动加载当前文档
 			if (KanbanWebviewPanel.currentPanel) {
@@ -96,8 +100,9 @@ export function activate(context: vscode.ExtensionContext) {
 	// 添加到订阅列表
 	context.subscriptions.push(
 		openKanbanCommand,
+		disableFileListenerCommand,
 		documentChangeListener,
-		activeEditorChangeListener
+		activeEditorChangeListener,
 	);
 
 	// 如果当前有活动的markdown编辑器，自动激活看板
