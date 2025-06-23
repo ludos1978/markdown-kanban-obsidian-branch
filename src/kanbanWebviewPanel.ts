@@ -150,6 +150,9 @@ export class KanbanWebviewPanel {
                 markdown
             );
             await vscode.workspace.applyEdit(edit);
+
+            // 保存文档到磁盘，消除未保存状态提示
+            await this._document.save();
         }
     }
 
