@@ -12,3 +12,9 @@
 
 * **feature:** Add enable/disable file listener command for edit multiple files @ssebs ([#4](https://github.com/holooooo/markdown-kanban/pull/4))
 
+## [1.1.1] (2025-06-23)
+
+### Features
+
+* **feature:** Allow to show/hide filter section
+* **feature:** Auto save edited files
