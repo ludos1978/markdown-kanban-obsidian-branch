@@ -309,15 +309,48 @@ export class KanbanWebviewPanel {
         }
 
         .kanban-header {
-            display: flex;
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
             gap: 20px;
-            margin-bottom: 20px;
-            padding: 16px;
+            padding: 16px 20px;
             background-color: var(--vscode-sideBar-background);
-            border-radius: 8px;
-            border: 1px solid var(--vscode-panel-border);
+            border-bottom: 1px solid var(--vscode-panel-border);
             flex-wrap: wrap;
             align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .kanban-header.visible {
+            display: flex;
+        }
+
+        body.filters-visible {
+            padding-top: 90px;
+        }
+
+        @media (max-width: 768px) {
+            .kanban-header {
+                padding: 12px 16px;
+            }
+
+            body.filters-visible {
+                padding-top: 110px;
+            }
+
+            .filter-section {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+
+            .filter-input, .sort-select {
+                min-width: auto;
+                width: 100%;
+            }
         }
 
         .filter-section {
@@ -371,6 +404,14 @@ export class KanbanWebviewPanel {
             padding: 6px 12px;
             font-size: 12px;
             cursor: pointer;
+        }
+
+        .board-controls {
+            display: flex;
+            flex-direction: row;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 20px;
         }
 
         .kanban-board {
@@ -670,6 +711,23 @@ export class KanbanWebviewPanel {
             background: var(--vscode-button-hoverBackground);
         }
 
+        .show-filters-btn {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            border-radius: 6px;
+            padding: 16px;
+            min-width: 200px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            align-self: flex-start;
+        }
+
+        .show-filters-btn:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
         /* Modal styles */
         .modal {
             display: none;
@@ -864,6 +922,12 @@ export class KanbanWebviewPanel {
                 justify-content: space-between;
             }
 
+            .board-controls {
+                flex-direction: column;
+                gap: 8px;
+                align-items: stretch;
+            }
+
             .kanban-board {
                 flex-direction: column;
                 gap: 16px;
@@ -878,7 +942,7 @@ export class KanbanWebviewPanel {
 </head>
 <body>
     <!-- Top control panel -->
-    <div class="kanban-header">
+    <div class="kanban-header" id="kanban-header">
         <div class="filter-section">
             <span class="filter-label">Filter:</span>
             <input type="text" id="tag-filter" class="filter-input" placeholder="Filter by tags (e.g., design,ui)">
@@ -893,8 +957,11 @@ export class KanbanWebviewPanel {
             </select>
 
             <button id="clear-filters" class="clear-filters-btn">Clear Filters</button>
+            <button id="hide-filters" class="clear-filters-btn">Hide Filters</button>
         </div>
     </div>
+
+
 
     <div id="kanban-container">
         <div class="kanban-board" id="kanban-board">
@@ -1054,12 +1121,32 @@ export class KanbanWebviewPanel {
                 boardElement.appendChild(columnElement);
             });
 
+            // Add control buttons container
+            const controlsContainer = document.createElement('div');
+            controlsContainer.className = 'board-controls';
+
+            // Add show filters button
+            const showFiltersBtn = document.createElement('button');
+            showFiltersBtn.className = 'show-filters-btn';
+            showFiltersBtn.textContent = 'Show Filters';
+            showFiltersBtn.onclick = () => toggleFilters(true);
+            showFiltersBtn.id = 'show-filters-dynamic';
+
             // Add new column button
             const addColumnBtn = document.createElement('button');
             addColumnBtn.className = 'add-column-btn';
             addColumnBtn.textContent = '+ Add Column';
             addColumnBtn.onclick = () => addColumn();
-            boardElement.appendChild(addColumnBtn);
+
+            controlsContainer.appendChild(showFiltersBtn);
+            controlsContainer.appendChild(addColumnBtn);
+            boardElement.appendChild(controlsContainer);
+
+            // Check if filters are currently visible and hide button accordingly
+            const header = document.getElementById('kanban-header');
+            if (header && header.classList.contains('visible')) {
+                showFiltersBtn.style.display = 'none';
+            }
 
             // Setup column drag and drop
             setupColumnDragAndDrop();
@@ -1468,6 +1555,25 @@ export class KanbanWebviewPanel {
             document.getElementById('input-modal').style.display = 'none';
         }
 
+        function toggleFilters(show) {
+            const header = document.getElementById('kanban-header');
+            const staticShowBtn = document.getElementById('show-filters');
+            const dynamicShowBtn = document.getElementById('show-filters-dynamic');
+            const body = document.body;
+
+            if (show) {
+                header.classList.add('visible');
+                body.classList.add('filters-visible');
+                if (staticShowBtn) staticShowBtn.style.display = 'none';
+                if (dynamicShowBtn) dynamicShowBtn.style.display = 'none';
+            } else {
+                header.classList.remove('visible');
+                body.classList.remove('filters-visible');
+                if (staticShowBtn) staticShowBtn.style.display = 'block';
+                if (dynamicShowBtn) dynamicShowBtn.style.display = 'block';
+            }
+        }
+
         function addColumn() {
             showInputModal(
                 'Add Column',
@@ -1553,6 +1659,18 @@ export class KanbanWebviewPanel {
                 currentTagFilter = '';
                 currentSort = 'none';
                 renderBoard();
+            });
+
+            // Show filters (using event delegation for dynamically created button)
+            document.addEventListener('click', (e) => {
+                if (e.target && e.target.id === 'show-filters-dynamic') {
+                    toggleFilters(true);
+                }
+            });
+
+            // Hide filters
+            document.getElementById('hide-filters').addEventListener('click', () => {
+                toggleFilters(false);
             });
         });
 
