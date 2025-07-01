@@ -1,14 +1,23 @@
-.vscode/**
-.vscode-test/**
-out/**
-node_modules/**
-src/**
-.gitignore
-.yarnrc
+# 排除源代码和开发文件
+src/**/*.ts
+src/test/**
+*.map
+
+# 排除构建工具配置
 esbuild.js
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/eslint.config.mjs
-**/*.map
-**/*.ts
-**/.vscode-test.*
+tsconfig.json
+eslint.config.mjs
+
+# 排除依赖和锁定文件
+node_modules
+.git
+.gitignore
+pnpm-lock.yaml
+package-lock.json
+
+# 排除开发文档
+CHANGELOG.md
+
+# 确保包含必要的静态资源
+!src/html/**
+!imgs/**

@@ -30,3 +30,10 @@
 ### refactor
 
 * **refactor:** Separate html code @ssebs ([#12](https://github.com/holooooo/markdown-kanban/pull/12))
+
+
+## [1.2.1] (2025-07-02)
+
+### Fixes
+
+* **fix:** Fix the webview.html not included in the extension package

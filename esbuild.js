@@ -1,4 +1,6 @@
 const esbuild = require("esbuild");
+const fs = require("fs");
+const path = require("path");
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -23,6 +25,40 @@ const esbuildProblemMatcherPlugin = {
 	},
 };
 
+/**
+ * 复制静态文件的插件
+ * @type {import('esbuild').Plugin}
+ */
+const copyStaticFilesPlugin = {
+	name: 'copy-static-files',
+	setup(build) {
+		build.onEnd(() => {
+			// 确保 dist 目录存在
+			if (!fs.existsSync('dist')) {
+				fs.mkdirSync('dist', { recursive: true });
+			}
+
+			// 复制 src/html 目录到 dist/src/html
+			const srcHtmlDir = 'src/html';
+			const distHtmlDir = 'dist/src/html';
+			
+			if (fs.existsSync(srcHtmlDir)) {
+				// 创建目标目录
+				fs.mkdirSync(distHtmlDir, { recursive: true });
+				
+				// 复制所有文件
+				const files = fs.readdirSync(srcHtmlDir);
+				files.forEach(file => {
+					const srcFile = path.join(srcHtmlDir, file);
+					const distFile = path.join(distHtmlDir, file);
+					fs.copyFileSync(srcFile, distFile);
+					console.log(`Copied ${srcFile} to ${distFile}`);
+				});
+			}
+		});
+	}
+};
+
 async function main() {
 	const ctx = await esbuild.context({
 		entryPoints: [
@@ -38,6 +74,7 @@ async function main() {
 		external: ['vscode'],
 		logLevel: 'silent',
 		plugins: [
+			copyStaticFilesPlugin,
 			/* add to the end of plugins array */
 			esbuildProblemMatcherPlugin,
 		],
