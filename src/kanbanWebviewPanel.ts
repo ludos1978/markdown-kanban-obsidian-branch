@@ -104,6 +104,9 @@ export class KanbanWebviewPanel {
                     case 'toggleTask':
                         this.toggleTaskExpansion(message.taskId);
                         break;
+                    case 'updateTaskStep':
+                        this.updateTaskStep(message.taskId, message.columnId, message.stepIndex, message.completed);
+                        break;
                 }
             },
             null,
@@ -203,7 +206,8 @@ export class KanbanWebviewPanel {
             tags: taskData.tags || [],
             priority: taskData.priority,
             workload: taskData.workload,
-            dueDate: taskData.dueDate
+            dueDate: taskData.dueDate,
+            steps: taskData.steps || []
         };
 
         column.tasks.push(newTask);
@@ -252,6 +256,28 @@ export class KanbanWebviewPanel {
         task.priority = taskData.priority;
         task.workload = taskData.workload;
         task.dueDate = taskData.dueDate;
+        task.steps = taskData.steps || [];
+
+        this.saveToMarkdown();
+        this._update();
+    }
+
+    private updateTaskStep(taskId: string, columnId: string, stepIndex: number, completed: boolean) {
+        if (!this._board) {
+            return;
+        }
+
+        const column = this._board.columns.find(col => col.id === columnId);
+        if (!column) {
+            return;
+        }
+
+        const task = column.tasks.find(task => task.id === taskId);
+        if (!task || !task.steps || stepIndex < 0 || stepIndex >= task.steps.length) {
+            return;
+        }
+
+        task.steps[stepIndex].completed = completed;
 
         this.saveToMarkdown();
         this._update();

@@ -237,9 +237,9 @@ body.filters-visible {
 
 .task-meta {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-end;
+    flex-direction: row;
+    gap: 6px;
+    align-items: center;
     flex-shrink: 0;
 }
 
@@ -582,6 +582,7 @@ body.filters-visible {
     background-color: var(--vscode-input-background);
     min-height: 36px;
     align-items: center;
+    position: relative;
 }
 
 .tag-item {
@@ -613,6 +614,45 @@ body.filters-visible {
     flex: 1;
     min-width: 100px;
     padding: 4px;
+}
+
+/* 自动补全样式 */
+.tags-autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--vscode-dropdown-background);
+    border: 1px solid var(--vscode-dropdown-border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.autocomplete-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--vscode-dropdown-foreground);
+    font-size: 14px;
+    border-bottom: 1px solid var(--vscode-dropdown-border);
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+    background-color: var(--vscode-list-hoverBackground);
+    color: var(--vscode-list-hoverForeground);
+}
+
+.autocomplete-item.selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
 }
 
 .modal-actions {
@@ -692,4 +732,139 @@ body.filters-visible {
         min-width: auto;
         max-width: none;
     }
+}
+
+/* Steps styles */
+.steps-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
+}
+
+.step-item input[type="checkbox"] {
+    margin: 0;
+}
+
+.step-text {
+    flex: 1;
+    font-size: 12px;
+    color: var(--vscode-foreground);
+}
+
+.step-text.completed {
+    text-decoration: line-through;
+    color: var(--vscode-descriptionForeground);
+}
+
+.step-remove {
+    background: none;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.step-remove:hover {
+    background-color: var(--vscode-button-hoverBackground);
+    color: var(--vscode-errorForeground);
+}
+
+.steps-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.steps-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font-size: 12px;
+}
+
+.steps-input:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+}
+
+.add-step-btn {
+    white-space: nowrap;
+}
+
+/* Task steps in task details */
+.task-steps {
+    margin: 12px 0;
+    padding: 8px 0;
+    border-top: 1px solid var(--vscode-panel-border);
+}
+
+.task-steps-header {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--vscode-foreground);
+    margin-bottom: 8px;
+}
+
+.task-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.task-step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.task-step-item input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.task-step-text {
+    flex: 1;
+    font-size: 12px;
+    color: var(--vscode-foreground);
+}
+
+.task-step-text.completed {
+    text-decoration: line-through;
+    color: var(--vscode-descriptionForeground);
+}
+
+/* Task steps progress indicator */
+.task-steps-progress {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 500;
+    margin-right: 4px;
 }

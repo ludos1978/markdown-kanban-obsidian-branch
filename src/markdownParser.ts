@@ -7,6 +7,7 @@ export interface KanbanTask {
   workload?: 'Easy' | 'Normal' | 'Hard' | 'Extreme';
   dueDate?: string;
   startDate?: string;
+  steps?: Array<{ text: string; completed: boolean }>;
 }
 
 export interface KanbanColumn {
@@ -102,7 +103,10 @@ export class MarkdownKanbanParser {
       }
 
       // 解析任务标题（只有在不在代码块内时才解析）
-      if (!inCodeBlock && trimmedLine.startsWith('- ') && !trimmedLine.match(/^\s*- (due|tags|priority|workload):/)) {
+      // 排除 steps 中的任务项（缩进6个空格以上的任务列表项）
+      if (!inCodeBlock && trimmedLine.startsWith('- ') && 
+          !trimmedLine.match(/^\s*- (due|tags|priority|workload|steps):/) &&
+          !line.match(/^\s{6,}- \[([ x])\]/)) {
         this.finalizeCurrentTask(currentTask, currentColumn);
 
         if (currentColumn) {
@@ -125,8 +129,8 @@ export class MarkdownKanbanParser {
       }
 
       // 解析任务属性（只有在不在代码块内时才解析）
-      if (!inCodeBlock && currentTask && inTaskProperties && line.match(/^\s+- (due|tags|priority|workload):/)) {
-        const propertyMatch = line.match(/^\s+- (due|tags|priority|workload):\s*(.*)$/);
+      if (!inCodeBlock && currentTask && inTaskProperties && line.match(/^\s+- (due|tags|priority|workload|steps):/)) {
+        const propertyMatch = line.match(/^\s+- (due|tags|priority|workload|steps):\s*(.*)$/);
         if (propertyMatch) {
           const propertyName = propertyMatch[1];
           const propertyValue = propertyMatch[2].trim();
@@ -147,7 +151,21 @@ export class MarkdownKanbanParser {
             if (['Easy', 'Normal', 'Hard', 'Extreme'].includes(propertyValue)) {
               currentTask.workload = propertyValue as 'Easy' | 'Normal' | 'Hard' | 'Extreme';
             }
+          } else if (propertyName === 'steps') {
+            // 初始化 steps 数组，后续步骤将在下面的逻辑中解析
+            currentTask.steps = [];
           }
+        }
+        continue;
+      }
+
+      // 解析 steps 中的具体步骤项（只有在不在代码块内时才解析）
+      if (!inCodeBlock && currentTask && currentTask.steps !== undefined && inTaskProperties && line.match(/^\s{6,}- \[([ x])\]/)) {
+        const stepMatch = line.match(/^\s{6,}- \[([ x])\]\s*(.*)$/);
+        if (stepMatch) {
+          const completed = stepMatch[1] === 'x';
+          const text = stepMatch[2].trim();
+          currentTask.steps.push({ text, completed });
         }
         continue;
       }
@@ -222,6 +240,13 @@ export class MarkdownKanbanParser {
         }
         if (task.workload) {
           markdown += `  - workload: ${task.workload}\n`;
+        }
+        if (task.steps && task.steps.length > 0) {
+          markdown += `  - steps:\n`;
+          for (const step of task.steps) {
+            const checkbox = step.completed ? '[x]' : '[ ]';
+            markdown += `      - ${checkbox} ${step.text}\n`;
+          }
         }
 
         // 添加描述

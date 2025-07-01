@@ -54,6 +54,16 @@ function getDeadlineInfo (dueDate) {
   return { status, text, days: diffDays }
 }
 
+// Calculate steps progress
+function getStepsProgress (steps) {
+  if (!steps || steps.length === 0) {
+    return { completed: 0, total: 0 }
+  }
+  
+  const completed = steps.filter(step => step.completed).length
+  return { completed, total: steps.length }
+}
+
 // Render Kanban board based on filter conditions and sorting settings
 function renderBoard () {
   if (!currentBoard) return
@@ -138,6 +148,9 @@ function createTaskElement (task, columnId) {
   const isExpanded = expandedTasks.has(task.id)
   const priorityClass = task.priority ? `priority-${task.priority}` : ''
   const deadlineInfo = getDeadlineInfo(task.dueDate)
+  
+  // 计算 steps 进度
+  const stepsProgress = getStepsProgress(task.steps)
 
   return `
         <div class="task-item ${isExpanded ? 'expanded' : ''}"
@@ -148,6 +161,11 @@ function createTaskElement (task, columnId) {
             <div class="task-header">
                 <div class="task-title">${task.title}</div>
                 <div class="task-meta">
+                    ${
+                      stepsProgress.total > 0
+                        ? `<div class="task-steps-progress" title="Steps: ${stepsProgress.completed}/${stepsProgress.total}">${stepsProgress.completed}/${stepsProgress.total}</div>`
+                        : ''
+                    }
                     ${
                       task.priority
                         ? `<div class="task-priority ${priorityClass}" title="Priority: ${getPriorityText(
@@ -189,6 +207,26 @@ function createTaskElement (task, columnId) {
                 ${
                   task.description
                     ? `<div class="task-description">${task.description}</div>`
+                    : ''
+                }
+                ${
+                  task.steps && task.steps.length > 0
+                    ? `
+                    <div class="task-steps">
+                        <div class="task-steps-header">Steps:</div>
+                        <div class="task-steps-list">
+                            ${task.steps.map((step, index) => `
+                                <div class="task-step-item">
+                                    <input type="checkbox" 
+                                           ${step.completed ? 'checked' : ''} 
+                                           onchange="updateTaskStep('${task.id}', '${columnId}', ${index}, this.checked)"
+                                           onclick="event.stopPropagation()">
+                                    <span class="task-step-text ${step.completed ? 'completed' : ''}">${step.text}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    `
                     : ''
                 }
                 <div class="task-info">
@@ -490,12 +528,25 @@ function openTaskModal (columnId, taskId = null) {
       if (task.tags) {
         task.tags.forEach(tag => addTagToContainer(tag))
       }
+
+      // Clear existing steps
+      const stepsList = document.getElementById('steps-list')
+      stepsList.innerHTML = ''
+
+      // Add existing steps
+      if (task.steps) {
+        task.steps.forEach(step => addStepToContainer(step.text, step.completed))
+      }
     }
   } else {
     form.reset()
     // Clear tags
     const tagsContainer = document.getElementById('tags-container')
     tagsContainer.querySelectorAll('.tag-item').forEach(tag => tag.remove())
+    
+    // Clear steps
+    const stepsList = document.getElementById('steps-list')
+    stepsList.innerHTML = ''
   }
 
   modal.style.display = 'block'
@@ -520,6 +571,16 @@ function deleteTask (taskId, columnId) {
       taskId: taskId,
       columnId: columnId
     })
+  })
+}
+
+function updateTaskStep (taskId, columnId, stepIndex, completed) {
+  vscode.postMessage({
+    type: 'updateTaskStep',
+    taskId: taskId,
+    columnId: columnId,
+    stepIndex: stepIndex,
+    completed: completed
   })
 }
 
@@ -610,15 +671,146 @@ function addColumn () {
 // Tag input handling
 function setupTagsInput () {
   const tagsInput = document.getElementById('tags-input')
+  const tagsContainer = document.getElementById('tags-container')
+
+  // 创建自动补全下拉列表
+  const autocompleteList = document.createElement('div')
+  autocompleteList.className = 'tags-autocomplete-list'
+  autocompleteList.style.display = 'none'
+  tagsContainer.appendChild(autocompleteList)
+
+  let selectedIndex = -1
+  let filteredSuggestions = []
+
+  tagsInput.addEventListener('input', e => {
+    const inputValue = e.target.value.trim()
+    if (inputValue.length > 0) {
+      showAutocompleteSuggestions(inputValue, autocompleteList, tagsInput)
+    } else {
+      hideAutocompleteSuggestions(autocompleteList)
+    }
+    selectedIndex = -1
+  })
 
   tagsInput.addEventListener('keydown', e => {
+    const suggestions = autocompleteList.querySelectorAll('.autocomplete-item')
+    
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault()
-      const tag = tagsInput.value.trim()
-      if (tag) {
-        addTagToContainer(tag)
+      
+      // 如果有选中的建议，使用建议
+      if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+        const selectedTag = suggestions[selectedIndex].textContent
+        addTagToContainer(selectedTag)
         tagsInput.value = ''
+        hideAutocompleteSuggestions(autocompleteList)
+        selectedIndex = -1
+      } else {
+        // 否则使用输入的值
+        const tag = tagsInput.value.trim()
+        if (tag) {
+          addTagToContainer(tag)
+          tagsInput.value = ''
+          hideAutocompleteSuggestions(autocompleteList)
+        }
       }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (suggestions.length > 0) {
+        selectedIndex = Math.min(selectedIndex + 1, suggestions.length - 1)
+        updateSelectedSuggestion(suggestions, selectedIndex)
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (suggestions.length > 0) {
+        selectedIndex = Math.max(selectedIndex - 1, -1)
+        updateSelectedSuggestion(suggestions, selectedIndex)
+      }
+    } else if (e.key === 'Escape') {
+      hideAutocompleteSuggestions(autocompleteList)
+      selectedIndex = -1
+    }
+  })
+
+  // 点击外部时隐藏补全列表
+  document.addEventListener('click', e => {
+    if (!tagsContainer.contains(e.target)) {
+      hideAutocompleteSuggestions(autocompleteList)
+      selectedIndex = -1
+    }
+  })
+}
+
+// 收集当前看板中所有已存在的标签
+function getAllExistingTags() {
+  const allTags = new Set()
+  
+  if (currentBoard && currentBoard.columns) {
+    currentBoard.columns.forEach(column => {
+      column.tasks.forEach(task => {
+        if (task.tags && task.tags.length > 0) {
+          task.tags.forEach(tag => {
+            if (tag && tag.trim()) {
+              allTags.add(tag.trim())
+            }
+          })
+        }
+      })
+    })
+  }
+  
+  return Array.from(allTags).sort()
+}
+
+// 显示自动补全建议
+function showAutocompleteSuggestions(inputValue, autocompleteList, tagsInput) {
+  const allTags = getAllExistingTags()
+  const currentTags = getFormTags() // 获取当前已添加的标签
+  
+  // 过滤出匹配的标签（前缀匹配，且不包括已添加的标签）
+  const filteredTags = allTags.filter(tag => 
+    tag.toLowerCase().startsWith(inputValue.toLowerCase()) && 
+    !currentTags.includes(tag)
+  )
+  
+  if (filteredTags.length === 0) {
+    hideAutocompleteSuggestions(autocompleteList)
+    return
+  }
+  
+  // 清空之前的建议
+  autocompleteList.innerHTML = ''
+  
+  // 创建建议项
+  filteredTags.forEach((tag, index) => {
+    const item = document.createElement('div')
+    item.className = 'autocomplete-item'
+    item.textContent = tag
+    item.addEventListener('click', () => {
+      addTagToContainer(tag)
+      tagsInput.value = ''
+      hideAutocompleteSuggestions(autocompleteList)
+    })
+    autocompleteList.appendChild(item)
+  })
+  
+  // 显示建议列表
+  autocompleteList.style.display = 'block'
+}
+
+// 隐藏自动补全建议
+function hideAutocompleteSuggestions(autocompleteList) {
+  autocompleteList.style.display = 'none'
+  autocompleteList.innerHTML = ''
+}
+
+// 更新选中的建议项样式
+function updateSelectedSuggestion(suggestions, selectedIndex) {
+  suggestions.forEach((item, index) => {
+    if (index === selectedIndex) {
+      item.classList.add('selected')
+    } else {
+      item.classList.remove('selected')
     }
   })
 }
@@ -657,9 +849,69 @@ function getFormTags () {
   )
 }
 
+// Steps handling functions
+function addStep () {
+  const stepsInput = document.getElementById('steps-input')
+  const stepText = stepsInput.value.trim()
+  
+  if (stepText) {
+    addStepToContainer(stepText, false)
+    stepsInput.value = ''
+  }
+}
+
+function addStepToContainer (stepText, completed = false) {
+  const stepsList = document.getElementById('steps-list')
+  
+  const stepElement = document.createElement('div')
+  stepElement.className = 'step-item'
+  stepElement.innerHTML = `
+    <input type="checkbox" ${completed ? 'checked' : ''} onchange="updateStepStatus(this)">
+    <span class="step-text ${completed ? 'completed' : ''}">${stepText}</span>
+    <button type="button" class="step-remove" onclick="removeStep(this)">×</button>
+  `
+  
+  stepsList.appendChild(stepElement)
+}
+
+function removeStep (button) {
+  button.parentElement.remove()
+}
+
+function updateStepStatus (checkbox) {
+  const stepText = checkbox.nextElementSibling
+  if (checkbox.checked) {
+    stepText.classList.add('completed')
+  } else {
+    stepText.classList.remove('completed')
+  }
+}
+
+function getFormSteps () {
+  const stepsList = document.getElementById('steps-list')
+  return Array.from(stepsList.querySelectorAll('.step-item')).map(stepItem => {
+    const checkbox = stepItem.querySelector('input[type="checkbox"]')
+    const text = stepItem.querySelector('.step-text').textContent.trim()
+    return { text, completed: checkbox.checked }
+  })
+}
+
+// Setup steps input handling
+function setupStepsInput () {
+  const stepsInput = document.getElementById('steps-input')
+
+  stepsInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addStep()
+    }
+  })
+}
+
 // Filter and sort event listeners
 document.addEventListener('DOMContentLoaded', () => {
   setupTagsInput()
+  setupStepsInput()
 
   // Tag filtering
   document.getElementById('tag-filter').addEventListener('input', e => {
@@ -705,7 +957,8 @@ document.getElementById('task-form').addEventListener('submit', e => {
     priority: document.getElementById('task-priority').value || undefined,
     workload: document.getElementById('task-workload').value || undefined,
     dueDate: document.getElementById('task-due-date').value || undefined,
-    tags: getFormTags()
+    tags: getFormTags(),
+    steps: getFormSteps()
   }
 
   if (!taskData.title) {

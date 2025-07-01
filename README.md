@@ -14,10 +14,11 @@ A powerful VS Code extension that transforms Markdown files into interactive Kan
 ### 🎯 Task Management
 - **Task Collapse/Expand**: Tasks are collapsed by default, showing only the task name, priority, and tags. Click to expand for details.
 - **Priority Support**: Supports three priority levels: High (🔴), Medium (🟡), and Low (🟢).
+- **Workload Support**: Supports four workload levels: Easy (🟢), Normal (🟡), Hard (🔴), and Extreme (🔴🔴).
+- **Steps Support**: Supports steps for task management, using `- [ ] step` format.
 - **Tagging System**: Supports multiple tags for categorization, using `#tagname` or `[tag1, tag2]` format.
 - **Time Management**:
   - Due Date: `due:YYYY-MM-DD`
-  - **Due Date Display**: Shows remaining days on task cards, with color indicators for overdue, urgent, and upcoming tasks.
 - **Task Description**: Supports multi-line detailed descriptions, including the new code block format.
 
 ### 🆕 Task Format
@@ -29,11 +30,7 @@ Supports a structured task format for better readability and organization:
 
 ### 🔍 Filtering & Sorting
 - **Tag Filtering**: Filter tasks by tags; multiple tags (comma-separated) are supported.
-- **Multiple Sorting Options**:
-  - Sort by Task Name
-  - Sort by Due Date
-  - Sort by Priority
-  - Sort by Tags
+- **Multiple Sorting Options**: Sort by Task Name, Due Date, Priority, etc.
 - **Clear Filters**: One-click to clear all filtering and sorting conditions.
 
 ### 🖥️ UI Features
@@ -121,57 +118,3 @@ Supports a structured task format for better readability and organization:
 #### 6. Enable or Disable File Switching
 - **Change the setting**: Use the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) → Type "Enable/Disable File Switcher"
 
-## 📝 Markdown Format Guide
-
-### 🆕 New Format (v1.2.0+)
-
-**Basic Structure**:
-```markdown
-# Board Title
-
-## Column Title
-
-- Task Name
-  - due: 2024-01-15
-  - tags: [tag1, tag2, tag3]
-  - priority: high
-    ```md
-    Detailed task description
-    Supports multi-line content
-    ```
-```
-
-**Attribute Descriptions**:
-- `due: YYYY-MM-DD` - Due date
-- `tags: [tag1, tag2, tag3]` - Tag array
-- `priority: low|medium|high` - Priority (low/medium/high)
-- Descriptions use ```` ```md ```` code block format.
-
-**Advantages**:
-- Better structure and readability.
-- Tags support array format, avoiding conflicts.
-- Descriptions support full Markdown syntax.
-- Easier to parse and maintain.
-
-### 💡 Format Selection Guide
-
-- **New Projects**: Recommended to use the new format for a better experience.
-- **Existing Projects**: Can continue using the legacy format or gradually migrate to the new format.
-- **Mixed Usage**: Supports using both formats in the same file.
-
-### Due Date Display Explanation
-- **Overdue**: Red background, displays "Overdue X days"
-- **Due Today**: Orange background, displays "Due Today"
-- **Due Tomorrow**: Orange background, displays "Due Tomorrow"
-- **Within 3 Days**: Green background, displays "X days left"
-- **Others**: Gray background, displays "X days left"
-
-## ⌨️ Keyboard Shortcuts
-
-| Shortcut                             | Function         |
-| ------------------------------------ | ---------------- |
-| `Ctrl+Shift+P` → "Open Kanban Board" | Open Kanban View |
-
-## 🔧 Configuration Options
-
-The extension currently uses default configurations. Future versions will support more customization options.

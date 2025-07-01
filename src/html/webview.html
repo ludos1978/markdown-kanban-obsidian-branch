@@ -88,6 +88,17 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label class="form-label">Steps</label>
+                    <div class="steps-container" id="steps-container">
+                        <div class="steps-list" id="steps-list"></div>
+                        <div class="steps-input-row">
+                            <input type="text" class="steps-input" id="steps-input" placeholder="Enter step and press Enter to add">
+                            <button type="button" class="btn btn-secondary add-step-btn" onclick="addStep()">Add Step</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeTaskModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save</button>
