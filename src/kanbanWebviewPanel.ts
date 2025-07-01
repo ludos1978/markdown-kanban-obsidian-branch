@@ -202,6 +202,7 @@ export class KanbanWebviewPanel {
             description: taskData.description,
             tags: taskData.tags || [],
             priority: taskData.priority,
+            workload: taskData.workload,
             dueDate: taskData.dueDate
         };
 
@@ -249,6 +250,7 @@ export class KanbanWebviewPanel {
         task.description = taskData.description;
         task.tags = taskData.tags || [];
         task.priority = taskData.priority;
+        task.workload = taskData.workload;
         task.dueDate = taskData.dueDate;
 
         this.saveToMarkdown();

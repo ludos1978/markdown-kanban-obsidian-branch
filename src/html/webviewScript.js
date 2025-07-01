@@ -159,18 +159,18 @@ function createTaskElement (task, columnId) {
             </div>
 
             ${
-              (task.tags && task.tags.length > 0) || deadlineInfo
+              (task.tags && task.tags.length > 0) || task.workload || deadlineInfo
                 ? `
                 <div class="task-tags-row">
                     ${
-                      task.tags && task.tags.length > 0
+                      (task.workload || (task.tags && task.tags.length > 0))
                         ? `
                         <div class="task-tags">
-                            ${task.tags
-                              .map(
-                                tag => `<span class="task-tag">${tag}</span>`
-                              )
-                              .join('')}
+                            ${task.workload ? `<span class="task-tag workload-tag workload-${task.workload.toLowerCase()}">${task.workload}</span>` : ''}
+                            ${task.tags && task.tags.length > 0 
+                              ? task.tags.map(tag => `<span class="task-tag">${tag}</span>`).join('')
+                              : ''
+                            }
                         </div>
                     `
                         : ''
@@ -202,6 +202,16 @@ function createTaskElement (task, columnId) {
                     `
                         : ''
                     }
+                    ${
+                      task.workload
+                        ? `
+                        <div class="task-info-item">
+                            <span class="task-info-label">Workload:</span>
+                            <span class="task-workload workload-${task.workload.toLowerCase()}">${task.workload}</span>
+                        </div>
+                    `
+                        : ''
+                    }
                 </div>
             </div>
 
@@ -229,9 +239,19 @@ function filterTasks (tasks) {
   if (filterTags.length === 0) return tasks
 
   return tasks.filter(task => {
-    if (!task.tags || task.tags.length === 0) return false
+    // 创建包含workload和tags的完整标签列表
+    const allTags = []
+    if (task.workload) {
+      allTags.push(task.workload.toLowerCase())
+    }
+    if (task.tags && task.tags.length > 0) {
+      allTags.push(...task.tags.map(tag => tag.toLowerCase()))
+    }
+    
+    if (allTags.length === 0) return false
+    
     return filterTags.some(filterTag =>
-      task.tags.some(taskTag => taskTag.toLowerCase().includes(filterTag))
+      allTags.some(taskTag => taskTag.includes(filterTag))
     )
   })
 }
@@ -239,6 +259,8 @@ function filterTasks (tasks) {
 // Sort tasks
 function sortTasks (tasks) {
   const sorted = [...tasks]
+  const priorityOrder = { high: 3, medium: 2, low: 1 }
+  const workloadOrder = { Extreme: 4, Hard: 3, Normal: 2, Easy: 1 }
 
   switch (currentSort) {
     case 'title':
@@ -255,6 +277,12 @@ function sortTasks (tasks) {
         const aPriority = priorityOrder[a.priority] || 0
         const bPriority = priorityOrder[b.priority] || 0
         return bPriority - aPriority
+      })
+    case 'workload':
+      return sorted.sort((a, b) => {
+        const aWorkload = workloadOrder[a.workload] || 0
+        const bWorkload = workloadOrder[b.workload] || 0
+        return bWorkload - aWorkload
       })
     case 'tags':
       return sorted.sort((a, b) => {
@@ -448,6 +476,7 @@ function openTaskModal (columnId, taskId = null) {
       document.getElementById('task-title').value = task.title || ''
       document.getElementById('task-description').value = task.description || ''
       document.getElementById('task-priority').value = task.priority || ''
+      document.getElementById('task-workload').value = task.workload || ''
       document.getElementById('task-due-date').value = task.dueDate || ''
 
       // Set tags
@@ -674,6 +703,7 @@ document.getElementById('task-form').addEventListener('submit', e => {
     title: document.getElementById('task-title').value.trim(),
     description: document.getElementById('task-description').value.trim(),
     priority: document.getElementById('task-priority').value || undefined,
+    workload: document.getElementById('task-workload').value || undefined,
     dueDate: document.getElementById('task-due-date').value || undefined,
     tags: getFormTags()
   }

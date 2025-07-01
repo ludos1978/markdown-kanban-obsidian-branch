@@ -4,6 +4,7 @@ export interface KanbanTask {
   description?: string;
   tags?: string[];
   priority?: 'low' | 'medium' | 'high';
+  workload?: 'Easy' | 'Normal' | 'Hard' | 'Extreme';
   dueDate?: string;
   startDate?: string;
 }
@@ -101,7 +102,7 @@ export class MarkdownKanbanParser {
       }
 
       // 解析任务标题（只有在不在代码块内时才解析）
-      if (!inCodeBlock && trimmedLine.startsWith('- ') && !trimmedLine.match(/^\s*- (due|tags|priority):/)) {
+      if (!inCodeBlock && trimmedLine.startsWith('- ') && !trimmedLine.match(/^\s*- (due|tags|priority|workload):/)) {
         this.finalizeCurrentTask(currentTask, currentColumn);
 
         if (currentColumn) {
@@ -124,8 +125,8 @@ export class MarkdownKanbanParser {
       }
 
       // 解析任务属性（只有在不在代码块内时才解析）
-      if (!inCodeBlock && currentTask && inTaskProperties && line.match(/^\s+- (due|tags|priority):/)) {
-        const propertyMatch = line.match(/^\s+- (due|tags|priority):\s*(.*)$/);
+      if (!inCodeBlock && currentTask && inTaskProperties && line.match(/^\s+- (due|tags|priority|workload):/)) {
+        const propertyMatch = line.match(/^\s+- (due|tags|priority|workload):\s*(.*)$/);
         if (propertyMatch) {
           const propertyName = propertyMatch[1];
           const propertyValue = propertyMatch[2].trim();
@@ -141,6 +142,10 @@ export class MarkdownKanbanParser {
           } else if (propertyName === 'priority') {
             if (['low', 'medium', 'high'].includes(propertyValue)) {
               currentTask.priority = propertyValue as 'low' | 'medium' | 'high';
+            }
+          } else if (propertyName === 'workload') {
+            if (['Easy', 'Normal', 'Hard', 'Extreme'].includes(propertyValue)) {
+              currentTask.workload = propertyValue as 'Easy' | 'Normal' | 'Hard' | 'Extreme';
             }
           }
         }
@@ -214,6 +219,9 @@ export class MarkdownKanbanParser {
         }
         if (task.priority) {
           markdown += `  - priority: ${task.priority}\n`;
+        }
+        if (task.workload) {
+          markdown += `  - workload: ${task.workload}\n`;
         }
 
         // 添加描述
