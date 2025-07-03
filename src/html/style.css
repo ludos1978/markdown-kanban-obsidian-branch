@@ -226,6 +226,32 @@ body.filters-visible {
     margin-bottom: 8px;
 }
 
+.task-drag-handle {
+    color: var(--vscode-descriptionForeground);
+    cursor: grab;
+    font-size: 14px;
+    padding: 4px 2px;
+    user-select: none;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+    flex-shrink: 0;
+    line-height: 1;
+    order: -1; /* 确保拖拽手柄在最左边 */
+}
+
+.task-item:hover .task-drag-handle {
+    opacity: 0.8;
+}
+
+.task-drag-handle:hover {
+    opacity: 1;
+    color: var(--vscode-foreground);
+}
+
+.task-drag-handle:active {
+    cursor: grabbing;
+}
+
 .task-title {
     font-size: 14px;
     font-weight: 500;
@@ -572,6 +598,11 @@ body.filters-visible {
     border-color: var(--vscode-focusBorder);
 }
 
+.form-checkbox {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
 .tags-input-container {
     display: flex;
     flex-wrap: wrap;
@@ -698,6 +729,17 @@ body.filters-visible {
 
 .kanban-column.drag-over {
     background-color: var(--vscode-list-hoverBackground);
+}
+
+/* Task drag insertion preview */
+.task-item.drag-insert-before {
+    border-top: 3px solid var(--vscode-focusBorder);
+    margin-top: 3px;
+}
+
+.task-item.drag-insert-after {
+    border-bottom: 3px solid var(--vscode-focusBorder);
+    margin-bottom: 3px;
 }
 
 /* Column drag styles */
@@ -867,4 +909,70 @@ body.filters-visible {
     font-size: 10px;
     font-weight: 500;
     margin-right: 4px;
+}
+
+/* Step drag handle */
+.step-drag-handle {
+    color: var(--vscode-descriptionForeground);
+    cursor: grab;
+    font-size: 12px;
+    padding: 2px;
+    user-select: none;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.step-item:hover .step-drag-handle,
+.task-step-item:hover .step-drag-handle {
+    opacity: 1;
+}
+
+.step-drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Step dragging styles */
+.step-item.dragging,
+.task-step-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+    background-color: var(--vscode-list-hoverBackground);
+    border-color: var(--vscode-focusBorder);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Step drag ready state */
+.step-item.drag-ready,
+.task-step-item.drag-ready {
+    background-color: var(--vscode-list-hoverBackground);
+    border-color: var(--vscode-focusBorder);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    cursor: grabbing !important;
+}
+
+/* Step long press hint */
+.step-item:hover,
+.task-step-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.steps-list.drag-over,
+.task-steps-list.drag-over {
+    background-color: var(--vscode-list-hoverBackground);
+    border-radius: 4px;
+    outline: 2px dashed var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
+/* Step item insertion preview */
+.step-item.drag-insert-before,
+.task-step-item.drag-insert-before {
+    border-top: 2px solid var(--vscode-focusBorder);
+    margin-top: 2px;
+}
+
+.step-item.drag-insert-after,
+.task-step-item.drag-insert-after {
+    border-bottom: 2px solid var(--vscode-focusBorder);
+    margin-bottom: 2px;
 }

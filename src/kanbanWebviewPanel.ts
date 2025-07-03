@@ -107,6 +107,9 @@ export class KanbanWebviewPanel {
                     case 'updateTaskStep':
                         this.updateTaskStep(message.taskId, message.columnId, message.stepIndex, message.completed);
                         break;
+                    case 'reorderTaskSteps':
+                        this.reorderTaskSteps(message.taskId, message.columnId, message.newOrder);
+                        break;
                 }
             },
             null,
@@ -151,7 +154,8 @@ export class KanbanWebviewPanel {
 
     private async saveToMarkdown() {
         if (this._document && this._board) {
-            const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
+            // 默认使用三级标题格式保存任务
+            const markdown = MarkdownKanbanParser.generateMarkdown(this._board, true);
             const edit = new vscode.WorkspaceEdit();
             edit.replace(
                 this._document.uri,
@@ -207,6 +211,7 @@ export class KanbanWebviewPanel {
             priority: taskData.priority,
             workload: taskData.workload,
             dueDate: taskData.dueDate,
+            defaultExpanded: taskData.defaultExpanded,
             steps: taskData.steps || []
         };
 
@@ -256,6 +261,7 @@ export class KanbanWebviewPanel {
         task.priority = taskData.priority;
         task.workload = taskData.workload;
         task.dueDate = taskData.dueDate;
+        task.defaultExpanded = taskData.defaultExpanded;
         task.steps = taskData.steps || [];
 
         this.saveToMarkdown();
@@ -278,6 +284,39 @@ export class KanbanWebviewPanel {
         }
 
         task.steps[stepIndex].completed = completed;
+
+        this.saveToMarkdown();
+        this._update();
+    }
+
+    private reorderTaskSteps(taskId: string, columnId: string, newOrder: number[]) {
+        if (!this._board) {
+            return;
+        }
+
+        const column = this._board.columns.find(col => col.id === columnId);
+        if (!column) {
+            return;
+        }
+
+        const task = column.tasks.find(task => task.id === taskId);
+        if (!task || !task.steps) {
+            return;
+        }
+
+        // 根据新的顺序重新排列步骤
+        const originalSteps = [...task.steps];
+        const reorderedSteps: Array<{ text: string; completed: boolean }> = [];
+        
+        // newOrder 数组包含了原始索引的新排序
+        for (let i = 0; i < newOrder.length; i++) {
+            const originalIndex = newOrder[i];
+            if (originalIndex >= 0 && originalIndex < originalSteps.length) {
+                reorderedSteps.push(originalSteps[originalIndex]);
+            }
+        }
+
+        task.steps = reorderedSteps;
 
         this.saveToMarkdown();
         this._update();

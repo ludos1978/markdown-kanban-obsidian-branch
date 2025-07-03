@@ -37,3 +37,11 @@
 ### Fixes
 
 * **fix:** Fix the webview.html not included in the extension package
+
+## [1.2.2] (2025-07-03)
+
+### Features
+
+* **feature:** Add defaultExpanded support for task @ssebs ([#13](https://github.com/holooooo/markdown-kanban/issues/13))
+* **feature:** Add support for header format
+* **feature:** Optimize task and step dragging experience for task @ssebs ([#14](https://github.com/holooooo/markdown-kanban/issues/14))

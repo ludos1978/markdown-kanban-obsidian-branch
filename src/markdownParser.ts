@@ -7,6 +7,7 @@ export interface KanbanTask {
   workload?: 'Easy' | 'Normal' | 'Hard' | 'Extreme';
   dueDate?: string;
   startDate?: string;
+  defaultExpanded?: boolean;
   steps?: Array<{ text: string; completed: boolean }>;
 }
 
@@ -29,6 +30,18 @@ interface ExtractedData<T> {
 export class MarkdownKanbanParser {
   private static generateId(): string {
     return Math.random().toString(36).substr(2, 9);
+  }
+
+  // 检测是否应该使用三级标题格式
+  private static shouldUseHeaderFormat(board: KanbanBoard): boolean {
+    // 如果看板中有任何任务使用了三级标题格式的标识，则全部使用三级标题格式
+    for (const column of board.columns) {
+      for (const task of column.tasks) {
+        // 这里可以添加检测逻辑，暂时返回false保持兼容性
+        // 可以通过任务的某个属性来标识使用新格式
+      }
+    }
+    return false;
   }
 
   static parseMarkdown(content: string): KanbanBoard {
@@ -103,34 +116,52 @@ export class MarkdownKanbanParser {
       }
 
       // 解析任务标题（只有在不在代码块内时才解析）
-      // 排除 steps 中的任务项（缩进6个空格以上的任务列表项）
-      if (!inCodeBlock && trimmedLine.startsWith('- ') && 
-          !trimmedLine.match(/^\s*- (due|tags|priority|workload|steps):/) &&
-          !line.match(/^\s{6,}- \[([ x])\]/)) {
-        this.finalizeCurrentTask(currentTask, currentColumn);
+      // 支持两种格式：
+      // 1. 没有缩进的 - 任务标题（兼容现有格式）
+      // 2. ### 任务标题（新格式）
+      if (!inCodeBlock && 
+          ((line.startsWith('- ') && !line.startsWith('  ')) || // 没有缩进的 - 开头
+           trimmedLine.startsWith('### '))) { // 或者三级标题
+        
+        // 排除属性行和步骤项
+        if (line.startsWith('- ') && 
+            (trimmedLine.match(/^\s*- (due|tags|priority|workload|steps|defaultExpanded):/) ||
+             line.match(/^\s{6,}- \[([ x])\]/))) {
+          // 这是属性行或步骤项，不是任务
+        } else {
+          this.finalizeCurrentTask(currentTask, currentColumn);
 
-        if (currentColumn) {
-          let taskTitle = trimmedLine.substring(2).trim();
+          if (currentColumn) {
+            let taskTitle = '';
+            
+            if (trimmedLine.startsWith('### ')) {
+              // 三级标题格式
+              taskTitle = trimmedLine.substring(4).trim();
+            } else {
+              // 列表格式
+              taskTitle = trimmedLine.substring(2).trim();
+              
+              // 移除复选框标记如果存在
+              if (taskTitle.startsWith('[ ] ') || taskTitle.startsWith('[x] ')) {
+                taskTitle = taskTitle.substring(4).trim();
+              }
+            }
 
-          // 移除复选框标记如果存在
-          if (taskTitle.startsWith('[ ] ') || taskTitle.startsWith('[x] ')) {
-            taskTitle = taskTitle.substring(4).trim();
+            currentTask = {
+              id: this.generateId(),
+              title: taskTitle,
+              description: ''
+            };
+            inTaskProperties = true;
+            inTaskDescription = false;
           }
-
-          currentTask = {
-            id: this.generateId(),
-            title: taskTitle,
-            description: ''
-          };
-          inTaskProperties = true;
-          inTaskDescription = false;
+          continue;
         }
-        continue;
       }
 
       // 解析任务属性（只有在不在代码块内时才解析）
-      if (!inCodeBlock && currentTask && inTaskProperties && line.match(/^\s+- (due|tags|priority|workload|steps):/)) {
-        const propertyMatch = line.match(/^\s+- (due|tags|priority|workload|steps):\s*(.*)$/);
+      if (!inCodeBlock && currentTask && inTaskProperties && line.match(/^\s+- (due|tags|priority|workload|steps|defaultExpanded):/)) {
+        const propertyMatch = line.match(/^\s+- (due|tags|priority|workload|steps|defaultExpanded):\s*(.*)$/);
         if (propertyMatch) {
           const propertyName = propertyMatch[1];
           const propertyValue = propertyMatch[2].trim();
@@ -151,6 +182,8 @@ export class MarkdownKanbanParser {
             if (['Easy', 'Normal', 'Hard', 'Extreme'].includes(propertyValue)) {
               currentTask.workload = propertyValue as 'Easy' | 'Normal' | 'Hard' | 'Extreme';
             }
+          } else if (propertyName === 'defaultExpanded') {
+            currentTask.defaultExpanded = propertyValue.toLowerCase() === 'true';
           } else if (propertyName === 'steps') {
             // 初始化 steps 数组，后续步骤将在下面的逻辑中解析
             currentTask.steps = [];
@@ -215,7 +248,7 @@ export class MarkdownKanbanParser {
     }
   }
 
-  static generateMarkdown(board: KanbanBoard): string {
+  static generateMarkdown(board: KanbanBoard, useHeaderFormat: boolean = false): string {
     let markdown = '';
 
     if (board.title) {
@@ -226,7 +259,13 @@ export class MarkdownKanbanParser {
       markdown += `## ${column.title}\n\n`;
 
       for (const task of column.tasks) {
-        markdown += `- ${task.title}\n`;
+        if (useHeaderFormat) {
+          // 使用三级标题格式
+          markdown += `### ${task.title}\n\n`;
+        } else {
+          // 使用列表格式（兼容现有格式）
+          markdown += `- ${task.title}\n`;
+        }
 
         // 添加任务属性
         if (task.dueDate) {
@@ -240,6 +279,9 @@ export class MarkdownKanbanParser {
         }
         if (task.workload) {
           markdown += `  - workload: ${task.workload}\n`;
+        }
+        if (task.defaultExpanded !== undefined) {
+          markdown += `  - defaultExpanded: ${task.defaultExpanded}\n`;
         }
         if (task.steps && task.steps.length > 0) {
           markdown += `  - steps:\n`;

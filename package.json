@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban",
   "description": "Kanban board for Markdown files",
   "publisher": "holooooo",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -17,6 +17,7 @@
     "project management",
     "todo",
     "productivity",
+    "cursor available",
     "看板",
     "任务管理"
   ],

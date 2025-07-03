@@ -55,10 +55,16 @@ Supports a structured task format for better readability and organization:
 
 ## To Do
 
-- Design User Interface
+### Design User Interface
+
   - due: 2024-01-15
-  - tags: [design, ui, frontend]
+  - tags: [design, ui, frontend, backend]
   - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] asd
+      - [x] xgfs
     ```md
     Design user login and registration pages, including:
     - Responsive layout design
@@ -66,7 +72,8 @@ Supports a structured task format for better readability and organization:
     - User experience optimization
     ```
 
-- Write API Documentation
+### Write API Documentation
+
   - due: 2024-01-20
   - tags: [documentation, backend]
   - priority: medium
@@ -75,19 +82,10 @@ Supports a structured task format for better readability and organization:
     Include request and response examples for all endpoints.
     ```
 
-## In Progress
-
-- Implement User Authentication
-  - due: 2024-01-18
-  - tags: [backend, security]
-  - priority: high
-    ```md
-    Implement a complete user authentication system, including login, registration, and permission management.
-    ```
-
 ## Done
 
-- Project Initialization
+### Project Initialization
+
   - due: 2024-01-05
   - tags: [setup]
   - priority: low

@@ -108,6 +108,12 @@ function renderBoard () {
 
   // Setup column drag and drop
   setupColumnDragAndDrop()
+  
+  // Setup steps drag and drop
+  setupTaskStepsDragAndDrop()
+  
+  // Setup task expansion event delegation
+  setupTaskExpansionEvents()
 }
 
 function createColumnElement (column) {
@@ -140,12 +146,24 @@ function createColumnElement (column) {
 
   // Add task drag and drop events
   setupTaskDragAndDrop(columnDiv, column.id)
+  
+  // Setup drag handles for tasks in this column
+  columnDiv.querySelectorAll('.task-drag-handle').forEach(handle => {
+    setupTaskDragHandle(handle)
+  })
 
   return columnDiv
 }
 
 function createTaskElement (task, columnId) {
-  const isExpanded = expandedTasks.has(task.id)
+  // 使用 defaultExpanded 字段作为初始展开状态，如果用户没有手动切换过
+  let isExpanded = expandedTasks.has(task.id)
+  if (!expandedTasks.has(task.id) && !expandedTasks.has(`manually_toggled_${task.id}`)) {
+    isExpanded = task.defaultExpanded === true
+    if (isExpanded) {
+      expandedTasks.add(task.id)
+    }
+  }
   const priorityClass = task.priority ? `priority-${task.priority}` : ''
   const deadlineInfo = getDeadlineInfo(task.dueDate)
   
@@ -155,10 +173,9 @@ function createTaskElement (task, columnId) {
   return `
         <div class="task-item ${isExpanded ? 'expanded' : ''}"
              data-task-id="${task.id}"
-             data-column-id="${columnId}"
-             draggable="true"
-             onclick="toggleTaskExpansion('${task.id}')">
+             data-column-id="${columnId}">
             <div class="task-header">
+                <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <div class="task-title">${task.title}</div>
                 <div class="task-meta">
                     ${
@@ -214,9 +231,10 @@ function createTaskElement (task, columnId) {
                     ? `
                     <div class="task-steps">
                         <div class="task-steps-header">Steps:</div>
-                        <div class="task-steps-list">
+                        <div class="task-steps-list" data-task-id="${task.id}" data-column-id="${columnId}">
                             ${task.steps.map((step, index) => `
-                                <div class="task-step-item">
+                                <div class="task-step-item" data-step-index="${index}">
+                                    <div class="step-drag-handle">⋮⋮</div>
                                     <input type="checkbox" 
                                            ${step.completed ? 'checked' : ''} 
                                            onchange="updateTaskStep('${task.id}', '${columnId}', ${index}, this.checked)"
@@ -343,6 +361,9 @@ function getPriorityText (priority) {
 }
 
 function toggleTaskExpansion (taskId) {
+  // 标记任务已被手动切换
+  expandedTasks.add(`manually_toggled_${taskId}`)
+  
   if (expandedTasks.has(taskId)) {
     expandedTasks.delete(taskId)
   } else {
@@ -362,17 +383,48 @@ function setupTaskDragAndDrop (columnElement, columnId) {
   tasksContainer.addEventListener('dragover', e => {
     e.preventDefault()
     columnElement.classList.add('drag-over')
+    
+    // 显示插入位置预览
+    const draggingElement = document.querySelector('.task-item.dragging')
+    if (draggingElement) {
+      const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY)
+      
+      // 移除之前的插入预览
+      tasksContainer.querySelectorAll('.task-item').forEach(task => {
+        task.classList.remove('drag-insert-before', 'drag-insert-after')
+      })
+      
+      if (afterElement == null) {
+        // 插入到末尾
+        const lastTask = tasksContainer.querySelector('.task-item:last-child')
+        if (lastTask && lastTask !== draggingElement) {
+          lastTask.classList.add('drag-insert-after')
+        }
+      } else if (afterElement !== draggingElement) {
+        // 插入到指定元素之前
+        afterElement.classList.add('drag-insert-before')
+      }
+    }
   })
 
   tasksContainer.addEventListener('dragleave', e => {
     if (!columnElement.contains(e.relatedTarget)) {
       columnElement.classList.remove('drag-over')
+      // 清除插入预览
+      tasksContainer.querySelectorAll('.task-item').forEach(task => {
+        task.classList.remove('drag-insert-before', 'drag-insert-after')
+      })
     }
   })
 
   tasksContainer.addEventListener('drop', e => {
     e.preventDefault()
     columnElement.classList.remove('drag-over')
+    
+    // 清除插入预览
+    tasksContainer.querySelectorAll('.task-item').forEach(task => {
+      task.classList.remove('drag-insert-before', 'drag-insert-after')
+    })
 
     const taskId = e.dataTransfer.getData('text/plain')
     const fromColumnId = e.dataTransfer.getData('application/column-id')
@@ -418,20 +470,93 @@ function setupTaskDragAndDrop (columnElement, columnId) {
     }
   })
 
-  // Add drag events for tasks
-  tasksContainer.addEventListener('dragstart', e => {
-    if (e.target.classList.contains('task-item')) {
+
+}
+
+// Setup task expansion event delegation
+function setupTaskExpansionEvents() {
+  const boardElement = document.getElementById('kanban-board')
+  
+  // 移除之前的事件监听器（如果存在）
+  boardElement.removeEventListener('click', handleTaskClick)
+  
+  // 添加事件委托
+  boardElement.addEventListener('click', handleTaskClick)
+}
+
+function handleTaskClick(e) {
+  // 检查点击的元素是否应该被忽略
+  const ignoredSelectors = [
+    '.task-drag-handle',
+    '.step-drag-handle', 
+    '.action-btn',
+    '.task-step-item',  // 整个步骤项都被忽略
+    '.task-steps',      // 整个步骤区域都被忽略
+    'input[type="checkbox"]',
+    '.task-step-text'
+  ]
+  
+  // 如果点击的是需要忽略的元素，直接返回
+  for (const selector of ignoredSelectors) {
+    if (e.target.matches(selector) || e.target.closest(selector)) {
+      return
+    }
+  }
+  
+  // 查找最近的task-item
+  const taskItem = e.target.closest('.task-item')
+  if (taskItem) {
+    const taskId = taskItem.dataset.taskId
+    if (taskId) {
+      toggleTaskExpansion(taskId)
+    }
+  }
+}
+
+// Setup task drag handle
+function setupTaskDragHandle(handle) {
+  handle.draggable = true
+  
+  handle.addEventListener('dragstart', e => {
+    const taskItem = e.target.closest('.task-item')
+    if (taskItem) {
       e.stopPropagation() // 防止触发列拖拽
-      e.dataTransfer.setData('text/plain', e.target.dataset.taskId)
-      e.dataTransfer.setData('application/column-id', e.target.dataset.columnId)
-      e.target.classList.add('dragging')
+      e.dataTransfer.setData('text/plain', taskItem.dataset.taskId)
+      e.dataTransfer.setData('application/column-id', taskItem.dataset.columnId)
+      e.dataTransfer.effectAllowed = 'move'
+      
+      // 创建拖拽预览图像
+      const dragImage = taskItem.cloneNode(true)
+      dragImage.style.transform = 'rotate(3deg)'
+      dragImage.style.opacity = '0.8'
+      dragImage.style.position = 'absolute'
+      dragImage.style.top = '-1000px'
+      dragImage.style.width = taskItem.offsetWidth + 'px'
+      document.body.appendChild(dragImage)
+      e.dataTransfer.setDragImage(dragImage, e.offsetX, e.offsetY)
+      
+      // 清理临时元素
+      setTimeout(() => document.body.removeChild(dragImage), 0)
+      
+      taskItem.classList.add('dragging')
     }
   })
 
-  tasksContainer.addEventListener('dragend', e => {
-    if (e.target.classList.contains('task-item')) {
-      e.target.classList.remove('dragging')
+  handle.addEventListener('dragend', e => {
+    const taskItem = e.target.closest('.task-item')
+    if (taskItem) {
+      taskItem.classList.remove('dragging')
     }
+  })
+
+  handle.addEventListener('mousedown', e => {
+    // 阻止点击事件冒泡，避免触发任务展开，但不阻止拖拽
+    e.stopPropagation()
+  })
+  
+  handle.addEventListener('click', e => {
+    e.stopPropagation()
+    e.preventDefault()
   })
 }
 
@@ -516,6 +641,7 @@ function openTaskModal (columnId, taskId = null) {
       document.getElementById('task-priority').value = task.priority || ''
       document.getElementById('task-workload').value = task.workload || ''
       document.getElementById('task-due-date').value = task.dueDate || ''
+      document.getElementById('task-default-expanded').checked = task.defaultExpanded || false
 
       // Set tags
       const tagsContainer = document.getElementById('tags-container')
@@ -548,6 +674,9 @@ function openTaskModal (columnId, taskId = null) {
     const stepsList = document.getElementById('steps-list')
     stepsList.innerHTML = ''
   }
+
+  // Setup modal steps drag and drop
+  setTimeout(() => setupModalStepsDragAndDrop(), 100)
 
   modal.style.display = 'block'
   document.getElementById('task-title').focus()
@@ -865,13 +994,27 @@ function addStepToContainer (stepText, completed = false) {
   
   const stepElement = document.createElement('div')
   stepElement.className = 'step-item'
+  stepElement.draggable = true
   stepElement.innerHTML = `
+    <div class="step-drag-handle">⋮⋮</div>
     <input type="checkbox" ${completed ? 'checked' : ''} onchange="updateStepStatus(this)">
     <span class="step-text ${completed ? 'completed' : ''}">${stepText}</span>
     <button type="button" class="step-remove" onclick="removeStep(this)">×</button>
   `
   
+  // 为整个步骤项添加事件阻止
+  stepElement.addEventListener('click', e => {
+    e.stopPropagation()
+  })
+  
+  stepElement.addEventListener('mousedown', e => {
+    e.stopPropagation()
+  })
+  
   stepsList.appendChild(stepElement)
+  
+  // Setup drag and drop for the new step
+  setupStepDragAndDrop(stepElement)
 }
 
 function removeStep (button) {
@@ -894,6 +1037,271 @@ function getFormSteps () {
     const text = stepItem.querySelector('.step-text').textContent.trim()
     return { text, completed: checkbox.checked }
   })
+}
+
+// Setup step drag and drop for individual step items
+function setupStepDragAndDrop(stepElement) {
+  let longPressTimer = null
+  let isDragReady = false
+  
+  // 长按检测
+  stepElement.addEventListener('mousedown', e => {
+    // 如果点击的是复选框或删除按钮，不启动拖拽
+    if (e.target.matches('input[type="checkbox"]') || e.target.matches('.step-remove')) {
+      return
+    }
+    
+    e.stopPropagation()
+    
+    longPressTimer = setTimeout(() => {
+      isDragReady = true
+      stepElement.draggable = true
+      stepElement.style.cursor = 'grabbing'
+      // 添加视觉反馈
+      stepElement.classList.add('drag-ready')
+    }, 300) // 300ms长按
+  })
+  
+  stepElement.addEventListener('mouseup', e => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+    
+    if (!isDragReady) {
+      stepElement.draggable = false
+      stepElement.style.cursor = ''
+      stepElement.classList.remove('drag-ready')
+    }
+  })
+  
+  stepElement.addEventListener('mouseleave', e => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+    
+    if (!isDragReady) {
+      stepElement.draggable = false
+      stepElement.style.cursor = ''
+      stepElement.classList.remove('drag-ready')
+    }
+  })
+  
+  stepElement.addEventListener('dragstart', e => {
+    if (!isDragReady) {
+      e.preventDefault()
+      return
+    }
+    
+    e.stopPropagation()
+    e.dataTransfer.setData('text/plain', stepElement.dataset.stepIndex || Array.from(stepElement.parentNode.children).indexOf(stepElement))
+    e.dataTransfer.setData('application/step-element', 'true')
+    e.dataTransfer.effectAllowed = 'move'
+    
+    // 创建拖拽预览图像
+    const dragImage = stepElement.cloneNode(true)
+    dragImage.style.transform = 'rotate(2deg)'
+    dragImage.style.opacity = '0.8'
+    dragImage.style.position = 'absolute'
+    dragImage.style.top = '-1000px'
+    dragImage.style.width = stepElement.offsetWidth + 'px'
+    document.body.appendChild(dragImage)
+    e.dataTransfer.setDragImage(dragImage, e.offsetX, e.offsetY)
+    
+    // 清理临时元素
+    setTimeout(() => document.body.removeChild(dragImage), 0)
+    
+    stepElement.classList.add('dragging')
+    stepElement.classList.remove('drag-ready')
+  })
+
+  stepElement.addEventListener('dragend', e => {
+    stepElement.classList.remove('dragging', 'drag-ready')
+    stepElement.draggable = false
+    stepElement.style.cursor = ''
+    isDragReady = false
+  })
+  
+  // 拖拽手柄的特殊处理 - 立即启动拖拽
+  const dragHandle = stepElement.querySelector('.step-drag-handle')
+  if (dragHandle) {
+    dragHandle.addEventListener('mousedown', e => {
+      e.stopPropagation()
+      // 立即启动拖拽模式
+      isDragReady = true
+      stepElement.draggable = true
+      stepElement.style.cursor = 'grabbing'
+      stepElement.classList.add('drag-ready')
+    })
+    
+    dragHandle.addEventListener('click', e => {
+      e.stopPropagation()
+      e.preventDefault()
+    })
+  }
+}
+
+// Setup steps list drag and drop for task details view
+function setupTaskStepsDragAndDrop() {
+  document.querySelectorAll('.task-steps-list').forEach(stepsList => {
+    const taskId = stepsList.dataset.taskId
+    const columnId = stepsList.dataset.columnId
+    
+    stepsList.addEventListener('dragover', e => {
+      e.preventDefault()
+      const draggingElement = stepsList.querySelector('.dragging')
+      if (!draggingElement) return
+      
+      // 清除之前的插入预览
+      stepsList.querySelectorAll('.task-step-item').forEach(item => {
+        item.classList.remove('drag-insert-before', 'drag-insert-after')
+      })
+      
+      const afterElement = getDragAfterElement(stepsList, e.clientY)
+      if (afterElement == null) {
+        // 插入到末尾
+        const lastStep = stepsList.querySelector('.task-step-item:last-child')
+        if (lastStep && lastStep !== draggingElement) {
+          lastStep.classList.add('drag-insert-after')
+        }
+      } else if (afterElement !== draggingElement) {
+        // 插入到指定元素之前
+        afterElement.classList.add('drag-insert-before')
+      }
+    })
+
+    stepsList.addEventListener('drop', e => {
+      e.preventDefault()
+      e.stopPropagation()
+      
+      // 清除插入预览
+      stepsList.querySelectorAll('.task-step-item').forEach(item => {
+        item.classList.remove('drag-insert-before', 'drag-insert-after')
+      })
+      
+      // 实际移动元素
+      const draggingElement = stepsList.querySelector('.dragging')
+      if (draggingElement) {
+        const afterElement = getDragAfterElement(stepsList, e.clientY)
+        if (afterElement == null) {
+          stepsList.appendChild(draggingElement)
+        } else {
+          stepsList.insertBefore(draggingElement, afterElement)
+        }
+      }
+      
+      // Recalculate step indices and send update to backend
+      const stepItems = Array.from(stepsList.querySelectorAll('.task-step-item'))
+      const newStepsOrder = []
+      
+      stepItems.forEach((item, newIndex) => {
+        const oldIndex = parseInt(item.dataset.stepIndex)
+        newStepsOrder.push(oldIndex)
+        item.dataset.stepIndex = newIndex
+        // Update the onchange handler with new index
+        const checkbox = item.querySelector('input[type="checkbox"]')
+        checkbox.setAttribute('onchange', `updateTaskStep('${taskId}', '${columnId}', ${newIndex}, this.checked)`)
+      })
+      
+      // Send reorder message to backend
+      vscode.postMessage({
+        type: 'reorderTaskSteps',
+        taskId: taskId,
+        columnId: columnId,
+        newOrder: newStepsOrder
+      })
+    })
+
+    // Setup drag and drop for existing step items
+    stepsList.querySelectorAll('.task-step-item').forEach(setupStepDragAndDrop)
+  })
+}
+
+// Setup steps list drag and drop for modal form
+function setupModalStepsDragAndDrop() {
+  const stepsList = document.getElementById('steps-list')
+  if (!stepsList) return
+
+  stepsList.addEventListener('dragover', e => {
+    e.preventDefault()
+    const draggingElement = stepsList.querySelector('.dragging')
+    if (!draggingElement) return
+    
+    // 清除之前的插入预览
+    stepsList.querySelectorAll('.step-item').forEach(item => {
+      item.classList.remove('drag-insert-before', 'drag-insert-after')
+    })
+    
+    const afterElement = getDragAfterElement(stepsList, e.clientY)
+    if (afterElement == null) {
+      // 插入到末尾
+      const lastStep = stepsList.querySelector('.step-item:last-child')
+      if (lastStep && lastStep !== draggingElement) {
+        lastStep.classList.add('drag-insert-after')
+      }
+    } else if (afterElement !== draggingElement) {
+      // 插入到指定元素之前
+      afterElement.classList.add('drag-insert-before')
+    }
+  })
+
+  stepsList.addEventListener('drop', e => {
+    e.preventDefault()
+    
+    // 清除插入预览
+    stepsList.querySelectorAll('.step-item').forEach(item => {
+      item.classList.remove('drag-insert-before', 'drag-insert-after')
+    })
+    
+    // 实际移动元素
+    const draggingElement = stepsList.querySelector('.dragging')
+    if (draggingElement) {
+      const afterElement = getDragAfterElement(stepsList, e.clientY)
+      if (afterElement == null) {
+        stepsList.appendChild(draggingElement)
+      } else {
+        stepsList.insertBefore(draggingElement, afterElement)
+      }
+    }
+    
+    // No need to send backend message for modal, will be handled on form submit
+  })
+
+  // Setup drag and drop for existing step items in modal
+  stepsList.querySelectorAll('.step-item').forEach(setupStepDragAndDrop)
+}
+
+// Helper function to determine drop position for tasks
+function getDragAfterTaskElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')]
+  
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect()
+    const offset = y - box.top - box.height / 2
+    
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child }
+    } else {
+      return closest
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element
+}
+
+// Helper function to determine drop position for steps
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.task-step-item:not(.dragging), .step-item:not(.dragging)')]
+  
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect()
+    const offset = y - box.top - box.height / 2
+    
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child }
+    } else {
+      return closest
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element
 }
 
 // Setup steps input handling
@@ -957,6 +1365,7 @@ document.getElementById('task-form').addEventListener('submit', e => {
     priority: document.getElementById('task-priority').value || undefined,
     workload: document.getElementById('task-workload').value || undefined,
     dueDate: document.getElementById('task-due-date').value || undefined,
+    defaultExpanded: document.getElementById('task-default-expanded').checked,
     tags: getFormTags(),
     steps: getFormSteps()
   }
