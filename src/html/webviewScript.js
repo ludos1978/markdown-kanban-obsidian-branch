@@ -1,5 +1,3 @@
-console.log('TEST SCRIPT WORKING')
-
 const vscode = acquireVsCodeApi()
 let currentBoard = null
 let expandedTasks = new Set()
@@ -31,7 +29,6 @@ function getDeadlineInfo (dueDate) {
   const deadline = new Date(dueDate)
   const diffTime = deadline - today
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  const priorityOrder = { high: 3, medium: 2, low: 1 }
 
   let status, text
   if (diffDays < 0) {
@@ -71,26 +68,29 @@ function renderBoard () {
   const boardElement = document.getElementById('kanban-board')
   boardElement.innerHTML = ''
 
-  // Sort columns if needed
-  let columns = [...currentBoard.columns]
-
+  const columns = [...currentBoard.columns]
   columns.forEach(column => {
     const columnElement = createColumnElement(column)
     boardElement.appendChild(columnElement)
   })
 
-  // Add control buttons container
+  const controlsContainer = createControlsContainer()
+  boardElement.appendChild(controlsContainer)
+
+  setupDragAndDrop()
+  setupTaskExpansionEvents()
+}
+
+function createControlsContainer() {
   const controlsContainer = document.createElement('div')
   controlsContainer.className = 'board-controls'
 
-  // Add show filters button
   const showFiltersBtn = document.createElement('button')
   showFiltersBtn.className = 'show-filters-btn'
   showFiltersBtn.textContent = 'Show Filters'
   showFiltersBtn.onclick = () => toggleFilters(true)
   showFiltersBtn.id = 'show-filters-dynamic'
 
-  // Add new column button
   const addColumnBtn = document.createElement('button')
   addColumnBtn.className = 'add-column-btn'
   addColumnBtn.textContent = '+ Add Column'
@@ -98,22 +98,13 @@ function renderBoard () {
 
   controlsContainer.appendChild(showFiltersBtn)
   controlsContainer.appendChild(addColumnBtn)
-  boardElement.appendChild(controlsContainer)
 
-  // Check if filters are currently visible and hide button accordingly
   const header = document.getElementById('kanban-header')
-  if (header && header.classList.contains('visible')) {
+  if (header?.classList.contains('visible')) {
     showFiltersBtn.style.display = 'none'
   }
 
-  // Setup column drag and drop
-  setupColumnDragAndDrop()
-  
-  // Setup steps drag and drop
-  setupTaskStepsDragAndDrop()
-  
-  // Setup task expansion event delegation
-  setupTaskExpansionEvents()
+  return controlsContainer
 }
 
 function createColumnElement (column) {
@@ -121,9 +112,8 @@ function createColumnElement (column) {
   columnDiv.className = 'kanban-column'
   columnDiv.setAttribute('data-column-id', column.id)
 
-  // Filter and sort tasks
-  let filteredTasks = filterTasks(column.tasks)
-  let sortedTasks = sortTasks(filteredTasks)
+  const filteredTasks = filterTasks(column.tasks)
+  const sortedTasks = sortTasks(filteredTasks)
 
   columnDiv.innerHTML = `
         <div class="column-header" draggable="true">
@@ -135,39 +125,20 @@ function createColumnElement (column) {
             </div>
         </div>
         <div class="tasks-container" id="tasks-${column.id}">
-            ${sortedTasks
-              .map(task => createTaskElement(task, column.id))
-              .join('')}
+            ${sortedTasks.map(task => createTaskElement(task, column.id)).join('')}
         </div>
         <button class="add-task-btn" onclick="openTaskModal('${column.id}')">
             + Add Task
         </button>
     `
 
-  // Add task drag and drop events
-  setupTaskDragAndDrop(columnDiv, column.id)
-  
-  // Setup drag handles for tasks in this column
-  columnDiv.querySelectorAll('.task-drag-handle').forEach(handle => {
-    setupTaskDragHandle(handle)
-  })
-
   return columnDiv
 }
 
 function createTaskElement (task, columnId) {
-  // 使用 defaultExpanded 字段作为初始展开状态，如果用户没有手动切换过
-  let isExpanded = expandedTasks.has(task.id)
-  if (!expandedTasks.has(task.id) && !expandedTasks.has(`manually_toggled_${task.id}`)) {
-    isExpanded = task.defaultExpanded === true
-    if (isExpanded) {
-      expandedTasks.add(task.id)
-    }
-  }
+  const isExpanded = getTaskExpansionState(task)
   const priorityClass = task.priority ? `priority-${task.priority}` : ''
   const deadlineInfo = getDeadlineInfo(task.dueDate)
-  
-  // 计算 steps 进度
   const stepsProgress = getStepsProgress(task.steps)
 
   return `
@@ -178,109 +149,135 @@ function createTaskElement (task, columnId) {
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <div class="task-title">${task.title}</div>
                 <div class="task-meta">
-                    ${
-                      stepsProgress.total > 0
-                        ? `<div class="task-steps-progress" title="Steps: ${stepsProgress.completed}/${stepsProgress.total}">${stepsProgress.completed}/${stepsProgress.total}</div>`
-                        : ''
-                    }
-                    ${
-                      task.priority
-                        ? `<div class="task-priority ${priorityClass}" title="Priority: ${getPriorityText(
-                            task.priority
-                          )}"></div>`
-                        : ''
-                    }
+                    ${createStepsProgressElement(stepsProgress)}
+                    ${createPriorityElement(task.priority, priorityClass)}
                 </div>
             </div>
 
-            ${
-              (task.tags && task.tags.length > 0) || task.workload || deadlineInfo
-                ? `
-                <div class="task-tags-row">
-                    ${
-                      (task.workload || (task.tags && task.tags.length > 0))
-                        ? `
-                        <div class="task-tags">
-                            ${task.workload ? `<span class="task-tag workload-tag workload-${task.workload.toLowerCase()}">${task.workload}</span>` : ''}
-                            ${task.tags && task.tags.length > 0 
-                              ? task.tags.map(tag => `<span class="task-tag">${tag}</span>`).join('')
-                              : ''
-                            }
-                        </div>
-                    `
-                        : ''
-                    }
-                    ${
-                      deadlineInfo
-                        ? `<div class="task-deadline deadline-${deadlineInfo.status}" title="Due date: ${task.dueDate}">${deadlineInfo.text}</div>`
-                        : ''
-                    }
-                </div>
-            `
-                : ''
-            }
-
-            <div class="task-details">
-                ${
-                  task.description
-                    ? `<div class="task-description">${task.description}</div>`
-                    : ''
-                }
-                ${
-                  task.steps && task.steps.length > 0
-                    ? `
-                    <div class="task-steps">
-                        <div class="task-steps-header">Steps:</div>
-                        <div class="task-steps-list" data-task-id="${task.id}" data-column-id="${columnId}">
-                            ${task.steps.map((step, index) => `
-                                <div class="task-step-item" data-step-index="${index}">
-                                    <div class="step-drag-handle">⋮⋮</div>
-                                    <input type="checkbox" 
-                                           ${step.completed ? 'checked' : ''} 
-                                           onchange="updateTaskStep('${task.id}', '${columnId}', ${index}, this.checked)"
-                                           onclick="event.stopPropagation()">
-                                    <span class="task-step-text ${step.completed ? 'completed' : ''}">${step.text}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    `
-                    : ''
-                }
-                <div class="task-info">
-                    ${
-                      task.dueDate
-                        ? `
-                        <div class="task-info-item">
-                            <span class="task-info-label">Due:</span>
-                            <span>${task.dueDate}</span>
-                        </div>
-                    `
-                        : ''
-                    }
-                    ${
-                      task.workload
-                        ? `
-                        <div class="task-info-item">
-                            <span class="task-info-label">Workload:</span>
-                            <span class="task-workload workload-${task.workload.toLowerCase()}">${task.workload}</span>
-                        </div>
-                    `
-                        : ''
-                    }
-                </div>
-            </div>
-
-            <div class="task-actions">
-                <button class="action-btn" onclick="event.stopPropagation(); editTask('${
-                  task.id
-                }', '${columnId}')">Edit</button>
-                <button class="action-btn delete" onclick="event.stopPropagation(); deleteTask('${
-                  task.id
-                }', '${columnId}')">Delete</button>
-            </div>
+            ${createTaskTagsRow(task, deadlineInfo)}
+            ${createTaskDetails(task, columnId)}
+            ${createTaskActions(task.id, columnId)}
         </div>
     `
+}
+
+function getTaskExpansionState(task) {
+  let isExpanded = expandedTasks.has(task.id)
+  if (!expandedTasks.has(task.id) && !expandedTasks.has(`manually_toggled_${task.id}`)) {
+    isExpanded = task.defaultExpanded === true
+    if (isExpanded) {
+      expandedTasks.add(task.id)
+    }
+  }
+  return isExpanded
+}
+
+function createStepsProgressElement(stepsProgress) {
+  return stepsProgress.total > 0
+    ? `<div class="task-steps-progress" title="Steps: ${stepsProgress.completed}/${stepsProgress.total}">${stepsProgress.completed}/${stepsProgress.total}</div>`
+    : ''
+}
+
+function createPriorityElement(priority, priorityClass) {
+  return priority
+    ? `<div class="task-priority ${priorityClass}" title="Priority: ${getPriorityText(priority)}"></div>`
+    : ''
+}
+
+function createTaskTagsRow(task, deadlineInfo) {
+  const hasTagsOrWorkload = task.workload || (task.tags && task.tags.length > 0)
+  if (!hasTagsOrWorkload && !deadlineInfo) return ''
+
+  return `
+    <div class="task-tags-row">
+        ${hasTagsOrWorkload ? createTaskTagsElement(task) : ''}
+        ${deadlineInfo ? createDeadlineElement(deadlineInfo, task.dueDate) : ''}
+    </div>
+  `
+}
+
+function createTaskTagsElement(task) {
+  const workloadTag = task.workload 
+    ? `<span class="task-tag workload-tag workload-${task.workload.toLowerCase()}">${task.workload}</span>`
+    : ''
+  const tags = task.tags && task.tags.length > 0 
+    ? task.tags.map(tag => `<span class="task-tag">${tag}</span>`).join('')
+    : ''
+
+  return `<div class="task-tags">${workloadTag}${tags}</div>`
+}
+
+function createDeadlineElement(deadlineInfo, dueDate) {
+  return `<div class="task-deadline deadline-${deadlineInfo.status}" title="Due date: ${dueDate}">${deadlineInfo.text}</div>`
+}
+
+function createTaskDetails(task, columnId) {
+  const description = task.description 
+    ? `<div class="task-description">${task.description}</div>`
+    : ''
+  
+  const steps = task.steps && task.steps.length > 0
+    ? createTaskStepsElement(task, columnId)
+    : ''
+
+  const info = createTaskInfoElement(task)
+
+  return `
+    <div class="task-details">
+        ${description}
+        ${steps}
+        ${info}
+    </div>
+  `
+}
+
+function createTaskStepsElement(task, columnId) {
+  const stepsList = task.steps.map((step, index) => `
+    <div class="task-step-item" data-step-index="${index}">
+        <div class="step-drag-handle">⋮⋮</div>
+        <input type="checkbox" 
+               ${step.completed ? 'checked' : ''} 
+               onchange="updateTaskStep('${task.id}', '${columnId}', ${index}, this.checked)"
+               onclick="event.stopPropagation()">
+        <span class="task-step-text ${step.completed ? 'completed' : ''}">${step.text}</span>
+    </div>
+  `).join('')
+
+  return `
+    <div class="task-steps">
+        <div class="task-steps-header">Steps:</div>
+        <div class="task-steps-list" data-task-id="${task.id}" data-column-id="${columnId}">
+            ${stepsList}
+        </div>
+    </div>
+  `
+}
+
+function createTaskInfoElement(task) {
+  const dueInfo = task.dueDate
+    ? `<div class="task-info-item">
+         <span class="task-info-label">Due:</span>
+         <span>${task.dueDate}</span>
+       </div>`
+    : ''
+
+  const workloadInfo = task.workload
+    ? `<div class="task-info-item">
+         <span class="task-info-label">Workload:</span>
+         <span class="task-workload workload-${task.workload.toLowerCase()}">${task.workload}</span>
+       </div>`
+    : ''
+
+  return `<div class="task-info">${dueInfo}${workloadInfo}</div>`
+}
+
+function createTaskActions(taskId, columnId) {
+  return `
+    <div class="task-actions">
+        <button class="action-btn" onclick="event.stopPropagation(); editTask('${taskId}', '${columnId}')">Edit</button>
+        <button class="action-btn delete" onclick="event.stopPropagation(); deleteTask('${taskId}', '${columnId}')">Delete</button>
+    </div>
+  `
 }
 
 // Filter tasks
@@ -292,10 +289,10 @@ function filterTasks (tasks) {
     .split(',')
     .map(tag => tag.trim())
     .filter(tag => tag)
+  
   if (filterTags.length === 0) return tasks
 
   return tasks.filter(task => {
-    // 创建包含workload和tags的完整标签列表
     const allTags = []
     if (task.workload) {
       allTags.push(task.workload.toLowerCase())
@@ -361,7 +358,6 @@ function getPriorityText (priority) {
 }
 
 function toggleTaskExpansion (taskId) {
-  // 标记任务已被手动切换
   expandedTasks.add(`manually_toggled_${taskId}`)
   
   if (expandedTasks.has(taskId)) {
@@ -376,134 +372,131 @@ function toggleTaskExpansion (taskId) {
   }
 }
 
-// Setup task drag and drop
-function setupTaskDragAndDrop (columnElement, columnId) {
-  const tasksContainer = columnElement.querySelector('.tasks-container')
+function setupDragAndDrop() {
+  setupColumnDragAndDrop()
+  setupTaskStepsDragAndDrop()
+  setupTaskDragAndDrop()
+}
 
-  tasksContainer.addEventListener('dragover', e => {
-    e.preventDefault()
-    columnElement.classList.add('drag-over')
-    
-    // 显示插入位置预览
-    const draggingElement = document.querySelector('.task-item.dragging')
-    if (draggingElement) {
-      const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY)
+function setupTaskDragAndDrop() {
+  document.querySelectorAll('.kanban-column').forEach(columnElement => {
+    const columnId = columnElement.dataset.columnId
+    const tasksContainer = columnElement.querySelector('.tasks-container')
+
+    tasksContainer.addEventListener('dragover', e => {
+      e.preventDefault()
+      columnElement.classList.add('drag-over')
       
-      // 移除之前的插入预览
-      tasksContainer.querySelectorAll('.task-item').forEach(task => {
-        task.classList.remove('drag-insert-before', 'drag-insert-after')
-      })
-      
-      if (afterElement == null) {
-        // 插入到末尾
-        const lastTask = tasksContainer.querySelector('.task-item:last-child')
-        if (lastTask && lastTask !== draggingElement) {
-          lastTask.classList.add('drag-insert-after')
+      const draggingElement = document.querySelector('.task-item.dragging')
+      if (draggingElement) {
+        const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY)
+        
+        tasksContainer.querySelectorAll('.task-item').forEach(task => {
+          task.classList.remove('drag-insert-before', 'drag-insert-after')
+        })
+        
+        if (afterElement == null) {
+          const lastTask = tasksContainer.querySelector('.task-item:last-child')
+          if (lastTask && lastTask !== draggingElement) {
+            lastTask.classList.add('drag-insert-after')
+          }
+        } else if (afterElement !== draggingElement) {
+          afterElement.classList.add('drag-insert-before')
         }
-      } else if (afterElement !== draggingElement) {
-        // 插入到指定元素之前
-        afterElement.classList.add('drag-insert-before')
       }
-    }
-  })
-
-  tasksContainer.addEventListener('dragleave', e => {
-    if (!columnElement.contains(e.relatedTarget)) {
-      columnElement.classList.remove('drag-over')
-      // 清除插入预览
-      tasksContainer.querySelectorAll('.task-item').forEach(task => {
-        task.classList.remove('drag-insert-before', 'drag-insert-after')
-      })
-    }
-  })
-
-  tasksContainer.addEventListener('drop', e => {
-    e.preventDefault()
-    columnElement.classList.remove('drag-over')
-    
-    // 清除插入预览
-    tasksContainer.querySelectorAll('.task-item').forEach(task => {
-      task.classList.remove('drag-insert-before', 'drag-insert-after')
     })
 
-    const taskId = e.dataTransfer.getData('text/plain')
-    const fromColumnId = e.dataTransfer.getData('application/column-id')
-
-    if (taskId && fromColumnId) {
-      // Calculate the correct drop index based on mouse position
-      const tasks = Array.from(tasksContainer.children)
-      let dropIndex = tasks.length
-
-      // Find the task element that should be after the dropped task
-      for (let i = 0; i < tasks.length; i++) {
-        const taskElement = tasks[i]
-        const rect = taskElement.getBoundingClientRect()
-        const taskCenter = rect.top + rect.height / 2
-
-        if (e.clientY < taskCenter) {
-          dropIndex = i
-          break
-        }
+    tasksContainer.addEventListener('dragleave', e => {
+      if (!columnElement.contains(e.relatedTarget)) {
+        columnElement.classList.remove('drag-over')
+        tasksContainer.querySelectorAll('.task-item').forEach(task => {
+          task.classList.remove('drag-insert-before', 'drag-insert-after')
+        })
       }
+    })
 
-      // If dragging within the same column, adjust the index
-      if (fromColumnId === columnId) {
-        const draggedTaskElement = tasksContainer.querySelector(
-          '[data-task-id="' + taskId + '"]'
-        )
-        if (draggedTaskElement) {
-          const currentIndex = Array.from(tasks).indexOf(draggedTaskElement)
-          // If dropping after the current position, decrease the index by 1
-          if (dropIndex > currentIndex) {
-            dropIndex--
-          }
-        }
-      }
-
-      vscode.postMessage({
-        type: 'moveTask',
-        taskId: taskId,
-        fromColumnId: fromColumnId,
-        toColumnId: columnId,
-        newIndex: dropIndex
+    tasksContainer.addEventListener('drop', e => {
+      e.preventDefault()
+      columnElement.classList.remove('drag-over')
+      
+      tasksContainer.querySelectorAll('.task-item').forEach(task => {
+        task.classList.remove('drag-insert-before', 'drag-insert-after')
       })
-    }
+
+      const taskId = e.dataTransfer.getData('text/plain')
+      const fromColumnId = e.dataTransfer.getData('application/column-id')
+
+      if (taskId && fromColumnId) {
+        const dropIndex = calculateDropIndex(tasksContainer, e.clientY, fromColumnId, columnId)
+        
+        vscode.postMessage({
+          type: 'moveTask',
+          taskId: taskId,
+          fromColumnId: fromColumnId,
+          toColumnId: columnId,
+          newIndex: dropIndex
+        })
+      }
+    })
+
+    columnElement.querySelectorAll('.task-drag-handle').forEach(handle => {
+      setupTaskDragHandle(handle)
+    })
   })
+}
 
+function calculateDropIndex(tasksContainer, clientY, fromColumnId, toColumnId) {
+  const tasks = Array.from(tasksContainer.children)
+  let dropIndex = tasks.length
 
+  for (let i = 0; i < tasks.length; i++) {
+    const taskElement = tasks[i]
+    const rect = taskElement.getBoundingClientRect()
+    const taskCenter = rect.top + rect.height / 2
+
+    if (clientY < taskCenter) {
+      dropIndex = i
+      break
+    }
+  }
+
+  if (fromColumnId === toColumnId) {
+    const draggedTaskElement = tasksContainer.querySelector('[data-task-id="' + e.dataTransfer.getData('text/plain') + '"]')
+    if (draggedTaskElement) {
+      const currentIndex = Array.from(tasks).indexOf(draggedTaskElement)
+      if (dropIndex > currentIndex) {
+        dropIndex--
+      }
+    }
+  }
+
+  return dropIndex
 }
 
 // Setup task expansion event delegation
 function setupTaskExpansionEvents() {
   const boardElement = document.getElementById('kanban-board')
-  
-  // 移除之前的事件监听器（如果存在）
   boardElement.removeEventListener('click', handleTaskClick)
-  
-  // 添加事件委托
   boardElement.addEventListener('click', handleTaskClick)
 }
 
 function handleTaskClick(e) {
-  // 检查点击的元素是否应该被忽略
   const ignoredSelectors = [
     '.task-drag-handle',
     '.step-drag-handle', 
     '.action-btn',
-    '.task-step-item',  // 整个步骤项都被忽略
-    '.task-steps',      // 整个步骤区域都被忽略
+    '.task-step-item',
+    '.task-steps',
     'input[type="checkbox"]',
     '.task-step-text'
   ]
   
-  // 如果点击的是需要忽略的元素，直接返回
   for (const selector of ignoredSelectors) {
     if (e.target.matches(selector) || e.target.closest(selector)) {
       return
     }
   }
   
-  // 查找最近的task-item
   const taskItem = e.target.closest('.task-item')
   if (taskItem) {
     const taskId = taskItem.dataset.taskId
@@ -520,23 +513,13 @@ function setupTaskDragHandle(handle) {
   handle.addEventListener('dragstart', e => {
     const taskItem = e.target.closest('.task-item')
     if (taskItem) {
-      e.stopPropagation() // 防止触发列拖拽
+      e.stopPropagation()
       e.dataTransfer.setData('text/plain', taskItem.dataset.taskId)
       e.dataTransfer.setData('application/column-id', taskItem.dataset.columnId)
       e.dataTransfer.effectAllowed = 'move'
       
-      // 创建拖拽预览图像
-      const dragImage = taskItem.cloneNode(true)
-      dragImage.style.transform = 'rotate(3deg)'
-      dragImage.style.opacity = '0.8'
-      dragImage.style.position = 'absolute'
-      dragImage.style.top = '-1000px'
-      dragImage.style.width = taskItem.offsetWidth + 'px'
-      document.body.appendChild(dragImage)
+      const dragImage = createDragImage(taskItem, e.offsetX, e.offsetY)
       e.dataTransfer.setDragImage(dragImage, e.offsetX, e.offsetY)
-      
-      // 清理临时元素
-      setTimeout(() => document.body.removeChild(dragImage), 0)
       
       taskItem.classList.add('dragging')
     }
@@ -550,7 +533,6 @@ function setupTaskDragHandle(handle) {
   })
 
   handle.addEventListener('mousedown', e => {
-    // 阻止点击事件冒泡，避免触发任务展开，但不阻止拖拽
     e.stopPropagation()
   })
   
@@ -558,6 +540,20 @@ function setupTaskDragHandle(handle) {
     e.stopPropagation()
     e.preventDefault()
   })
+}
+
+function createDragImage(taskItem, offsetX, offsetY) {
+  const dragImage = taskItem.cloneNode(true)
+  dragImage.style.transform = 'rotate(3deg)'
+  dragImage.style.opacity = '0.8'
+  dragImage.style.position = 'absolute'
+  dragImage.style.top = '-1000px'
+  dragImage.style.width = taskItem.offsetWidth + 'px'
+  document.body.appendChild(dragImage)
+  
+  setTimeout(() => document.body.removeChild(dragImage), 0)
+  
+  return dragImage
 }
 
 // Setup column drag and drop
@@ -569,7 +565,6 @@ function setupColumnDragAndDrop () {
   columns.forEach((column, index) => {
     const columnHeader = column.querySelector('.column-header')
 
-    // Column drag start - listen on header
     columnHeader.addEventListener('dragstart', e => {
       draggedColumnIndex = index
       e.dataTransfer.setData('text/plain', index.toString())
@@ -577,15 +572,12 @@ function setupColumnDragAndDrop () {
       column.classList.add('column-dragging')
     })
 
-    // Column drag end - listen on header
     columnHeader.addEventListener('dragend', e => {
       column.classList.remove('column-dragging')
       draggedColumnIndex = -1
-      // Remove drag-over class from all columns
       columns.forEach(col => col.classList.remove('drag-over'))
     })
 
-    // Column drag over - listen on column for drop zone
     column.addEventListener('dragover', e => {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'move'
@@ -594,14 +586,12 @@ function setupColumnDragAndDrop () {
       }
     })
 
-    // Column drag leave
     column.addEventListener('dragleave', e => {
       if (!column.contains(e.relatedTarget)) {
         column.classList.remove('drag-over')
       }
     })
 
-    // Column drop - listen on column
     column.addEventListener('drop', e => {
       e.preventDefault()
       column.classList.remove('drag-over')
@@ -632,54 +622,56 @@ function openTaskModal (columnId, taskId = null) {
   modalTitle.textContent = isEditMode ? 'Edit Task' : 'Add Task'
 
   if (isEditMode && currentBoard) {
-    const column = currentBoard.columns.find(col => col.id === columnId)
-    const task = column?.tasks.find(t => t.id === taskId)
-
-    if (task) {
-      document.getElementById('task-title').value = task.title || ''
-      document.getElementById('task-description').value = task.description || ''
-      document.getElementById('task-priority').value = task.priority || ''
-      document.getElementById('task-workload').value = task.workload || ''
-      document.getElementById('task-due-date').value = task.dueDate || ''
-      document.getElementById('task-default-expanded').checked = task.defaultExpanded || false
-
-      // Set tags
-      const tagsContainer = document.getElementById('tags-container')
-      const tagsInput = document.getElementById('tags-input')
-
-      // Clear existing tags
-      tagsContainer.querySelectorAll('.tag-item').forEach(tag => tag.remove())
-
-      // Add existing tags
-      if (task.tags) {
-        task.tags.forEach(tag => addTagToContainer(tag))
-      }
-
-      // Clear existing steps
-      const stepsList = document.getElementById('steps-list')
-      stepsList.innerHTML = ''
-
-      // Add existing steps
-      if (task.steps) {
-        task.steps.forEach(step => addStepToContainer(step.text, step.completed))
-      }
-    }
+    populateTaskForm(columnId, taskId)
   } else {
-    form.reset()
-    // Clear tags
-    const tagsContainer = document.getElementById('tags-container')
-    tagsContainer.querySelectorAll('.tag-item').forEach(tag => tag.remove())
-    
-    // Clear steps
-    const stepsList = document.getElementById('steps-list')
-    stepsList.innerHTML = ''
+    clearTaskForm(form)
   }
 
-  // Setup modal steps drag and drop
   setTimeout(() => setupModalStepsDragAndDrop(), 100)
 
   modal.style.display = 'block'
   document.getElementById('task-title').focus()
+}
+
+function populateTaskForm(columnId, taskId) {
+  const column = currentBoard.columns.find(col => col.id === columnId)
+  const task = column?.tasks.find(t => t.id === taskId)
+
+  if (!task) return
+
+  document.getElementById('task-title').value = task.title || ''
+  document.getElementById('task-description').value = task.description || ''
+  document.getElementById('task-priority').value = task.priority || ''
+  document.getElementById('task-workload').value = task.workload || ''
+  document.getElementById('task-due-date').value = task.dueDate || ''
+  document.getElementById('task-default-expanded').checked = task.defaultExpanded || false
+
+  clearAndPopulateTags(task.tags)
+  clearAndPopulateSteps(task.steps)
+}
+
+function clearTaskForm(form) {
+  form.reset()
+  clearAndPopulateTags([])
+  clearAndPopulateSteps([])
+}
+
+function clearAndPopulateTags(tags) {
+  const tagsContainer = document.getElementById('tags-container')
+  tagsContainer.querySelectorAll('.tag-item').forEach(tag => tag.remove())
+  
+  if (tags) {
+    tags.forEach(tag => addTagToContainer(tag))
+  }
+}
+
+function clearAndPopulateSteps(steps) {
+  const stepsList = document.getElementById('steps-list')
+  stepsList.innerHTML = ''
+  
+  if (steps) {
+    steps.forEach(step => addStepToContainer(step.text, step.completed))
+  }
 }
 
 function closeTaskModal () {
@@ -736,11 +728,9 @@ function showInputModal (title, message, placeholder, onConfirm) {
   inputField.value = ''
   document.getElementById('input-modal').style.display = 'block'
 
-  // Focus on input field
   setTimeout(() => inputField.focus(), 100)
 
-  const confirmBtn = document.getElementById('input-ok-btn')
-  confirmBtn.onclick = () => {
+  const confirmAction = () => {
     const value = inputField.value.trim()
     if (value) {
       closeInputModal()
@@ -748,14 +738,12 @@ function showInputModal (title, message, placeholder, onConfirm) {
     }
   }
 
-  // Handle Enter key
+  const confirmBtn = document.getElementById('input-ok-btn')
+  confirmBtn.onclick = confirmAction
+
   inputField.onkeydown = e => {
     if (e.key === 'Enter') {
-      const value = inputField.value.trim()
-      if (value) {
-        closeInputModal()
-        onConfirm(value)
-      }
+      confirmAction()
     }
   }
 }
@@ -802,14 +790,12 @@ function setupTagsInput () {
   const tagsInput = document.getElementById('tags-input')
   const tagsContainer = document.getElementById('tags-container')
 
-  // 创建自动补全下拉列表
   const autocompleteList = document.createElement('div')
   autocompleteList.className = 'tags-autocomplete-list'
   autocompleteList.style.display = 'none'
   tagsContainer.appendChild(autocompleteList)
 
   let selectedIndex = -1
-  let filteredSuggestions = []
 
   tagsInput.addEventListener('input', e => {
     const inputValue = e.target.value.trim()
@@ -827,21 +813,18 @@ function setupTagsInput () {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault()
       
-      // 如果有选中的建议，使用建议
+      let tagToAdd = ''
       if (selectedIndex >= 0 && suggestions[selectedIndex]) {
-        const selectedTag = suggestions[selectedIndex].textContent
-        addTagToContainer(selectedTag)
+        tagToAdd = suggestions[selectedIndex].textContent
+      } else {
+        tagToAdd = tagsInput.value.trim()
+      }
+      
+      if (tagToAdd) {
+        addTagToContainer(tagToAdd)
         tagsInput.value = ''
         hideAutocompleteSuggestions(autocompleteList)
         selectedIndex = -1
-      } else {
-        // 否则使用输入的值
-        const tag = tagsInput.value.trim()
-        if (tag) {
-          addTagToContainer(tag)
-          tagsInput.value = ''
-          hideAutocompleteSuggestions(autocompleteList)
-        }
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -861,7 +844,6 @@ function setupTagsInput () {
     }
   })
 
-  // 点击外部时隐藏补全列表
   document.addEventListener('click', e => {
     if (!tagsContainer.contains(e.target)) {
       hideAutocompleteSuggestions(autocompleteList)
@@ -870,16 +852,15 @@ function setupTagsInput () {
   })
 }
 
-// 收集当前看板中所有已存在的标签
 function getAllExistingTags() {
   const allTags = new Set()
   
-  if (currentBoard && currentBoard.columns) {
+  if (currentBoard?.columns) {
     currentBoard.columns.forEach(column => {
       column.tasks.forEach(task => {
-        if (task.tags && task.tags.length > 0) {
+        if (task.tags?.length > 0) {
           task.tags.forEach(tag => {
-            if (tag && tag.trim()) {
+            if (tag?.trim()) {
               allTags.add(tag.trim())
             }
           })
@@ -891,12 +872,10 @@ function getAllExistingTags() {
   return Array.from(allTags).sort()
 }
 
-// 显示自动补全建议
 function showAutocompleteSuggestions(inputValue, autocompleteList, tagsInput) {
   const allTags = getAllExistingTags()
-  const currentTags = getFormTags() // 获取当前已添加的标签
+  const currentTags = getFormTags()
   
-  // 过滤出匹配的标签（前缀匹配，且不包括已添加的标签）
   const filteredTags = allTags.filter(tag => 
     tag.toLowerCase().startsWith(inputValue.toLowerCase()) && 
     !currentTags.includes(tag)
@@ -907,10 +886,8 @@ function showAutocompleteSuggestions(inputValue, autocompleteList, tagsInput) {
     return
   }
   
-  // 清空之前的建议
   autocompleteList.innerHTML = ''
   
-  // 创建建议项
   filteredTags.forEach((tag, index) => {
     const item = document.createElement('div')
     item.className = 'autocomplete-item'
@@ -923,17 +900,14 @@ function showAutocompleteSuggestions(inputValue, autocompleteList, tagsInput) {
     autocompleteList.appendChild(item)
   })
   
-  // 显示建议列表
   autocompleteList.style.display = 'block'
 }
 
-// 隐藏自动补全建议
 function hideAutocompleteSuggestions(autocompleteList) {
   autocompleteList.style.display = 'none'
   autocompleteList.innerHTML = ''
 }
 
-// 更新选中的建议项样式
 function updateSelectedSuggestion(suggestions, selectedIndex) {
   suggestions.forEach((item, index) => {
     if (index === selectedIndex) {
@@ -1044,9 +1018,27 @@ function setupStepDragAndDrop(stepElement) {
   let longPressTimer = null
   let isDragReady = false
   
-  // 长按检测
+  const initializeDragMode = () => {
+    isDragReady = true
+    stepElement.draggable = true
+    stepElement.style.cursor = 'grabbing'
+    stepElement.classList.add('drag-ready')
+  }
+  
+  const resetDragMode = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+    
+    if (!isDragReady) {
+      stepElement.draggable = false
+      stepElement.style.cursor = ''
+      stepElement.classList.remove('drag-ready')
+    }
+  }
+  
   stepElement.addEventListener('mousedown', e => {
-    // 如果点击的是复选框或删除按钮，不启动拖拽
     if (e.target.matches('input[type="checkbox"]') || e.target.matches('.step-remove')) {
       return
     }
@@ -1054,39 +1046,12 @@ function setupStepDragAndDrop(stepElement) {
     e.stopPropagation()
     
     longPressTimer = setTimeout(() => {
-      isDragReady = true
-      stepElement.draggable = true
-      stepElement.style.cursor = 'grabbing'
-      // 添加视觉反馈
-      stepElement.classList.add('drag-ready')
-    }, 300) // 300ms长按
+      initializeDragMode()
+    }, 300)
   })
   
-  stepElement.addEventListener('mouseup', e => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer)
-      longPressTimer = null
-    }
-    
-    if (!isDragReady) {
-      stepElement.draggable = false
-      stepElement.style.cursor = ''
-      stepElement.classList.remove('drag-ready')
-    }
-  })
-  
-  stepElement.addEventListener('mouseleave', e => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer)
-      longPressTimer = null
-    }
-    
-    if (!isDragReady) {
-      stepElement.draggable = false
-      stepElement.style.cursor = ''
-      stepElement.classList.remove('drag-ready')
-    }
-  })
+  stepElement.addEventListener('mouseup', resetDragMode)
+  stepElement.addEventListener('mouseleave', resetDragMode)
   
   stepElement.addEventListener('dragstart', e => {
     if (!isDragReady) {
@@ -1099,18 +1064,8 @@ function setupStepDragAndDrop(stepElement) {
     e.dataTransfer.setData('application/step-element', 'true')
     e.dataTransfer.effectAllowed = 'move'
     
-    // 创建拖拽预览图像
-    const dragImage = stepElement.cloneNode(true)
-    dragImage.style.transform = 'rotate(2deg)'
-    dragImage.style.opacity = '0.8'
-    dragImage.style.position = 'absolute'
-    dragImage.style.top = '-1000px'
-    dragImage.style.width = stepElement.offsetWidth + 'px'
-    document.body.appendChild(dragImage)
+    const dragImage = createStepDragImage(stepElement, e.offsetX, e.offsetY)
     e.dataTransfer.setDragImage(dragImage, e.offsetX, e.offsetY)
-    
-    // 清理临时元素
-    setTimeout(() => document.body.removeChild(dragImage), 0)
     
     stepElement.classList.add('dragging')
     stepElement.classList.remove('drag-ready')
@@ -1123,16 +1078,11 @@ function setupStepDragAndDrop(stepElement) {
     isDragReady = false
   })
   
-  // 拖拽手柄的特殊处理 - 立即启动拖拽
   const dragHandle = stepElement.querySelector('.step-drag-handle')
   if (dragHandle) {
     dragHandle.addEventListener('mousedown', e => {
       e.stopPropagation()
-      // 立即启动拖拽模式
-      isDragReady = true
-      stepElement.draggable = true
-      stepElement.style.cursor = 'grabbing'
-      stepElement.classList.add('drag-ready')
+      initializeDragMode()
     })
     
     dragHandle.addEventListener('click', e => {
@@ -1140,6 +1090,20 @@ function setupStepDragAndDrop(stepElement) {
       e.preventDefault()
     })
   }
+}
+
+function createStepDragImage(stepElement, offsetX, offsetY) {
+  const dragImage = stepElement.cloneNode(true)
+  dragImage.style.transform = 'rotate(2deg)'
+  dragImage.style.opacity = '0.8'
+  dragImage.style.position = 'absolute'
+  dragImage.style.top = '-1000px'
+  dragImage.style.width = stepElement.offsetWidth + 'px'
+  document.body.appendChild(dragImage)
+  
+  setTimeout(() => document.body.removeChild(dragImage), 0)
+  
+  return dragImage
 }
 
 // Setup steps list drag and drop for task details view
