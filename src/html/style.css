@@ -165,6 +165,12 @@ body.filters-visible {
     align-items: center;
 }
 
+.column-title-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .task-count {
     background-color: var(--vscode-badge-background);
     color: var(--vscode-badge-foreground);
@@ -186,6 +192,212 @@ body.filters-visible {
 
 .column-menu-btn:hover {
     background: var(--vscode-button-hoverBackground);
+}
+
+.archive-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 3px;
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.archive-toggle-btn:hover {
+    background: var(--vscode-button-hoverBackground);
+    opacity: 1;
+}
+
+.kanban-column.archived {
+    opacity: 0.7;
+    border-color: var(--vscode-descriptionForeground);
+}
+
+.kanban-column.archived .column-title::after {
+    content: '';
+    margin-left: 8px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.kanban-column.collapsed .tasks-container,
+.kanban-column.collapsed .add-task-btn {
+    display: none;
+}
+
+/* 统一归档列样式 */
+.unified-archive {
+    min-width: 250px;
+    max-width: 300px;
+    background-color: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-descriptionForeground);
+}
+
+.unified-archive.collapsed {
+    min-height: auto;
+    height: auto;
+}
+
+.unified-archive.collapsed .archive-content {
+    display: none;
+}
+
+.archive-expand-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 3px;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+.archive-expand-btn:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+.expand-icon {
+    transition: transform 0.2s ease;
+}
+
+.archive-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.archive-section {
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding-bottom: 8px;
+}
+
+.archive-section:last-child {
+    border-bottom: none;
+}
+
+.archive-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+.archive-section-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.archive-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--vscode-descriptionForeground);
+    margin: 0;
+}
+
+.archive-section-count {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.archive-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.archive-task-item {
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.archive-task-item:hover {
+    opacity: 1;
+    border-color: var(--vscode-focusBorder);
+}
+
+.archive-task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.archive-task-title {
+    font-weight: 500;
+    color: var(--vscode-foreground);
+    flex: 1;
+}
+
+.archive-task-deadline {
+    font-size: 10px;
+    margin-bottom: 4px;
+    padding: 2px 4px;
+    border-radius: 2px;
+}
+
+.archive-task-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+
+.archive-tag {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    border-radius: 8px;
+    padding: 1px 4px;
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.archive-empty {
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    padding: 20px;
+}
+
+.unarchive-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 14px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.unarchive-btn:hover {
+    background: var(--vscode-button-hoverBackground);
+    opacity: 1;
+}
+
+.archive-empty-section {
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    font-size: 11px;
+    padding: 8px;
+    margin: 4px 0;
+    background-color: var(--vscode-input-background);
+    border-radius: 4px;
+    border: 1px dashed var(--vscode-panel-border);
 }
 
 .tasks-container {

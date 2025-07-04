@@ -114,6 +114,9 @@ export class KanbanWebviewPanel {
             case 'reorderTaskSteps':
                 this.reorderTaskSteps(message.taskId, message.columnId, message.newOrder);
                 break;
+            case 'toggleColumnArchive':
+                this.toggleColumnArchive(message.columnId, message.archived);
+                break;
         }
     }
 
@@ -304,6 +307,15 @@ export class KanbanWebviewPanel {
         this._panel.webview.postMessage({
             type: 'toggleTaskExpansion',
             taskId: taskId
+        });
+    }
+
+    private toggleColumnArchive(columnId: string, archived: boolean) {
+        this.performAction(() => {
+            const column = this.findColumn(columnId);
+            if (!column) return;
+
+            column.archived = archived;
         });
     }
 

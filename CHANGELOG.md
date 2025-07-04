@@ -45,3 +45,15 @@
 * **feature:** Add defaultExpanded support for task @ssebs ([#13](https://github.com/holooooo/markdown-kanban/issues/13))
 * **feature:** Add support for header format
 * **feature:** Optimize task and step dragging experience for task @ssebs ([#14](https://github.com/holooooo/markdown-kanban/issues/14))
+
+
+## [1.2.3] (2025-07-05)
+
+### Features
+
+* **feature:** Add setting for task header format
+
+
+## [1.3.0] (2025-07-05)
+
+* **feature:** Add column archive support

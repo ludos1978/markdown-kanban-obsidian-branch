@@ -68,11 +68,29 @@ function renderBoard () {
   const boardElement = document.getElementById('kanban-board')
   boardElement.innerHTML = ''
 
-  const columns = [...currentBoard.columns]
-  columns.forEach(column => {
+  // 分离归档列和非归档列，保持原有顺序
+  const normalColumns = []
+  const archivedColumns = []
+  
+  currentBoard.columns.forEach(column => {
+    if (column.archived) {
+      archivedColumns.push(column)
+    } else {
+      normalColumns.push(column)
+    }
+  })
+  
+  // 先渲染正常列
+  normalColumns.forEach(column => {
     const columnElement = createColumnElement(column)
     boardElement.appendChild(columnElement)
   })
+  
+  // 如果有归档列，创建一个统一的归档列
+  if (archivedColumns.length > 0) {
+    const unifiedArchiveColumn = createUnifiedArchiveColumn(archivedColumns)
+    boardElement.appendChild(unifiedArchiveColumn)
+  }
 
   const controlsContainer = createControlsContainer()
   boardElement.appendChild(controlsContainer)
@@ -115,13 +133,28 @@ function createColumnElement (column) {
   const filteredTasks = filterTasks(column.tasks)
   const sortedTasks = sortTasks(filteredTasks)
 
+  // 归档列默认收起
+  const isArchived = column.archived || false
+  const isCollapsed = isArchived
+  
+  if (isArchived) {
+    columnDiv.classList.add('archived')
+  }
+  if (isCollapsed) {
+    columnDiv.classList.add('collapsed')
+  }
+
   columnDiv.innerHTML = `
         <div class="column-header" draggable="true">
-            <div>
-                <h3 class="column-title">${column.title}</h3>
+            <div class="column-title-section">
+                <h3 class="column-title">${column.title}${isArchived ? ' [Archived]' : ''}</h3>
             </div>
             <div class="column-controls-menu">
                 <span class="task-count">${sortedTasks.length}</span>
+                <button class="archive-toggle-btn" onclick="toggleColumnArchive('${column.id}')" 
+                        title="${isArchived ? 'Unarchive' : 'Archive'}">
+                    ${isArchived ? '📂' : '📁'}
+                </button>
             </div>
         </div>
         <div class="tasks-container" id="tasks-${column.id}">
@@ -559,21 +592,28 @@ function createDragImage(taskItem, offsetX, offsetY) {
 // Setup column drag and drop
 function setupColumnDragAndDrop () {
   const boardElement = document.getElementById('kanban-board')
-  const columns = boardElement.querySelectorAll('.kanban-column')
+  const columns = boardElement.querySelectorAll('.kanban-column:not(.unified-archive)')
+  let draggedColumnId = null
   let draggedColumnIndex = -1
 
-  columns.forEach((column, index) => {
+  columns.forEach((column, displayIndex) => {
     const columnHeader = column.querySelector('.column-header')
+    const columnId = column.getAttribute('data-column-id')
+
+    // 跳过统一归档列
+    if (columnId === 'unified-archive') return
 
     columnHeader.addEventListener('dragstart', e => {
-      draggedColumnIndex = index
-      e.dataTransfer.setData('text/plain', index.toString())
+      draggedColumnId = columnId
+      draggedColumnIndex = displayIndex
+      e.dataTransfer.setData('text/plain', columnId)
       e.dataTransfer.effectAllowed = 'move'
       column.classList.add('column-dragging')
     })
 
     columnHeader.addEventListener('dragend', e => {
       column.classList.remove('column-dragging')
+      draggedColumnId = null
       draggedColumnIndex = -1
       columns.forEach(col => col.classList.remove('drag-over'))
     })
@@ -581,8 +621,15 @@ function setupColumnDragAndDrop () {
     column.addEventListener('dragover', e => {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'move'
-      if (draggedColumnIndex !== -1 && draggedColumnIndex !== index) {
-        column.classList.add('drag-over')
+      if (draggedColumnId && draggedColumnId !== columnId) {
+        // 只允许正常列之间的拖拽（因为归档列现在是统一的）
+        const draggedColumn = currentBoard.columns.find(col => col.id === draggedColumnId)
+        const targetColumn = currentBoard.columns.find(col => col.id === columnId)
+        
+        if (draggedColumn && targetColumn && 
+            !draggedColumn.archived && !targetColumn.archived) {
+          column.classList.add('drag-over')
+        }
       }
     })
 
@@ -596,17 +643,148 @@ function setupColumnDragAndDrop () {
       e.preventDefault()
       column.classList.remove('drag-over')
 
-      const fromIndex = draggedColumnIndex
-      const toIndex = index
+      const targetColumnId = columnId
+      const targetDisplayIndex = displayIndex
 
-      if (fromIndex !== -1 && fromIndex !== toIndex) {
-        vscode.postMessage({
-          type: 'moveColumn',
-          fromIndex: fromIndex,
-          toIndex: toIndex
-        })
+      if (draggedColumnId && draggedColumnId !== targetColumnId) {
+        // 只允许正常列之间的拖拽
+        const draggedColumn = currentBoard.columns.find(col => col.id === draggedColumnId)
+        const targetColumn = currentBoard.columns.find(col => col.id === targetColumnId)
+        
+        if (draggedColumn && targetColumn && 
+            !draggedColumn.archived && !targetColumn.archived) {
+          
+          // 将显示索引转换为原始数据索引
+          const fromOriginalIndex = getOriginalColumnIndex(draggedColumnId)
+          const toOriginalIndex = getOriginalColumnIndex(targetColumnId)
+          
+          if (fromOriginalIndex !== -1 && toOriginalIndex !== -1) {
+            vscode.postMessage({
+              type: 'moveColumn',
+              fromIndex: fromOriginalIndex,
+              toIndex: toOriginalIndex
+            })
+          }
+        }
       }
     })
+  })
+}
+
+// 获取列在原始数据中的索引
+function getOriginalColumnIndex(columnId) {
+  if (!currentBoard) return -1
+  return currentBoard.columns.findIndex(col => col.id === columnId)
+}
+
+// 创建统一的归档列
+function createUnifiedArchiveColumn(archivedColumns) {
+  const columnDiv = document.createElement('div')
+  columnDiv.className = 'kanban-column archived unified-archive'
+  columnDiv.setAttribute('data-column-id', 'unified-archive')
+  
+  // 统计所有归档任务的数量
+  const totalArchivedTasks = archivedColumns.reduce((total, column) => {
+    return total + filterTasks(column.tasks).length
+  }, 0)
+  
+  // 默认收起状态
+  columnDiv.classList.add('collapsed')
+  
+  columnDiv.innerHTML = `
+    <div class="column-header">
+      <div class="column-title-section">
+        <h3 class="column-title">Archived (${archivedColumns.length})</h3>
+        <button class="archive-expand-btn" onclick="toggleUnifiedArchive()" title="Expand/Collapse Archived Content">
+          <span class="expand-icon">▶</span>
+        </button>
+      </div>
+      <div class="column-controls-menu">
+        <span class="task-count">${totalArchivedTasks}</span>
+      </div>
+    </div>
+    <div class="archive-content" id="archive-content">
+      ${createArchiveContent(archivedColumns)}
+    </div>
+  `
+  
+  return columnDiv
+}
+
+// 创建归档内容
+function createArchiveContent(archivedColumns) {
+  let content = ''
+  
+  archivedColumns.forEach(column => {
+    const filteredTasks = filterTasks(column.tasks)
+    const sortedTasks = sortTasks(filteredTasks)
+    
+    // 显示所有归档列，不管是否有任务
+    content += `
+      <div class="archive-section">
+        <div class="archive-section-header">
+          <div class="archive-section-info">
+            <h4 class="archive-section-title">${column.title}</h4>
+            <span class="archive-section-count">${sortedTasks.length}</span>
+          </div>
+          <button class="unarchive-btn" onclick="unarchiveColumn('${column.id}')" title="Unarchive">
+            📂
+          </button>
+        </div>
+        ${sortedTasks.length > 0 ? `
+          <div class="archive-tasks">
+            ${sortedTasks.map(task => createArchiveTaskElement(task, column.id)).join('')}
+          </div>
+        ` : `
+          <div class="archive-empty-section">此列暂无任务</div>
+        `}
+      </div>
+    `
+  })
+  
+  return content || '<div class="archive-empty">No archived content</div>'
+}
+
+// 创建归档任务元素（简化版）
+function createArchiveTaskElement(task, columnId) {
+  const priorityClass = task.priority ? `priority-${task.priority}` : ''
+  const deadlineInfo = getDeadlineInfo(task.dueDate)
+  
+  return `
+    <div class="archive-task-item" data-task-id="${task.id}" data-column-id="${columnId}">
+      <div class="archive-task-header">
+        <span class="archive-task-title">${task.title}</span>
+        ${task.priority ? `<span class="task-priority ${priorityClass}" title="Priority: ${getPriorityText(task.priority)}"></span>` : ''}
+      </div>
+      ${deadlineInfo ? `<div class="archive-task-deadline deadline-${deadlineInfo.status}">${deadlineInfo.text}</div>` : ''}
+      ${task.tags && task.tags.length > 0 ? `<div class="archive-task-tags">${task.tags.map(tag => `<span class="archive-tag">${tag}</span>`).join('')}</div>` : ''}
+    </div>
+  `
+}
+
+// 切换统一归档列的展开/收起状态
+function toggleUnifiedArchive() {
+  const archiveColumn = document.querySelector('.unified-archive')
+  const expandIcon = archiveColumn.querySelector('.expand-icon')
+  
+  if (archiveColumn.classList.contains('collapsed')) {
+    archiveColumn.classList.remove('collapsed')
+    expandIcon.textContent = '▼'
+  } else {
+    archiveColumn.classList.add('collapsed')
+    expandIcon.textContent = '▶'
+  }
+}
+
+// 取消归档列
+function unarchiveColumn(columnId) {
+  const column = currentBoard.columns.find(col => col.id === columnId)
+  if (!column) return
+
+  vscode.postMessage({
+    type: 'toggleColumnArchive',
+    columnId: columnId,
+    archived: false
   })
 }
 
@@ -783,6 +961,22 @@ function addColumn () {
       })
     }
   )
+}
+
+function toggleColumnArchive(columnId) {
+  // 如果是统一归档列，不允许切换
+  if (columnId === 'unified-archive') return
+  
+  const column = currentBoard.columns.find(col => col.id === columnId)
+  if (!column) return
+
+  const newArchivedState = !column.archived
+  
+  vscode.postMessage({
+    type: 'toggleColumnArchive',
+    columnId: columnId,
+    archived: newArchivedState
+  })
 }
 
 // Tag input handling
