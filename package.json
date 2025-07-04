@@ -51,6 +51,18 @@
           "group": "navigation"
         }
       ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Markdown Kanban",
+      "properties": {
+        "markdown-kanban.taskHeader": {
+          "type": "string",
+          "enum": ["title", "list"],
+          "default": "title",
+          "description": "Choose how tasks are formatted in the markdown file. 'title' uses ### headers, 'list' uses - bullet points."
+        }
+      }
     }
   },
   "scripts": {

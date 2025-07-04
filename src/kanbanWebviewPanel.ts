@@ -144,7 +144,11 @@ export class KanbanWebviewPanel {
     private async saveToMarkdown() {
         if (!this._document || !this._board) return;
 
-        const markdown = MarkdownKanbanParser.generateMarkdown(this._board, true);
+        // 获取配置设置
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const taskHeaderFormat = config.get<'title' | 'list'>('taskHeader', 'title');
+
+        const markdown = MarkdownKanbanParser.generateMarkdown(this._board, taskHeaderFormat);
         const edit = new vscode.WorkspaceEdit();
         edit.replace(
             this._document.uri,

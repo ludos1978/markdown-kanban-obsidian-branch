@@ -243,7 +243,7 @@ export class MarkdownKanbanParser {
     column.tasks.push(task);
   }
 
-  static generateMarkdown(board: KanbanBoard, useHeaderFormat: boolean = false): string {
+  static generateMarkdown(board: KanbanBoard, taskHeaderFormat: 'title' | 'list' = 'title'): string {
     let markdown = '';
 
     if (board.title) {
@@ -254,7 +254,7 @@ export class MarkdownKanbanParser {
       markdown += `## ${column.title}\n\n`;
 
       for (const task of column.tasks) {
-        if (useHeaderFormat) {
+        if (taskHeaderFormat === 'title') {
           markdown += `### ${task.title}\n\n`;
         } else {
           markdown += `- ${task.title}\n`;
