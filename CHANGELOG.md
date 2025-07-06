@@ -57,3 +57,10 @@
 ## [1.3.0] (2025-07-05)
 
 * **feature:** Add column archive support
+
+
+## [1.3.1] (2025-07-06)
+
+### Chore
+
+* **chore:** shorten command name to "Kanban"

@@ -92,7 +92,7 @@ Supports a structured task format for better readability and organization:
 ```
 
 #### 2. Open Kanban View
-- **Method 1**: Right-click on the Markdown file → Select "Open as Kanban Board"
+- **Method 1**: Right-click on the Markdown file → Select "Kanban"
 - **Method 2**: Use the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) → Type "Open Kanban Board"
 - **Method 3**: Check the Kanban view in the sidebar.
 
