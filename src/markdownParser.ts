@@ -8,7 +8,6 @@ export interface KanbanColumn {
   id: string;
   title: string;
   tasks: KanbanTask[];
-  archived?: boolean;
 }
 
 export interface KanbanBoard {
@@ -51,7 +50,6 @@ export class MarkdownKanbanParser {
 
       if (collectingYamlHeading) {
         if (trimmedLine.startsWith('---')) {
-          // board.yamlHeader = yamlHeader;
           collectingYamlHeading = false;
         }
 
@@ -75,7 +73,6 @@ export class MarkdownKanbanParser {
 
       if (collectingKabanFooter) {
         if (trimmedLine.startsWith('%%')) {
-          // board.kanbanFooter = kanbanFooter;
           collectingYamlHeading = false;
         }
         if (board.kanbanFooter) {
@@ -109,21 +106,12 @@ export class MarkdownKanbanParser {
         }
         
         let columnTitle = trimmedLine.substring(3).trim();
-        let isArchived = false;
-        
-        // Check for [Archived] marker
-        if (columnTitle.endsWith('[Archived]')) {
-          isArchived = true;
-          columnTitle = columnTitle.replace(/\s*\[Archived\]$/, '').trim();
-        }
         
         currentColumn = {
           id: this.generateId(),
           title: columnTitle,
-          tasks: [],
-          archived: isArchived
+          tasks: []
         };
-        // collectingDescription = false;
         continue;
       }
 
@@ -154,34 +142,19 @@ export class MarkdownKanbanParser {
 
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
-        // Check if this is indented content (subitem) by space or tabs and not empty
-        // if ( line.startsWith('  ') || line.startsWith('\t') ) {
-          // Remove leading indentation (2 spaces minimum)
-          // let descLine = trimmedLine;
-          
-          // Add to description
-          if (currentTask.description) {
-            currentTask.description += '\n' + trimmedLine;
-          } else {
-            currentTask.description = trimmedLine;
-          }
-          continue;
-        // }
+        // Add to description
+        if (currentTask.description) {
+          currentTask.description += '\n' + trimmedLine;
+        } else {
+          currentTask.description = trimmedLine;
+        }
+        continue;
       }
 
       // Handle empty lines
       if (trimmedLine === '') {
         continue;
       }
-
-      // DISABLED, it's possible to add lines to a description but still continue to have more lines
-      // If we hit non-indented content that's not a header, finalize current task
-      // if (currentTask && !line.startsWith('  ') && !trimmedLine.startsWith('#')) {
-      //   this.finalizeCurrentTask(currentTask, currentColumn);
-      //   currentTask = null;
-      //   collectingDescription = false;
-      //   i--; // Re-process this line
-      // }
     }
 
     // Add the last task and column
@@ -200,7 +173,6 @@ export class MarkdownKanbanParser {
     if (!task || !column) return;
 
     if (task.description) {
-      // task.description = task.description.trim();
       if (task.description === '') {
         delete task.description;
       }
@@ -208,7 +180,7 @@ export class MarkdownKanbanParser {
     column.tasks.push(task);
   }
 
-  static generateMarkdown(board: KanbanBoard, taskHeaderFormat: 'title' | 'list' = 'title'): string {
+  static generateMarkdown(board: KanbanBoard): string {
     let markdown = '';
 
     if (board.yamlHeader) {
@@ -220,22 +192,18 @@ export class MarkdownKanbanParser {
     }
 
     for (const column of board.columns) {
-      const columnTitle = column.archived ? `${column.title} [Archived]` : column.title;
-      markdown += `## ${columnTitle}\n\n`;
+      markdown += `## ${column.title}\n\n`;
 
       for (const task of column.tasks) {
         markdown += `- ${task.title}\n`;
 
         // Add description as indented lines
         if (task.description && task.description.trim() !== '') {
-          // markdown += '\n';
           const descriptionLines = task.description.trim().split('\n');
           for (const descLine of descriptionLines) {
             markdown += `  ${descLine}\n`;
           }
         }
-
-        // markdown += '\n';
       }
     }
 

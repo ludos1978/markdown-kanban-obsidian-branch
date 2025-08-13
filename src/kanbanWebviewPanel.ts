@@ -105,12 +105,6 @@ export class KanbanWebviewPanel {
             case 'moveColumn':
                 this.moveColumn(message.fromIndex, message.toIndex);
                 break;
-            case 'toggleTask':
-                this.toggleTaskExpansion(message.taskId);
-                break;
-            case 'toggleColumnArchive':
-                this.toggleColumnArchive(message.columnId, message.archived);
-                break;
         }
     }
 
@@ -141,11 +135,6 @@ export class KanbanWebviewPanel {
     private async saveToMarkdown() {
         if (!this._document || !this._board) return;
 
-        // Get configuration settings
-        // const config = vscode.workspace.getConfiguration('markdown-kanban');
-        // const taskHeaderFormat = config.get<'title' | 'list'>('taskHeader', 'title');
-
-        // const markdown = MarkdownKanbanParser.generateMarkdown(this._board, taskHeaderFormat);
         const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
         const edit = new vscode.WorkspaceEdit();
         edit.replace(
@@ -258,22 +247,6 @@ export class KanbanWebviewPanel {
             const columns = this._board.columns;
             const column = columns.splice(fromIndex, 1)[0];
             columns.splice(toIndex, 0, column);
-        });
-    }
-
-    private toggleTaskExpansion(taskId: string) {
-        this._panel.webview.postMessage({
-            type: 'toggleTaskExpansion',
-            taskId: taskId
-        });
-    }
-
-    private toggleColumnArchive(columnId: string, archived: boolean) {
-        this.performAction(() => {
-            const column = this.findColumn(columnId);
-            if (!column) return;
-
-            column.archived = archived;
         });
     }
 
