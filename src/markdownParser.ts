@@ -14,6 +14,8 @@ export interface KanbanColumn {
 export interface KanbanBoard {
   title: string;
   columns: KanbanColumn[];
+  yamlHeader: string | null;
+  kanbanFooter: string | null;
 }
 
 export class MarkdownKanbanParser {
@@ -25,29 +27,82 @@ export class MarkdownKanbanParser {
     const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
     const board: KanbanBoard = {
       title: '',
-      columns: []
+      columns: [],
+      yamlHeader: '',
+      kanbanFooter: ''
     };
 
     let currentColumn: KanbanColumn | null = null;
     let currentTask: KanbanTask | null = null;
     let collectingDescription = false;
+    let collectingYamlHeading = false;
+    let yamlHeader = null;
+    let collectingKabanFooter = false;
+    let kanbanFooter = null;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmedLine = line.trim();
 
+      // parse board header
+      if (trimmedLine.startsWith('---')) {
+        collectingYamlHeading = true;
+      }
+
+      if (collectingYamlHeading) {
+        if (trimmedLine.startsWith('---')) {
+          // board.yamlHeader = yamlHeader;
+          collectingYamlHeading = false;
+        }
+
+        if (board.yamlHeader) {
+          board.yamlHeader += '\n' + trimmedLine;
+        }
+        else {
+          board.yamlHeader = trimmedLine;
+        } 
+      }
+
+      if (trimmedLine.startsWith('%%')) {
+        // finalize previous task if we get the footer
+        if (collectingDescription) {
+          this.finalizeCurrentTask(currentTask, currentColumn);
+          collectingDescription = false;
+        }
+        collectingYamlHeading = false;
+        collectingKabanFooter = true;
+      }
+
+      if (collectingKabanFooter) {
+        if (trimmedLine.startsWith('%%')) {
+          // board.kanbanFooter = kanbanFooter;
+          collectingYamlHeading = false;
+        }
+        if (board.kanbanFooter) {
+          board.kanbanFooter += '\n' + trimmedLine;
+        }
+        else {
+          board.kanbanFooter = trimmedLine;
+        } 
+      }
+
       // Parse board title
       if (trimmedLine.startsWith('# ') && !board.title) {
         board.title = trimmedLine.substring(2).trim();
-        this.finalizeCurrentTask(currentTask, currentColumn);
+        if (collectingDescription) {
+          this.finalizeCurrentTask(currentTask, currentColumn);
+          collectingDescription = false;
+        }
         currentTask = null;
-        collectingDescription = false;
         continue;
       }
 
       // Parse column title
       if (trimmedLine.startsWith('## ')) {
-        this.finalizeCurrentTask(currentTask, currentColumn);
+        if (collectingDescription) {
+          this.finalizeCurrentTask(currentTask, currentColumn);
+          collectingDescription = false;
+        }
         currentTask = null;
         if (currentColumn) {
           board.columns.push(currentColumn);
@@ -68,13 +123,16 @@ export class MarkdownKanbanParser {
           tasks: [],
           archived: isArchived
         };
-        collectingDescription = false;
+        // collectingDescription = false;
         continue;
       }
 
       // Parse task title (list format - only top-level items)
       if (line.startsWith('- ')) {
-        this.finalizeCurrentTask(currentTask, currentColumn);
+        if (collectingDescription) {
+          this.finalizeCurrentTask(currentTask, currentColumn);
+          collectingDescription = false;
+        }
 
         if (currentColumn) {
           let taskTitle = trimmedLine.substring(2).trim();
@@ -99,13 +157,13 @@ export class MarkdownKanbanParser {
         // Check if this is indented content (subitem) by space or tabs and not empty
         // if ( line.startsWith('  ') || line.startsWith('\t') ) {
           // Remove leading indentation (2 spaces minimum)
-          let descLine = trimmedLine;
+          // let descLine = trimmedLine;
           
           // Add to description
           if (currentTask.description) {
-            currentTask.description += '\n' + descLine;
+            currentTask.description += '\n' + trimmedLine;
           } else {
-            currentTask.description = descLine;
+            currentTask.description = trimmedLine;
           }
           continue;
         // }
@@ -127,7 +185,10 @@ export class MarkdownKanbanParser {
     }
 
     // Add the last task and column
-    this.finalizeCurrentTask(currentTask, currentColumn);
+    if (collectingDescription) {
+      this.finalizeCurrentTask(currentTask, currentColumn);
+      collectingDescription = false;
+    }
     if (currentColumn) {
       board.columns.push(currentColumn);
     }
@@ -139,7 +200,7 @@ export class MarkdownKanbanParser {
     if (!task || !column) return;
 
     if (task.description) {
-      task.description = task.description.trim();
+      // task.description = task.description.trim();
       if (task.description === '') {
         delete task.description;
       }
@@ -149,6 +210,10 @@ export class MarkdownKanbanParser {
 
   static generateMarkdown(board: KanbanBoard, taskHeaderFormat: 'title' | 'list' = 'title'): string {
     let markdown = '';
+
+    if (board.yamlHeader) {
+      markdown += `${board.yamlHeader}\n\n`;
+    }
 
     if (board.title) {
       markdown += `# ${board.title}\n\n`;
@@ -173,6 +238,11 @@ export class MarkdownKanbanParser {
         // markdown += '\n';
       }
     }
+
+    if (board.kanbanFooter) {
+      markdown += `${board.kanbanFooter}\n`;
+    }
+
     return markdown;
   }
 }

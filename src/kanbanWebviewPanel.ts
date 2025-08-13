@@ -121,7 +121,7 @@ export class KanbanWebviewPanel {
         } catch (error) {
             console.error('Error parsing Markdown:', error);
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
-            this._board = { title: 'Error Loading Board', columns: [] };
+            this._board = { title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
         }
         this._update();
     }
