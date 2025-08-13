@@ -125,7 +125,7 @@ export class KanbanWebviewPanel {
 
         this._panel.webview.html = this._getHtmlForWebview();
         
-        const board = this._board || { title: 'Please open a Markdown Kanban file', columns: [] };
+        const board = this._board || { title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
         this._panel.webview.postMessage({
             type: 'updateBoard',
             board: board

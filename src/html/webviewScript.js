@@ -62,17 +62,23 @@ function createColumnElement(column) {
 
 function createTaskElement(task, columnId) {
   const renderedDescription = task.description ? renderMarkdown(task.description) : '';
+  const renderedTitle = task.title ? renderMarkdown(task.title) : '';
   
   return `
     <div class="task-item" data-task-id="${task.id}" data-column-id="${columnId}">
       <div class="task-header">
         <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
         <div class="task-title-container">
-          <textarea class="task-title" 
+          <div class="task-title-display markdown-content" 
+               data-task-id="${task.id}" 
+               data-column-id="${columnId}"
+               onclick="editTitle(this)">${renderedTitle || '<span class="task-title-placeholder">Add title...</span>'}</div>
+          <textarea class="task-title-edit" 
                    data-task-id="${task.id}" 
                    data-column-id="${columnId}"
                    data-field="title"
-                   placeholder="Task title...">${escapeHtml(task.title || '')}</textarea>
+                   placeholder="Task title (Markdown supported)..."
+                   style="display: none;">${escapeHtml(task.title || '')}</textarea>
         </div>
       </div>
 
@@ -105,28 +111,93 @@ function setupDragAndDrop() {
 }
 
 function setupInlineEditing() {
-  // Setup auto-resize and save on blur for title textareas
-  document.querySelectorAll('.task-title').forEach(textarea => {
-    autoResize(textarea)
+  // No need to setup individual textareas since they're created dynamically
+}
+
+function editTitle(element, taskId = null, columnId = null) {
+  // Get task info from element or parameters
+  if (!taskId) {
+    taskId = element.dataset.taskId || element.closest('.task-item').dataset.taskId
+  }
+  if (!columnId) {
+    columnId = element.dataset.columnId || element.closest('.task-item').dataset.columnId
+  }
+  
+  const taskItem = document.querySelector(`[data-task-id="${taskId}"]`)
+  const displayDiv = taskItem.querySelector('.task-title-display')
+  const editTextarea = taskItem.querySelector('.task-title-edit')
+  
+  // Store current scroll position
+  const scrollContainer = taskItem.closest('.tasks-container')
+  const beforeEditOffset = taskItem.offsetTop - scrollContainer.scrollTop
+  
+  // Hide display and show edit
+  displayDiv.style.display = 'none'
+  editTextarea.style.display = 'block'
+  autoResize(editTextarea)
+  editTextarea.focus()
+  
+  // Restore scroll position after height change
+  setTimeout(() => {
+    const newScrollTop = taskItem.offsetTop - beforeEditOffset
+    // console.log("editTitle "+newScrollTop+" : "+scrollContainer.scrollTop)
+    scrollContainer.scrollTop = newScrollTop
+  }, 0)
+  
+  // Setup save handlers
+  const saveAndHide = () => {
+    // Store scroll position before changing display
+    const beforeSaveOffset = taskItem.offsetTop - scrollContainer.scrollTop
     
-    // Auto-resize on input
-    textarea.addEventListener('input', () => autoResize(textarea))
+    saveTaskFieldAndUpdateDisplay(editTextarea)
+    editTextarea.style.display = 'none'
+    displayDiv.style.display = 'block'
     
-    // Save on blur
-    textarea.addEventListener('blur', () => saveTaskField(textarea))
+    // Restore scroll position after display change
+    setTimeout(() => {
+        const newScrollTop = taskItem.offsetTop - beforeSaveOffset
+        // console.log("editTitle.saveAndHide "+newScrollTop+" : "+scrollContainer.scrollTop)
+        scrollContainer.scrollTop = newScrollTop
+    }, 300)
+  }
+  
+  const cancelEdit = () => {
+    // Store scroll position before changing display
+    const beforeCancelOffset = taskItem.offsetTop - scrollContainer.scrollTop
     
-    // Save on Enter for title
-    textarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        textarea.blur()
-      }
-    })
+    editTextarea.style.display = 'none'
+    displayDiv.style.display = 'block'
     
-    // Prevent drag when clicking on textarea
-    textarea.addEventListener('mousedown', (e) => e.stopPropagation())
-    textarea.addEventListener('click', (e) => e.stopPropagation())
+    // Restore scroll position after display change
+    setTimeout(() => {
+      const newScrollTop = taskItem.offsetTop - beforeCancelOffset
+      // console.log("editTitle.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop)
+      scrollContainer.scrollTop = newScrollTop
+    }, 300)
+  }
+  
+  // Remove existing listeners
+  editTextarea.onblur = null
+  editTextarea.onkeydown = null
+  
+  // Add new listeners
+  editTextarea.addEventListener('blur', saveAndHide)
+  editTextarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      saveAndHide()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelEdit()
+    }
   })
+  
+  // Auto-resize on input
+  editTextarea.addEventListener('input', () => autoResize(editTextarea))
+  
+  // Prevent drag when clicking
+  editTextarea.addEventListener('mousedown', (e) => e.stopPropagation())
+  editTextarea.addEventListener('click', (e) => e.stopPropagation())
 }
 
 function editDescription(element, taskId = null, columnId = null) {
@@ -143,6 +214,11 @@ function editDescription(element, taskId = null, columnId = null) {
   const editTextarea = taskItem.querySelector('.task-description-edit')
   const placeholder = taskItem.querySelector('.task-description-placeholder')
   
+  // Store current scroll position relative to the task item
+  const scrollContainer = taskItem.closest('.tasks-container')
+  const beforeEditOffset = taskItem.offsetTop - scrollContainer.scrollTop
+  console.log("beforeEditOffset "+beforeEditOffset)
+  
   // Hide display elements
   if (displayDiv) displayDiv.style.display = 'none'
   if (placeholder) placeholder.style.display = 'none'
@@ -152,19 +228,85 @@ function editDescription(element, taskId = null, columnId = null) {
   autoResize(editTextarea)
   editTextarea.focus()
   
+  // Restore scroll position after height change
+  setTimeout(() => {
+    const newScrollTop = taskItem.offsetTop - beforeEditOffset
+    console.log("editDescription "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+    scrollContainer.scrollTop = newScrollTop
+    console.log("editDescription "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+  }, 0)
+  
   // Setup save handlers
   const saveAndHide = () => {
+    // Store scroll position before changing display
+    const beforeSaveOffset = taskItem.offsetTop + scrollContainer.scrollTop
+    // console.log("beforeSaveOffset "+beforeSaveOffset)
+    // console.log('ScrollContainer scrollTop:', scrollContainer?.scrollTop)
+    // console.log('taskItem scrollTop:', taskItem.offsetTop)
+    
     saveTaskFieldAndUpdateDisplay(editTextarea)
     editTextarea.style.display = 'none'
+    
+    // // Restore scroll position after display change
+    // setTimeout(() => {
+    //   console.log("taskId "+taskId)
+    //   const taskItem = document.querySelector(`[data-task-id="${taskId}"]`)
+    //   const scrollContainer = taskItem.closest('.tasks-container')
+
+    //   const newScrollTop = beforeSaveOffset - taskItem.offsetTop
+    //   console.log("editDescription.saveAndHide "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop+" : "+scrollContainer+" : "+taskItem)
+    //   // scrollContainer.scrollTop = 1000
+    //   console.log('ScrollContainer valid?', scrollContainer && scrollContainer.parentNode)
+    //   console.log('ScrollContainer scrollTop:', scrollContainer?.scrollTop)
+    //   console.log('TaskItem valid?', taskItem && taskItem.parentNode)
+    //   console.log('taskItem scrollTop:', taskItem.offsetTop)
+    //   console.log("editDescription.saveAndHide "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop+" : "+scrollContainer+" : "+taskItem)
+    //   console.log('ScrollContainer scrollTop:', scrollContainer?.scrollTop)
+    //   console.log('taskItem scrollTop:', taskItem.offsetTop)
+    // }, 2)
+
+    // Wait for re-render, then re-query
+    setTimeout(() => {
+      const newTaskItem = document.querySelector(`[data-task-id="${taskId}"]`)
+      const newScrollContainer = newTaskItem?.closest('.tasks-container')
+      
+      if (newTaskItem && newScrollContainer) {
+        const newScrollTop = beforeSaveOffset - newTaskItem.offsetTop
+        newScrollContainer.scrollTop = newScrollTop
+      } else {
+        const newScrollTop = beforeSaveOffset - taskItem.offsetTop
+        scrollContainer.scrollTop = newScrollTop
+      }
+        // console.log('newTaskItem.offsetTop:', newTaskItem.offsetTop)
+        // console.log('beforeSaveOffset:', beforeSaveOffset)
+        // newScrollContainer.scrollTo(newScrollTop, newScrollContainer.scrollLeft)
+        // console.log('newScrollContainer scrollTop:', newScrollTop)
+      // }
+      // 
+      // console.log("editDescription.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+      // scrollContainer.scrollTop = newScrollTop
+    }, 700) // Give time for re-render
   }
   
   const cancelEdit = () => {
+    // Store scroll position before changing display
+    const beforeCancelOffset = taskItem.offsetTop + scrollContainer.scrollTop
+    console.log("beforeCancelOffset "+beforeCancelOffset)
+    
     editTextarea.style.display = 'none'
     if (editTextarea.value.trim()) {
       displayDiv.style.display = 'block'
     } else {
       placeholder.style.display = 'block'
     }
+    
+    // Restore scroll position after display change
+    setTimeout(() => {
+      const newScrollTop = beforeCancelOffset - taskItem.offsetTop
+      // console.log("editDescription.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+      scrollContainer.scrollTop = newScrollTop
+      // console.log("editDescription.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+    }, 600)
   }
   
   // Remove existing listeners
@@ -240,7 +382,15 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
 
   // Update display
   const taskItem = document.querySelector(`[data-task-id="${taskId}"]`)
-  if (field === 'description') {
+  
+  if (field === 'title') {
+    const displayDiv = taskItem.querySelector('.task-title-display')
+    if (value) {
+      displayDiv.innerHTML = renderMarkdown(value)
+    } else {
+      displayDiv.innerHTML = '<span class="task-title-placeholder">Add title...</span>'
+    }
+  } else if (field === 'description') {
     const displayDiv = taskItem.querySelector('.task-description-display')
     const placeholder = taskItem.querySelector('.task-description-placeholder')
     
@@ -275,7 +425,14 @@ function renderMarkdown(text) {
       sanitize: false // We trust the content since it's user's own markdown
     })
     
-    return marked.parse(text)
+    const rendered = marked.parse(text)
+    
+    // For single line content (likely titles), remove wrapping <p> tags
+    if (!text.includes('\n') && rendered.startsWith('<p>') && rendered.endsWith('</p>\n')) {
+      return rendered.slice(3, -5) // Remove <p> and </p>\n
+    }
+    
+    return rendered
   } catch (error) {
     console.error('Error rendering markdown:', error)
     return escapeHtml(text)

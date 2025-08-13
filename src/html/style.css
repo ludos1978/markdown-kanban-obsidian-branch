@@ -44,7 +44,7 @@ body {
 }
 
 .column-title {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--vscode-foreground);
 }
@@ -95,14 +95,15 @@ body {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .task-drag-handle {
     color: var(--vscode-descriptionForeground);
     cursor: grab;
     font-size: 14px;
-    padding: 4px 2px;
+    padding: 0px;
+    /* padding: 4px 2px; */
     user-select: none;
     opacity: 0.4;
     transition: opacity 0.2s;
@@ -152,33 +153,53 @@ body {
     outline: none;
 }
 
-.task-description {
-    color: var(--vscode-descriptionForeground);
-    font-size: 13px;
-    line-height: 1.5;
-    border: 1px solid transparent;
+.task-title-display {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--vscode-foreground);
+    line-height: 1.4;
+    word-break: break-word;
+    padding: 0px; /* 2px 4px */
     border-radius: 3px;
-    padding: 4px;
-    margin: -4px;
-    background: transparent;
-    width: 100%;
-    resize: none;
-    overflow: hidden;
-    min-height: 60px;
-    font-family: inherit;
+    cursor: pointer;
+    min-height: 20px;
 }
 
-.task-description:focus {
-    border-color: var(--vscode-focusBorder);
-    background-color: var(--vscode-input-background);
-    outline: none;
+.task-title-display:hover {
+    background-color: var(--vscode-list-hoverBackground);
 }
 
-.task-description:empty:before {
-    content: 'Add description...';
+.task-title-placeholder {
     color: var(--vscode-descriptionForeground);
-    opacity: 0.7;
     font-style: italic;
+    opacity: 0.7;
+}
+
+.task-title-edit {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--vscode-foreground);
+    line-height: 1.4;
+    word-break: break-word;
+    border: 1px solid var(--vscode-focusBorder);
+    border-radius: 3px;
+    padding: 2px 4px;
+    background: var(--vscode-input-background);
+    width: 100%;
+    resize: vertical;
+    overflow: hidden;
+    /* min-height: 1em; */
+    font-family: inherit;
+    height: 2em;
+}
+
+.task-title-edit:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+}
+
+.task-description-container {
+    margin-top: 2px;
 }
 
 .task-description-display {
@@ -206,7 +227,7 @@ body {
     width: 100%;
     resize: none;
     overflow: hidden;
-    min-height: 60px;
+    min-height: 3em;
     font-family: inherit;
 }
 
@@ -248,6 +269,7 @@ body {
     border-radius: 3px;
     padding: 4px 6px;
     font-size: 11px;
+    margin: 5px 10px 0px 0px;
     cursor: pointer;
     transition: background-color 0.2s;
 }
@@ -453,22 +475,22 @@ body {
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-    margin: 0.5em 0 0.25em 0;
+    margin: 0.25em 0 0.125em 0;
     color: var(--vscode-foreground);
 }
 
 .markdown-content p {
-    margin: 0.25em 0;
+    margin: 0.125em 0;
 }
 
 .markdown-content ul,
 .markdown-content ol {
-    margin: 0.25em 0;
+    margin: 0.125em 0;
     padding-left: 1.5em;
 }
 
 .markdown-content li {
-    margin: 0.125em 0;
+    margin: 0.0625em 0;
 }
 
 .markdown-content code {
@@ -485,12 +507,12 @@ body {
     padding: 0.5em;
     border-radius: 3px;
     overflow-x: auto;
-    margin: 0.5em 0;
+    margin: 0.25em 0;
 }
 
 .markdown-content blockquote {
     border-left: 3px solid var(--vscode-panel-border);
-    margin: 0.5em 0;
+    margin: 0.25em 0;
     padding-left: 1em;
     color: var(--vscode-descriptionForeground);
 }
@@ -510,6 +532,31 @@ body {
 
 .markdown-content a:hover {
     text-decoration: underline;
+}
+
+/* Special styling for title markdown content */
+.task-title-container .markdown-content h1,
+.task-title-container .markdown-content h2,
+.task-title-container .markdown-content h3,
+.task-title-container .markdown-content h4,
+.task-title-container .markdown-content h5,
+.task-title-container .markdown-content h6 {
+    margin: 0;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+.task-title-container .markdown-content p {
+    margin: 0;
+    display: inline;
+}
+
+.task-title-container .markdown-content p:not(:last-child):after {
+    content: " ";
+}
+
+.task-title-container .markdown-content {
+    display: inline;
 }
 
 /* Responsive design */

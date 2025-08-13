@@ -27,60 +27,60 @@ export class MarkdownKanbanParser {
     const board: KanbanBoard = {
       title: '',
       columns: [],
-      yamlHeader: '',
-      kanbanFooter: ''
+      yamlHeader: null,
+      kanbanFooter: null
     };
 
     let currentColumn: KanbanColumn | null = null;
     let currentTask: KanbanTask | null = null;
     let collectingDescription = false;
-    let collectingYamlHeading = false;
-    let yamlHeader = null;
-    let collectingKabanFooter = false;
-    let kanbanFooter = null;
+    let inYamlHeader = false;
+    let inKanbanFooter = false;
+    let yamlLines: string[] = [];
+    let footerLines: string[] = [];
+    let yamlStartFound = false;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmedLine = line.trim();
 
-      // parse board header
-      if (trimmedLine.startsWith('---')) {
-        collectingYamlHeading = true;
+      // Handle YAML front matter
+      if (trimmedLine === '---') {
+        if (!yamlStartFound) {
+          // Start of YAML front matter
+          yamlStartFound = true;
+          inYamlHeader = true;
+          yamlLines.push(line);
+          continue;
+        } else if (inYamlHeader) {
+          // End of YAML front matter
+          yamlLines.push(line);
+          board.yamlHeader = yamlLines.join('\n');
+          inYamlHeader = false;
+          continue;
+        }
       }
 
-      if (collectingYamlHeading) {
-        if (trimmedLine.startsWith('---')) {
-          collectingYamlHeading = false;
-        }
-
-        if (board.yamlHeader) {
-          board.yamlHeader += '\n' + trimmedLine;
-        }
-        else {
-          board.yamlHeader = trimmedLine;
-        } 
+      if (inYamlHeader) {
+        yamlLines.push(line);
+        continue;
       }
 
+      // Handle Kanban footer
       if (trimmedLine.startsWith('%%')) {
         // finalize previous task if we get the footer
         if (collectingDescription) {
           this.finalizeCurrentTask(currentTask, currentColumn);
           collectingDescription = false;
         }
-        collectingYamlHeading = false;
-        collectingKabanFooter = true;
+        inKanbanFooter = true;
+        footerLines.push(line);
+        continue;
       }
 
-      if (collectingKabanFooter) {
-        if (trimmedLine.startsWith('%%')) {
-          collectingYamlHeading = false;
-        }
-        if (board.kanbanFooter) {
-          board.kanbanFooter += '\n' + trimmedLine;
-        }
-        else {
-          board.kanbanFooter = trimmedLine;
-        } 
+      if (inKanbanFooter) {
+        footerLines.push(line);
+        continue;
       }
 
       // Parse board title
@@ -142,16 +142,24 @@ export class MarkdownKanbanParser {
 
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
+        // For description lines, preserve original spacing but remove the 2-space indent
+        let descLine = line;
+        if (line.startsWith('  ')) {
+          descLine = line.substring(2);
+        } else if (line.startsWith('\t')) {
+          descLine = line.substring(1);
+        }
+        
         // Add to description
         if (currentTask.description) {
-          currentTask.description += '\n' + trimmedLine;
+          currentTask.description += '\n' + descLine;
         } else {
-          currentTask.description = trimmedLine;
+          currentTask.description = descLine;
         }
         continue;
       }
 
-      // Handle empty lines
+      // Handle empty lines - just continue
       if (trimmedLine === '') {
         continue;
       }
@@ -160,10 +168,14 @@ export class MarkdownKanbanParser {
     // Add the last task and column
     if (collectingDescription) {
       this.finalizeCurrentTask(currentTask, currentColumn);
-      collectingDescription = false;
     }
     if (currentColumn) {
       board.columns.push(currentColumn);
+    }
+
+    // Set footer if we collected any
+    if (footerLines.length > 0) {
+      board.kanbanFooter = footerLines.join('\n');
     }
 
     return board;
@@ -172,7 +184,9 @@ export class MarkdownKanbanParser {
   private static finalizeCurrentTask(task: KanbanTask | null, column: KanbanColumn | null): void {
     if (!task || !column) return;
 
+    // Clean up description - remove trailing whitespace but preserve internal spacing
     if (task.description) {
+      task.description = task.description.trimEnd();
       if (task.description === '') {
         delete task.description;
       }
@@ -183,32 +197,51 @@ export class MarkdownKanbanParser {
   static generateMarkdown(board: KanbanBoard): string {
     let markdown = '';
 
+    // Add YAML front matter if it exists
     if (board.yamlHeader) {
-      markdown += `${board.yamlHeader}\n\n`;
+      markdown += board.yamlHeader + '\n\n';
     }
 
+    // Add board title if it exists
     if (board.title) {
       markdown += `# ${board.title}\n\n`;
     }
 
+    // Add columns
     for (const column of board.columns) {
       markdown += `## ${column.title}\n\n`;
 
       for (const task of column.tasks) {
-        markdown += `- ${task.title}\n`;
+        markdown += `- [ ] ${task.title}\n`;
 
-        // Add description as indented lines
+        // Add description with proper indentation
         if (task.description && task.description.trim() !== '') {
-          const descriptionLines = task.description.trim().split('\n');
+          const descriptionLines = task.description.split('\n');
           for (const descLine of descriptionLines) {
+            // Always add 2-space indentation, even for empty lines within description
             markdown += `  ${descLine}\n`;
           }
         }
       }
+
+      // Add empty line after each column
+      markdown += '\n';
     }
 
+    // Add Kanban footer if it exists
     if (board.kanbanFooter) {
-      markdown += `${board.kanbanFooter}\n`;
+      // Remove the extra newline we added after the last column if there's a footer
+      if (markdown.endsWith('\n\n')) {
+        markdown = markdown.slice(0, -1);
+      }
+      markdown += board.kanbanFooter;
+      // Only add final newline if footer doesn't already end with one
+      if (!board.kanbanFooter.endsWith('\n')) {
+        markdown += '\n';
+      }
+    } else {
+      // Remove trailing newline if no footer
+      markdown = markdown.trimEnd() + '\n';
     }
 
     return markdown;
