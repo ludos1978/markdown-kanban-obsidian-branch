@@ -108,12 +108,6 @@ export class KanbanWebviewPanel {
             case 'toggleTask':
                 this.toggleTaskExpansion(message.taskId);
                 break;
-            case 'updateTaskStep':
-                this.updateTaskStep(message.taskId, message.columnId, message.stepIndex, message.completed);
-                break;
-            case 'reorderTaskSteps':
-                this.reorderTaskSteps(message.taskId, message.columnId, message.newOrder);
-                break;
             case 'toggleColumnArchive':
                 this.toggleColumnArchive(message.columnId, message.archived);
                 break;
@@ -147,7 +141,7 @@ export class KanbanWebviewPanel {
     private async saveToMarkdown() {
         if (!this._document || !this._board) return;
 
-        // 获取配置设置
+        // Get configuration settings
         const config = vscode.workspace.getConfiguration('markdown-kanban');
         const taskHeaderFormat = config.get<'title' | 'list'>('taskHeader', 'title');
 
@@ -216,8 +210,7 @@ export class KanbanWebviewPanel {
                 priority: taskData.priority,
                 workload: taskData.workload,
                 dueDate: taskData.dueDate,
-                defaultExpanded: taskData.defaultExpanded,
-                steps: taskData.steps || []
+                defaultExpanded: taskData.defaultExpanded
             };
 
             column.tasks.push(newTask);
@@ -248,34 +241,8 @@ export class KanbanWebviewPanel {
                 priority: taskData.priority,
                 workload: taskData.workload,
                 dueDate: taskData.dueDate,
-                defaultExpanded: taskData.defaultExpanded,
-                steps: taskData.steps || []
+                defaultExpanded: taskData.defaultExpanded
             });
-        });
-    }
-
-    private updateTaskStep(taskId: string, columnId: string, stepIndex: number, completed: boolean) {
-        this.performAction(() => {
-            const result = this.findTask(columnId, taskId);
-            if (!result?.task.steps || stepIndex < 0 || stepIndex >= result.task.steps.length) {
-                return;
-            }
-
-            result.task.steps[stepIndex].completed = completed;
-        });
-    }
-
-    private reorderTaskSteps(taskId: string, columnId: string, newOrder: number[]) {
-        this.performAction(() => {
-            const result = this.findTask(columnId, taskId);
-            if (!result?.task.steps) return;
-
-            const originalSteps = [...result.task.steps];
-            const reorderedSteps = newOrder
-                .filter(index => index >= 0 && index < originalSteps.length)
-                .map(index => originalSteps[index]);
-
-            result.task.steps = reorderedSteps;
         });
     }
 

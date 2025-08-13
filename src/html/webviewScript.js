@@ -51,16 +51,6 @@ function getDeadlineInfo (dueDate) {
   return { status, text, days: diffDays }
 }
 
-// Calculate steps progress
-function getStepsProgress (steps) {
-  if (!steps || steps.length === 0) {
-    return { completed: 0, total: 0 }
-  }
-  
-  const completed = steps.filter(step => step.completed).length
-  return { completed, total: steps.length }
-}
-
 // Render Kanban board based on filter conditions and sorting settings
 function renderBoard () {
   if (!currentBoard) return
@@ -68,7 +58,7 @@ function renderBoard () {
   const boardElement = document.getElementById('kanban-board')
   boardElement.innerHTML = ''
 
-  // 分离归档列和非归档列，保持原有顺序
+  // Separate archived and non-archived columns, maintaining original order
   const normalColumns = []
   const archivedColumns = []
   
@@ -80,13 +70,13 @@ function renderBoard () {
     }
   })
   
-  // 先渲染正常列
+  // Render normal columns first
   normalColumns.forEach(column => {
     const columnElement = createColumnElement(column)
     boardElement.appendChild(columnElement)
   })
   
-  // 如果有归档列，创建一个统一的归档列
+  // If there are archived columns, create a unified archive column
   if (archivedColumns.length > 0) {
     const unifiedArchiveColumn = createUnifiedArchiveColumn(archivedColumns)
     boardElement.appendChild(unifiedArchiveColumn)
@@ -133,7 +123,7 @@ function createColumnElement (column) {
   const filteredTasks = filterTasks(column.tasks)
   const sortedTasks = sortTasks(filteredTasks)
 
-  // 归档列默认收起
+  // Archive columns default to collapsed
   const isArchived = column.archived || false
   const isCollapsed = isArchived
   
@@ -172,7 +162,6 @@ function createTaskElement (task, columnId) {
   const isExpanded = getTaskExpansionState(task)
   const priorityClass = task.priority ? `priority-${task.priority}` : ''
   const deadlineInfo = getDeadlineInfo(task.dueDate)
-  const stepsProgress = getStepsProgress(task.steps)
 
   return `
         <div class="task-item ${isExpanded ? 'expanded' : ''}"
@@ -182,7 +171,6 @@ function createTaskElement (task, columnId) {
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <div class="task-title">${task.title}</div>
                 <div class="task-meta">
-                    ${createStepsProgressElement(stepsProgress)}
                     ${createPriorityElement(task.priority, priorityClass)}
                 </div>
             </div>
@@ -203,12 +191,6 @@ function getTaskExpansionState(task) {
     }
   }
   return isExpanded
-}
-
-function createStepsProgressElement(stepsProgress) {
-  return stepsProgress.total > 0
-    ? `<div class="task-steps-progress" title="Steps: ${stepsProgress.completed}/${stepsProgress.total}">${stepsProgress.completed}/${stepsProgress.total}</div>`
-    : ''
 }
 
 function createPriorityElement(priority, priorityClass) {
@@ -249,39 +231,12 @@ function createTaskDetails(task, columnId) {
     ? `<div class="task-description">${task.description}</div>`
     : ''
   
-  const steps = task.steps && task.steps.length > 0
-    ? createTaskStepsElement(task, columnId)
-    : ''
-
   const info = createTaskInfoElement(task)
 
   return `
     <div class="task-details">
         ${description}
-        ${steps}
         ${info}
-    </div>
-  `
-}
-
-function createTaskStepsElement(task, columnId) {
-  const stepsList = task.steps.map((step, index) => `
-    <div class="task-step-item" data-step-index="${index}">
-        <div class="step-drag-handle">⋮⋮</div>
-        <input type="checkbox" 
-               ${step.completed ? 'checked' : ''} 
-               onchange="updateTaskStep('${task.id}', '${columnId}', ${index}, this.checked)"
-               onclick="event.stopPropagation()">
-        <span class="task-step-text ${step.completed ? 'completed' : ''}">${step.text}</span>
-    </div>
-  `).join('')
-
-  return `
-    <div class="task-steps">
-        <div class="task-steps-header">Steps:</div>
-        <div class="task-steps-list" data-task-id="${task.id}" data-column-id="${columnId}">
-            ${stepsList}
-        </div>
     </div>
   `
 }
@@ -407,7 +362,6 @@ function toggleTaskExpansion (taskId) {
 
 function setupDragAndDrop() {
   setupColumnDragAndDrop()
-  setupTaskStepsDragAndDrop()
   setupTaskDragAndDrop()
 }
 
@@ -516,12 +470,8 @@ function setupTaskExpansionEvents() {
 function handleTaskClick(e) {
   const ignoredSelectors = [
     '.task-drag-handle',
-    '.step-drag-handle', 
     '.action-btn',
-    '.task-step-item',
-    '.task-steps',
-    'input[type="checkbox"]',
-    '.task-step-text'
+    'input[type="checkbox"]'
   ]
   
   for (const selector of ignoredSelectors) {
@@ -600,7 +550,7 @@ function setupColumnDragAndDrop () {
     const columnHeader = column.querySelector('.column-header')
     const columnId = column.getAttribute('data-column-id')
 
-    // 跳过统一归档列
+    // Skip unified archive column
     if (columnId === 'unified-archive') return
 
     columnHeader.addEventListener('dragstart', e => {
@@ -622,7 +572,7 @@ function setupColumnDragAndDrop () {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'move'
       if (draggedColumnId && draggedColumnId !== columnId) {
-        // 只允许正常列之间的拖拽（因为归档列现在是统一的）
+        // Only allow dragging between normal columns (since archived columns are now unified)
         const draggedColumn = currentBoard.columns.find(col => col.id === draggedColumnId)
         const targetColumn = currentBoard.columns.find(col => col.id === columnId)
         
@@ -647,14 +597,14 @@ function setupColumnDragAndDrop () {
       const targetDisplayIndex = displayIndex
 
       if (draggedColumnId && draggedColumnId !== targetColumnId) {
-        // 只允许正常列之间的拖拽
+        // Only allow dragging between normal columns
         const draggedColumn = currentBoard.columns.find(col => col.id === draggedColumnId)
         const targetColumn = currentBoard.columns.find(col => col.id === targetColumnId)
         
         if (draggedColumn && targetColumn && 
             !draggedColumn.archived && !targetColumn.archived) {
           
-          // 将显示索引转换为原始数据索引
+          // Convert display index to original data index
           const fromOriginalIndex = getOriginalColumnIndex(draggedColumnId)
           const toOriginalIndex = getOriginalColumnIndex(targetColumnId)
           
@@ -671,24 +621,40 @@ function setupColumnDragAndDrop () {
   })
 }
 
-// 获取列在原始数据中的索引
+// Get column's index in original data
 function getOriginalColumnIndex(columnId) {
   if (!currentBoard) return -1
   return currentBoard.columns.findIndex(col => col.id === columnId)
 }
 
-// 创建统一的归档列
+// Helper function to determine drop position for tasks
+function getDragAfterTaskElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')]
+  
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect()
+    const offset = y - box.top - box.height / 2
+    
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child }
+    } else {
+      return closest
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element
+}
+
+// Create unified archive column
 function createUnifiedArchiveColumn(archivedColumns) {
   const columnDiv = document.createElement('div')
   columnDiv.className = 'kanban-column archived unified-archive'
   columnDiv.setAttribute('data-column-id', 'unified-archive')
   
-  // 统计所有归档任务的数量
+  // Count all archived tasks
   const totalArchivedTasks = archivedColumns.reduce((total, column) => {
     return total + filterTasks(column.tasks).length
   }, 0)
   
-  // 默认收起状态
+  // Default to collapsed state
   columnDiv.classList.add('collapsed')
   
   columnDiv.innerHTML = `
@@ -711,7 +677,7 @@ function createUnifiedArchiveColumn(archivedColumns) {
   return columnDiv
 }
 
-// 创建归档内容
+// Create archive content
 function createArchiveContent(archivedColumns) {
   let content = ''
   
@@ -719,7 +685,7 @@ function createArchiveContent(archivedColumns) {
     const filteredTasks = filterTasks(column.tasks)
     const sortedTasks = sortTasks(filteredTasks)
     
-    // 显示所有归档列，不管是否有任务
+    // Show all archived columns, whether they have tasks or not
     content += `
       <div class="archive-section">
         <div class="archive-section-header">
@@ -736,7 +702,7 @@ function createArchiveContent(archivedColumns) {
             ${sortedTasks.map(task => createArchiveTaskElement(task, column.id)).join('')}
           </div>
         ` : `
-          <div class="archive-empty-section">此列暂无任务</div>
+          <div class="archive-empty-section">No tasks in this column</div>
         `}
       </div>
     `
@@ -745,7 +711,7 @@ function createArchiveContent(archivedColumns) {
   return content || '<div class="archive-empty">No archived content</div>'
 }
 
-// 创建归档任务元素（简化版）
+// Create archive task element (simplified version)
 function createArchiveTaskElement(task, columnId) {
   const priorityClass = task.priority ? `priority-${task.priority}` : ''
   const deadlineInfo = getDeadlineInfo(task.dueDate)
@@ -762,7 +728,7 @@ function createArchiveTaskElement(task, columnId) {
   `
 }
 
-// 切换统一归档列的展开/收起状态
+// Toggle unified archive column expand/collapse state
 function toggleUnifiedArchive() {
   const archiveColumn = document.querySelector('.unified-archive')
   const expandIcon = archiveColumn.querySelector('.expand-icon')
@@ -776,7 +742,7 @@ function toggleUnifiedArchive() {
   }
 }
 
-// 取消归档列
+// Unarchive column
 function unarchiveColumn(columnId) {
   const column = currentBoard.columns.find(col => col.id === columnId)
   if (!column) return
@@ -805,8 +771,6 @@ function openTaskModal (columnId, taskId = null) {
     clearTaskForm(form)
   }
 
-  setTimeout(() => setupModalStepsDragAndDrop(), 100)
-
   modal.style.display = 'block'
   document.getElementById('task-title').focus()
 }
@@ -825,13 +789,11 @@ function populateTaskForm(columnId, taskId) {
   document.getElementById('task-default-expanded').checked = task.defaultExpanded || false
 
   clearAndPopulateTags(task.tags)
-  clearAndPopulateSteps(task.steps)
 }
 
 function clearTaskForm(form) {
   form.reset()
   clearAndPopulateTags([])
-  clearAndPopulateSteps([])
 }
 
 function clearAndPopulateTags(tags) {
@@ -840,15 +802,6 @@ function clearAndPopulateTags(tags) {
   
   if (tags) {
     tags.forEach(tag => addTagToContainer(tag))
-  }
-}
-
-function clearAndPopulateSteps(steps) {
-  const stepsList = document.getElementById('steps-list')
-  stepsList.innerHTML = ''
-  
-  if (steps) {
-    steps.forEach(step => addStepToContainer(step.text, step.completed))
   }
 }
 
@@ -870,16 +823,6 @@ function deleteTask (taskId, columnId) {
       taskId: taskId,
       columnId: columnId
     })
-  })
-}
-
-function updateTaskStep (taskId, columnId, stepIndex, completed) {
-  vscode.postMessage({
-    type: 'updateTaskStep',
-    taskId: taskId,
-    columnId: columnId,
-    stepIndex: stepIndex,
-    completed: completed
   })
 }
 
@@ -964,7 +907,7 @@ function addColumn () {
 }
 
 function toggleColumnArchive(columnId) {
-  // 如果是统一归档列，不允许切换
+  // If it's the unified archive column, don't allow toggling
   if (columnId === 'unified-archive') return
   
   const column = currentBoard.columns.find(col => col.id === columnId)
@@ -1146,338 +1089,9 @@ function getFormTags () {
   )
 }
 
-// Steps handling functions
-function addStep () {
-  const stepsInput = document.getElementById('steps-input')
-  const stepText = stepsInput.value.trim()
-  
-  if (stepText) {
-    addStepToContainer(stepText, false)
-    stepsInput.value = ''
-  }
-}
-
-function addStepToContainer (stepText, completed = false) {
-  const stepsList = document.getElementById('steps-list')
-  
-  const stepElement = document.createElement('div')
-  stepElement.className = 'step-item'
-  stepElement.draggable = true
-  stepElement.innerHTML = `
-    <div class="step-drag-handle">⋮⋮</div>
-    <input type="checkbox" ${completed ? 'checked' : ''} onchange="updateStepStatus(this)">
-    <span class="step-text ${completed ? 'completed' : ''}">${stepText}</span>
-    <button type="button" class="step-remove" onclick="removeStep(this)">×</button>
-  `
-  
-  // 为整个步骤项添加事件阻止
-  stepElement.addEventListener('click', e => {
-    e.stopPropagation()
-  })
-  
-  stepElement.addEventListener('mousedown', e => {
-    e.stopPropagation()
-  })
-  
-  stepsList.appendChild(stepElement)
-  
-  // Setup drag and drop for the new step
-  setupStepDragAndDrop(stepElement)
-}
-
-function removeStep (button) {
-  button.parentElement.remove()
-}
-
-function updateStepStatus (checkbox) {
-  const stepText = checkbox.nextElementSibling
-  if (checkbox.checked) {
-    stepText.classList.add('completed')
-  } else {
-    stepText.classList.remove('completed')
-  }
-}
-
-function getFormSteps () {
-  const stepsList = document.getElementById('steps-list')
-  return Array.from(stepsList.querySelectorAll('.step-item')).map(stepItem => {
-    const checkbox = stepItem.querySelector('input[type="checkbox"]')
-    const text = stepItem.querySelector('.step-text').textContent.trim()
-    return { text, completed: checkbox.checked }
-  })
-}
-
-// Setup step drag and drop for individual step items
-function setupStepDragAndDrop(stepElement) {
-  let longPressTimer = null
-  let isDragReady = false
-  
-  const initializeDragMode = () => {
-    isDragReady = true
-    stepElement.draggable = true
-    stepElement.style.cursor = 'grabbing'
-    stepElement.classList.add('drag-ready')
-  }
-  
-  const resetDragMode = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer)
-      longPressTimer = null
-    }
-    
-    if (!isDragReady) {
-      stepElement.draggable = false
-      stepElement.style.cursor = ''
-      stepElement.classList.remove('drag-ready')
-    }
-  }
-  
-  stepElement.addEventListener('mousedown', e => {
-    if (e.target.matches('input[type="checkbox"]') || e.target.matches('.step-remove')) {
-      return
-    }
-    
-    e.stopPropagation()
-    
-    longPressTimer = setTimeout(() => {
-      initializeDragMode()
-    }, 300)
-  })
-  
-  stepElement.addEventListener('mouseup', resetDragMode)
-  stepElement.addEventListener('mouseleave', resetDragMode)
-  
-  stepElement.addEventListener('dragstart', e => {
-    if (!isDragReady) {
-      e.preventDefault()
-      return
-    }
-    
-    e.stopPropagation()
-    e.dataTransfer.setData('text/plain', stepElement.dataset.stepIndex || Array.from(stepElement.parentNode.children).indexOf(stepElement))
-    e.dataTransfer.setData('application/step-element', 'true')
-    e.dataTransfer.effectAllowed = 'move'
-    
-    const dragImage = createStepDragImage(stepElement, e.offsetX, e.offsetY)
-    e.dataTransfer.setDragImage(dragImage, e.offsetX, e.offsetY)
-    
-    stepElement.classList.add('dragging')
-    stepElement.classList.remove('drag-ready')
-  })
-
-  stepElement.addEventListener('dragend', e => {
-    stepElement.classList.remove('dragging', 'drag-ready')
-    stepElement.draggable = false
-    stepElement.style.cursor = ''
-    isDragReady = false
-  })
-  
-  const dragHandle = stepElement.querySelector('.step-drag-handle')
-  if (dragHandle) {
-    dragHandle.addEventListener('mousedown', e => {
-      e.stopPropagation()
-      initializeDragMode()
-    })
-    
-    dragHandle.addEventListener('click', e => {
-      e.stopPropagation()
-      e.preventDefault()
-    })
-  }
-}
-
-function createStepDragImage(stepElement, offsetX, offsetY) {
-  const dragImage = stepElement.cloneNode(true)
-  dragImage.style.transform = 'rotate(2deg)'
-  dragImage.style.opacity = '0.8'
-  dragImage.style.position = 'absolute'
-  dragImage.style.top = '-1000px'
-  dragImage.style.width = stepElement.offsetWidth + 'px'
-  document.body.appendChild(dragImage)
-  
-  setTimeout(() => document.body.removeChild(dragImage), 0)
-  
-  return dragImage
-}
-
-// Setup steps list drag and drop for task details view
-function setupTaskStepsDragAndDrop() {
-  document.querySelectorAll('.task-steps-list').forEach(stepsList => {
-    const taskId = stepsList.dataset.taskId
-    const columnId = stepsList.dataset.columnId
-    
-    stepsList.addEventListener('dragover', e => {
-      e.preventDefault()
-      const draggingElement = stepsList.querySelector('.dragging')
-      if (!draggingElement) return
-      
-      // 清除之前的插入预览
-      stepsList.querySelectorAll('.task-step-item').forEach(item => {
-        item.classList.remove('drag-insert-before', 'drag-insert-after')
-      })
-      
-      const afterElement = getDragAfterElement(stepsList, e.clientY)
-      if (afterElement == null) {
-        // 插入到末尾
-        const lastStep = stepsList.querySelector('.task-step-item:last-child')
-        if (lastStep && lastStep !== draggingElement) {
-          lastStep.classList.add('drag-insert-after')
-        }
-      } else if (afterElement !== draggingElement) {
-        // 插入到指定元素之前
-        afterElement.classList.add('drag-insert-before')
-      }
-    })
-
-    stepsList.addEventListener('drop', e => {
-      e.preventDefault()
-      e.stopPropagation()
-      
-      // 清除插入预览
-      stepsList.querySelectorAll('.task-step-item').forEach(item => {
-        item.classList.remove('drag-insert-before', 'drag-insert-after')
-      })
-      
-      // 实际移动元素
-      const draggingElement = stepsList.querySelector('.dragging')
-      if (draggingElement) {
-        const afterElement = getDragAfterElement(stepsList, e.clientY)
-        if (afterElement == null) {
-          stepsList.appendChild(draggingElement)
-        } else {
-          stepsList.insertBefore(draggingElement, afterElement)
-        }
-      }
-      
-      // Recalculate step indices and send update to backend
-      const stepItems = Array.from(stepsList.querySelectorAll('.task-step-item'))
-      const newStepsOrder = []
-      
-      stepItems.forEach((item, newIndex) => {
-        const oldIndex = parseInt(item.dataset.stepIndex)
-        newStepsOrder.push(oldIndex)
-        item.dataset.stepIndex = newIndex
-        // Update the onchange handler with new index
-        const checkbox = item.querySelector('input[type="checkbox"]')
-        checkbox.setAttribute('onchange', `updateTaskStep('${taskId}', '${columnId}', ${newIndex}, this.checked)`)
-      })
-      
-      // Send reorder message to backend
-      vscode.postMessage({
-        type: 'reorderTaskSteps',
-        taskId: taskId,
-        columnId: columnId,
-        newOrder: newStepsOrder
-      })
-    })
-
-    // Setup drag and drop for existing step items
-    stepsList.querySelectorAll('.task-step-item').forEach(setupStepDragAndDrop)
-  })
-}
-
-// Setup steps list drag and drop for modal form
-function setupModalStepsDragAndDrop() {
-  const stepsList = document.getElementById('steps-list')
-  if (!stepsList) return
-
-  stepsList.addEventListener('dragover', e => {
-    e.preventDefault()
-    const draggingElement = stepsList.querySelector('.dragging')
-    if (!draggingElement) return
-    
-    // 清除之前的插入预览
-    stepsList.querySelectorAll('.step-item').forEach(item => {
-      item.classList.remove('drag-insert-before', 'drag-insert-after')
-    })
-    
-    const afterElement = getDragAfterElement(stepsList, e.clientY)
-    if (afterElement == null) {
-      // 插入到末尾
-      const lastStep = stepsList.querySelector('.step-item:last-child')
-      if (lastStep && lastStep !== draggingElement) {
-        lastStep.classList.add('drag-insert-after')
-      }
-    } else if (afterElement !== draggingElement) {
-      // 插入到指定元素之前
-      afterElement.classList.add('drag-insert-before')
-    }
-  })
-
-  stepsList.addEventListener('drop', e => {
-    e.preventDefault()
-    
-    // 清除插入预览
-    stepsList.querySelectorAll('.step-item').forEach(item => {
-      item.classList.remove('drag-insert-before', 'drag-insert-after')
-    })
-    
-    // 实际移动元素
-    const draggingElement = stepsList.querySelector('.dragging')
-    if (draggingElement) {
-      const afterElement = getDragAfterElement(stepsList, e.clientY)
-      if (afterElement == null) {
-        stepsList.appendChild(draggingElement)
-      } else {
-        stepsList.insertBefore(draggingElement, afterElement)
-      }
-    }
-    
-    // No need to send backend message for modal, will be handled on form submit
-  })
-
-  // Setup drag and drop for existing step items in modal
-  stepsList.querySelectorAll('.step-item').forEach(setupStepDragAndDrop)
-}
-
-// Helper function to determine drop position for tasks
-function getDragAfterTaskElement(container, y) {
-  const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')]
-  
-  return draggableElements.reduce((closest, child) => {
-    const box = child.getBoundingClientRect()
-    const offset = y - box.top - box.height / 2
-    
-    if (offset < 0 && offset > closest.offset) {
-      return { offset: offset, element: child }
-    } else {
-      return closest
-    }
-  }, { offset: Number.NEGATIVE_INFINITY }).element
-}
-
-// Helper function to determine drop position for steps
-function getDragAfterElement(container, y) {
-  const draggableElements = [...container.querySelectorAll('.task-step-item:not(.dragging), .step-item:not(.dragging)')]
-  
-  return draggableElements.reduce((closest, child) => {
-    const box = child.getBoundingClientRect()
-    const offset = y - box.top - box.height / 2
-    
-    if (offset < 0 && offset > closest.offset) {
-      return { offset: offset, element: child }
-    } else {
-      return closest
-    }
-  }, { offset: Number.NEGATIVE_INFINITY }).element
-}
-
-// Setup steps input handling
-function setupStepsInput () {
-  const stepsInput = document.getElementById('steps-input')
-
-  stepsInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      addStep()
-    }
-  })
-}
-
 // Filter and sort event listeners
 document.addEventListener('DOMContentLoaded', () => {
   setupTagsInput()
-  setupStepsInput()
 
   // Tag filtering
   document.getElementById('tag-filter').addEventListener('input', e => {
@@ -1524,8 +1138,7 @@ document.getElementById('task-form').addEventListener('submit', e => {
     workload: document.getElementById('task-workload').value || undefined,
     dueDate: document.getElementById('task-due-date').value || undefined,
     defaultExpanded: document.getElementById('task-default-expanded').checked,
-    tags: getFormTags(),
-    steps: getFormSteps()
+    tags: getFormTags()
   }
 
   if (!taskData.title) {
