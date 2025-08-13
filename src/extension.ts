@@ -12,7 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log('Markdown Kanban extension is now active!');
 
-	// 注册webview panel序列化器（用于恢复面板状态）
+	// Register webview panel serializer (for restoring panel state)
 	if (vscode.window.registerWebviewPanelSerializer) {
 		vscode.window.registerWebviewPanelSerializer(KanbanWebviewPanel.viewType, {
 			async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any) {
@@ -21,16 +21,16 @@ export function activate(context: vscode.ExtensionContext) {
 		});
 	}
 
-	// 注册打开看板命令（在中间区域打开）
+	// Register command to open kanban panel
 	const openKanbanCommand = vscode.commands.registerCommand('markdown-kanban.openKanban', async (uri?: vscode.Uri) => {
 		let targetUri = uri;
 
-		// 如果没有提供URI，尝试从当前活动编辑器获取
+		// If no URI provided, try to get from active editor
 		if (!targetUri && vscode.window.activeTextEditor) {
 			targetUri = vscode.window.activeTextEditor.document.uri;
 		}
 
-		// 如果还是没有URI，让用户选择文件
+		// If still no URI, let user select file
 		if (!targetUri) {
 			const fileUris = await vscode.window.showOpenDialog({
 				canSelectFiles: true,
@@ -48,22 +48,22 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 
-		// 检查文件是否为markdown文件
+		// Check if file is markdown
 		if (!targetUri.fsPath.endsWith('.md')) {
 			vscode.window.showErrorMessage('请选择一个markdown文件。');
 			return;
 		}
 
 		try {
-			// 打开文档
+			// Open document
 			const document = await vscode.workspace.openTextDocument(targetUri);
 
-			// 在中间区域创建或显示看板面板
+			// Create or show kanban panel in center area
 			KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
 
-			vscode.window.showInformationMessage(`load kanban from: ${document.fileName}`);
+				vscode.window.showInformationMessage(`Kanban loaded from: ${document.fileName}`);
 		} catch (error) {
-			vscode.window.showErrorMessage(`failed open kanban: ${error}`);
+		vscode.window.showErrorMessage(`Failed to open kanban: ${error}`);
 		}
 	});
 
@@ -71,24 +71,24 @@ export function activate(context: vscode.ExtensionContext) {
 		fileListenerEnabled = !fileListenerEnabled;
 	});
 
-	// 监听文档变化，自动更新看板（实时同步）
+	// Listen for document changes to automatically update kanban (real-time sync)
 	const documentChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {
 		if (event.document.languageId === 'markdown' && fileListenerEnabled) {
-			// 延迟更新，避免频繁刷新
+				// Delay update to avoid frequent refresh
 			setTimeout(() => {
 				// 更新面板中的看板
-				if (KanbanWebviewPanel.currentPanel) {
-					KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
-				}
+			if (KanbanWebviewPanel.currentPanel) {
+				KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
+			}
 			}, 500);
 		}
 	});
 
-	// 监听活动编辑器变化
+	// Listen for active editor changes
 	const activeEditorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
 		if (editor && editor.document.languageId === 'markdown' && fileListenerEnabled) {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
-			// 如果有面板打开，自动加载当前文档
+			// If panel is open, automatically load current document
 			if (KanbanWebviewPanel.currentPanel) {
 				KanbanWebviewPanel.currentPanel.loadMarkdownFile(editor.document);
 			}
@@ -97,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// 添加到订阅列表
+	// Add to subscriptions list
 	context.subscriptions.push(
 		openKanbanCommand,
 		disableFileListenerCommand,
@@ -105,7 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
 		activeEditorChangeListener,
 	);
 
-	// 如果当前有活动的markdown编辑器，自动激活看板
+	// If current active editor is markdown, auto-activate kanban
 	if (vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.languageId === 'markdown') {
 		vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
 	}
@@ -113,6 +113,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is deactivated
 export function deactivate() {
-	// 清理上下文
+	// Clean up context
 	vscode.commands.executeCommand('setContext', 'markdownKanbanActive', false);
 }

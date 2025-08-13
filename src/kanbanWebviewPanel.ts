@@ -142,10 +142,11 @@ export class KanbanWebviewPanel {
         if (!this._document || !this._board) return;
 
         // Get configuration settings
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const taskHeaderFormat = config.get<'title' | 'list'>('taskHeader', 'title');
+        // const config = vscode.workspace.getConfiguration('markdown-kanban');
+        // const taskHeaderFormat = config.get<'title' | 'list'>('taskHeader', 'title');
 
-        const markdown = MarkdownKanbanParser.generateMarkdown(this._board, taskHeaderFormat);
+        // const markdown = MarkdownKanbanParser.generateMarkdown(this._board, taskHeaderFormat);
+        const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
         const edit = new vscode.WorkspaceEdit();
         edit.replace(
             this._document.uri,
@@ -205,12 +206,7 @@ export class KanbanWebviewPanel {
             const newTask: KanbanTask = {
                 id: Math.random().toString(36).substr(2, 9),
                 title: taskData.title,
-                description: taskData.description,
-                tags: taskData.tags || [],
-                priority: taskData.priority,
-                workload: taskData.workload,
-                dueDate: taskData.dueDate,
-                defaultExpanded: taskData.defaultExpanded
+                description: taskData.description
             };
 
             column.tasks.push(newTask);
@@ -236,12 +232,7 @@ export class KanbanWebviewPanel {
 
             Object.assign(result.task, {
                 title: taskData.title,
-                description: taskData.description,
-                tags: taskData.tags || [],
-                priority: taskData.priority,
-                workload: taskData.workload,
-                dueDate: taskData.dueDate,
-                defaultExpanded: taskData.defaultExpanded
+                description: taskData.description
             });
         });
     }
