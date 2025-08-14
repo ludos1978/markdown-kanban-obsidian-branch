@@ -51,7 +51,7 @@ body {
 
 .column-controls-menu {
     display: flex;
-    gap: 4px;
+    gap: 8px;
     align-items: center;
 }
 
@@ -68,6 +68,28 @@ body {
     padding: 2px 8px;
     font-size: 12px;
     font-weight: 500;
+}
+
+.column-delete-btn {
+    background: transparent;
+    color: var(--vscode-descriptionForeground);
+    border: none;
+    border-radius: 3px;
+    width: 20px;
+    height: 20px;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.column-delete-btn:hover {
+    background: var(--vscode-errorForeground);
+    color: white;
 }
 
 .tasks-container {
@@ -103,7 +125,6 @@ body {
     cursor: grab;
     font-size: 14px;
     padding: 0px;
-    /* padding: 4px 2px; */
     user-select: none;
     opacity: 0.4;
     transition: opacity 0.2s;
@@ -130,32 +151,9 @@ body {
     min-width: 0;
 }
 
-.task-title {
-    font-size: 14px;
-    font-weight: normal; /* Changed from 500 to normal */
-    color: var(--vscode-foreground);
-    line-height: 1.4;
-    word-break: break-word;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    padding: 2px 4px;
-    margin: -2px -4px;
-    background: transparent;
-    width: 100%;
-    resize: none;
-    overflow: hidden;
-    min-height: 20px;
-}
-
-.task-title:focus {
-    border-color: var(--vscode-focusBorder);
-    background-color: var(--vscode-input-background);
-    outline: none;
-}
-
 .task-title-display {
     font-size: 14px;
-    font-weight: normal; /* Changed from 500 to normal */
+    font-weight: normal;
     color: var(--vscode-foreground);
     line-height: 1.4;
     word-break: break-word;
@@ -177,7 +175,7 @@ body {
 
 .task-title-edit {
     font-size: 14px;
-    font-weight: normal; /* Changed from 500 to normal */
+    font-weight: normal;
     color: var(--vscode-foreground);
     line-height: 1.4;
     word-break: break-word;
@@ -189,7 +187,7 @@ body {
     resize: vertical;
     overflow: hidden;
     font-family: inherit;
-    height: 2em;
+    min-height: 2em;
 }
 
 .task-title-edit:focus {
@@ -224,9 +222,9 @@ body {
     padding: 4px;
     background: var(--vscode-input-background);
     width: 100%;
-    resize: none;
+    resize: vertical;
     overflow: hidden;
-    min-height: 3em;
+    min-height: 60px;
     font-family: inherit;
 }
 
@@ -317,7 +315,7 @@ body {
     background: var(--vscode-button-hoverBackground);
 }
 
-/* Modal styles - simplified for input modal only */
+/* Modal styles */
 .modal {
     display: none;
     position: fixed;
@@ -337,8 +335,6 @@ body {
     border-radius: 8px;
     width: 90%;
     max-width: 500px;
-    max-height: 80vh;
-    overflow-y: auto;
 }
 
 .modal-header {
@@ -372,17 +368,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.form-group {
-    margin-bottom: 16px;
-}
-
-.form-label {
-    display: block;
-    margin-bottom: 4px;
-    font-weight: 500;
-    color: var(--vscode-foreground);
 }
 
 .form-input {
@@ -446,7 +431,6 @@ body {
     background-color: var(--vscode-list-hoverBackground);
 }
 
-/* Task drag insertion preview */
 .task-item.drag-insert-before {
     border-top: 3px solid var(--vscode-focusBorder);
     margin-top: 3px;
@@ -457,7 +441,6 @@ body {
     margin-bottom: 3px;
 }
 
-/* Column drag styles */
 .kanban-column.column-dragging {
     opacity: 0.6;
     transform: scale(0.95);
@@ -476,35 +459,16 @@ body {
 .markdown-content h6 {
     margin: 0.25em 0 0.125em 0;
     color: var(--vscode-foreground);
-    font-weight: bold; /* Make headings bold */
+    font-weight: bold;
 }
 
-/* Define specific sizes for each heading level */
-.markdown-content h1 {
-    font-size: 1.8em; /* ~25px if base is 14px */
-}
+.markdown-content h1 { font-size: 1.8em; }
+.markdown-content h2 { font-size: 1.5em; }
+.markdown-content h3 { font-size: 1.3em; }
+.markdown-content h4 { font-size: 1.1em; }
+.markdown-content h5 { font-size: 1em; }
+.markdown-content h6 { font-size: 0.9em; }
 
-.markdown-content h2 {
-    font-size: 1.5em; /* ~21px */
-}
-
-.markdown-content h3 {
-    font-size: 1.3em; /* ~18px */
-}
-
-.markdown-content h4 {
-    font-size: 1.1em; /* ~15px */
-}
-
-.markdown-content h5 {
-    font-size: 1em; /* ~14px */
-}
-
-.markdown-content h6 {
-    font-size: 0.9em; /* ~13px */
-}
-
-/* Ensure regular text has normal font weight */
 .markdown-content p,
 .markdown-content span,
 .markdown-content div {
@@ -574,8 +538,8 @@ body {
 .task-title-container .markdown-content h5,
 .task-title-container .markdown-content h6 {
     margin: 0;
-    line-height: 1.4; /* Match task title line height */
-    font-weight: bold; /* Keep headings bold */
+    line-height: 1.4;
+    font-weight: bold;
 }
 
 .task-title-container .markdown-content p {

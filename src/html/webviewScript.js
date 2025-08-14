@@ -1,8 +1,5 @@
 const vscode = acquireVsCodeApi()
 let currentBoard = null
-let editingTask = null
-
-// Store scroll positions before re-render
 let scrollPositions = new Map()
 
 // Listen for messages from the extension
@@ -10,11 +7,13 @@ window.addEventListener('message', event => {
   const message = event.data
   switch (message.type) {
     case 'updateBoard':
-      // Save scroll positions before updating
+      currentBoard = message.board
+      renderBoard()
+      break
+    case 'updateBoardPreserveScroll':
       saveAllScrollPositions()
       currentBoard = message.board
       renderBoard()
-      // Restore scroll positions after rendering
       restoreAllScrollPositions()
       break
   }
@@ -22,13 +21,11 @@ window.addEventListener('message', event => {
 
 // Save scroll positions of all task containers
 function saveAllScrollPositions() {
-  const containers = document.querySelectorAll('.tasks-container')
-  containers.forEach(container => {
+  document.querySelectorAll('.tasks-container').forEach(container => {
     const columnId = container.id.replace('tasks-', '')
     scrollPositions.set(columnId, container.scrollTop)
   })
   
-  // Also save main board scroll position
   const boardElement = document.getElementById('kanban-board')
   if (boardElement) {
     scrollPositions.set('board-h', boardElement.scrollLeft)
@@ -38,7 +35,6 @@ function saveAllScrollPositions() {
 
 // Restore scroll positions after rendering
 function restoreAllScrollPositions() {
-  // Use setTimeout to ensure DOM is fully rendered
   setTimeout(() => {
     scrollPositions.forEach((scrollTop, columnId) => {
       if (columnId === 'board-h') {
@@ -67,6 +63,7 @@ function renderBoard() {
     boardElement.appendChild(columnElement)
   })
 
+  // Add column button
   const addColumnBtn = document.createElement('button')
   addColumnBtn.className = 'add-column-btn'
   addColumnBtn.textContent = '+ Add Column'
@@ -81,6 +78,11 @@ function createColumnElement(column) {
   columnDiv.className = 'kanban-column'
   columnDiv.setAttribute('data-column-id', column.id)
 
+  // Show delete button only for empty columns
+  const deleteButton = column.tasks.length === 0 
+    ? `<button class="column-delete-btn" onclick="deleteColumn('${column.id}')" title="Delete empty column">×</button>`
+    : ''
+
   columnDiv.innerHTML = `
     <div class="column-header" draggable="true">
       <div class="column-title-section">
@@ -88,6 +90,7 @@ function createColumnElement(column) {
       </div>
       <div class="column-controls-menu">
         <span class="task-count">${column.tasks.length}</span>
+        ${deleteButton}
       </div>
     </div>
     <div class="tasks-container" id="tasks-${column.id}">
@@ -102,8 +105,8 @@ function createColumnElement(column) {
 }
 
 function createTaskElement(task, columnId) {
-  const renderedDescription = task.description ? renderMarkdown(task.description) : '';
-  const renderedTitle = task.title ? renderMarkdown(task.title) : '';
+  const renderedDescription = task.description ? renderMarkdown(task.description) : ''
+  const renderedTitle = task.title ? renderMarkdown(task.title) : ''
   
   return `
     <div class="task-item" data-task-id="${task.id}" data-column-id="${columnId}">
@@ -135,7 +138,7 @@ function createTaskElement(task, columnId) {
                  data-field="description"
                  placeholder="Add description (Markdown supported)..."
                  style="display: none;">${escapeHtml(task.description || '')}</textarea>
-        ${!task.description ? `<div class="task-description-placeholder" onclick="editDescription(this, '${task.id}', '${columnId}')">Add description (Markdown supported)...</div>` : ''}
+        ${!task.description ? `<div class="task-description-placeholder" onclick="editDescription(this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
       </div>
 
       <div class="task-actions">
@@ -148,15 +151,9 @@ function createTaskElement(task, columnId) {
 function setupDragAndDrop() {
   setupColumnDragAndDrop()
   setupTaskDragAndDrop()
-  setupInlineEditing()
-}
-
-function setupInlineEditing() {
-  // No need to setup individual textareas since they're created dynamically
 }
 
 function editTitle(element, taskId = null, columnId = null) {
-  // Get task info from element or parameters
   if (!taskId) {
     taskId = element.dataset.taskId || element.closest('.task-item').dataset.taskId
   }
@@ -168,31 +165,31 @@ function editTitle(element, taskId = null, columnId = null) {
   const displayDiv = taskItem.querySelector('.task-title-display')
   const editTextarea = taskItem.querySelector('.task-title-edit')
   
-  // Hide display and show edit
   displayDiv.style.display = 'none'
   editTextarea.style.display = 'block'
   autoResize(editTextarea)
   editTextarea.focus()
+  editTextarea.select()
   
-  // Setup save handlers
   const saveAndHide = () => {
-    saveTaskFieldAndUpdateDisplay(editTextarea, false) // Don't trigger full update
+    saveTaskFieldAndUpdateDisplay(editTextarea, false) // Never trigger full update for inline edits
     editTextarea.style.display = 'none'
     displayDiv.style.display = 'block'
   }
   
   const cancelEdit = () => {
+    // Restore original value
+    const column = currentBoard?.columns.find(col => col.id === columnId)
+    const task = column?.tasks.find(t => t.id === taskId)
+    if (task) {
+      editTextarea.value = task.title || ''
+    }
     editTextarea.style.display = 'none'
     displayDiv.style.display = 'block'
   }
   
-  // Remove existing listeners
-  editTextarea.onblur = null
-  editTextarea.onkeydown = null
-  
-  // Add new listeners
-  editTextarea.addEventListener('blur', saveAndHide)
-  editTextarea.addEventListener('keydown', (e) => {
+  editTextarea.onblur = saveAndHide
+  editTextarea.onkeydown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       saveAndHide()
@@ -200,18 +197,14 @@ function editTitle(element, taskId = null, columnId = null) {
       e.preventDefault()
       cancelEdit()
     }
-  })
+  }
   
-  // Auto-resize on input
-  editTextarea.addEventListener('input', () => autoResize(editTextarea))
-  
-  // Prevent drag when clicking
-  editTextarea.addEventListener('mousedown', (e) => e.stopPropagation())
-  editTextarea.addEventListener('click', (e) => e.stopPropagation())
+  editTextarea.oninput = () => autoResize(editTextarea)
+  editTextarea.onmousedown = (e) => e.stopPropagation()
+  editTextarea.onclick = (e) => e.stopPropagation()
 }
 
 function editDescription(element, taskId = null, columnId = null) {
-  // Get task info from element or parameters
   if (!taskId) {
     taskId = element.dataset.taskId || element.closest('.task-item').dataset.taskId
   }
@@ -224,82 +217,51 @@ function editDescription(element, taskId = null, columnId = null) {
   const editTextarea = taskItem.querySelector('.task-description-edit')
   const placeholder = taskItem.querySelector('.task-description-placeholder')
   
-  // Hide display elements
   if (displayDiv) displayDiv.style.display = 'none'
   if (placeholder) placeholder.style.display = 'none'
   
-  // Show and focus edit textarea
   editTextarea.style.display = 'block'
   autoResize(editTextarea)
   editTextarea.focus()
   
-  // Setup save handlers
   const saveAndHide = () => {
-    saveTaskFieldAndUpdateDisplay(editTextarea, false) // Don't trigger full update
+    saveTaskFieldAndUpdateDisplay(editTextarea, false) // Never trigger full update for inline edits
     editTextarea.style.display = 'none'
   }
   
   const cancelEdit = () => {
+    // Restore original value
+    const column = currentBoard?.columns.find(col => col.id === columnId)
+    const task = column?.tasks.find(t => t.id === taskId)
+    if (task) {
+      editTextarea.value = task.description || ''
+    }
+    
     editTextarea.style.display = 'none'
     if (editTextarea.value.trim()) {
       displayDiv.style.display = 'block'
-    } else {
+    } else if (placeholder) {
       placeholder.style.display = 'block'
     }
   }
   
-  // Remove existing listeners
-  editTextarea.onblur = null
-  editTextarea.onkeydown = null
-  
-  // Add new listeners
-  editTextarea.addEventListener('blur', saveAndHide)
-  editTextarea.addEventListener('keydown', (e) => {
+  editTextarea.onblur = saveAndHide
+  editTextarea.onkeydown = (e) => {
     if (e.key === 'Escape') {
       e.preventDefault()
       cancelEdit()
     }
-  })
+  }
   
-  // Auto-resize on input
-  editTextarea.addEventListener('input', () => autoResize(editTextarea))
-  
-  // Prevent drag when clicking
-  editTextarea.addEventListener('mousedown', (e) => e.stopPropagation())
-  editTextarea.addEventListener('click', (e) => e.stopPropagation())
+  editTextarea.oninput = () => autoResize(editTextarea)
+  editTextarea.onmousedown = (e) => e.stopPropagation()
+  editTextarea.onclick = (e) => e.stopPropagation()
 }
 
 function autoResize(textarea) {
   textarea.style.height = 'auto'
-  textarea.style.height = Math.max(textarea.scrollHeight, textarea.classList.contains('task-title') ? 20 : 60) + 'px'
-}
-
-function saveTaskField(textarea) {
-  const taskId = textarea.dataset.taskId
-  const columnId = textarea.dataset.columnId
-  const field = textarea.dataset.field
-  const value = textarea.value.trim()
-
-  if (!taskId || !columnId || !field) return
-
-  // Find the current task to compare values
-  const column = currentBoard?.columns.find(col => col.id === columnId)
-  const task = column?.tasks.find(t => t.id === taskId)
-  
-  if (!task) return
-
-  // Only save if value changed
-  const currentValue = task[field] || ''
-  if (currentValue === value) return
-
-  const taskData = { ...task, [field]: value }
-
-  vscode.postMessage({
-    type: 'editTask',
-    taskId: taskId,
-    columnId: columnId,
-    taskData: taskData
-  })
+  const minHeight = textarea.classList.contains('task-title-edit') ? 30 : 60
+  textarea.style.height = Math.max(textarea.scrollHeight, minHeight) + 'px'
 }
 
 function saveTaskFieldAndUpdateDisplay(textarea, triggerFullUpdate = true) {
@@ -310,25 +272,23 @@ function saveTaskFieldAndUpdateDisplay(textarea, triggerFullUpdate = true) {
 
   if (!taskId || !columnId || !field) return
 
-  // Find the current task to compare values
   const column = currentBoard?.columns.find(col => col.id === columnId)
   const task = column?.tasks.find(t => t.id === taskId)
-  
   if (!task) return
 
-  // Update local state immediately for better UX
+  // Check if value actually changed
+  const oldValue = task[field] || ''
+  if (oldValue === value) return // No change, no need to save
+
+  // Update local state immediately
   task[field] = value
 
-  // Update display
+  // Update display immediately (no waiting for backend)
   const taskItem = document.querySelector(`[data-task-id="${taskId}"]`)
   
   if (field === 'title') {
     const displayDiv = taskItem.querySelector('.task-title-display')
-    if (value) {
-      displayDiv.innerHTML = renderMarkdown(value)
-    } else {
-      displayDiv.innerHTML = '<span class="task-title-placeholder">Add title...</span>'
-    }
+    displayDiv.innerHTML = value ? renderMarkdown(value) : '<span class="task-title-placeholder">Add title...</span>'
   } else if (field === 'description') {
     const displayDiv = taskItem.querySelector('.task-description-display')
     const placeholder = taskItem.querySelector('.task-description-placeholder')
@@ -343,43 +303,30 @@ function saveTaskFieldAndUpdateDisplay(textarea, triggerFullUpdate = true) {
     }
   }
 
-  // Save to backend
-  const taskData = { ...task, [field]: value }
-  
-  if (triggerFullUpdate) {
-    vscode.postMessage({
-      type: 'editTask',
-      taskId: taskId,
-      columnId: columnId,
-      taskData: taskData
-    })
-  } else {
-    // Send a special message that won't trigger a full re-render
-    vscode.postMessage({
-      type: 'editTaskNoUpdate',
-      taskId: taskId,
-      columnId: columnId,
-      taskData: taskData
-    })
-  }
+  // Save to backend silently (no UI update needed since we already updated locally)
+  vscode.postMessage({
+    type: 'editTaskNoUpdate',
+    taskId: taskId,
+    columnId: columnId,
+    taskData: { ...task }
+  })
 }
 
 function renderMarkdown(text) {
   if (!text) return ''
   
   try {
-    // Configure marked for safer rendering
     marked.setOptions({
       breaks: true,
       gfm: true,
-      sanitize: false // We trust the content since it's user's own markdown
+      sanitize: false
     })
     
     const rendered = marked.parse(text)
     
-    // For single line content (likely titles), remove wrapping <p> tags
+    // For single line content, remove wrapping <p> tags
     if (!text.includes('\n') && rendered.startsWith('<p>') && rendered.endsWith('</p>\n')) {
-      return rendered.slice(3, -5) // Remove <p> and </p>\n
+      return rendered.slice(3, -5)
     }
     
     return rendered
@@ -460,23 +407,17 @@ function setupTaskDragAndDrop() {
 
 function calculateDropIndex(tasksContainer, clientY) {
   const tasks = Array.from(tasksContainer.children)
-  let dropIndex = tasks.length
-
+  
   for (let i = 0; i < tasks.length; i++) {
-    const taskElement = tasks[i]
-    const rect = taskElement.getBoundingClientRect()
-    const taskCenter = rect.top + rect.height / 2
-
-    if (clientY < taskCenter) {
-      dropIndex = i
-      break
+    const rect = tasks[i].getBoundingClientRect()
+    if (clientY < rect.top + rect.height / 2) {
+      return i
     }
   }
-
-  return dropIndex
+  
+  return tasks.length
 }
 
-// Setup task drag handle
 function setupTaskDragHandle(handle) {
   handle.draggable = true
   
@@ -498,23 +439,19 @@ function setupTaskDragHandle(handle) {
     }
   })
 
-  handle.addEventListener('mousedown', e => {
-    e.stopPropagation()
-  })
-  
+  handle.addEventListener('mousedown', e => e.stopPropagation())
   handle.addEventListener('click', e => {
     e.stopPropagation()
     e.preventDefault()
   })
 }
 
-// Setup column drag and drop
 function setupColumnDragAndDrop() {
   const boardElement = document.getElementById('kanban-board')
   const columns = boardElement.querySelectorAll('.kanban-column')
   let draggedColumnId = null
 
-  columns.forEach((column, displayIndex) => {
+  columns.forEach(column => {
     const columnHeader = column.querySelector('.column-header')
     const columnId = column.getAttribute('data-column-id')
 
@@ -549,17 +486,15 @@ function setupColumnDragAndDrop() {
       e.preventDefault()
       column.classList.remove('drag-over')
 
-      const targetColumnId = columnId
-
-      if (draggedColumnId && draggedColumnId !== targetColumnId) {
-        const fromOriginalIndex = getOriginalColumnIndex(draggedColumnId)
-        const toOriginalIndex = getOriginalColumnIndex(targetColumnId)
+      if (draggedColumnId && draggedColumnId !== columnId) {
+        const fromIndex = getOriginalColumnIndex(draggedColumnId)
+        const toIndex = getOriginalColumnIndex(columnId)
         
-        if (fromOriginalIndex !== -1 && toOriginalIndex !== -1) {
+        if (fromIndex !== -1 && toIndex !== -1) {
           vscode.postMessage({
             type: 'moveColumn',
-            fromIndex: fromOriginalIndex,
-            toIndex: toOriginalIndex
+            fromIndex: fromIndex,
+            toIndex: toIndex
           })
         }
       }
@@ -567,13 +502,6 @@ function setupColumnDragAndDrop() {
   })
 }
 
-// Get column index in original data
-function getOriginalColumnIndex(columnId) {
-  if (!currentBoard) return -1
-  return currentBoard.columns.findIndex(col => col.id === columnId)
-}
-
-// Helper function to determine drop position for tasks
 function getDragAfterTaskElement(container, y) {
   const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')]
   
@@ -589,9 +517,14 @@ function getDragAfterTaskElement(container, y) {
   }, { offset: Number.NEGATIVE_INFINITY }).element
 }
 
+function getOriginalColumnIndex(columnId) {
+  if (!currentBoard) return -1
+  return currentBoard.columns.findIndex(col => col.id === columnId)
+}
+
 function addTask(columnId) {
   const taskData = {
-    title: 'New Task',
+    title: '',
     description: ''
   }
 
@@ -600,16 +533,51 @@ function addTask(columnId) {
     columnId: columnId,
     taskData: taskData
   })
+
+  // Focus on the new task's title after it's created
+  setTimeout(() => {
+    const column = document.querySelector(`[data-column-id="${columnId}"]`)
+    const lastTask = column?.querySelector('.task-item:last-child .task-title-display')
+    if (lastTask) {
+      lastTask.click()
+    }
+  }, 100)
 }
 
 function deleteTask(taskId, columnId) {
-  if (confirm('Are you sure you want to delete this task?')) {
+  if (confirm('Delete this task? (You can undo with Ctrl+Z)')) {
     vscode.postMessage({
       type: 'deleteTask',
       taskId: taskId,
       columnId: columnId
     })
   }
+}
+
+function deleteColumn(columnId) {
+  const column = currentBoard?.columns.find(col => col.id === columnId)
+  if (column && column.tasks.length === 0) {
+    if (confirm(`Delete empty column "${column.title}"? (You can undo with Ctrl+Z)`)) {
+      vscode.postMessage({
+        type: 'deleteColumn',
+        columnId: columnId
+      })
+    }
+  }
+}
+
+function addColumn() {
+  showInputModal(
+    'Add Column',
+    'Enter column title:',
+    'Column title...',
+    title => {
+      vscode.postMessage({
+        type: 'addColumn',
+        title: title
+      })
+    }
+  )
 }
 
 function showInputModal(title, message, placeholder, onConfirm) {
@@ -636,6 +604,8 @@ function showInputModal(title, message, placeholder, onConfirm) {
   inputField.onkeydown = e => {
     if (e.key === 'Enter') {
       confirmAction()
+    } else if (e.key === 'Escape') {
+      closeInputModal()
     }
   }
 }
@@ -644,28 +614,13 @@ function closeInputModal() {
   document.getElementById('input-modal').style.display = 'none'
 }
 
-function addColumn() {
-  showInputModal(
-    'Add Column',
-    'Please enter column title:',
-    'Enter column title...',
-    title => {
-      vscode.postMessage({
-        type: 'addColumn',
-        title: title
-      })
-    }
-  )
-}
-
-// Close input modal when clicking outside
+// Close modal when clicking outside
 document.getElementById('input-modal').addEventListener('click', e => {
   if (e.target.id === 'input-modal') {
     closeInputModal()
   }
 })
 
-// Utility function to escape HTML
 function escapeHtml(text) {
   const div = document.createElement('div')
   div.textContent = text
