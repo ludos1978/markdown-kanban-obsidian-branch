@@ -1,6 +1,6 @@
 const vscode = acquireVsCodeApi()
 let currentBoard = null
-let scrollPositions = new Map()
+let editingTask = null
 
 // Listen for messages from the extension
 window.addEventListener('message', event => {
@@ -10,45 +10,8 @@ window.addEventListener('message', event => {
       currentBoard = message.board
       renderBoard()
       break
-    case 'updateBoardPreserveScroll':
-      saveAllScrollPositions()
-      currentBoard = message.board
-      renderBoard()
-      restoreAllScrollPositions()
-      break
   }
 })
-
-// Save scroll positions of all task containers
-function saveAllScrollPositions() {
-  document.querySelectorAll('.tasks-container').forEach(container => {
-    const columnId = container.id.replace('tasks-', '')
-    scrollPositions.set(columnId, container.scrollTop)
-  })
-  
-  const boardElement = document.getElementById('kanban-board')
-  if (boardElement) {
-    scrollPositions.set('board-h', boardElement.scrollLeft)
-    scrollPositions.set('board-v', window.scrollY)
-  }
-}
-
-// Restore scroll positions after rendering
-function restoreAllScrollPositions() {
-  setTimeout(() => {
-    scrollPositions.forEach((scrollTop, columnId) => {
-      if (columnId === 'board-h') {
-        const boardElement = document.getElementById('kanban-board')
-        if (boardElement) boardElement.scrollLeft = scrollTop
-      } else if (columnId === 'board-v') {
-        window.scrollTo(0, scrollTop)
-      } else {
-        const container = document.getElementById(`tasks-${columnId}`)
-        if (container) container.scrollTop = scrollTop
-      }
-    })
-  }, 0)
-}
 
 // Render Kanban board
 function renderBoard() {
@@ -63,7 +26,6 @@ function renderBoard() {
     boardElement.appendChild(columnElement)
   })
 
-  // Add column button
   const addColumnBtn = document.createElement('button')
   addColumnBtn.className = 'add-column-btn'
   addColumnBtn.textContent = '+ Add Column'
@@ -78,11 +40,6 @@ function createColumnElement(column) {
   columnDiv.className = 'kanban-column'
   columnDiv.setAttribute('data-column-id', column.id)
 
-  // Show delete button only for empty columns
-  const deleteButton = column.tasks.length === 0 
-    ? `<button class="column-delete-btn" onclick="deleteColumn('${column.id}')" title="Delete empty column">×</button>`
-    : ''
-
   columnDiv.innerHTML = `
     <div class="column-header" draggable="true">
       <div class="column-title-section">
@@ -90,7 +47,6 @@ function createColumnElement(column) {
       </div>
       <div class="column-controls-menu">
         <span class="task-count">${column.tasks.length}</span>
-        ${deleteButton}
       </div>
     </div>
     <div class="tasks-container" id="tasks-${column.id}">
@@ -105,8 +61,8 @@ function createColumnElement(column) {
 }
 
 function createTaskElement(task, columnId) {
-  const renderedDescription = task.description ? renderMarkdown(task.description) : ''
-  const renderedTitle = task.title ? renderMarkdown(task.title) : ''
+  const renderedDescription = task.description ? renderMarkdown(task.description) : '';
+  const renderedTitle = task.title ? renderMarkdown(task.title) : '';
   
   return `
     <div class="task-item" data-task-id="${task.id}" data-column-id="${columnId}">
@@ -138,7 +94,7 @@ function createTaskElement(task, columnId) {
                  data-field="description"
                  placeholder="Add description (Markdown supported)..."
                  style="display: none;">${escapeHtml(task.description || '')}</textarea>
-        ${!task.description ? `<div class="task-description-placeholder" onclick="editDescription(this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
+        ${!task.description ? `<div class="task-description-placeholder" onclick="editDescription(this, '${task.id}', '${columnId}')">Add description (Markdown supported)...</div>` : ''}
       </div>
 
       <div class="task-actions">
@@ -151,9 +107,15 @@ function createTaskElement(task, columnId) {
 function setupDragAndDrop() {
   setupColumnDragAndDrop()
   setupTaskDragAndDrop()
+  setupInlineEditing()
+}
+
+function setupInlineEditing() {
+  // No need to setup individual textareas since they're created dynamically
 }
 
 function editTitle(element, taskId = null, columnId = null) {
+  // Get task info from element or parameters
   if (!taskId) {
     taskId = element.dataset.taskId || element.closest('.task-item').dataset.taskId
   }
@@ -165,31 +127,62 @@ function editTitle(element, taskId = null, columnId = null) {
   const displayDiv = taskItem.querySelector('.task-title-display')
   const editTextarea = taskItem.querySelector('.task-title-edit')
   
+  // Store current scroll position
+  const scrollContainer = taskItem.closest('.tasks-container')
+  const beforeEditOffset = taskItem.offsetTop - scrollContainer.scrollTop
+  
+  // Hide display and show edit
   displayDiv.style.display = 'none'
   editTextarea.style.display = 'block'
   autoResize(editTextarea)
   editTextarea.focus()
-  editTextarea.select()
   
+  // Restore scroll position after height change
+  setTimeout(() => {
+    const newScrollTop = taskItem.offsetTop - beforeEditOffset
+    // console.log("editTitle "+newScrollTop+" : "+scrollContainer.scrollTop)
+    scrollContainer.scrollTop = newScrollTop
+  }, 0)
+  
+  // Setup save handlers
   const saveAndHide = () => {
-    saveTaskFieldAndUpdateDisplay(editTextarea, false) // Never trigger full update for inline edits
+    // Store scroll position before changing display
+    const beforeSaveOffset = taskItem.offsetTop - scrollContainer.scrollTop
+    
+    saveTaskFieldAndUpdateDisplay(editTextarea)
     editTextarea.style.display = 'none'
     displayDiv.style.display = 'block'
+    
+    // Restore scroll position after display change
+    setTimeout(() => {
+        const newScrollTop = taskItem.offsetTop - beforeSaveOffset
+        // console.log("editTitle.saveAndHide "+newScrollTop+" : "+scrollContainer.scrollTop)
+        scrollContainer.scrollTop = newScrollTop
+    }, 300)
   }
   
   const cancelEdit = () => {
-    // Restore original value
-    const column = currentBoard?.columns.find(col => col.id === columnId)
-    const task = column?.tasks.find(t => t.id === taskId)
-    if (task) {
-      editTextarea.value = task.title || ''
-    }
+    // Store scroll position before changing display
+    const beforeCancelOffset = taskItem.offsetTop - scrollContainer.scrollTop
+    
     editTextarea.style.display = 'none'
     displayDiv.style.display = 'block'
+    
+    // Restore scroll position after display change
+    setTimeout(() => {
+      const newScrollTop = taskItem.offsetTop - beforeCancelOffset
+      // console.log("editTitle.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop)
+      scrollContainer.scrollTop = newScrollTop
+    }, 300)
   }
   
-  editTextarea.onblur = saveAndHide
-  editTextarea.onkeydown = (e) => {
+  // Remove existing listeners
+  editTextarea.onblur = null
+  editTextarea.onkeydown = null
+  
+  // Add new listeners
+  editTextarea.addEventListener('blur', saveAndHide)
+  editTextarea.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       saveAndHide()
@@ -197,14 +190,18 @@ function editTitle(element, taskId = null, columnId = null) {
       e.preventDefault()
       cancelEdit()
     }
-  }
+  })
   
-  editTextarea.oninput = () => autoResize(editTextarea)
-  editTextarea.onmousedown = (e) => e.stopPropagation()
-  editTextarea.onclick = (e) => e.stopPropagation()
+  // Auto-resize on input
+  editTextarea.addEventListener('input', () => autoResize(editTextarea))
+  
+  // Prevent drag when clicking
+  editTextarea.addEventListener('mousedown', (e) => e.stopPropagation())
+  editTextarea.addEventListener('click', (e) => e.stopPropagation())
 }
 
 function editDescription(element, taskId = null, columnId = null) {
+  // Get task info from element or parameters
   if (!taskId) {
     taskId = element.dataset.taskId || element.closest('.task-item').dataset.taskId
   }
@@ -217,54 +214,128 @@ function editDescription(element, taskId = null, columnId = null) {
   const editTextarea = taskItem.querySelector('.task-description-edit')
   const placeholder = taskItem.querySelector('.task-description-placeholder')
   
+  // Store current scroll position relative to the task item
+  const scrollContainer = taskItem.closest('.tasks-container')
+  const beforeEditOffset = taskItem.offsetTop - scrollContainer.scrollTop
+  console.log("beforeEditOffset "+beforeEditOffset)
+  
+  // Hide display elements
   if (displayDiv) displayDiv.style.display = 'none'
   if (placeholder) placeholder.style.display = 'none'
   
+  // Show and focus edit textarea
   editTextarea.style.display = 'block'
   autoResize(editTextarea)
   editTextarea.focus()
   
+  // Restore scroll position after height change
+  setTimeout(() => {
+    const newScrollTop = taskItem.offsetTop - beforeEditOffset
+    console.log("editDescription "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+    scrollContainer.scrollTop = newScrollTop
+    console.log("editDescription "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+  }, 0)
+  
+  // Setup save handlers
   const saveAndHide = () => {
-    saveTaskFieldAndUpdateDisplay(editTextarea, false) // Never trigger full update for inline edits
+    // Store scroll position before changing display
+    const beforeSaveOffset = taskItem.offsetTop + scrollContainer.scrollTop
+    // console.log("beforeSaveOffset "+beforeSaveOffset)
+    // console.log('ScrollContainer scrollTop:', scrollContainer?.scrollTop)
+    // console.log('taskItem scrollTop:', taskItem.offsetTop)
+    
+    saveTaskFieldAndUpdateDisplay(editTextarea)
     editTextarea.style.display = 'none'
+    
+    // // Restore scroll position after display change
+    // setTimeout(() => {
+    //   console.log("taskId "+taskId)
+    //   const taskItem = document.querySelector(`[data-task-id="${taskId}"]`)
+    //   const scrollContainer = taskItem.closest('.tasks-container')
+
+    //   const newScrollTop = beforeSaveOffset - taskItem.offsetTop
+    //   console.log("editDescription.saveAndHide "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop+" : "+scrollContainer+" : "+taskItem)
+    //   // scrollContainer.scrollTop = 1000
+    //   console.log('ScrollContainer valid?', scrollContainer && scrollContainer.parentNode)
+    //   console.log('ScrollContainer scrollTop:', scrollContainer?.scrollTop)
+    //   console.log('TaskItem valid?', taskItem && taskItem.parentNode)
+    //   console.log('taskItem scrollTop:', taskItem.offsetTop)
+    //   console.log("editDescription.saveAndHide "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop+" : "+scrollContainer+" : "+taskItem)
+    //   console.log('ScrollContainer scrollTop:', scrollContainer?.scrollTop)
+    //   console.log('taskItem scrollTop:', taskItem.offsetTop)
+    // }, 2)
+
+    // Wait for re-render, then re-query
+    setTimeout(() => {
+      const newTaskItem = document.querySelector(`[data-task-id="${taskId}"]`)
+      const newScrollContainer = newTaskItem?.closest('.tasks-container')
+      
+      if (newTaskItem && newScrollContainer) {
+        const newScrollTop = beforeSaveOffset - newTaskItem.offsetTop
+        newScrollContainer.scrollTop = newScrollTop
+      } else {
+        const newScrollTop = beforeSaveOffset - taskItem.offsetTop
+        scrollContainer.scrollTop = newScrollTop
+      }
+        // console.log('newTaskItem.offsetTop:', newTaskItem.offsetTop)
+        // console.log('beforeSaveOffset:', beforeSaveOffset)
+        // newScrollContainer.scrollTo(newScrollTop, newScrollContainer.scrollLeft)
+        // console.log('newScrollContainer scrollTop:', newScrollTop)
+      // }
+      // 
+      // console.log("editDescription.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+      // scrollContainer.scrollTop = newScrollTop
+    }, 700) // Give time for re-render
   }
   
   const cancelEdit = () => {
-    // Restore original value
-    const column = currentBoard?.columns.find(col => col.id === columnId)
-    const task = column?.tasks.find(t => t.id === taskId)
-    if (task) {
-      editTextarea.value = task.description || ''
-    }
+    // Store scroll position before changing display
+    const beforeCancelOffset = taskItem.offsetTop + scrollContainer.scrollTop
+    console.log("beforeCancelOffset "+beforeCancelOffset)
     
     editTextarea.style.display = 'none'
     if (editTextarea.value.trim()) {
       displayDiv.style.display = 'block'
-    } else if (placeholder) {
+    } else {
       placeholder.style.display = 'block'
     }
+    
+    // Restore scroll position after display change
+    setTimeout(() => {
+      const newScrollTop = beforeCancelOffset - taskItem.offsetTop
+      // console.log("editDescription.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+      scrollContainer.scrollTop = newScrollTop
+      // console.log("editDescription.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
+    }, 600)
   }
   
-  editTextarea.onblur = saveAndHide
-  editTextarea.onkeydown = (e) => {
+  // Remove existing listeners
+  editTextarea.onblur = null
+  editTextarea.onkeydown = null
+  
+  // Add new listeners
+  editTextarea.addEventListener('blur', saveAndHide)
+  editTextarea.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       e.preventDefault()
       cancelEdit()
     }
-  }
+  })
   
-  editTextarea.oninput = () => autoResize(editTextarea)
-  editTextarea.onmousedown = (e) => e.stopPropagation()
-  editTextarea.onclick = (e) => e.stopPropagation()
+  // Auto-resize on input
+  editTextarea.addEventListener('input', () => autoResize(editTextarea))
+  
+  // Prevent drag when clicking
+  editTextarea.addEventListener('mousedown', (e) => e.stopPropagation())
+  editTextarea.addEventListener('click', (e) => e.stopPropagation())
 }
 
 function autoResize(textarea) {
   textarea.style.height = 'auto'
-  const minHeight = textarea.classList.contains('task-title-edit') ? 30 : 60
-  textarea.style.height = Math.max(textarea.scrollHeight, minHeight) + 'px'
+  textarea.style.height = Math.max(textarea.scrollHeight, textarea.classList.contains('task-title') ? 20 : 60) + 'px'
 }
 
-function saveTaskFieldAndUpdateDisplay(textarea, triggerFullUpdate = true) {
+function saveTaskField(textarea) {
   const taskId = textarea.dataset.taskId
   const columnId = textarea.dataset.columnId
   const field = textarea.dataset.field
@@ -272,23 +343,53 @@ function saveTaskFieldAndUpdateDisplay(textarea, triggerFullUpdate = true) {
 
   if (!taskId || !columnId || !field) return
 
+  // Find the current task to compare values
   const column = currentBoard?.columns.find(col => col.id === columnId)
   const task = column?.tasks.find(t => t.id === taskId)
+  
   if (!task) return
 
-  // Check if value actually changed
-  const oldValue = task[field] || ''
-  if (oldValue === value) return // No change, no need to save
+  // Only save if value changed
+  const currentValue = task[field] || ''
+  if (currentValue === value) return
 
-  // Update local state immediately
+  const taskData = { ...task, [field]: value }
+
+  vscode.postMessage({
+    type: 'editTask',
+    taskId: taskId,
+    columnId: columnId,
+    taskData: taskData
+  })
+}
+
+function saveTaskFieldAndUpdateDisplay(textarea) {
+  const taskId = textarea.dataset.taskId
+  const columnId = textarea.dataset.columnId
+  const field = textarea.dataset.field
+  const value = textarea.value.trim()
+
+  if (!taskId || !columnId || !field) return
+
+  // Find the current task to compare values
+  const column = currentBoard?.columns.find(col => col.id === columnId)
+  const task = column?.tasks.find(t => t.id === taskId)
+  
+  if (!task) return
+
+  // Update local state immediately for better UX
   task[field] = value
 
-  // Update display immediately (no waiting for backend)
+  // Update display
   const taskItem = document.querySelector(`[data-task-id="${taskId}"]`)
   
   if (field === 'title') {
     const displayDiv = taskItem.querySelector('.task-title-display')
-    displayDiv.innerHTML = value ? renderMarkdown(value) : '<span class="task-title-placeholder">Add title...</span>'
+    if (value) {
+      displayDiv.innerHTML = renderMarkdown(value)
+    } else {
+      displayDiv.innerHTML = '<span class="task-title-placeholder">Add title...</span>'
+    }
   } else if (field === 'description') {
     const displayDiv = taskItem.querySelector('.task-description-display')
     const placeholder = taskItem.querySelector('.task-description-placeholder')
@@ -303,12 +404,13 @@ function saveTaskFieldAndUpdateDisplay(textarea, triggerFullUpdate = true) {
     }
   }
 
-  // Save to backend silently (no UI update needed since we already updated locally)
+  // Save to backend
+  const taskData = { ...task, [field]: value }
   vscode.postMessage({
-    type: 'editTaskNoUpdate',
+    type: 'editTask',
     taskId: taskId,
     columnId: columnId,
-    taskData: { ...task }
+    taskData: taskData
   })
 }
 
@@ -316,17 +418,18 @@ function renderMarkdown(text) {
   if (!text) return ''
   
   try {
+    // Configure marked for safer rendering
     marked.setOptions({
       breaks: true,
       gfm: true,
-      sanitize: false
+      sanitize: false // We trust the content since it's user's own markdown
     })
     
     const rendered = marked.parse(text)
     
-    // For single line content, remove wrapping <p> tags
+    // For single line content (likely titles), remove wrapping <p> tags
     if (!text.includes('\n') && rendered.startsWith('<p>') && rendered.endsWith('</p>\n')) {
-      return rendered.slice(3, -5)
+      return rendered.slice(3, -5) // Remove <p> and </p>\n
     }
     
     return rendered
@@ -407,17 +510,23 @@ function setupTaskDragAndDrop() {
 
 function calculateDropIndex(tasksContainer, clientY) {
   const tasks = Array.from(tasksContainer.children)
-  
+  let dropIndex = tasks.length
+
   for (let i = 0; i < tasks.length; i++) {
-    const rect = tasks[i].getBoundingClientRect()
-    if (clientY < rect.top + rect.height / 2) {
-      return i
+    const taskElement = tasks[i]
+    const rect = taskElement.getBoundingClientRect()
+    const taskCenter = rect.top + rect.height / 2
+
+    if (clientY < taskCenter) {
+      dropIndex = i
+      break
     }
   }
-  
-  return tasks.length
+
+  return dropIndex
 }
 
+// Setup task drag handle
 function setupTaskDragHandle(handle) {
   handle.draggable = true
   
@@ -439,19 +548,23 @@ function setupTaskDragHandle(handle) {
     }
   })
 
-  handle.addEventListener('mousedown', e => e.stopPropagation())
+  handle.addEventListener('mousedown', e => {
+    e.stopPropagation()
+  })
+  
   handle.addEventListener('click', e => {
     e.stopPropagation()
     e.preventDefault()
   })
 }
 
+// Setup column drag and drop
 function setupColumnDragAndDrop() {
   const boardElement = document.getElementById('kanban-board')
   const columns = boardElement.querySelectorAll('.kanban-column')
   let draggedColumnId = null
 
-  columns.forEach(column => {
+  columns.forEach((column, displayIndex) => {
     const columnHeader = column.querySelector('.column-header')
     const columnId = column.getAttribute('data-column-id')
 
@@ -486,15 +599,17 @@ function setupColumnDragAndDrop() {
       e.preventDefault()
       column.classList.remove('drag-over')
 
-      if (draggedColumnId && draggedColumnId !== columnId) {
-        const fromIndex = getOriginalColumnIndex(draggedColumnId)
-        const toIndex = getOriginalColumnIndex(columnId)
+      const targetColumnId = columnId
+
+      if (draggedColumnId && draggedColumnId !== targetColumnId) {
+        const fromOriginalIndex = getOriginalColumnIndex(draggedColumnId)
+        const toOriginalIndex = getOriginalColumnIndex(targetColumnId)
         
-        if (fromIndex !== -1 && toIndex !== -1) {
+        if (fromOriginalIndex !== -1 && toOriginalIndex !== -1) {
           vscode.postMessage({
             type: 'moveColumn',
-            fromIndex: fromIndex,
-            toIndex: toIndex
+            fromIndex: fromOriginalIndex,
+            toIndex: toOriginalIndex
           })
         }
       }
@@ -502,6 +617,13 @@ function setupColumnDragAndDrop() {
   })
 }
 
+// Get column index in original data
+function getOriginalColumnIndex(columnId) {
+  if (!currentBoard) return -1
+  return currentBoard.columns.findIndex(col => col.id === columnId)
+}
+
+// Helper function to determine drop position for tasks
 function getDragAfterTaskElement(container, y) {
   const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')]
   
@@ -517,14 +639,9 @@ function getDragAfterTaskElement(container, y) {
   }, { offset: Number.NEGATIVE_INFINITY }).element
 }
 
-function getOriginalColumnIndex(columnId) {
-  if (!currentBoard) return -1
-  return currentBoard.columns.findIndex(col => col.id === columnId)
-}
-
 function addTask(columnId) {
   const taskData = {
-    title: '',
+    title: 'New Task',
     description: ''
   }
 
@@ -533,51 +650,16 @@ function addTask(columnId) {
     columnId: columnId,
     taskData: taskData
   })
-
-  // Focus on the new task's title after it's created
-  setTimeout(() => {
-    const column = document.querySelector(`[data-column-id="${columnId}"]`)
-    const lastTask = column?.querySelector('.task-item:last-child .task-title-display')
-    if (lastTask) {
-      lastTask.click()
-    }
-  }, 100)
 }
 
 function deleteTask(taskId, columnId) {
-  if (confirm('Delete this task? (You can undo with Ctrl+Z)')) {
+  if (confirm('Are you sure you want to delete this task?')) {
     vscode.postMessage({
       type: 'deleteTask',
       taskId: taskId,
       columnId: columnId
     })
   }
-}
-
-function deleteColumn(columnId) {
-  const column = currentBoard?.columns.find(col => col.id === columnId)
-  if (column && column.tasks.length === 0) {
-    if (confirm(`Delete empty column "${column.title}"? (You can undo with Ctrl+Z)`)) {
-      vscode.postMessage({
-        type: 'deleteColumn',
-        columnId: columnId
-      })
-    }
-  }
-}
-
-function addColumn() {
-  showInputModal(
-    'Add Column',
-    'Enter column title:',
-    'Column title...',
-    title => {
-      vscode.postMessage({
-        type: 'addColumn',
-        title: title
-      })
-    }
-  )
 }
 
 function showInputModal(title, message, placeholder, onConfirm) {
@@ -604,8 +686,6 @@ function showInputModal(title, message, placeholder, onConfirm) {
   inputField.onkeydown = e => {
     if (e.key === 'Enter') {
       confirmAction()
-    } else if (e.key === 'Escape') {
-      closeInputModal()
     }
   }
 }
@@ -614,13 +694,28 @@ function closeInputModal() {
   document.getElementById('input-modal').style.display = 'none'
 }
 
-// Close modal when clicking outside
+function addColumn() {
+  showInputModal(
+    'Add Column',
+    'Please enter column title:',
+    'Enter column title...',
+    title => {
+      vscode.postMessage({
+        type: 'addColumn',
+        title: title
+      })
+    }
+  )
+}
+
+// Close input modal when clicking outside
 document.getElementById('input-modal').addEventListener('click', e => {
   if (e.target.id === 'input-modal') {
     closeInputModal()
   }
 })
 
+// Utility function to escape HTML
 function escapeHtml(text) {
   const div = document.createElement('div')
   div.textContent = text

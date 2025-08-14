@@ -1,7 +1,14 @@
+// The module 'vscode' contains the VS Code extensibility API
+// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { KanbanWebviewPanel } from './kanbanWebviewPanel';
 
+// This method is called when your extension is activated
+// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	let fileListenerEnabled = true;
+	// Use the console to output diagnostic information (console.log) and errors (console.error)
+	// This line of code will only be executed once when your extension is activated
 	console.log('Markdown Kanban extension is now active!');
 
 	// Register webview panel serializer (for restoring panel state)
@@ -50,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
 			// Open document
 			const document = await vscode.workspace.openTextDocument(targetUri);
 
-			// Create or show kanban panel
+			// Create or show kanban panel in center area
 			KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
 
 			vscode.window.showInformationMessage(`Kanban loaded from: ${document.fileName}`);
@@ -59,26 +66,30 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// Listen for document changes to automatically update kanban
+	const disableFileListenerCommand = vscode.commands.registerCommand('markdown-kanban.disableFileListener', async () => {
+		fileListenerEnabled = !fileListenerEnabled;
+	});
+
+	// Listen for document changes to automatically update kanban (real-time sync)
 	const documentChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {
-		// Only update if the kanban panel is showing this document
-		if (event.document.languageId === 'markdown' && KanbanWebviewPanel.currentPanel) {
-			// Delay update slightly to avoid too frequent refreshes
+		if (event.document.languageId === 'markdown' && fileListenerEnabled) {
+			// Delay update to avoid frequent refresh
 			setTimeout(() => {
+				// Update kanban panel
 				if (KanbanWebviewPanel.currentPanel) {
 					KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
 				}
-			}, 300);
+			}, 500);
 		}
 	});
 
 	// Listen for active editor changes
 	const activeEditorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
-		if (editor && editor.document.languageId === 'markdown') {
+		if (editor && editor.document.languageId === 'markdown' && fileListenerEnabled) {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
-			// If panel is open, automatically load current document (force update for editor switch)
+			// If panel is open, automatically load current document
 			if (KanbanWebviewPanel.currentPanel) {
-				KanbanWebviewPanel.currentPanel.loadMarkdownFile(editor.document, true);
+				KanbanWebviewPanel.currentPanel.loadMarkdownFile(editor.document);
 			}
 		} else {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', false);
@@ -88,16 +99,18 @@ export function activate(context: vscode.ExtensionContext) {
 	// Add to subscriptions list
 	context.subscriptions.push(
 		openKanbanCommand,
+		disableFileListenerCommand,
 		documentChangeListener,
-		activeEditorChangeListener
+		activeEditorChangeListener,
 	);
 
-	// If current active editor is markdown, set context
+	// If current active editor is markdown, auto-activate kanban
 	if (vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.languageId === 'markdown') {
 		vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
 	}
 }
 
+// This method is called when your extension is deactivated
 export function deactivate() {
 	// Clean up context
 	vscode.commands.executeCommand('setContext', 'markdownKanbanActive', false);

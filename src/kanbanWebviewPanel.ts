@@ -14,8 +14,6 @@ export class KanbanWebviewPanel {
     private _disposables: vscode.Disposable[] = [];
     private _board?: KanbanBoard;
     private _document?: vscode.TextDocument;
-    private _isUpdatingFromDocument = false;
-    private _isInternalUpdate = false;
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -23,7 +21,7 @@ export class KanbanWebviewPanel {
         if (KanbanWebviewPanel.currentPanel) {
             KanbanWebviewPanel.currentPanel._panel.reveal(column);
             if (document) {
-                KanbanWebviewPanel.currentPanel.loadMarkdownFile(document, true);
+                KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
             }
             return;
         }
@@ -42,7 +40,7 @@ export class KanbanWebviewPanel {
         KanbanWebviewPanel.currentPanel = new KanbanWebviewPanel(panel, extensionUri, context);
 
         if (document) {
-            KanbanWebviewPanel.currentPanel.loadMarkdownFile(document, true);
+            KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
         }
     }
 
@@ -61,6 +59,10 @@ export class KanbanWebviewPanel {
 
         this._update();
         this._setupEventListeners();
+        
+        if (this._document) {
+            this.loadMarkdownFile(this._document);
+        }
     }
 
     private _setupEventListeners() {
@@ -83,45 +85,31 @@ export class KanbanWebviewPanel {
         );
     }
 
-    private async _handleMessage(message: any) {
+    private _handleMessage(message: any) {
         switch (message.type) {
             case 'moveTask':
-                await this.moveTask(message.taskId, message.fromColumnId, message.toColumnId, message.newIndex);
+                this.moveTask(message.taskId, message.fromColumnId, message.toColumnId, message.newIndex);
                 break;
             case 'addTask':
-                await this.addTask(message.columnId, message.taskData);
+                this.addTask(message.columnId, message.taskData);
                 break;
             case 'deleteTask':
-                await this.deleteTask(message.taskId, message.columnId);
+                this.deleteTask(message.taskId, message.columnId);
                 break;
             case 'editTask':
-                await this.editTask(message.taskId, message.columnId, message.taskData, true);
-                break;
-            case 'editTaskNoUpdate':
-                // For inline edits, save without ANY UI update - the webview already updated locally
-                await this.editTaskSilent(message.taskId, message.columnId, message.taskData);
+                this.editTask(message.taskId, message.columnId, message.taskData);
                 break;
             case 'addColumn':
-                await this.addColumn(message.title);
-                break;
-            case 'deleteColumn':
-                await this.deleteColumn(message.columnId);
+                this.addColumn(message.title);
                 break;
             case 'moveColumn':
-                await this.moveColumn(message.fromIndex, message.toIndex);
+                this.moveColumn(message.fromIndex, message.toIndex);
                 break;
         }
     }
 
-    public loadMarkdownFile(document: vscode.TextDocument, forceUpdate: boolean = false) {
-        // Skip if this is our own internal update (from saveToMarkdown)
-        if (this._isInternalUpdate && !forceUpdate) {
-            return;
-        }
-        
+    public loadMarkdownFile(document: vscode.TextDocument) {
         this._document = document;
-        this._isUpdatingFromDocument = true;
-        
         try {
             this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
         } catch (error) {
@@ -129,13 +117,7 @@ export class KanbanWebviewPanel {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
             this._board = { title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
         }
-        
-        // Only update UI if not an internal update
-        if (!this._isInternalUpdate) {
-            this._updateWithScrollPreservation();
-        }
-        
-        this._isUpdatingFromDocument = false;
+        this._update();
     }
 
     private _update() {
@@ -150,100 +132,69 @@ export class KanbanWebviewPanel {
         });
     }
 
-    private _updateWithScrollPreservation() {
-        if (!this._panel.webview) return;
-
-        this._panel.webview.html = this._getHtmlForWebview();
-        
-        const board = this._board || { title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
-        this._panel.webview.postMessage({
-            type: 'updateBoardPreserveScroll',
-            board: board
-        });
-    }
-
-    private async saveToMarkdown(silent: boolean = false) {
-        if (!this._document || !this._board || this._isUpdatingFromDocument) return;
+    private async saveToMarkdown() {
+        if (!this._document || !this._board) return;
 
         const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
         const edit = new vscode.WorkspaceEdit();
-        
-        // Replace entire document content
-        const fullRange = new vscode.Range(
-            this._document.positionAt(0),
-            this._document.positionAt(this._document.getText().length)
+        edit.replace(
+            this._document.uri,
+            new vscode.Range(0, 0, this._document.lineCount, 0),
+            markdown
         );
-        
-        edit.replace(this._document.uri, fullRange, markdown);
-        
-        if (silent) {
-            // Set flag to prevent re-processing our own update
-            // Use longer timeout than the document change listener delay (300ms)
-            this._isInternalUpdate = true;
-            
-            // Apply edit without saving - this allows undo/redo to work
-            const success = await vscode.workspace.applyEdit(edit);
-            
-            // Reset flag after document change listener would have fired
-            setTimeout(() => {
-                this._isInternalUpdate = false;
-            }, 500);
-            
-            if (!success) {
-                vscode.window.showErrorMessage('Failed to update the document');
-            }
-        } else {
-            // Normal save - allow updates
-            const success = await vscode.workspace.applyEdit(edit);
-            
-            if (!success) {
-                vscode.window.showErrorMessage('Failed to update the document');
-            }
-        }
+        await vscode.workspace.applyEdit(edit);
+        await this._document.save();
     }
 
-    private async performAction(action: () => void, updateUI: boolean = true) {
+    private findColumn(columnId: string): KanbanColumn | undefined {
+        return this._board?.columns.find(col => col.id === columnId);
+    }
+
+    private findTask(columnId: string, taskId: string): { column: KanbanColumn; task: KanbanTask; index: number } | undefined {
+        const column = this.findColumn(columnId);
+        if (!column) return undefined;
+
+        const taskIndex = column.tasks.findIndex(task => task.id === taskId);
+        if (taskIndex === -1) return undefined;
+
+        return {
+            column,
+            task: column.tasks[taskIndex],
+            index: taskIndex
+        };
+    }
+
+    private async performAction(action: () => void) {
         if (!this._board) return;
         
         action();
-        await this.saveToMarkdown(false);
-        
-        if (updateUI) {
-            this._updateWithScrollPreservation();
-        }
+        await this.saveToMarkdown();
+        this._update();
     }
 
-    private async performSilentAction(action: () => void) {
-        if (!this._board) return;
-        
-        action();
-        await this.saveToMarkdown(true);
-        // No UI update at all - the webview has already updated locally
-    }
-
-    private async moveTask(taskId: string, fromColumnId: string, toColumnId: string, newIndex: number) {
-        await this.performAction(() => {
-            const fromColumn = this._board?.columns.find(col => col.id === fromColumnId);
-            const toColumn = this._board?.columns.find(col => col.id === toColumnId);
+    private moveTask(taskId: string, fromColumnId: string, toColumnId: string, newIndex: number) {
+        this.performAction(() => {
+            const fromColumn = this.findColumn(fromColumnId);
+            const toColumn = this.findColumn(toColumnId);
 
             if (!fromColumn || !toColumn) return;
 
             const taskIndex = fromColumn.tasks.findIndex(task => task.id === taskId);
             if (taskIndex === -1) return;
 
-            const [task] = fromColumn.tasks.splice(taskIndex, 1);
+            const task = fromColumn.tasks.splice(taskIndex, 1)[0];
             toColumn.tasks.splice(newIndex, 0, task);
         });
     }
 
-    private async addTask(columnId: string, taskData: any) {
-        await this.performAction(() => {
-            const column = this._board?.columns.find(col => col.id === columnId);
+    private addTask(columnId: string, taskData: any) {
+        this.performAction(() => {
+            const column = this.findColumn(columnId);
             if (!column) return;
 
             const newTask: KanbanTask = {
                 id: Math.random().toString(36).substr(2, 9),
-                title: taskData.title || '',
+                title: taskData.title,
                 description: taskData.description
             };
 
@@ -251,46 +202,32 @@ export class KanbanWebviewPanel {
         });
     }
 
-    private async deleteTask(taskId: string, columnId: string) {
-        await this.performAction(() => {
-            const column = this._board?.columns.find(col => col.id === columnId);
+    private deleteTask(taskId: string, columnId: string) {
+        this.performAction(() => {
+            const column = this.findColumn(columnId);
             if (!column) return;
 
             const taskIndex = column.tasks.findIndex(task => task.id === taskId);
-            if (taskIndex !== -1) {
-                column.tasks.splice(taskIndex, 1);
-            }
+            if (taskIndex === -1) return;
+
+            column.tasks.splice(taskIndex, 1);
         });
     }
 
-    private async editTask(taskId: string, columnId: string, taskData: any, updateUI: boolean) {
-        await this.performAction(() => {
-            const column = this._board?.columns.find(col => col.id === columnId);
-            if (!column) return;
+    private editTask(taskId: string, columnId: string, taskData: any) {
+        this.performAction(() => {
+            const result = this.findTask(columnId, taskId);
+            if (!result) return;
 
-            const task = column.tasks.find(t => t.id === taskId);
-            if (!task) return;
-
-            task.title = taskData.title || '';
-            task.description = taskData.description;
-        }, updateUI);
-    }
-
-    private async editTaskSilent(taskId: string, columnId: string, taskData: any) {
-        await this.performSilentAction(() => {
-            const column = this._board?.columns.find(col => col.id === columnId);
-            if (!column) return;
-
-            const task = column.tasks.find(t => t.id === taskId);
-            if (!task) return;
-
-            task.title = taskData.title || '';
-            task.description = taskData.description;
+            Object.assign(result.task, {
+                title: taskData.title,
+                description: taskData.description
+            });
         });
     }
 
-    private async addColumn(title: string) {
-        await this.performAction(() => {
+    private addColumn(title: string) {
+        this.performAction(() => {
             if (!this._board) return;
 
             const newColumn: KanbanColumn = {
@@ -303,23 +240,13 @@ export class KanbanWebviewPanel {
         });
     }
 
-    private async deleteColumn(columnId: string) {
-        await this.performAction(() => {
-            if (!this._board) return;
-
-            const columnIndex = this._board.columns.findIndex(col => col.id === columnId);
-            if (columnIndex !== -1) {
-                this._board.columns.splice(columnIndex, 1);
-            }
-        });
-    }
-
-    private async moveColumn(fromIndex: number, toIndex: number) {
-        await this.performAction(() => {
+    private moveColumn(fromIndex: number, toIndex: number) {
+        this.performAction(() => {
             if (!this._board || fromIndex === toIndex) return;
 
-            const [column] = this._board.columns.splice(fromIndex, 1);
-            this._board.columns.splice(toIndex, 0, column);
+            const columns = this._board.columns;
+            const column = columns.splice(fromIndex, 1)[0];
+            columns.splice(toIndex, 0, column);
         });
     }
 
