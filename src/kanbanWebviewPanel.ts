@@ -14,6 +14,7 @@ export class KanbanWebviewPanel {
     private _disposables: vscode.Disposable[] = [];
     private _board?: KanbanBoard;
     private _document?: vscode.TextDocument;
+    private _originalTaskOrder: Map<string, string[]> = new Map(); // Store original task order for unsorted state
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -87,6 +88,7 @@ export class KanbanWebviewPanel {
 
     private _handleMessage(message: any) {
         switch (message.type) {
+            // Task operations
             case 'moveTask':
                 this.moveTask(message.taskId, message.fromColumnId, message.toColumnId, message.newIndex);
                 break;
@@ -99,11 +101,49 @@ export class KanbanWebviewPanel {
             case 'editTask':
                 this.editTask(message.taskId, message.columnId, message.taskData);
                 break;
+            case 'duplicateTask':
+                this.duplicateTask(message.taskId, message.columnId);
+                break;
+            case 'insertTaskBefore':
+                this.insertTaskBefore(message.taskId, message.columnId);
+                break;
+            case 'insertTaskAfter':
+                this.insertTaskAfter(message.taskId, message.columnId);
+                break;
+            case 'moveTaskToTop':
+                this.moveTaskToTop(message.taskId, message.columnId);
+                break;
+            case 'moveTaskUp':
+                this.moveTaskUp(message.taskId, message.columnId);
+                break;
+            case 'moveTaskDown':
+                this.moveTaskDown(message.taskId, message.columnId);
+                break;
+            case 'moveTaskToBottom':
+                this.moveTaskToBottom(message.taskId, message.columnId);
+                break;
+            case 'moveTaskToColumn':
+                this.moveTaskToColumn(message.taskId, message.fromColumnId, message.toColumnId);
+                break;
+                
+            // Column operations
             case 'addColumn':
                 this.addColumn(message.title);
                 break;
             case 'moveColumn':
                 this.moveColumn(message.fromIndex, message.toIndex);
+                break;
+            case 'deleteColumn':
+                this.deleteColumn(message.columnId);
+                break;
+            case 'insertColumnBefore':
+                this.insertColumnBefore(message.columnId, message.title);
+                break;
+            case 'insertColumnAfter':
+                this.insertColumnAfter(message.columnId, message.title);
+                break;
+            case 'sortColumn':
+                this.sortColumn(message.columnId, message.sortType);
                 break;
         }
     }
@@ -112,6 +152,10 @@ export class KanbanWebviewPanel {
         this._document = document;
         try {
             this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
+            // Store original task order for each column
+            this._board.columns.forEach(column => {
+                this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
+            });
         } catch (error) {
             console.error('Error parsing Markdown:', error);
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
@@ -172,6 +216,11 @@ export class KanbanWebviewPanel {
         this._update();
     }
 
+    private generateId(): string {
+        return Math.random().toString(36).substr(2, 9);
+    }
+
+    // Task operations
     private moveTask(taskId: string, fromColumnId: string, toColumnId: string, newIndex: number) {
         this.performAction(() => {
             const fromColumn = this.findColumn(fromColumnId);
@@ -193,9 +242,9 @@ export class KanbanWebviewPanel {
             if (!column) return;
 
             const newTask: KanbanTask = {
-                id: Math.random().toString(36).substr(2, 9),
-                title: taskData.title,
-                description: taskData.description
+                id: this.generateId(),
+                title: taskData.title || '',
+                description: taskData.description || ''
             };
 
             column.tasks.push(newTask);
@@ -226,17 +275,121 @@ export class KanbanWebviewPanel {
         });
     }
 
+    private duplicateTask(taskId: string, columnId: string) {
+        this.performAction(() => {
+            const result = this.findTask(columnId, taskId);
+            if (!result) return;
+
+            const newTask: KanbanTask = {
+                id: this.generateId(),
+                title: result.task.title + ' (copy)',
+                description: result.task.description
+            };
+
+            result.column.tasks.splice(result.index + 1, 0, newTask);
+        });
+    }
+
+    private insertTaskBefore(taskId: string, columnId: string) {
+        this.performAction(() => {
+            const result = this.findTask(columnId, taskId);
+            if (!result) return;
+
+            const newTask: KanbanTask = {
+                id: this.generateId(),
+                title: '',
+                description: ''
+            };
+
+            result.column.tasks.splice(result.index, 0, newTask);
+        });
+    }
+
+    private insertTaskAfter(taskId: string, columnId: string) {
+        this.performAction(() => {
+            const result = this.findTask(columnId, taskId);
+            if (!result) return;
+
+            const newTask: KanbanTask = {
+                id: this.generateId(),
+                title: '',
+                description: ''
+            };
+
+            result.column.tasks.splice(result.index + 1, 0, newTask);
+        });
+    }
+
+    private moveTaskToTop(taskId: string, columnId: string) {
+        this.performAction(() => {
+            const result = this.findTask(columnId, taskId);
+            if (!result || result.index === 0) return;
+
+            const task = result.column.tasks.splice(result.index, 1)[0];
+            result.column.tasks.unshift(task);
+        });
+    }
+
+    private moveTaskUp(taskId: string, columnId: string) {
+        this.performAction(() => {
+            const result = this.findTask(columnId, taskId);
+            if (!result || result.index === 0) return;
+
+            const task = result.column.tasks[result.index];
+            result.column.tasks[result.index] = result.column.tasks[result.index - 1];
+            result.column.tasks[result.index - 1] = task;
+        });
+    }
+
+    private moveTaskDown(taskId: string, columnId: string) {
+        this.performAction(() => {
+            const result = this.findTask(columnId, taskId);
+            if (!result || result.index === result.column.tasks.length - 1) return;
+
+            const task = result.column.tasks[result.index];
+            result.column.tasks[result.index] = result.column.tasks[result.index + 1];
+            result.column.tasks[result.index + 1] = task;
+        });
+    }
+
+    private moveTaskToBottom(taskId: string, columnId: string) {
+        this.performAction(() => {
+            const result = this.findTask(columnId, taskId);
+            if (!result || result.index === result.column.tasks.length - 1) return;
+
+            const task = result.column.tasks.splice(result.index, 1)[0];
+            result.column.tasks.push(task);
+        });
+    }
+
+    private moveTaskToColumn(taskId: string, fromColumnId: string, toColumnId: string) {
+        this.performAction(() => {
+            const fromColumn = this.findColumn(fromColumnId);
+            const toColumn = this.findColumn(toColumnId);
+
+            if (!fromColumn || !toColumn) return;
+
+            const taskIndex = fromColumn.tasks.findIndex(task => task.id === taskId);
+            if (taskIndex === -1) return;
+
+            const task = fromColumn.tasks.splice(taskIndex, 1)[0];
+            toColumn.tasks.push(task);
+        });
+    }
+
+    // Column operations
     private addColumn(title: string) {
         this.performAction(() => {
             if (!this._board) return;
 
             const newColumn: KanbanColumn = {
-                id: Math.random().toString(36).substr(2, 9),
+                id: this.generateId(),
                 title: title,
                 tasks: []
             };
 
             this._board.columns.push(newColumn);
+            this._originalTaskOrder.set(newColumn.id, []);
         });
     }
 
@@ -247,6 +400,91 @@ export class KanbanWebviewPanel {
             const columns = this._board.columns;
             const column = columns.splice(fromIndex, 1)[0];
             columns.splice(toIndex, 0, column);
+        });
+    }
+
+    private deleteColumn(columnId: string) {
+        this.performAction(() => {
+            if (!this._board) return;
+
+            const index = this._board.columns.findIndex(col => col.id === columnId);
+            if (index === -1) return;
+
+            this._board.columns.splice(index, 1);
+            this._originalTaskOrder.delete(columnId);
+        });
+    }
+
+    private insertColumnBefore(columnId: string, title: string) {
+        this.performAction(() => {
+            if (!this._board) return;
+
+            const index = this._board.columns.findIndex(col => col.id === columnId);
+            if (index === -1) return;
+
+            const newColumn: KanbanColumn = {
+                id: this.generateId(),
+                title: title,
+                tasks: []
+            };
+
+            this._board.columns.splice(index, 0, newColumn);
+            this._originalTaskOrder.set(newColumn.id, []);
+        });
+    }
+
+    private insertColumnAfter(columnId: string, title: string) {
+        this.performAction(() => {
+            if (!this._board) return;
+
+            const index = this._board.columns.findIndex(col => col.id === columnId);
+            if (index === -1) return;
+
+            const newColumn: KanbanColumn = {
+                id: this.generateId(),
+                title: title,
+                tasks: []
+            };
+
+            this._board.columns.splice(index + 1, 0, newColumn);
+            this._originalTaskOrder.set(newColumn.id, []);
+        });
+    }
+
+    private sortColumn(columnId: string, sortType: 'unsorted' | 'title') {
+        this.performAction(() => {
+            const column = this.findColumn(columnId);
+            if (!column) return;
+
+            if (sortType === 'title') {
+                // Sort alphabetically by title
+                column.tasks.sort((a, b) => {
+                    const titleA = a.title || '';
+                    const titleB = b.title || '';
+                    return titleA.localeCompare(titleB);
+                });
+            } else if (sortType === 'unsorted') {
+                // Restore original order
+                const originalOrder = this._originalTaskOrder.get(columnId);
+                if (originalOrder) {
+                    const taskMap = new Map(column.tasks.map(t => [t.id, t]));
+                    column.tasks = [];
+                    
+                    // Add tasks in original order
+                    originalOrder.forEach(taskId => {
+                        const task = taskMap.get(taskId);
+                        if (task) {
+                            column.tasks.push(task);
+                            taskMap.delete(taskId);
+                        }
+                    });
+                    
+                    // Add any new tasks that weren't in original order
+                    taskMap.forEach(task => {
+                        column.tasks.push(task);
+                    });
+                }
+            }
         });
     }
 
