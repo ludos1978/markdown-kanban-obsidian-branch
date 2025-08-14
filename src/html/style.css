@@ -132,7 +132,7 @@ body {
 
 .task-title {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: normal; /* Changed from 500 to normal */
     color: var(--vscode-foreground);
     line-height: 1.4;
     word-break: break-word;
@@ -155,11 +155,11 @@ body {
 
 .task-title-display {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: normal; /* Changed from 500 to normal */
     color: var(--vscode-foreground);
     line-height: 1.4;
     word-break: break-word;
-    padding: 0px; /* 2px 4px */
+    padding: 0px;
     border-radius: 3px;
     cursor: pointer;
     min-height: 20px;
@@ -177,7 +177,7 @@ body {
 
 .task-title-edit {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: normal; /* Changed from 500 to normal */
     color: var(--vscode-foreground);
     line-height: 1.4;
     word-break: break-word;
@@ -188,7 +188,6 @@ body {
     width: 100%;
     resize: vertical;
     overflow: hidden;
-    /* min-height: 1em; */
     font-family: inherit;
     height: 2em;
 }
@@ -477,6 +476,39 @@ body {
 .markdown-content h6 {
     margin: 0.25em 0 0.125em 0;
     color: var(--vscode-foreground);
+    font-weight: bold; /* Make headings bold */
+}
+
+/* Define specific sizes for each heading level */
+.markdown-content h1 {
+    font-size: 1.8em; /* ~25px if base is 14px */
+}
+
+.markdown-content h2 {
+    font-size: 1.5em; /* ~21px */
+}
+
+.markdown-content h3 {
+    font-size: 1.3em; /* ~18px */
+}
+
+.markdown-content h4 {
+    font-size: 1.1em; /* ~15px */
+}
+
+.markdown-content h5 {
+    font-size: 1em; /* ~14px */
+}
+
+.markdown-content h6 {
+    font-size: 0.9em; /* ~13px */
+}
+
+/* Ensure regular text has normal font weight */
+.markdown-content p,
+.markdown-content span,
+.markdown-content div {
+    font-weight: normal;
 }
 
 .markdown-content p {
@@ -542,8 +574,9 @@ body {
 .task-title-container .markdown-content h5,
 .task-title-container .markdown-content h6 {
     margin: 0;
-    font-size: inherit;
+    font-size: inherit; /* Keep title headings same size as regular title text */
     line-height: inherit;
+    font-weight: bold; /* But keep them bold */
 }
 
 .task-title-container .markdown-content p {
