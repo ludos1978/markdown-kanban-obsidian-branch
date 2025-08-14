@@ -574,9 +574,8 @@ body {
 .task-title-container .markdown-content h5,
 .task-title-container .markdown-content h6 {
     margin: 0;
-    font-size: inherit; /* Keep title headings same size as regular title text */
-    line-height: inherit;
-    font-weight: bold; /* But keep them bold */
+    line-height: 1.4; /* Match task title line height */
+    font-weight: bold; /* Keep headings bold */
 }
 
 .task-title-container .markdown-content p {
