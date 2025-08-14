@@ -55,7 +55,7 @@
             align-items: center;
             gap: 8px;
             flex: 1;
-            cursor: move;
+            min-width: 0;
         }
 
         .drag-handle {
@@ -65,6 +65,7 @@
             opacity: 0.4;
             transition: opacity 0.2s;
             user-select: none;
+            flex-shrink: 0;
         }
 
         .drag-handle:hover {
@@ -80,12 +81,43 @@
             font-weight: 600;
             color: var(--vscode-foreground);
             flex: 1;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            min-width: 0;
+            word-break: break-word;
+        }
+
+        .column-title:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        .column-title-edit {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--vscode-foreground);
+            flex: 1;
+            border: 1px solid var(--vscode-focusBorder);
+            border-radius: 3px;
+            padding: 2px 4px;
+            background: var(--vscode-input-background);
+            width: 100%;
+            resize: none;
+            overflow: hidden;
+            min-height: 24px;
+            font-family: inherit;
+        }
+
+        .column-title-edit:focus {
+            outline: none;
+            border-color: var(--vscode-focusBorder);
         }
 
         .column-controls {
             display: flex;
             gap: 8px;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .task-count {
@@ -145,6 +177,7 @@
             width: 100%;
             text-align: left;
             transition: background-color 0.2s;
+            white-space: nowrap;
         }
 
         .donut-menu-item:hover {
@@ -186,6 +219,14 @@
             height: 1px;
             background: var(--vscode-panel-border);
             margin: 4px 0;
+        }
+
+        /* Task Menu Overlay Position */
+        .task-menu-container {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 10;
         }
 
         /* Task Styles */
@@ -247,22 +288,6 @@
             min-width: 0;
         }
 
-        .task-content-wrapper {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 8px;
-        }
-
-        .task-description-section {
-            flex: 1;
-        }
-
-        .task-menu-wrapper {
-            flex-shrink: 0;
-            margin-top: -4px;
-        }
-
         .task-title-display {
             font-size: 14px;
             font-weight: 500;
@@ -299,6 +324,11 @@
         .task-title-edit:focus {
             outline: none;
             border-color: var(--vscode-focusBorder);
+        }
+
+        .task-description-container {
+            margin-top: 4px;
+            padding-right: 30px; /* Space for menu button */
         }
 
         .task-description-display {
@@ -713,9 +743,12 @@
 
             columnDiv.innerHTML = `
                 <div class="column-header">
-                    <div class="column-title-section" draggable="true">
-                        <span class="drag-handle">⋮⋮</span>
-                        <h3 class="column-title">${escapeHtml(column.title)}</h3>
+                    <div class="column-title-section">
+                        <span class="drag-handle" draggable="true">⋮⋮</span>
+                        <h3 class="column-title" onclick="editColumnTitle('${column.id}')">${escapeHtml(column.title)}</h3>
+                        <textarea class="column-title-edit" 
+                                 data-column-id="${column.id}"
+                                 style="display: none;">${escapeHtml(column.title)}</textarea>
                     </div>
                     <div class="column-controls">
                         <span class="task-count">${column.tasks.length}</span>
@@ -755,6 +788,34 @@
             
             return `
                 <div class="task-item" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}">
+                    <div class="task-menu-container">
+                        <div class="donut-menu">
+                            <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
+                            <div class="donut-menu-dropdown">
+                                <button class="donut-menu-item" onclick="duplicateTask('${task.id}', '${columnId}')">Duplicate card</button>
+                                <button class="donut-menu-item" onclick="insertTaskBefore('${task.id}', '${columnId}')">Insert card before</button>
+                                <button class="donut-menu-item" onclick="insertTaskAfter('${task.id}', '${columnId}')">Insert card after</button>
+                                <div class="donut-menu-divider"></div>
+                                <button class="donut-menu-item" onclick="moveTaskToTop('${task.id}', '${columnId}')">Move to top</button>
+                                <button class="donut-menu-item" onclick="moveTaskUp('${task.id}', '${columnId}')">Move up</button>
+                                <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Move down</button>
+                                <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Move to bottom</button>
+                                <div class="donut-menu-divider"></div>
+                                <button class="donut-menu-item has-submenu">
+                                    Move to list
+                                    <div class="donut-menu-submenu">
+                                        ${currentBoard.columns.map(col => 
+                                            col.id !== columnId ? 
+                                            `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title)}</button>` : ''
+                                        ).join('')}
+                                    </div>
+                                </button>
+                                <div class="donut-menu-divider"></div>
+                                <button class="donut-menu-item" onclick="deleteTask('${task.id}', '${columnId}')">Delete card</button>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="task-header">
                         <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                         <div class="task-title-container">
@@ -771,48 +832,19 @@
                         </div>
                     </div>
 
-                    <div class="task-content-wrapper">
-                        <div class="task-description-section">
-                            <div class="task-description-display markdown-content" 
+                    <div class="task-description-container">
+                        <div class="task-description-display markdown-content" 
+                             data-task-id="${task.id}" 
+                             data-column-id="${columnId}"
+                             onclick="editDescription(this)"
+                             style="${task.description ? '' : 'display: none;'}">${renderedDescription}</div>
+                        <textarea class="task-description-edit" 
                                  data-task-id="${task.id}" 
                                  data-column-id="${columnId}"
-                                 onclick="editDescription(this)"
-                                 style="${task.description ? '' : 'display: none;'}">${renderedDescription}</div>
-                            <textarea class="task-description-edit" 
-                                     data-task-id="${task.id}" 
-                                     data-column-id="${columnId}"
-                                     data-field="description"
-                                     placeholder="Add description (Markdown supported)..."
-                                     style="display: none;">${escapeHtml(task.description || '')}</textarea>
-                            ${!task.description ? `<div class="task-description-placeholder" onclick="editDescription(this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
-                        </div>
-                        <div class="task-menu-wrapper">
-                            <div class="donut-menu">
-                                <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
-                                <div class="donut-menu-dropdown">
-                                    <button class="donut-menu-item" onclick="duplicateTask('${task.id}', '${columnId}')">Duplicate card</button>
-                                    <button class="donut-menu-item" onclick="insertTaskBefore('${task.id}', '${columnId}')">Insert card before</button>
-                                    <button class="donut-menu-item" onclick="insertTaskAfter('${task.id}', '${columnId}')">Insert card after</button>
-                                    <div class="donut-menu-divider"></div>
-                                    <button class="donut-menu-item" onclick="moveTaskToTop('${task.id}', '${columnId}')">Move to top</button>
-                                    <button class="donut-menu-item" onclick="moveTaskUp('${task.id}', '${columnId}')">Move up</button>
-                                    <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Move down</button>
-                                    <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Move to bottom</button>
-                                    <div class="donut-menu-divider"></div>
-                                    <button class="donut-menu-item has-submenu">
-                                        Move to list
-                                        <div class="donut-menu-submenu">
-                                            ${currentBoard.columns.map(col => 
-                                                col.id !== columnId ? 
-                                                `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title)}</button>` : ''
-                                            ).join('')}
-                                        </div>
-                                    </button>
-                                    <div class="donut-menu-divider"></div>
-                                    <button class="donut-menu-item" onclick="deleteTask('${task.id}', '${columnId}')">Delete card</button>
-                                </div>
-                            </div>
-                        </div>
+                                 data-field="description"
+                                 placeholder="Add description (Markdown supported)..."
+                                 style="display: none;">${escapeHtml(task.description || '')}</textarea>
+                        ${!task.description ? `<div class="task-description-placeholder" onclick="editDescription(this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
                     </div>
                 </div>
             `;
@@ -841,6 +873,61 @@
                 menu.classList.remove('active');
             });
         });
+
+        // Column title editing
+        function editColumnTitle(columnId) {
+            const column = document.querySelector(`[data-column-id="${columnId}"]`);
+            const titleElement = column.querySelector('.column-title');
+            const editElement = column.querySelector('.column-title-edit');
+            const dragHandle = column.querySelector('.drag-handle');
+            
+            titleElement.style.display = 'none';
+            editElement.style.display = 'block';
+            dragHandle.draggable = false; // Disable dragging while editing
+            
+            editElement.focus();
+            editElement.select();
+            
+            const saveTitle = () => {
+                const newTitle = editElement.value.trim();
+                if (newTitle) {
+                    vscode.postMessage({
+                        type: 'editColumnTitle',
+                        columnId: columnId,
+                        title: newTitle
+                    });
+                    
+                    // Update local state
+                    const col = currentBoard.columns.find(c => c.id === columnId);
+                    if (col) {
+                        col.title = newTitle;
+                        titleElement.textContent = newTitle;
+                    }
+                }
+                
+                titleElement.style.display = 'block';
+                editElement.style.display = 'none';
+                dragHandle.draggable = true; // Re-enable dragging
+            };
+            
+            const cancelEdit = () => {
+                editElement.value = titleElement.textContent;
+                titleElement.style.display = 'block';
+                editElement.style.display = 'none';
+                dragHandle.draggable = true; // Re-enable dragging
+            };
+            
+            editElement.onblur = saveTitle;
+            editElement.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveTitle();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            };
+        }
 
         // Column operations
         function insertColumnBefore(columnId) {
@@ -1220,16 +1307,16 @@
             let draggedColumnId = null;
 
             columns.forEach(column => {
-                const columnHeader = column.querySelector('.column-title-section');
+                const dragHandle = column.querySelector('.drag-handle');
                 const columnId = column.getAttribute('data-column-id');
 
-                columnHeader.addEventListener('dragstart', e => {
+                dragHandle.addEventListener('dragstart', e => {
                     draggedColumnId = columnId;
                     e.dataTransfer.effectAllowed = 'move';
                     column.classList.add('column-dragging');
                 });
 
-                columnHeader.addEventListener('dragend', e => {
+                dragHandle.addEventListener('dragend', e => {
                     column.classList.remove('column-dragging');
                     draggedColumnId = null;
                     columns.forEach(col => col.classList.remove('drag-over'));

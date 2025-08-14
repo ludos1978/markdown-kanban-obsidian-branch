@@ -67,6 +67,9 @@ The Second line contains:
 Notes:
 - the scrolled position should be kept stable when starting to edit or stopping to edit.
 - the delete list and delete card should be part of the menu, not a separate button. 
-- the list to move cards to should be a sub-list not within the same menu. 
+- the card menu item "move to list" should open a submenu with all available columns (with the titles)
+- the "sort by" menu should open a submenu, listing currently one option.
 - the burger menu should be an overlay. not limiting the width of the text. 
 - the column title, card title, and card description should be editable directly by pressing on the corresponding text
+- remove the "delete list" from the column buger menu
+- remove the "delete card" from the card burger menu

@@ -145,6 +145,9 @@ export class KanbanWebviewPanel {
             case 'sortColumn':
                 this.sortColumn(message.columnId, message.sortType);
                 break;
+            case 'editColumnTitle':
+                this.editColumnTitle(message.columnId, message.title);
+                break;
         }
     }
 
@@ -173,6 +176,15 @@ export class KanbanWebviewPanel {
         this._panel.webview.postMessage({
             type: 'updateBoard',
             board: board
+        });
+    }
+
+    private editColumnTitle(columnId: string, title: string) {
+        this.performAction(() => {
+            const column = this.findColumn(columnId);
+            if (!column) return;
+            
+            column.title = title;
         });
     }
 
