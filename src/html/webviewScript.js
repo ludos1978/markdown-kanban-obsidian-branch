@@ -13,9 +13,32 @@ window.addEventListener('message', event => {
   }
 })
 
+// Store scroll positions before render
+function getScrollPositions() {
+  const positions = {}
+  document.querySelectorAll('.tasks-container').forEach(container => {
+    const columnId = container.id.replace('tasks-', '')
+    positions[columnId] = container.scrollTop
+  })
+  return positions
+}
+
+// Restore scroll positions after render
+function restoreScrollPositions(positions) {
+  Object.entries(positions).forEach(([columnId, scrollTop]) => {
+    const container = document.getElementById(`tasks-${columnId}`)
+    if (container) {
+      container.scrollTop = scrollTop
+    }
+  })
+}
+
 // Render Kanban board
 function renderBoard() {
   if (!currentBoard) return
+
+  // Save scroll positions before redrawing
+  const scrollPositions = getScrollPositions()
 
   const boardElement = document.getElementById('kanban-board')
   boardElement.innerHTML = ''
@@ -33,6 +56,11 @@ function renderBoard() {
   boardElement.appendChild(addColumnBtn)
 
   setupDragAndDrop()
+  
+  // Restore scroll positions after a brief delay to ensure DOM is ready
+  setTimeout(() => {
+    restoreScrollPositions(scrollPositions)
+  }, 0)
 }
 
 function createColumnElement(column) {
@@ -127,53 +155,22 @@ function editTitle(element, taskId = null, columnId = null) {
   const displayDiv = taskItem.querySelector('.task-title-display')
   const editTextarea = taskItem.querySelector('.task-title-edit')
   
-  // Store current scroll position
-  const scrollContainer = taskItem.closest('.tasks-container')
-  const beforeEditOffset = taskItem.offsetTop - scrollContainer.scrollTop
-  
   // Hide display and show edit
   displayDiv.style.display = 'none'
   editTextarea.style.display = 'block'
   autoResize(editTextarea)
   editTextarea.focus()
   
-  // Restore scroll position after height change
-  setTimeout(() => {
-    const newScrollTop = taskItem.offsetTop - beforeEditOffset
-    // console.log("editTitle "+newScrollTop+" : "+scrollContainer.scrollTop)
-    scrollContainer.scrollTop = newScrollTop
-  }, 0)
-  
   // Setup save handlers
   const saveAndHide = () => {
-    // Store scroll position before changing display
-    const beforeSaveOffset = taskItem.offsetTop - scrollContainer.scrollTop
-    
     saveTaskFieldAndUpdateDisplay(editTextarea)
     editTextarea.style.display = 'none'
     displayDiv.style.display = 'block'
-    
-    // Restore scroll position after display change
-    setTimeout(() => {
-        const newScrollTop = taskItem.offsetTop - beforeSaveOffset
-        // console.log("editTitle.saveAndHide "+newScrollTop+" : "+scrollContainer.scrollTop)
-        scrollContainer.scrollTop = newScrollTop
-    }, 300)
   }
   
   const cancelEdit = () => {
-    // Store scroll position before changing display
-    const beforeCancelOffset = taskItem.offsetTop - scrollContainer.scrollTop
-    
     editTextarea.style.display = 'none'
     displayDiv.style.display = 'block'
-    
-    // Restore scroll position after display change
-    setTimeout(() => {
-      const newScrollTop = taskItem.offsetTop - beforeCancelOffset
-      // console.log("editTitle.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop)
-      scrollContainer.scrollTop = newScrollTop
-    }, 300)
   }
   
   // Remove existing listeners
@@ -214,11 +211,6 @@ function editDescription(element, taskId = null, columnId = null) {
   const editTextarea = taskItem.querySelector('.task-description-edit')
   const placeholder = taskItem.querySelector('.task-description-placeholder')
   
-  // Store current scroll position relative to the task item
-  const scrollContainer = taskItem.closest('.tasks-container')
-  const beforeEditOffset = taskItem.offsetTop - scrollContainer.scrollTop
-  console.log("beforeEditOffset "+beforeEditOffset)
-  
   // Hide display elements
   if (displayDiv) displayDiv.style.display = 'none'
   if (placeholder) placeholder.style.display = 'none'
@@ -228,85 +220,19 @@ function editDescription(element, taskId = null, columnId = null) {
   autoResize(editTextarea)
   editTextarea.focus()
   
-  // Restore scroll position after height change
-  setTimeout(() => {
-    const newScrollTop = taskItem.offsetTop - beforeEditOffset
-    console.log("editDescription "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
-    scrollContainer.scrollTop = newScrollTop
-    console.log("editDescription "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
-  }, 0)
-  
   // Setup save handlers
   const saveAndHide = () => {
-    // Store scroll position before changing display
-    const beforeSaveOffset = taskItem.offsetTop + scrollContainer.scrollTop
-    // console.log("beforeSaveOffset "+beforeSaveOffset)
-    // console.log('ScrollContainer scrollTop:', scrollContainer?.scrollTop)
-    // console.log('taskItem scrollTop:', taskItem.offsetTop)
-    
     saveTaskFieldAndUpdateDisplay(editTextarea)
     editTextarea.style.display = 'none'
-    
-    // // Restore scroll position after display change
-    // setTimeout(() => {
-    //   console.log("taskId "+taskId)
-    //   const taskItem = document.querySelector(`[data-task-id="${taskId}"]`)
-    //   const scrollContainer = taskItem.closest('.tasks-container')
-
-    //   const newScrollTop = beforeSaveOffset - taskItem.offsetTop
-    //   console.log("editDescription.saveAndHide "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop+" : "+scrollContainer+" : "+taskItem)
-    //   // scrollContainer.scrollTop = 1000
-    //   console.log('ScrollContainer valid?', scrollContainer && scrollContainer.parentNode)
-    //   console.log('ScrollContainer scrollTop:', scrollContainer?.scrollTop)
-    //   console.log('TaskItem valid?', taskItem && taskItem.parentNode)
-    //   console.log('taskItem scrollTop:', taskItem.offsetTop)
-    //   console.log("editDescription.saveAndHide "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop+" : "+scrollContainer+" : "+taskItem)
-    //   console.log('ScrollContainer scrollTop:', scrollContainer?.scrollTop)
-    //   console.log('taskItem scrollTop:', taskItem.offsetTop)
-    // }, 2)
-
-    // Wait for re-render, then re-query
-    setTimeout(() => {
-      const newTaskItem = document.querySelector(`[data-task-id="${taskId}"]`)
-      const newScrollContainer = newTaskItem?.closest('.tasks-container')
-      
-      if (newTaskItem && newScrollContainer) {
-        const newScrollTop = beforeSaveOffset - newTaskItem.offsetTop
-        newScrollContainer.scrollTop = newScrollTop
-      } else {
-        const newScrollTop = beforeSaveOffset - taskItem.offsetTop
-        scrollContainer.scrollTop = newScrollTop
-      }
-        // console.log('newTaskItem.offsetTop:', newTaskItem.offsetTop)
-        // console.log('beforeSaveOffset:', beforeSaveOffset)
-        // newScrollContainer.scrollTo(newScrollTop, newScrollContainer.scrollLeft)
-        // console.log('newScrollContainer scrollTop:', newScrollTop)
-      // }
-      // 
-      // console.log("editDescription.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
-      // scrollContainer.scrollTop = newScrollTop
-    }, 700) // Give time for re-render
   }
   
   const cancelEdit = () => {
-    // Store scroll position before changing display
-    const beforeCancelOffset = taskItem.offsetTop + scrollContainer.scrollTop
-    console.log("beforeCancelOffset "+beforeCancelOffset)
-    
     editTextarea.style.display = 'none'
     if (editTextarea.value.trim()) {
       displayDiv.style.display = 'block'
     } else {
       placeholder.style.display = 'block'
     }
-    
-    // Restore scroll position after display change
-    setTimeout(() => {
-      const newScrollTop = beforeCancelOffset - taskItem.offsetTop
-      // console.log("editDescription.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
-      scrollContainer.scrollTop = newScrollTop
-      // console.log("editDescription.cancelEdit "+newScrollTop+" : "+scrollContainer.scrollTop+" : "+taskItem.offsetTop)
-    }, 600)
   }
   
   // Remove existing listeners
