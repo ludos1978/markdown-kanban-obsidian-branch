@@ -2,43 +2,61 @@ const vscode = acquireVsCodeApi()
 let currentBoard = null
 let editingTask = null
 
+// Store scroll positions before re-render
+let scrollPositions = new Map()
+
 // Listen for messages from the extension
 window.addEventListener('message', event => {
   const message = event.data
   switch (message.type) {
     case 'updateBoard':
+      // Save scroll positions before updating
+      saveAllScrollPositions()
       currentBoard = message.board
       renderBoard()
+      // Restore scroll positions after rendering
+      restoreAllScrollPositions()
       break
   }
 })
 
-// Store scroll positions before render
-function getScrollPositions() {
-  const positions = {}
-  document.querySelectorAll('.tasks-container').forEach(container => {
+// Save scroll positions of all task containers
+function saveAllScrollPositions() {
+  const containers = document.querySelectorAll('.tasks-container')
+  containers.forEach(container => {
     const columnId = container.id.replace('tasks-', '')
-    positions[columnId] = container.scrollTop
+    scrollPositions.set(columnId, container.scrollTop)
   })
-  return positions
+  
+  // Also save main board scroll position
+  const boardElement = document.getElementById('kanban-board')
+  if (boardElement) {
+    scrollPositions.set('board-h', boardElement.scrollLeft)
+    scrollPositions.set('board-v', window.scrollY)
+  }
 }
 
-// Restore scroll positions after render
-function restoreScrollPositions(positions) {
-  Object.entries(positions).forEach(([columnId, scrollTop]) => {
-    const container = document.getElementById(`tasks-${columnId}`)
-    if (container) {
-      container.scrollTop = scrollTop
-    }
-  })
+// Restore scroll positions after rendering
+function restoreAllScrollPositions() {
+  // Use setTimeout to ensure DOM is fully rendered
+  setTimeout(() => {
+    scrollPositions.forEach((scrollTop, columnId) => {
+      if (columnId === 'board-h') {
+        const boardElement = document.getElementById('kanban-board')
+        if (boardElement) boardElement.scrollLeft = scrollTop
+      } else if (columnId === 'board-v') {
+        window.scrollTo(0, scrollTop)
+      } else {
+        const container = document.getElementById(`tasks-${columnId}`)
+        if (container) container.scrollTop = scrollTop
+      }
+    })
+  }, 0)
 }
 
 // Render Kanban board
 function renderBoard() {
   if (!currentBoard) return
-
-  // Save scroll positions before redrawing
-  const scrollPositions = getScrollPositions()
 
   const boardElement = document.getElementById('kanban-board')
   boardElement.innerHTML = ''
@@ -56,11 +74,6 @@ function renderBoard() {
   boardElement.appendChild(addColumnBtn)
 
   setupDragAndDrop()
-  
-  // Restore scroll positions after a brief delay to ensure DOM is ready
-  setTimeout(() => {
-    restoreScrollPositions(scrollPositions)
-  }, 0)
 }
 
 function createColumnElement(column) {
@@ -163,7 +176,7 @@ function editTitle(element, taskId = null, columnId = null) {
   
   // Setup save handlers
   const saveAndHide = () => {
-    saveTaskFieldAndUpdateDisplay(editTextarea)
+    saveTaskFieldAndUpdateDisplay(editTextarea, false) // Don't trigger full update
     editTextarea.style.display = 'none'
     displayDiv.style.display = 'block'
   }
@@ -222,7 +235,7 @@ function editDescription(element, taskId = null, columnId = null) {
   
   // Setup save handlers
   const saveAndHide = () => {
-    saveTaskFieldAndUpdateDisplay(editTextarea)
+    saveTaskFieldAndUpdateDisplay(editTextarea, false) // Don't trigger full update
     editTextarea.style.display = 'none'
   }
   
@@ -289,7 +302,7 @@ function saveTaskField(textarea) {
   })
 }
 
-function saveTaskFieldAndUpdateDisplay(textarea) {
+function saveTaskFieldAndUpdateDisplay(textarea, triggerFullUpdate = true) {
   const taskId = textarea.dataset.taskId
   const columnId = textarea.dataset.columnId
   const field = textarea.dataset.field
@@ -332,12 +345,23 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
 
   // Save to backend
   const taskData = { ...task, [field]: value }
-  vscode.postMessage({
-    type: 'editTask',
-    taskId: taskId,
-    columnId: columnId,
-    taskData: taskData
-  })
+  
+  if (triggerFullUpdate) {
+    vscode.postMessage({
+      type: 'editTask',
+      taskId: taskId,
+      columnId: columnId,
+      taskData: taskData
+    })
+  } else {
+    // Send a special message that won't trigger a full re-render
+    vscode.postMessage({
+      type: 'editTaskNoUpdate',
+      taskId: taskId,
+      columnId: columnId,
+      taskData: taskData
+    })
+  }
 }
 
 function renderMarkdown(text) {
