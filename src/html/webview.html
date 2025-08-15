@@ -1,4 +1,16 @@
-<!DOCTYPE html>
+.donut-menu-submenu button.donut-menu-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+            padding: 8px 12px;
+            margin: 0;
+        }
+
+        .donut-menu-submenu button.donut-menu-item:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -178,6 +190,12 @@
             text-align: left;
             transition: background-color 0.2s;
             white-space: nowrap;
+            display: block;
+        }
+
+        button.donut-menu-item {
+            width: 100%;
+            text-align: left;
         }
 
         .donut-menu-item:hover {
@@ -209,10 +227,25 @@
             border-radius: 4px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             min-width: 120px;
+            z-index: 1001;
         }
 
         .donut-menu-item.has-submenu:hover .donut-menu-submenu {
             display: block;
+        }
+
+        .donut-menu-submenu button.donut-menu-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+            padding: 8px 12px;
+            margin: 0;
+        }
+
+        .donut-menu-submenu button.donut-menu-item:hover {
+            background-color: var(--vscode-list-hoverBackground);
         }
 
         .donut-menu-divider {
@@ -758,15 +791,13 @@
                                 <button class="donut-menu-item" onclick="insertColumnBefore('${column.id}')">Insert list before</button>
                                 <button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
                                 <div class="donut-menu-divider"></div>
-                                <button class="donut-menu-item has-submenu">
+                                <div class="donut-menu-item has-submenu">
                                     Sort by
                                     <div class="donut-menu-submenu">
                                         <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'unsorted')">Unsorted</button>
                                         <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'title')">Sort by title</button>
                                     </div>
-                                </button>
-                                <div class="donut-menu-divider"></div>
-                                <button class="donut-menu-item" onclick="deleteColumn('${column.id}')">Delete list</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -801,7 +832,7 @@
                                 <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Move down</button>
                                 <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Move to bottom</button>
                                 <div class="donut-menu-divider"></div>
-                                <button class="donut-menu-item has-submenu">
+                                <div class="donut-menu-item has-submenu">
                                     Move to list
                                     <div class="donut-menu-submenu">
                                         ${currentBoard.columns.map(col => 
@@ -809,9 +840,7 @@
                                             `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title)}</button>` : ''
                                         ).join('')}
                                     </div>
-                                </button>
-                                <div class="donut-menu-divider"></div>
-                                <button class="donut-menu-item" onclick="deleteTask('${task.id}', '${columnId}')">Delete card</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -868,10 +897,13 @@
         }
 
         // Close menus when clicking outside
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.donut-menu').forEach(menu => {
-                menu.classList.remove('active');
-            });
+        document.addEventListener('click', (e) => {
+            // Close menus if clicking outside or on a button (action item)
+            if (!e.target.closest('.donut-menu') || e.target.matches('button.donut-menu-item')) {
+                document.querySelectorAll('.donut-menu').forEach(menu => {
+                    menu.classList.remove('active');
+                });
+            }
         });
 
         // Column title editing
