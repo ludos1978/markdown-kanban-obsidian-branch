@@ -34,8 +34,9 @@ kanban-plugin: board
 The interface is structured as this:
 
 The columns should have the following items in the first line (Title line):
-- a one line Title in Markdown Format
 - a handle (to change the order of columns by dragging)
+- an collapse toggle, which changes the column to be labelelled vertically, and all cards are hidden.
+- a one line Title in Markdown Format
 - a integer with the number of cards 
 - a donut menu with the items:
   - "insert list before"
@@ -52,10 +53,10 @@ The columns should have the following items in the first line (Title line):
 Each card is a subitem to this list. 
 
 Each Cards first line is structured like this:
-- Title of the card formatted as markdown
 - A handle to change order of the cards
 The Second line contains:
-- the Description (if it has any) on any number of lines necessary is markdown format.
+- A collapse toggle, which hides the description of the card.
+- Title of the card formatted as markdown
 - right aligned is a donut menu with the items:
   - insert card before
   - insert card after
@@ -70,6 +71,9 @@ The Second line contains:
     - a list of all columns
   - an empty space with a line (no functionality)
   - delete card
+
+After that follows:
+- the Description (if it has any) on any number of lines necessary is markdown format.
 
 Notes:
 - the scrolled position should be kept stable when starting to edit or stopping to edit.
