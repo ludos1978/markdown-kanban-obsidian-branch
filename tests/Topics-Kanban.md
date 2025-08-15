@@ -6,8 +6,6 @@ kanban-plugin: board
 
 ## Day 1
 
-- [ ] #### Homework
-  - Game Analysis
 - [ ] ### W&L-D Basics
 - [ ] World Scale and Areas
 - [ ] World Type
@@ -16,12 +14,6 @@ kanban-plugin: board
 - [ ] Question: Tell about your Experience of a Level in a Game
 - [ ] Pre-Production
   - https://book.leveldesignbook.com/process/preproduction
-- [ ] ##### Level Design
-  Definition: is the practice of planning and building interactive spaces that create meaningful player experiences through the strategic arrangement of: 
-  - Environmental elements and obstacles 
-  - Gameplay mechanics and challenges 
-  - Narrative and atmospheric components 
-  - Player guidance and flow systems
 - [ ] ##### Level Design vs Related Disciplines
   ---:
   
@@ -85,6 +77,14 @@ kanban-plugin: board
 
 ## A
 
+- [ ] #### Homework
+  - Game Analysis
+- [ ] ##### Level Design
+  Definition: is the practice of planning and building interactive spaces that create meaningful player experiences through the strategic arrangement of: 
+  - Environmental elements and obstacles 
+  - Gameplay mechanics and challenges 
+  - Narrative and atmospheric components 
+  - Player guidance and flow systems
 
 ## Day 2
 

@@ -35,7 +35,7 @@ The interface is structured as this:
 
 The columns should have the following items in the first line (Title line):
 - a one line Title in Markdown Format
-- a handle to change the order of columns by dragging
+- a handle (to change the order of columns by dragging)
 - a integer with the number of cards 
 - a donut menu with the items:
   - "insert list before"
@@ -78,6 +78,6 @@ Notes:
 - the "sort by" menu should open a submenu, listing currently one option.
 - the burger menu should be an overlay. not limiting the width of the text. 
 - the column title, card title, and card description should be editable directly by pressing on the corresponding text
-- remove the "delete list" from the column buger menu
-- remove the "delete card" from the card burger menu
-- the column handle should move the order within all the columns
+- move the "delete list" button to the column burger menu
+- move the "delete card" button to the card burger menu
+- the column handle should move the order of the columns
