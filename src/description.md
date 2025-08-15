@@ -38,12 +38,16 @@ The columns should have the following items in the first line (Title line):
 - a handle to change the order of columns by dragging
 - a integer with the number of cards 
 - a donut menu with the items:
-    - "insert list before"
-    - "insert list after"
-    - "delete list"
-    - "sort by" with an item as a selectable list item 
-        - unsorted
-        - "sort by title"
+  - "insert list before"
+  - "insert list after"
+  - an empty space with a line (no functionality)
+  - "move list"
+  - an empty space with a line (no functionality)
+  - "sort by" (with submenu items)
+    - unsorted
+    - "sort by title"
+  - an empty space with a line (no functionality)
+  - "delete list"
 
 Each card is a subitem to this list. 
 
@@ -53,16 +57,19 @@ Each Cards first line is structured like this:
 The Second line contains:
 - the Description (if it has any) on any number of lines necessary is markdown format.
 - right aligned is a donut menu with the items:
-    - duplicate card
-    - insert card before
-    - insert card after
-    - move to top
-    - move up
-    - move down
-    - move to bottom
-    - delete card
-    - move to list
-        - a list of all columns
+  - insert card before
+  - insert card after
+  - duplicate card
+  - an empty space with a line (no functionality)
+  - move (with submenu items)
+    - top
+    - up
+    - down
+    - bottom
+  - move to list (with submenu items)
+    - a list of all columns
+  - an empty space with a line (no functionality)
+  - delete card
 
 Notes:
 - the scrolled position should be kept stable when starting to edit or stopping to edit.
