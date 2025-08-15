@@ -36,6 +36,40 @@
             border: 1px solid var(--vscode-panel-border);
             position: relative;
             height: min-content;
+            transition: all 0.3s ease;
+        }
+
+        .kanban-column.collapsed {
+            min-width: 40px;
+            max-width: 40px;
+            padding: 16px 8px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        .kanban-column.collapsed .tasks-container,
+        .kanban-column.collapsed .add-task-btn {
+            display: none;
+        }
+
+        .kanban-column.collapsed .column-header {
+            flex-direction: column;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .kanban-column.collapsed .column-title-section {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .kanban-column.collapsed .column-title {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        .kanban-column.collapsed .column-controls {
+            flex-direction: column;
         }
 
         .kanban-column.dragging {
@@ -57,6 +91,23 @@
             gap: 8px;
             flex: 1;
             min-width: 0;
+        }
+
+        .collapse-toggle {
+            cursor: pointer;
+            font-size: 12px;
+            opacity: 0.6;
+            transition: all 0.2s;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .collapse-toggle:hover {
+            opacity: 1;
+        }
+
+        .collapse-toggle.rotated {
+            transform: rotate(90deg);
         }
 
         .drag-handle {
@@ -133,6 +184,7 @@
         /* Donut Menu Styles */
         .donut-menu {
             position: relative;
+            z-index: 100;
         }
 
         .donut-menu-btn {
@@ -180,6 +232,7 @@
             transition: background-color 0.2s;
             white-space: nowrap;
             display: block;
+            position: relative;
         }
 
         button.donut-menu-item {
@@ -192,7 +245,6 @@
         }
 
         .donut-menu-item.has-submenu {
-            position: relative;
             padding-right: 24px;
         }
 
@@ -206,21 +258,7 @@
             opacity: 0.6;
         }
 
-        .donut-menu-submenu button.donut-menu-item {
-            display: block;
-            width: 100%;
-            text-align: left;
-            border: none;
-            background: none;
-            padding: 8px 12px;
-            margin: 0;
-        }
-
-        .donut-menu-submenu button.donut-menu-item:hover {
-            background-color: var(--vscode-list-hoverBackground);
-        }
-
-        /* .donut-menu-submenu {
+        .donut-menu-submenu {
             display: none;
             position: absolute;
             left: 100%;
@@ -235,7 +273,7 @@
 
         .donut-menu-item.has-submenu:hover .donut-menu-submenu {
             display: block;
-        } */
+        }
 
         .donut-menu-submenu button.donut-menu-item {
             display: block;
@@ -257,19 +295,21 @@
             margin: 4px 0;
         }
 
+        .donut-menu-item.danger {
+            color: var(--vscode-errorForeground);
+        }
+
         /* Task Menu Overlay Position */
         .task-menu-container {
             position: absolute;
             top: 8px;
             right: 8px;
-            z-index: 10;
+            z-index: 50;
         }
 
         /* Task Styles */
         .tasks-container {
             min-height: 100px;
-            /* max-height: calc(100vh - 280px); */
-            /* overflow-y: auto; */
         }
 
         .task-item {
@@ -285,6 +325,10 @@
         .task-item:hover {
             border-color: var(--vscode-focusBorder);
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .task-item.collapsed .task-description-container {
+            display: none;
         }
 
         .task-header {
@@ -317,6 +361,24 @@
 
         .task-drag-handle:active {
             cursor: grabbing;
+        }
+
+        .task-collapse-toggle {
+            cursor: pointer;
+            font-size: 12px;
+            opacity: 0.6;
+            transition: all 0.2s;
+            user-select: none;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .task-collapse-toggle:hover {
+            opacity: 1;
+        }
+
+        .task-collapse-toggle.rotated {
+            transform: rotate(90deg);
         }
 
         .task-title-container {
@@ -364,7 +426,7 @@
 
         .task-description-container {
             margin-top: 4px;
-            padding-right: 30px; /* Space for menu button */
+            padding-right: 30px;
         }
 
         .task-description-display {
@@ -460,7 +522,7 @@
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
+            z-index: 2000;
             left: 0;
             top: 0;
             width: 100%;
@@ -682,14 +744,16 @@
     </div>
 
     <script>
-        // VS Code API mock for testing (replace with actual vscode API in extension)
+        // VS Code API mock for testing
         const vscode = typeof acquireVsCodeApi !== 'undefined' ? acquireVsCodeApi() : {
             postMessage: (msg) => console.log('Message to extension:', msg)
         };
 
         let currentBoard = null;
         let editingTask = null;
-        let scrollPositions = new Map(); // Store scroll positions
+        let scrollPositions = new Map();
+        let collapsedColumns = new Set();
+        let collapsedTasks = new Set();
 
         // Initialize with sample data for testing
         if (typeof acquireVsCodeApi === 'undefined') {
@@ -773,14 +837,16 @@
 
         function createColumnElement(column, columnIndex) {
             const columnDiv = document.createElement('div');
-            columnDiv.className = 'kanban-column';
+            const isCollapsed = collapsedColumns.has(column.id);
+            columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''}`;
             columnDiv.setAttribute('data-column-id', column.id);
             columnDiv.setAttribute('data-column-index', columnIndex);
 
             columnDiv.innerHTML = `
                 <div class="column-header">
                     <div class="column-title-section">
-                        <span class="drag-handle" draggable="true">⋮⋮</span>
+                        <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
+                        <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
                         <h3 class="column-title" onclick="editColumnTitle('${column.id}')">${escapeHtml(column.title)}</h3>
                         <textarea class="column-title-edit" 
                                  data-column-id="${column.id}"
@@ -794,6 +860,9 @@
                                 <button class="donut-menu-item" onclick="insertColumnBefore('${column.id}')">Insert list before</button>
                                 <button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
                                 <div class="donut-menu-divider"></div>
+                                <button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
+                                <button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
+                                <div class="donut-menu-divider"></div>
                                 <div class="donut-menu-item has-submenu">
                                     Sort by
                                     <div class="donut-menu-submenu">
@@ -801,6 +870,8 @@
                                         <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'title')">Sort by title</button>
                                     </div>
                                 </div>
+                                <div class="donut-menu-divider"></div>
+                                <button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
                             </div>
                         </div>
                     </div>
@@ -819,22 +890,27 @@
         function createTaskElement(task, columnId, taskIndex) {
             const renderedDescription = task.description ? renderMarkdown(task.description) : '';
             const renderedTitle = task.title ? renderMarkdown(task.title) : '';
+            const isCollapsed = collapsedTasks.has(task.id);
             
             return `
-                <div class="task-item" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}">
+                <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}">
                     <div class="task-menu-container">
                         <div class="donut-menu">
                             <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
                             <div class="donut-menu-dropdown">
-                                <button class="donut-menu-item" onclick="duplicateTask('${task.id}', '${columnId}')">Duplicate card</button>
                                 <button class="donut-menu-item" onclick="insertTaskBefore('${task.id}', '${columnId}')">Insert card before</button>
                                 <button class="donut-menu-item" onclick="insertTaskAfter('${task.id}', '${columnId}')">Insert card after</button>
+                                <button class="donut-menu-item" onclick="duplicateTask('${task.id}', '${columnId}')">Duplicate card</button>
                                 <div class="donut-menu-divider"></div>
-                                <button class="donut-menu-item" onclick="moveTaskToTop('${task.id}', '${columnId}')">Move to top</button>
-                                <button class="donut-menu-item" onclick="moveTaskUp('${task.id}', '${columnId}')">Move up</button>
-                                <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Move down</button>
-                                <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Move to bottom</button>
-                                <div class="donut-menu-divider"></div>
+                                <div class="donut-menu-item has-submenu">
+                                    Move
+                                    <div class="donut-menu-submenu">
+                                        <button class="donut-menu-item" onclick="moveTaskToTop('${task.id}', '${columnId}')">Top</button>
+                                        <button class="donut-menu-item" onclick="moveTaskUp('${task.id}', '${columnId}')">Up</button>
+                                        <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Down</button>
+                                        <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Bottom</button>
+                                    </div>
+                                </div>
                                 <div class="donut-menu-item has-submenu">
                                     Move to list
                                     <div class="donut-menu-submenu">
@@ -844,12 +920,15 @@
                                         ).join('')}
                                     </div>
                                 </div>
+                                <div class="donut-menu-divider"></div>
+                                <button class="donut-menu-item danger" onclick="deleteTask('${task.id}', '${columnId}')">Delete card</button>
                             </div>
                         </div>
                     </div>
                     
                     <div class="task-header">
                         <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
+                        <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}')">▶</span>
                         <div class="task-title-container">
                             <div class="task-title-display markdown-content" 
                                  data-task-id="${task.id}" 
@@ -882,6 +961,37 @@
             `;
         }
 
+        // Toggle functions
+        function toggleColumnCollapse(columnId) {
+            const column = document.querySelector(`[data-column-id="${columnId}"]`);
+            const toggle = column.querySelector('.collapse-toggle');
+            
+            if (collapsedColumns.has(columnId)) {
+                collapsedColumns.delete(columnId);
+                column.classList.remove('collapsed');
+                toggle.classList.remove('rotated');
+            } else {
+                collapsedColumns.add(columnId);
+                column.classList.add('collapsed');
+                toggle.classList.add('rotated');
+            }
+        }
+
+        function toggleTaskCollapse(taskId) {
+            const task = document.querySelector(`[data-task-id="${taskId}"]`);
+            const toggle = task.querySelector('.task-collapse-toggle');
+            
+            if (collapsedTasks.has(taskId)) {
+                collapsedTasks.delete(taskId);
+                task.classList.remove('collapsed');
+                toggle.classList.remove('rotated');
+            } else {
+                collapsedTasks.add(taskId);
+                task.classList.add('collapsed');
+                toggle.classList.add('rotated');
+            }
+        }
+
         // Donut menu functions
         function toggleDonutMenu(event, button) {
             event.stopPropagation();
@@ -901,7 +1011,6 @@
 
         // Close menus when clicking outside
         document.addEventListener('click', (e) => {
-            // Close menus if clicking outside or on a button (action item)
             if (!e.target.closest('.donut-menu') || e.target.matches('button.donut-menu-item')) {
                 document.querySelectorAll('.donut-menu').forEach(menu => {
                     menu.classList.remove('active');
@@ -914,11 +1023,11 @@
             const column = document.querySelector(`[data-column-id="${columnId}"]`);
             const titleElement = column.querySelector('.column-title');
             const editElement = column.querySelector('.column-title-edit');
-            const dragHandle = column.querySelector('.drag-handle');
+            const dragHandle = column.querySelector('.column-drag-handle');
             
             titleElement.style.display = 'none';
             editElement.style.display = 'block';
-            dragHandle.draggable = false; // Disable dragging while editing
+            dragHandle.draggable = false;
             
             editElement.focus();
             editElement.select();
@@ -932,7 +1041,6 @@
                         title: newTitle
                     });
                     
-                    // Update local state
                     const col = currentBoard.columns.find(c => c.id === columnId);
                     if (col) {
                         col.title = newTitle;
@@ -942,14 +1050,14 @@
                 
                 titleElement.style.display = 'block';
                 editElement.style.display = 'none';
-                dragHandle.draggable = true; // Re-enable dragging
+                dragHandle.draggable = true;
             };
             
             const cancelEdit = () => {
                 editElement.value = titleElement.textContent;
                 titleElement.style.display = 'block';
                 editElement.style.display = 'none';
-                dragHandle.draggable = true; // Re-enable dragging
+                dragHandle.draggable = true;
             };
             
             editElement.onblur = saveTitle;
@@ -993,6 +1101,28 @@
                     });
                 }
             );
+        }
+
+        function moveColumnLeft(columnId) {
+            const index = currentBoard.columns.findIndex(c => c.id === columnId);
+            if (index > 0) {
+                vscode.postMessage({
+                    type: 'moveColumn',
+                    fromIndex: index,
+                    toIndex: index - 1
+                });
+            }
+        }
+
+        function moveColumnRight(columnId) {
+            const index = currentBoard.columns.findIndex(c => c.id === columnId);
+            if (index < currentBoard.columns.length - 1) {
+                vscode.postMessage({
+                    type: 'moveColumn',
+                    fromIndex: index,
+                    toIndex: index + 1
+                });
+            }
         }
 
         function deleteColumn(columnId) {
@@ -1128,7 +1258,6 @@
             const displayDiv = taskItem.querySelector('.task-title-display');
             const editTextarea = taskItem.querySelector('.task-title-edit');
             
-            // Store scroll position
             const scrollContainer = taskItem.closest('.tasks-container');
             const beforeEditOffset = taskItem.offsetTop - scrollContainer.scrollTop;
             
@@ -1138,7 +1267,6 @@
             editTextarea.focus();
             editTextarea.select();
             
-            // Maintain scroll position
             requestAnimationFrame(() => {
                 const newScrollTop = taskItem.offsetTop - beforeEditOffset;
                 scrollContainer.scrollTop = newScrollTop;
@@ -1339,27 +1467,26 @@
         function setupColumnDragAndDrop() {
             const boardElement = document.getElementById('kanban-board');
             const columns = boardElement.querySelectorAll('.kanban-column');
-            let draggedColumnId = null;
+            let draggedColumn = null;
 
             columns.forEach(column => {
-                const dragHandle = column.querySelector('.drag-handle');
-                const columnId = column.getAttribute('data-column-id');
+                const dragHandle = column.querySelector('.column-drag-handle');
+                if (!dragHandle) return;
 
                 dragHandle.addEventListener('dragstart', e => {
-                    draggedColumnId = columnId;
+                    draggedColumn = column;
                     e.dataTransfer.effectAllowed = 'move';
                     column.classList.add('column-dragging');
                 });
 
                 dragHandle.addEventListener('dragend', e => {
                     column.classList.remove('column-dragging');
-                    draggedColumnId = null;
                     columns.forEach(col => col.classList.remove('drag-over'));
                 });
 
                 column.addEventListener('dragover', e => {
                     e.preventDefault();
-                    if (draggedColumnId && draggedColumnId !== columnId) {
+                    if (draggedColumn && draggedColumn !== column) {
                         column.classList.add('drag-over');
                     }
                 });
@@ -1374,9 +1501,11 @@
                     e.preventDefault();
                     column.classList.remove('drag-over');
 
-                    if (draggedColumnId && draggedColumnId !== columnId) {
-                        const fromIndex = getOriginalColumnIndex(draggedColumnId);
-                        const toIndex = getOriginalColumnIndex(columnId);
+                    if (draggedColumn && draggedColumn !== column) {
+                        const fromId = draggedColumn.getAttribute('data-column-id');
+                        const toId = column.getAttribute('data-column-id');
+                        const fromIndex = getOriginalColumnIndex(fromId);
+                        const toIndex = getOriginalColumnIndex(toId);
                         
                         if (fromIndex !== -1 && toIndex !== -1) {
                             vscode.postMessage({
@@ -1386,6 +1515,7 @@
                             });
                         }
                     }
+                    draggedColumn = null;
                 });
             });
         }
