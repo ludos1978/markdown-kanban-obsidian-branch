@@ -6,7 +6,6 @@ kanban-plugin: board
 
 ## Day 1
 
-- [ ] ### W&L-D Basics
 - [ ] World Scale and Areas
 - [ ] World Type
   - Text Based, 3d, ...
@@ -85,6 +84,7 @@ kanban-plugin: board
   - Gameplay mechanics and challenges 
   - Narrative and atmospheric components 
   - Player guidance and flow systems
+- [ ] ### W&L-D Basics
 
 ## Day 2
 
