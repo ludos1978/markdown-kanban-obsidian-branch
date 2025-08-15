@@ -73,3 +73,4 @@ Notes:
 - the column title, card title, and card description should be editable directly by pressing on the corresponding text
 - remove the "delete list" from the column buger menu
 - remove the "delete card" from the card burger menu
+- the column handle should move the order within all the columns
