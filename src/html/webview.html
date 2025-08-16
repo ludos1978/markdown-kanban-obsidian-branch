@@ -1173,12 +1173,10 @@
         }
 
         function deleteColumn(columnId) {
-            if (confirm('Are you sure you want to delete this column and all its tasks?')) {
-                vscode.postMessage({
-                    type: 'deleteColumn',
-                    columnId: columnId
-                });
-            }
+            vscode.postMessage({
+                type: 'deleteColumn',
+                columnId: columnId
+            });
         }
 
         function sortColumn(columnId, sortType) {
@@ -1256,13 +1254,11 @@
         }
 
         function deleteTask(taskId, columnId) {
-            if (confirm('Are you sure you want to delete this task?')) {
-                vscode.postMessage({
-                    type: 'deleteTask',
-                    taskId: taskId,
-                    columnId: columnId
-                });
-            }
+            vscode.postMessage({
+                type: 'deleteTask',
+                taskId: taskId,
+                columnId: columnId
+            });
         }
 
         function addTask(columnId) {

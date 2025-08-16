@@ -76,11 +76,14 @@ After that follows:
 - the Description (if it has any) on any number of lines necessary is markdown format.
 
 Notes:
-- [ ] the scrolled position should be kept stable when starting to edit or stopping to edit.
-- [ ] the card menu item "move to list" should open a separate submenu with all available columns (with the titles)
-- [ ] the "sort by" menu should open a separate submenu, listing the sort options.
-- [ ] the burger menu should be an overlay. not limited by the width of the div it's displayed in. 
+- [x] the scrolled position should be kept stable when starting to edit or stopping to edit.
+- [x] the card menu item "move to list" should open a separate submenu with all available columns (with the titles)
+- [x] the "sort by" menu should open a separate submenu, listing the sort options.
+- [x] the burger menu should be an overlay. not limited by the width of the div it's displayed in. 
 - [x] the column title, card title, and card description must be editable directly by pressing on the corresponding text.
-- [ ] move the "delete list" button to the column burger menu
-- [ ] move the "delete card" button to the card burger menu
-- [ ] the column handle should move the order of the columns
+- [x] move the "delete list" button to the column burger menu
+- [x] move the "delete card" button to the card burger menu
+- [x] the column handle should move the order of the columns
+- [x] dont add confirm dialogues, we have undo for this.
+- [ ] undo must work.
+- [ ] structure the code in separate files. html, javascript, css.

@@ -19,7 +19,7 @@ export interface KanbanBoard {
 
 export class MarkdownKanbanParser {
   private static generateId(): string {
-    return Math.random().toString(36).substr(2, 9);
+    return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
 
   static parseMarkdown(content: string): KanbanBoard {
@@ -47,13 +47,11 @@ export class MarkdownKanbanParser {
       // Handle YAML front matter
       if (trimmedLine === '---') {
         if (!yamlStartFound) {
-          // Start of YAML front matter
           yamlStartFound = true;
           inYamlHeader = true;
           yamlLines.push(line);
           continue;
         } else if (inYamlHeader) {
-          // End of YAML front matter
           yamlLines.push(line);
           board.yamlHeader = yamlLines.join('\n');
           inYamlHeader = false;
@@ -68,7 +66,6 @@ export class MarkdownKanbanParser {
 
       // Handle Kanban footer
       if (trimmedLine.startsWith('%%')) {
-        // finalize previous task if we get the footer
         if (collectingDescription) {
           this.finalizeCurrentTask(currentTask, currentColumn);
           collectingDescription = false;
@@ -94,7 +91,7 @@ export class MarkdownKanbanParser {
         continue;
       }
 
-      // Parse column title
+      // Parse column with ID comment
       if (trimmedLine.startsWith('## ')) {
         if (collectingDescription) {
           this.finalizeCurrentTask(currentTask, currentColumn);
@@ -106,16 +103,31 @@ export class MarkdownKanbanParser {
         }
         
         let columnTitle = trimmedLine.substring(3).trim();
+        let columnId = this.generateId();
+        
+        // Check if next line is an ID comment
+        if (i + 1 < lines.length && lines[i + 1].trim().startsWith('<!-- column-id:')) {
+          const idMatch = lines[i + 1].match(/<!-- column-id:\s*([^>]+)\s*-->/);
+          if (idMatch) {
+            columnId = idMatch[1].trim();
+            i++; // Skip the ID line
+          }
+        }
         
         currentColumn = {
-          id: this.generateId(),
+          id: columnId,
           title: columnTitle,
           tasks: []
         };
         continue;
       }
 
-      // Parse task title (list format - only top-level items)
+      // Skip column ID comments (in case we didn't skip them above)
+      if (trimmedLine.startsWith('<!-- column-id:')) {
+        continue;
+      }
+
+      // Parse task with ID comment
       if (line.startsWith('- ')) {
         if (collectingDescription) {
           this.finalizeCurrentTask(currentTask, currentColumn);
@@ -130,8 +142,19 @@ export class MarkdownKanbanParser {
             taskTitle = taskTitle.substring(4).trim();
           }
 
+          let taskId = this.generateId();
+          
+          // Check if next line is an ID comment
+          if (i + 1 < lines.length && lines[i + 1].trim().startsWith('<!-- task-id:')) {
+            const idMatch = lines[i + 1].match(/<!-- task-id:\s*([^>]+)\s*-->/);
+            if (idMatch) {
+              taskId = idMatch[1].trim();
+              i++; // Skip the ID line
+            }
+          }
+
           currentTask = {
-            id: this.generateId(),
+            id: taskId,
             title: taskTitle,
             description: ''
           };
@@ -140,9 +163,13 @@ export class MarkdownKanbanParser {
         continue;
       }
 
+      // Skip task ID comments (in case we didn't skip them above)
+      if (trimmedLine.startsWith('<!-- task-id:')) {
+        continue;
+      }
+
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
-        // For description lines, preserve original spacing but remove the 2-space indent
         let descLine = line;
         if (line.startsWith('  ')) {
           descLine = line.substring(2);
@@ -150,7 +177,6 @@ export class MarkdownKanbanParser {
           descLine = line.substring(1);
         }
         
-        // Add to description
         if (currentTask.description) {
           currentTask.description += '\n' + descLine;
         } else {
@@ -159,7 +185,6 @@ export class MarkdownKanbanParser {
         continue;
       }
 
-      // Handle empty lines - just continue
       if (trimmedLine === '') {
         continue;
       }
@@ -173,7 +198,6 @@ export class MarkdownKanbanParser {
       board.columns.push(currentColumn);
     }
 
-    // Set footer if we collected any
     if (footerLines.length > 0) {
       board.kanbanFooter = footerLines.join('\n');
     }
@@ -184,7 +208,6 @@ export class MarkdownKanbanParser {
   private static finalizeCurrentTask(task: KanbanTask | null, column: KanbanColumn | null): void {
     if (!task || !column) return;
 
-    // Clean up description - remove trailing whitespace but preserve internal spacing
     if (task.description) {
       task.description = task.description.trimEnd();
       if (task.description === '') {
@@ -207,40 +230,37 @@ export class MarkdownKanbanParser {
       markdown += `# ${board.title}\n\n`;
     }
 
-    // Add columns
+    // Add columns with ID comments
     for (const column of board.columns) {
-      markdown += `## ${column.title}\n\n`;
+      markdown += `## ${column.title}\n`;
+      markdown += `<!-- column-id: ${column.id} -->\n\n`;
 
       for (const task of column.tasks) {
         markdown += `- [ ] ${task.title}\n`;
+        markdown += `  <!-- task-id: ${task.id} -->\n`;
 
         // Add description with proper indentation
         if (task.description && task.description.trim() !== '') {
           const descriptionLines = task.description.split('\n');
           for (const descLine of descriptionLines) {
-            // Always add 2-space indentation, even for empty lines within description
             markdown += `  ${descLine}\n`;
           }
         }
       }
 
-      // Add empty line after each column
       markdown += '\n';
     }
 
     // Add Kanban footer if it exists
     if (board.kanbanFooter) {
-      // Remove the extra newline we added after the last column if there's a footer
       if (markdown.endsWith('\n\n')) {
         markdown = markdown.slice(0, -1);
       }
       markdown += board.kanbanFooter;
-      // Only add final newline if footer doesn't already end with one
       if (!board.kanbanFooter.endsWith('\n')) {
         markdown += '\n';
       }
     } else {
-      // Remove trailing newline if no footer
       markdown = markdown.trimEnd() + '\n';
     }
 

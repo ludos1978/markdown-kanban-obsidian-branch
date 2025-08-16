@@ -15,6 +15,8 @@ export class KanbanWebviewPanel {
     private _board?: KanbanBoard;
     private _document?: vscode.TextDocument;
     private _originalTaskOrder: Map<string, string[]> = new Map(); // Store original task order for unsorted state
+    private _isInitialized: boolean = false;
+    private _isUpdatingFromPanel: boolean = false; // Flag to prevent reload loops
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -58,11 +60,18 @@ export class KanbanWebviewPanel {
         this._extensionUri = extensionUri;
         this._context = context;
 
-        this._update();
+        this._initialize();
         this._setupEventListeners();
         
         if (this._document) {
             this.loadMarkdownFile(this._document);
+        }
+    }
+
+    private _initialize() {
+        if (!this._isInitialized) {
+            this._panel.webview.html = this._getHtmlForWebview();
+            this._isInitialized = true;
         }
     }
 
@@ -71,8 +80,8 @@ export class KanbanWebviewPanel {
 
         this._panel.onDidChangeViewState(
             e => {
-                if (e.webviewPanel.visible) {
-                    this._update();
+                if (e.webviewPanel.visible && this._board) {
+                    this._sendBoardUpdate();
                 }
             },
             null,
@@ -152,6 +161,11 @@ export class KanbanWebviewPanel {
     }
 
     public loadMarkdownFile(document: vscode.TextDocument) {
+        // Don't reload if we're the ones who just updated the document
+        if (this._isUpdatingFromPanel) {
+            return;
+        }
+        
         this._document = document;
         try {
             this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
@@ -164,14 +178,12 @@ export class KanbanWebviewPanel {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
             this._board = { title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
         }
-        this._update();
+        this._sendBoardUpdate();
     }
 
-    private _update() {
+    private _sendBoardUpdate() {
         if (!this._panel.webview) return;
 
-        this._panel.webview.html = this._getHtmlForWebview();
-        
         const board = this._board || { title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
         this._panel.webview.postMessage({
             type: 'updateBoard',
@@ -191,6 +203,8 @@ export class KanbanWebviewPanel {
     private async saveToMarkdown() {
         if (!this._document || !this._board) return;
 
+        this._isUpdatingFromPanel = true; // Set flag to prevent reload
+        
         const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
         const edit = new vscode.WorkspaceEdit();
         edit.replace(
@@ -200,6 +214,11 @@ export class KanbanWebviewPanel {
         );
         await vscode.workspace.applyEdit(edit);
         await this._document.save();
+        
+        // Reset flag after a delay (longer than the file watcher delay)
+        setTimeout(() => {
+            this._isUpdatingFromPanel = false;
+        }, 1000);
     }
 
     private findColumn(columnId: string): KanbanColumn | undefined {
@@ -225,11 +244,20 @@ export class KanbanWebviewPanel {
         
         action();
         await this.saveToMarkdown();
-        this._update();
+        this._sendBoardUpdate();
     }
 
-    private generateId(): string {
-        return Math.random().toString(36).substr(2, 9);
+    private generateId(type: 'column' | 'task', parentId?: string): string {
+        // Generate a unique but stable ID
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 5);
+        
+        if (type === 'column') {
+            const index = this._board?.columns.length || 0;
+            return `col_${index}_${timestamp}_${random}`;
+        } else {
+            return `task_${parentId}_${timestamp}_${random}`;
+        }
     }
 
     // Task operations
@@ -254,7 +282,7 @@ export class KanbanWebviewPanel {
             if (!column) return;
 
             const newTask: KanbanTask = {
-                id: this.generateId(),
+                id: this.generateId('task', columnId),
                 title: taskData.title || '',
                 description: taskData.description || ''
             };
@@ -293,7 +321,7 @@ export class KanbanWebviewPanel {
             if (!result) return;
 
             const newTask: KanbanTask = {
-                id: this.generateId(),
+                id: this.generateId('task', columnId),
                 title: result.task.title + ' (copy)',
                 description: result.task.description
             };
@@ -308,7 +336,7 @@ export class KanbanWebviewPanel {
             if (!result) return;
 
             const newTask: KanbanTask = {
-                id: this.generateId(),
+                id: this.generateId('task', columnId),
                 title: '',
                 description: ''
             };
@@ -323,7 +351,7 @@ export class KanbanWebviewPanel {
             if (!result) return;
 
             const newTask: KanbanTask = {
-                id: this.generateId(),
+                id: this.generateId('task', columnId),
                 title: '',
                 description: ''
             };
@@ -395,7 +423,7 @@ export class KanbanWebviewPanel {
             if (!this._board) return;
 
             const newColumn: KanbanColumn = {
-                id: this.generateId(),
+                id: this.generateId('column'),
                 title: title,
                 tasks: []
             };
@@ -435,7 +463,7 @@ export class KanbanWebviewPanel {
             if (index === -1) return;
 
             const newColumn: KanbanColumn = {
-                id: this.generateId(),
+                id: this.generateId('column'),
                 title: title,
                 tasks: []
             };
@@ -453,7 +481,7 @@ export class KanbanWebviewPanel {
             if (index === -1) return;
 
             const newColumn: KanbanColumn = {
-                id: this.generateId(),
+                id: this.generateId('column'),
                 title: title,
                 tasks: []
             };
