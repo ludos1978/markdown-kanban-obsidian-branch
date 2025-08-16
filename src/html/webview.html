@@ -40,11 +40,10 @@
         }
 
         .kanban-column.collapsed {
-            min-width: 40px;
-            max-width: 40px;
-            padding: 16px 8px;
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
+            min-width: 50px;
+            max-width: 50px;
+            padding: 16px 4px;
+            overflow: visible;
         }
 
         .kanban-column.collapsed .tasks-container,
@@ -56,20 +55,46 @@
             flex-direction: column;
             border-bottom: none;
             padding-bottom: 0;
+            align-items: center;
+            margin-bottom: 0;
         }
 
         .kanban-column.collapsed .column-title-section {
             flex-direction: column;
             gap: 12px;
+            align-items: center;
+            width: 100%;
         }
 
         .kanban-column.collapsed .column-title {
             writing-mode: vertical-rl;
             text-orientation: mixed;
+            text-align: center;
+            padding: 4px 0;
+        }
+
+        .kanban-column.collapsed .column-title-edit {
+            display: none !important;
         }
 
         .kanban-column.collapsed .column-controls {
             flex-direction: column;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .kanban-column.collapsed .collapse-toggle {
+            margin: 0 auto;
+        }
+
+        .kanban-column.collapsed .task-count {
+            writing-mode: horizontal-tb;
+        }
+
+        .kanban-column.collapsed .donut-menu-dropdown {
+            left: 100%;
+            right: auto;
+            top: 0;
         }
 
         .kanban-column.dragging {
@@ -1021,6 +1046,12 @@
         // Column title editing
         function editColumnTitle(columnId) {
             const column = document.querySelector(`[data-column-id="${columnId}"]`);
+            
+            // Don't allow editing if column is collapsed
+            if (column.classList.contains('collapsed')) {
+                return;
+            }
+            
             const titleElement = column.querySelector('.column-title');
             const editElement = column.querySelector('.column-title-edit');
             const dragHandle = column.querySelector('.column-drag-handle');
@@ -1122,6 +1153,22 @@
                     fromIndex: index,
                     toIndex: index + 1
                 });
+            }
+        }
+
+        function deleteColumn(columnId) {
+            if (confirm('Are you sure you want to delete this column and all its tasks?')) {
+                vscode.postMessage({
+                    type: 'deleteColumn',
+                    columnId: columnId
+                });
+                
+                // Update local state for immediate feedback
+                const columnIndex = currentBoard.columns.findIndex(c => c.id === columnId);
+                if (columnIndex !== -1) {
+                    currentBoard.columns.splice(columnIndex, 1);
+                    renderBoard();
+                }
             }
         }
 
