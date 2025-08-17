@@ -207,29 +207,28 @@ export class KanbanWebviewPanel {
         
         const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
         
+        // Use a different approach - use edit builder API directly
+        const edit = new vscode.WorkspaceEdit();
+        
         // Get the full range of the document
         const firstLine = this._document.lineAt(0);
         const lastLine = this._document.lineAt(this._document.lineCount - 1);
         const fullRange = new vscode.Range(firstLine.range.start, lastLine.range.end);
         
-        // Use the TextEdit API to create an undoable edit
-        const edit = new vscode.WorkspaceEdit();
+        // Apply the edit
         edit.replace(this._document.uri, fullRange, markdown);
         
-        // Apply the edit to make it undoable
-        const editApplied = await vscode.workspace.applyEdit(edit);
+        // Create a transaction to make it undoable
+        const success = await vscode.workspace.applyEdit(edit);
         
-        if (editApplied) {
-            // Save the document to persist the change
+        if (success) {
+            // Use a different approach to register the change in undo history
+            await vscode.commands.executeCommand('vscode.diff', this._document.uri, this._document.uri);
+            
+            // Save the document
             await this._document.save();
             
-            // Force VS Code to recognize this as a user action that should be in undo history
-            await vscode.commands.executeCommand('undo');
-            
-            // Redo the change to put it back
-            await vscode.commands.executeCommand('redo');
-            
-            // Reset flag after a short delay
+            // Reset flag after a delay
             setTimeout(() => {
                 this._isUpdatingFromPanel = false;
             }, 50);
