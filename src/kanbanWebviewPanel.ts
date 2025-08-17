@@ -206,19 +206,32 @@ export class KanbanWebviewPanel {
         this._isUpdatingFromPanel = true; // Set flag to prevent reload
         
         const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
-        const edit = new vscode.WorkspaceEdit();
-        edit.replace(
-            this._document.uri,
-            new vscode.Range(0, 0, this._document.lineCount, 0),
-            markdown
-        );
-        await vscode.workspace.applyEdit(edit);
-        await this._document.save();
         
-        // Reset flag after a delay (longer than the file watcher delay)
-        setTimeout(() => {
+        // Create an undoable edit by applying it directly
+        const edit = new vscode.WorkspaceEdit();
+        
+        // Get the full range of the document
+        const firstLine = this._document.lineAt(0);
+        const lastLine = this._document.lineAt(this._document.lineCount - 1);
+        const fullRange = new vscode.Range(firstLine.range.start, lastLine.range.end);
+        
+        edit.replace(this._document.uri, fullRange, markdown);
+        
+        // Apply the edit - this makes it undoable
+        const success = await vscode.workspace.applyEdit(edit);
+        
+        if (success) {
+            // Force document save to ensure the change persists and becomes part of undo history
+            await this._document.save();
+            
+            // Reset flag after a delay (longer than the file watcher delay)
+            setTimeout(() => {
+                this._isUpdatingFromPanel = false;
+            }, 100);
+        } else {
+            // If applyEdit failed, reset the flag immediately
             this._isUpdatingFromPanel = false;
-        }, 1000);
+        }
     }
 
     private findColumn(columnId: string): KanbanColumn | undefined {
