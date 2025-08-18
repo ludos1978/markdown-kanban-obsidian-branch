@@ -145,13 +145,13 @@ export class MarkdownKanbanParser {
           let taskId = this.generateId();
           
           // Check if next line is an ID comment
-          if (i + 1 < lines.length && lines[i + 1].trim().startsWith('<!-- task-id:')) {
-            const idMatch = lines[i + 1].match(/<!-- task-id:\s*([^>]+)\s*-->/);
-            if (idMatch) {
-              taskId = idMatch[1].trim();
-              i++; // Skip the ID line
-            }
-          }
+          // if (i + 1 < lines.length && lines[i + 1].trim().startsWith('<!-- task-id:')) {
+          //   const idMatch = lines[i + 1].match(/<!-- task-id:\s*([^>]+)\s*-->/);
+          //   if (idMatch) {
+          //     taskId = idMatch[1].trim();
+          //     i++; // Skip the ID line
+          //   }
+          // }
 
           currentTask = {
             id: taskId,
@@ -164,9 +164,9 @@ export class MarkdownKanbanParser {
       }
 
       // Skip task ID comments (in case we didn't skip them above)
-      if (trimmedLine.startsWith('<!-- task-id:')) {
-        continue;
-      }
+      // if (trimmedLine.startsWith('<!-- task-id:')) {
+      //   continue;
+      // }
 
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
@@ -237,7 +237,7 @@ export class MarkdownKanbanParser {
 
       for (const task of column.tasks) {
         markdown += `- [ ] ${task.title}\n`;
-        markdown += `  <!-- task-id: ${task.id} -->\n`;
+        // markdown += `  <!-- task-id: ${task.id} -->\n`;
 
         // Add description with proper indentation
         if (task.description && task.description.trim() !== '') {
