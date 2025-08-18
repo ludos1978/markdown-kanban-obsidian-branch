@@ -3,35 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Markdown Kanban</title>
+    <title>Markdown Kanban</title>
     <link href="webview.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
 </head>
 <body>
-    <div id="kanban-container">
-        <div class="kanban-board" id="kanban-board">
-            <!-- Kanban content will be dynamically generated -->
-        </div>
+    <div id="kanban-board">
+        <!-- Board content will be dynamically generated here -->
     </div>
-
-    <!-- Input modal -->
-    <div id="input-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title" id="input-modal-title">Enter Value</h3>
-                <button class="close-btn" id="close-modal-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p id="input-modal-message">Please enter a value:</p>
-                <input type="text" id="input-modal-field" class="form-input" placeholder="Enter value..." />
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" id="cancel-modal-btn">Cancel</button>
-                <button type="button" class="btn btn-primary" id="input-ok-btn">OK</button>
-            </div>
-        </div>
-    </div>
-
     <script src="webview.js"></script>
 </body>
 </html>

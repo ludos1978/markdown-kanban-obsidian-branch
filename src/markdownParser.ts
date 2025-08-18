@@ -1,11 +1,9 @@
 export interface KanbanTask {
-  id: string;
   title: string;
   description?: string;
 }
 
 export interface KanbanColumn {
-  id: string;
   title: string;
   tasks: KanbanTask[];
 }
@@ -18,10 +16,6 @@ export interface KanbanBoard {
 }
 
 export class MarkdownKanbanParser {
-  private static generateId(): string {
-    return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-  }
-
   static parseMarkdown(content: string): KanbanBoard {
     const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
     const board: KanbanBoard = {
@@ -91,7 +85,7 @@ export class MarkdownKanbanParser {
         continue;
       }
 
-      // Parse column with ID comment
+      // Parse column
       if (trimmedLine.startsWith('## ')) {
         if (collectingDescription) {
           this.finalizeCurrentTask(currentTask, currentColumn);
@@ -102,32 +96,14 @@ export class MarkdownKanbanParser {
           board.columns.push(currentColumn);
         }
         
-        let columnTitle = trimmedLine.substring(3).trim();
-        let columnId = this.generateId();
-        
-        // Check if next line is an ID comment
-        if (i + 1 < lines.length && lines[i + 1].trim().startsWith('<!-- column-id:')) {
-          const idMatch = lines[i + 1].match(/<!-- column-id:\s*([^>]+)\s*-->/);
-          if (idMatch) {
-            columnId = idMatch[1].trim();
-            i++; // Skip the ID line
-          }
-        }
-        
         currentColumn = {
-          id: columnId,
-          title: columnTitle,
+          title: trimmedLine.substring(3).trim(),
           tasks: []
         };
         continue;
       }
 
-      // Skip column ID comments (in case we didn't skip them above)
-      if (trimmedLine.startsWith('<!-- column-id:')) {
-        continue;
-      }
-
-      // Parse task with ID comment
+      // Parse task
       if (line.startsWith('- ')) {
         if (collectingDescription) {
           this.finalizeCurrentTask(currentTask, currentColumn);
@@ -142,29 +118,12 @@ export class MarkdownKanbanParser {
             taskTitle = taskTitle.substring(4).trim();
           }
 
-          let taskId = this.generateId();
-          
-          // Check if next line is an ID comment
-          if (i + 1 < lines.length && lines[i + 1].trim().startsWith('<!-- task-id:')) {
-            const idMatch = lines[i + 1].match(/<!-- task-id:\s*([^>]+)\s*-->/);
-            if (idMatch) {
-              taskId = idMatch[1].trim();
-              i++; // Skip the ID line
-            }
-          }
-
           currentTask = {
-            id: taskId,
             title: taskTitle,
             description: ''
           };
           collectingDescription = true;
         }
-        continue;
-      }
-
-      // Skip task ID comments (in case we didn't skip them above)
-      if (trimmedLine.startsWith('<!-- task-id:')) {
         continue;
       }
 
@@ -230,14 +189,12 @@ export class MarkdownKanbanParser {
       markdown += `# ${board.title}\n\n`;
     }
 
-    // Add columns with ID comments
+    // Add columns
     for (const column of board.columns) {
-      markdown += `## ${column.title}\n`;
-      markdown += `<!-- column-id: ${column.id} -->\n\n`;
+      markdown += `## ${column.title}\n\n`;
 
       for (const task of column.tasks) {
         markdown += `- [ ] ${task.title}\n`;
-        markdown += `  <!-- task-id: ${task.id} -->\n`;
 
         // Add description with proper indentation
         if (task.description && task.description.trim() !== '') {

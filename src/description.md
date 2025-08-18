@@ -87,3 +87,7 @@ Notes:
 - [x] dont add confirm dialogues, we have undo for this.
 - [ ] undo must work.
 - [ ] structure the code in separate files. html, javascript, css.
+
+Dev Notes:
+- https://code.visualstudio.com/api/extension-guides/custom-editors
+  - https://raw.githubusercontent.com/microsoft/vscode-extension-samples/986bcc700dee6cc4d1e6d4961a316eead110fb21/custom-editor-sample/src/pawDrawEditor.ts
