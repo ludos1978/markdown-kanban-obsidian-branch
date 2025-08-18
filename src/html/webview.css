@@ -769,7 +769,6 @@ button.donut-menu-item {
 .task-title-container .markdown-content h5,
 .task-title-container .markdown-content h6 {
     margin: 0;
-    font-size: inherit;
     line-height: inherit;
 }
 
@@ -781,3 +780,11 @@ button.donut-menu-item {
 .task-title-container .markdown-content {
     display: inline;
 }
+
+.markdown-content h1 { font-size: 1.8em; }
+.markdown-content h2 { font-size: 1.5em; }
+.markdown-content h3 { font-size: 1.3em; }
+.markdown-content h4 { font-size: 1.1em; }
+.markdown-content h5 { font-size: 1em; }
+.markdown-content h6 { font-size: 0.9em; }
+
