@@ -654,21 +654,61 @@ button.donut-menu-item {
 
 .kanban-column.drag-over {
     background-color: var(--vscode-list-hoverBackground);
+    border: 2px dashed var(--vscode-focusBorder) !important;
 }
 
-.task-item.drag-insert-before {
-    border-top: 3px solid var(--vscode-focusBorder);
-    margin-top: 3px;
+/* Task drag indicators - lines that show where the item will be inserted */
+.task-item.drag-insert-before::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 10%;
+    right: 10%;
+    height: 3px;
+    background-color: var(--vscode-focusBorder);
+    border-radius: 2px;
+    z-index: 10;
 }
 
-.task-item.drag-insert-after {
-    border-bottom: 3px solid var(--vscode-focusBorder);
-    margin-bottom: 3px;
+.task-item.drag-insert-after::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 10%;
+    right: 10%;
+    height: 3px;
+    background-color: var(--vscode-focusBorder);
+    border-radius: 2px;
+    z-index: 10;
 }
 
+/* Enhanced column drag indicators */
 .kanban-column.column-dragging {
     opacity: 0.6;
     transform: scale(0.95);
+}
+
+.kanban-column.drag-over {
+    position: relative;
+}
+
+.kanban-column.drag-over::before,
+.kanban-column.drag-over::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background-color: var(--vscode-focusBorder);
+    z-index: 10;
+}
+
+.kanban-column.drag-over::before {
+    left: -4px;
+}
+
+.kanban-column.drag-over::after {
+    right: -4px;
 }
 
 /* Markdown content styles */
