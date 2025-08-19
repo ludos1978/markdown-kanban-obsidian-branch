@@ -176,6 +176,7 @@ body {
     min-width: 0;
     word-break: break-word;
     margin: 0;
+    min-width: 220px;
 }
 
 .column-title:hover {
