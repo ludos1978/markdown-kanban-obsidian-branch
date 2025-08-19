@@ -167,6 +167,7 @@ body {
 .kanban-column.collapsed .column-title,
 .kanban-column.collapsed .column-title *  {
     min-width: 0px;
+    width: 100%;
 }
 
 .column-title,
