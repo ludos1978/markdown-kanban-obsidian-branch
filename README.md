@@ -19,9 +19,16 @@ I use it myself and found no similar extension that fulfilled my needs.
 
 ### Required Format
 
+Requires a YAML header with 'kanban-plugin: board'
 Add a H2 Title (Boards) and Tasks (Cards) below it.
 
 ```
+---
+
+kanban-plugin: board
+
+---
+
 ## Title of Board
 - [ ] Card
   Text of Card

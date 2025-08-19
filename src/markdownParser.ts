@@ -11,6 +11,7 @@ export interface KanbanColumn {
 }
 
 export interface KanbanBoard {
+  valid: boolean;
   title: string;
   columns: KanbanColumn[];
   yamlHeader: string | null;
@@ -25,6 +26,7 @@ export class MarkdownKanbanParser {
   static parseMarkdown(content: string): KanbanBoard {
     const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
     const board: KanbanBoard = {
+      valid: false,
       title: '',
       columns: [],
       yamlHeader: null,
@@ -51,9 +53,19 @@ export class MarkdownKanbanParser {
           inYamlHeader = true;
           yamlLines.push(line);
           continue;
-        } else if (inYamlHeader) {
+        } 
+        // finish the header reading
+        else if (inYamlHeader) {
           yamlLines.push(line);
           board.yamlHeader = yamlLines.join('\n');
+          // if (!board.yamlHeader.includes('kanban-plugin: board')) {
+          //   // invalid file
+          //   return board;
+          // }
+          board.valid = board.yamlHeader.includes('kanban-plugin: board');
+          if (!board.valid) {
+            return board;
+          }
           inYamlHeader = false;
           continue;
         }
@@ -63,6 +75,7 @@ export class MarkdownKanbanParser {
         yamlLines.push(line);
         continue;
       }
+
 
       // Handle Kanban footer
       if (line.startsWith('%%')) {
@@ -140,10 +153,29 @@ export class MarkdownKanbanParser {
         continue;
       }
 
+      if (trimmedLine === '') {
+        continue;
+      }
+
+      // backup case for when a user opens a normal markdown file. 
+      // this should keep all data in the file, but some of it will be newly formatted.
+      // if (!currentTask) {
+      //   currentColumn = {
+      //     id: this.generateId(),
+      //     title: '',
+      //     tasks: []
+      //   };
+      //   currentTask = {
+      //     id: this.generateId(),
+      //     title: '',
+      //     description: ''
+      //   };
+      //   collectingDescription = true;
+      // }
+      
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
-        let descLine = line;
-        descLine = line.trimStart();
+        let descLine = line.trimStart();
         if (currentTask.description) {
           currentTask.description += '\n' + descLine;
         } else {
@@ -155,6 +187,24 @@ export class MarkdownKanbanParser {
       if (trimmedLine === '') {
         continue;
       }
+
+      // create an empty task for lines at the beginning of the file
+      // if (!currentTask) {
+      //   currentTask = {
+      //     id: this.generateId(),
+      //     title: 'undefined',
+      //     description: ''
+      //   };
+      //   collectingDescription = true;
+      // }
+      // if (currentTask) {
+      //   let descLine = line.trimStart();
+      //   if (currentTask.description) {
+      //     currentTask.description += '\n' + descLine;
+      //   } else {
+      //     currentTask.description = descLine;
+      //   }
+      // }
     }
 
     // Add the last task and column

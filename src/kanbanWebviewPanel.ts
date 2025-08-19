@@ -129,7 +129,7 @@ export class KanbanWebviewPanel {
                 });
             } catch (error) {
                 console.error('Error parsing Markdown:', error);
-                this._board = { title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
+                this._board = { valid:false, title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
             }
         }
         
@@ -272,7 +272,7 @@ export class KanbanWebviewPanel {
         } catch (error) {
             console.error('Error parsing Markdown:', error);
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
-            this._board = { title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
+            this._board = { valid:false, title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
         }
         this._sendBoardUpdate();
         this._sendFileInfo();
@@ -302,7 +302,7 @@ export class KanbanWebviewPanel {
     }
 
     private async saveToMarkdown() {
-        if (!this._document || !this._board) return;
+        if (!this._document || !this._board || !this._board.valid) return;
 
         this._isUpdatingFromPanel = true; // Set flag to prevent reload
         
