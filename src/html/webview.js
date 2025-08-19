@@ -84,6 +84,7 @@ window.addEventListener('focus', () => {
 });
 
 // Render Kanban board
+// Render Kanban board
 function renderBoard() {
     console.log('Rendering board:', currentBoard); // Debug log
     
@@ -122,7 +123,36 @@ function renderBoard() {
 
     boardElement.innerHTML = '';
 
-    // Render columns
+    // Check if board is valid (has proper kanban header)
+    if (currentBoard.valid === false) {
+        // Show initialize button instead of columns
+        const initializeContainer = document.createElement('div');
+        initializeContainer.style.cssText = `
+            text-align: center; 
+            padding: 40px; 
+            color: var(--vscode-descriptionForeground);
+        `;
+        
+        initializeContainer.innerHTML = `
+            <div style="margin-bottom: 20px; font-size: 16px;">
+                This file is not initialized as a Kanban board.
+            </div>
+            <div style="margin-bottom: 20px; font-size: 14px; opacity: 0.8;">
+                Click the button below to add the required header.
+            </div>
+        `;
+        
+        const initializeBtn = document.createElement('button');
+        initializeBtn.className = 'add-column-btn';
+        initializeBtn.textContent = 'Initialize File';
+        initializeBtn.onclick = () => initializeFile();
+        
+        initializeContainer.appendChild(initializeBtn);
+        boardElement.appendChild(initializeContainer);
+        return;
+    }
+
+    // Render columns (existing code)
     currentBoard.columns.forEach((column, index) => {
         const columnElement = createColumnElement(column, index);
         boardElement.appendChild(columnElement);
@@ -145,6 +175,12 @@ function renderBoard() {
     }, 0);
 
     setupDragAndDrop();
+}
+
+function initializeFile() {
+    vscode.postMessage({
+        type: 'initializeFile'
+    });
 }
 
 function createColumnElement(column, columnIndex) {

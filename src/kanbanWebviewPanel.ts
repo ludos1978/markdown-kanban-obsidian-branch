@@ -137,7 +137,7 @@ export class KanbanWebviewPanel {
         this._sendBoardUpdate();
     }
 
-    private _handleMessage(message: any) {
+private _handleMessage(message: any) {
         switch (message.type) {
             // Special request for board update
             case 'requestBoardUpdate':
@@ -153,6 +153,9 @@ export class KanbanWebviewPanel {
                 break;
             case 'requestFileInfo':
                 this._sendFileInfo();
+                break;
+            case 'initializeFile':
+                this._initializeFile();
                 break;
             // Task operations
             case 'moveTask':
@@ -254,6 +257,42 @@ export class KanbanWebviewPanel {
                 fileInfo: fileInfo
             });
         }, 10);
+    }
+
+    private async _initializeFile() {
+        if (!this._document) {
+            vscode.window.showErrorMessage('No document loaded');
+            return;
+        }
+
+        this._isUpdatingFromPanel = true; // Set flag to prevent reload
+
+        const kanbanHeader = "---\n\nkanban-plugin: board\n\n---\n\n";
+        const currentContent = this._document.getText();
+        const newContent = kanbanHeader + currentContent;
+
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(
+            this._document.uri,
+            new vscode.Range(0, 0, this._document.lineCount, 0),
+            newContent
+        );
+        
+        try {
+            await vscode.workspace.applyEdit(edit);
+            await this._document.save();
+            
+            // Reload the file
+            setTimeout(() => {
+                this.loadMarkdownFile(this._document!);
+                this._isUpdatingFromPanel = false;
+            }, 100);
+            
+            vscode.window.showInformationMessage('Kanban board initialized successfully');
+        } catch (error) {
+            this._isUpdatingFromPanel = false;
+            vscode.window.showErrorMessage(`Failed to initialize file: ${error}`);
+        }
     }
 
     public loadMarkdownFile(document: vscode.TextDocument) {
