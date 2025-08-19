@@ -8,6 +8,7 @@ let editingTask = null;
 let scrollPositions = new Map();
 let collapsedColumns = new Set();
 let collapsedTasks = new Set();
+let currentFileInfo = null;
 
 // Initialize with sample data for testing
 if (typeof acquireVsCodeApi === 'undefined') {
@@ -49,17 +50,26 @@ window.addEventListener('message', event => {
             currentBoard = message.board;
             renderBoard();
             break;
+        case 'updateFileInfo':
+            console.log('Updating file info with:', message.fileInfo); // Debug log
+            currentFileInfo = message.fileInfo;
+            updateFileInfoBar();
+            break;
     }
 });
 
 // Request board update when the webview loads/becomes visible
 window.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, requesting board update');
-    // Request initial board data
+    // Request initial board data and file info
     setTimeout(() => {
         if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
             console.log('No board data, requesting update from extension');
             vscode.postMessage({ type: 'requestBoardUpdate' });
+        }
+        if (!currentFileInfo) {
+            console.log('No file info, requesting update from extension');
+            vscode.postMessage({ type: 'requestFileInfo' });
         }
     }, 100);
 });
@@ -760,7 +770,11 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
         }
     }
 
-    const taskData = { title: '', description: '', ...task, [field]: value };
+    // Find the task for the request data
+    const column = currentBoard?.columns?.find(col => col.id === columnId);
+    const task = column?.tasks?.find(t => t.id === taskId) || { title: '', description: '' };
+    
+    const taskData = { ...task, [field]: value };
     vscode.postMessage({
         type: 'editTask',
         taskId: taskId,
@@ -1026,4 +1040,43 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// File management functions
+function updateFileInfoBar() {
+    if (!currentFileInfo) return;
+
+    const fileNameElement = document.getElementById('file-name');
+    const lockStatusElement = document.getElementById('lock-status');
+    const lockToggleBtnElement = document.getElementById('lock-toggle-btn');
+    const lockBtnTextElement = document.getElementById('lock-btn-text');
+
+    if (fileNameElement) {
+        fileNameElement.textContent = currentFileInfo.fileName;
+        fileNameElement.title = currentFileInfo.filePath || currentFileInfo.fileName;
+    }
+
+    if (lockStatusElement && lockToggleBtnElement && lockBtnTextElement) {
+        if (currentFileInfo.isLocked) {
+            lockStatusElement.textContent = '🔒';
+            lockStatusElement.title = 'File is locked - will not auto-switch';
+            lockStatusElement.classList.add('locked');
+            lockBtnTextElement.textContent = 'Unlock';
+            lockToggleBtnElement.classList.add('locked');
+        } else {
+            lockStatusElement.textContent = '🔓';
+            lockStatusElement.title = 'File is unlocked - will auto-switch with active editor';
+            lockStatusElement.classList.remove('locked');
+            lockBtnTextElement.textContent = 'Lock';
+            lockToggleBtnElement.classList.remove('locked');
+        }
+    }
+}
+
+function toggleFileLock() {
+    vscode.postMessage({ type: 'toggleFileLock' });
+}
+
+function selectFile() {
+    vscode.postMessage({ type: 'selectFile' });
 }

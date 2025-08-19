@@ -68,6 +68,45 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const disableFileListenerCommand = vscode.commands.registerCommand('markdown-kanban.disableFileListener', async () => {
 		fileListenerEnabled = !fileListenerEnabled;
+		const status = fileListenerEnabled ? 'enabled' : 'disabled';
+		vscode.window.showInformationMessage(`Kanban auto-switching ${status}`);
+	});
+
+	// Command to toggle file lock
+	const toggleFileLockCommand = vscode.commands.registerCommand('markdown-kanban.toggleFileLock', async () => {
+		if (KanbanWebviewPanel.currentPanel) {
+			KanbanWebviewPanel.currentPanel.toggleFileLock();
+		} else {
+			vscode.window.showWarningMessage('No kanban panel is currently open.');
+		}
+	});
+
+	// Command to manually switch file
+	const switchFileCommand = vscode.commands.registerCommand('markdown-kanban.switchFile', async () => {
+		if (!KanbanWebviewPanel.currentPanel) {
+			vscode.window.showWarningMessage('No kanban panel is currently open.');
+			return;
+		}
+
+		const fileUris = await vscode.window.showOpenDialog({
+			canSelectFiles: true,
+			canSelectFolders: false,
+			canSelectMany: false,
+			filters: {
+				'Markdown files': ['md']
+			}
+		});
+
+		if (fileUris && fileUris.length > 0) {
+			const targetUri = fileUris[0];
+			try {
+				const document = await vscode.workspace.openTextDocument(targetUri);
+				KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
+				vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+			}
+		}
 	});
 
 	// Listen for document changes to automatically update kanban (real-time sync)
@@ -75,9 +114,18 @@ export function activate(context: vscode.ExtensionContext) {
 		if (event.document.languageId === 'markdown' && fileListenerEnabled) {
 			// Delay update to avoid frequent refresh
 			setTimeout(() => {
-				// Update kanban panel
+				// Update kanban panel if:
+				// 1. The changed document is the current kanban document (whether locked or not)
+				// 2. OR if not locked and this is just any markdown file change
 				if (KanbanWebviewPanel.currentPanel) {
-					KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
+					const currentUri = KanbanWebviewPanel.currentPanel.getCurrentDocumentUri()?.toString();
+					const changedUri = event.document.uri.toString();
+					const isLocked = KanbanWebviewPanel.currentPanel.isFileLocked();
+					
+					// Always update if the changed file is the current kanban file
+					if (currentUri === changedUri) {
+						KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
+					}
 				}
 			}, 500);
 		}
@@ -87,8 +135,8 @@ export function activate(context: vscode.ExtensionContext) {
 	const activeEditorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
 		if (editor && editor.document.languageId === 'markdown' && fileListenerEnabled) {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
-			// If panel is open, automatically load current document
-			if (KanbanWebviewPanel.currentPanel) {
+			// If panel is open and not locked, automatically load current document
+			if (KanbanWebviewPanel.currentPanel && !KanbanWebviewPanel.currentPanel.isFileLocked()) {
 				KanbanWebviewPanel.currentPanel.loadMarkdownFile(editor.document);
 			}
 		} else {
@@ -100,6 +148,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		openKanbanCommand,
 		disableFileListenerCommand,
+		toggleFileLockCommand,
+		switchFileCommand,
 		documentChangeListener,
 		activeEditorChangeListener,
 	);

@@ -17,6 +17,7 @@ export class KanbanWebviewPanel {
     private _originalTaskOrder: Map<string, string[]> = new Map(); // Store original task order for unsorted state
     private _isInitialized: boolean = false;
     private _isUpdatingFromPanel: boolean = false; // Flag to prevent reload loops
+    private _isFileLocked: boolean = false; // Flag to prevent automatic file switching
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -68,6 +69,22 @@ export class KanbanWebviewPanel {
         }
     }
 
+    // Public methods for external access
+    public isFileLocked(): boolean {
+        return this._isFileLocked;
+    }
+
+    public toggleFileLock(): void {
+        this._isFileLocked = !this._isFileLocked;
+        this._sendFileInfo();
+        const status = this._isFileLocked ? 'locked' : 'unlocked';
+        vscode.window.showInformationMessage(`Kanban file ${status}`);
+    }
+
+    public getCurrentDocumentUri(): vscode.Uri | undefined {
+        return this._document?.uri;
+    }
+
     private _initialize() {
         if (!this._isInitialized) {
             this._panel.webview.html = this._getHtmlForWebview();
@@ -85,6 +102,7 @@ export class KanbanWebviewPanel {
                     // Always try to send board update when panel becomes visible
                     // This ensures the webview has the current board data
                     this._ensureBoardAndSendUpdate();
+                    this._sendFileInfo();
                 }
             },
             null,
@@ -123,6 +141,17 @@ export class KanbanWebviewPanel {
             // Special request for board update
             case 'requestBoardUpdate':
                 this._ensureBoardAndSendUpdate();
+                this._sendFileInfo();
+                break;
+            // File management
+            case 'toggleFileLock':
+                this.toggleFileLock();
+                break;
+            case 'selectFile':
+                this._selectFile();
+                break;
+            case 'requestFileInfo':
+                this._sendFileInfo();
                 break;
             // Task operations
             case 'moveTask':
@@ -187,6 +216,45 @@ export class KanbanWebviewPanel {
         }
     }
 
+    private async _selectFile() {
+        const fileUris = await vscode.window.showOpenDialog({
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: false,
+            filters: {
+                'Markdown files': ['md']
+            }
+        });
+
+        if (fileUris && fileUris.length > 0) {
+            const targetUri = fileUris[0];
+            try {
+                const document = await vscode.workspace.openTextDocument(targetUri);
+                this.loadMarkdownFile(document);
+                vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+            }
+        }
+    }
+
+    private _sendFileInfo() {
+        if (!this._panel.webview) return;
+
+        const fileInfo = {
+            fileName: this._document ? path.basename(this._document.fileName) : 'No file loaded',
+            filePath: this._document ? this._document.fileName : '',
+            isLocked: this._isFileLocked
+        };
+
+        setTimeout(() => {
+            this._panel.webview.postMessage({
+                type: 'updateFileInfo',
+                fileInfo: fileInfo
+            });
+        }, 10);
+    }
+
     public loadMarkdownFile(document: vscode.TextDocument) {
         // Don't reload if we're the ones who just updated the document
         if (this._isUpdatingFromPanel) {
@@ -206,6 +274,7 @@ export class KanbanWebviewPanel {
             this._board = { title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
         }
         this._sendBoardUpdate();
+        this._sendFileInfo();
     }
 
     private _sendBoardUpdate() {

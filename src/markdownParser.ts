@@ -105,25 +105,11 @@ export class MarkdownKanbanParser {
         let columnTitle = trimmedLine.substring(3).trim();
         let columnId = this.generateId();
         
-        // Check if next line is an ID comment
-        if (i + 1 < lines.length && lines[i + 1].trim().startsWith('<!-- column-id:')) {
-          const idMatch = lines[i + 1].match(/<!-- column-id:\s*([^>]+)\s*-->/);
-          if (idMatch) {
-            columnId = idMatch[1].trim();
-            i++; // Skip the ID line
-          }
-        }
-        
         currentColumn = {
           id: columnId,
           title: columnTitle,
           tasks: []
         };
-        continue;
-      }
-
-      // Skip column ID comments (in case we didn't skip them above)
-      if (trimmedLine.startsWith('<!-- column-id:')) {
         continue;
       }
 
@@ -144,15 +130,6 @@ export class MarkdownKanbanParser {
 
           let taskId = this.generateId();
           
-          // Check if next line is an ID comment
-          // if (i + 1 < lines.length && lines[i + 1].trim().startsWith('<!-- task-id:')) {
-          //   const idMatch = lines[i + 1].match(/<!-- task-id:\s*([^>]+)\s*-->/);
-          //   if (idMatch) {
-          //     taskId = idMatch[1].trim();
-          //     i++; // Skip the ID line
-          //   }
-          // }
-
           currentTask = {
             id: taskId,
             title: taskTitle,
@@ -163,26 +140,22 @@ export class MarkdownKanbanParser {
         continue;
       }
 
-      // Skip task ID comments (in case we didn't skip them above)
-      // if (trimmedLine.startsWith('<!-- task-id:')) {
-      //   continue;
-      // }
-
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
         let descLine = line;
-        if (line.startsWith('  ')) {
-          descLine = line.substring(2);
-        } else if (line.startsWith('\t')) {
-          descLine = line.substring(1);
+        if (line.startsWith('  ') || line.startsWith('\t')) {
+          descLine = line.trimStart();
+          if (currentTask.description) {
+            currentTask.description += '\n' + descLine;
+          } else {
+            currentTask.description = descLine;
+          }
+          continue;
         }
-        
-        if (currentTask.description) {
-          currentTask.description += '\n' + descLine;
-        } else {
-          currentTask.description = descLine;
+        // unindented line is not expected here
+        else {
+          collectingDescription = false;
         }
-        continue;
       }
 
       if (trimmedLine === '') {
@@ -233,11 +206,9 @@ export class MarkdownKanbanParser {
     // Add columns with ID comments
     for (const column of board.columns) {
       markdown += `## ${column.title}\n`;
-      markdown += `<!-- column-id: ${column.id} -->\n\n`;
 
       for (const task of column.tasks) {
         markdown += `- [ ] ${task.title}\n`;
-        // markdown += `  <!-- task-id: ${task.id} -->\n`;
 
         // Add description with proper indentation
         if (task.description && task.description.trim() !== '') {

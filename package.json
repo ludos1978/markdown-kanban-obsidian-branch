@@ -33,35 +33,58 @@
     "commands": [
       {
         "command": "markdown-kanban.openKanban",
-        "title": "Kanban",
+        "title": "Open Kanban Board",
         "category": "Markdown Kanban"
       },
       {
         "command": "markdown-kanban.disableFileListener",
-        "title": "Enable/Disable File Switcher",
+        "title": "Toggle Auto-switching",
+        "category": "Markdown Kanban"
+      },
+      {
+        "command": "markdown-kanban.toggleFileLock",
+        "title": "Toggle File Lock",
+        "category": "Markdown Kanban"
+      },
+      {
+        "command": "markdown-kanban.switchFile",
+        "title": "Switch Kanban File",
         "category": "Markdown Kanban"
       }
     ],
     "menus": {
-      "editor/title": [
+      "explorer/context": [
         {
           "command": "markdown-kanban.openKanban",
-          "when": "resourceExtname == .md && markdownKanbanActive",
+          "when": "resourceExtname == .md",
           "group": "navigation"
         }
-      ]
-    },
-    "configuration": {
-      "type": "object",
-      "title": "Markdown Kanban",
-      "properties": {
-        "markdown-kanban.taskHeader": {
-          "type": "string",
-          "enum": ["title", "list"],
-          "default": "title",
-          "description": "Choose how tasks are formatted in the markdown file. 'title' uses ### headers, 'list' uses - bullet points."
+      ],
+      "editor/context": [
+        {
+          "command": "markdown-kanban.openKanban",
+          "when": "resourceExtname == .md",
+          "group": "navigation"
         }
-      }
+      ],
+      "commandPalette": [
+        {
+          "command": "markdown-kanban.openKanban",
+          "when": "true"
+        },
+        {
+          "command": "markdown-kanban.disableFileListener",
+          "when": "true"
+        },
+        {
+          "command": "markdown-kanban.toggleFileLock",
+          "when": "true"
+        },
+        {
+          "command": "markdown-kanban.switchFile",
+          "when": "true"
+        }
+      ]
     }
   },
   "scripts": {
