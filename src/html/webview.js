@@ -199,7 +199,7 @@ function createColumnElement(column, columnIndex) {
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
 
-    const renderedTitle = column.title ? renderMarkdown(column.title) : 'Untitled Column';
+    const renderedTitle = column.title ? renderMarkdown(column.title) : '<span class="task-title-placeholder">Add title...</span>';
 
     columnDiv.innerHTML = `
         <div class="column-header">
@@ -608,17 +608,10 @@ function addTask(columnId) {
 }
 
 function addColumn() {
-    showInputModal(
-        'Add Column',
-        'Please enter column title:',
-        'Enter column title...',
-        title => {
-            vscode.postMessage({
-                type: 'addColumn',
-                title: title
-            });
-        }
-    );
+    vscode.postMessage({
+        type: 'addColumn',
+        title: ''  // Empty title - will be editable inline
+    });
 }
 
 // Edit functions with improved scroll stability

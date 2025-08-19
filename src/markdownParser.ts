@@ -115,12 +115,9 @@ export class MarkdownKanbanParser {
           board.columns.push(currentColumn);
         }
         
-        let columnTitle = trimmedLine.substring(3);
-        let columnId = this.generateId();
-        
         currentColumn = {
-          id: columnId,
-          title: columnTitle,
+          id: this.generateId(),
+          title: line.substring(3),
           tasks: []
         };
         continue;
@@ -134,18 +131,9 @@ export class MarkdownKanbanParser {
         }
 
         if (currentColumn) {
-          let taskTitle = trimmedLine.substring(2).trim();
-          
-          // Remove checkbox markers if present
-          if (taskTitle.startsWith('[ ] ') || taskTitle.startsWith('[x] ')) {
-            taskTitle = taskTitle.substring(4).trim();
-          }
-
-          let taskId = this.generateId();
-          
           currentTask = {
-            id: taskId,
-            title: taskTitle,
+            id: this.generateId(),
+            title: line.substring(5),
             description: ''
           };
           collectingDescription = true;
@@ -175,7 +163,11 @@ export class MarkdownKanbanParser {
       
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
-        let descLine = line.trimStart();
+        let descLine = line;
+        // remove the first leading spaces if there
+        if (line.startsWith('  ')) {
+          descLine = line.substring(2);
+        }
         if (currentTask.description) {
           currentTask.description += '\n' + descLine;
         } else {
@@ -276,7 +268,7 @@ export class MarkdownKanbanParser {
         markdown += '\n';
       }
     } else {
-      markdown = markdown.trimEnd() + '\n';
+      markdown += '\n';
     }
 
     return markdown;
