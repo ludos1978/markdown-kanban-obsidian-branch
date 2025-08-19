@@ -96,16 +96,18 @@ function createColumnElement(column, columnIndex) {
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
 
+    const renderedTitle = column.title? renderMarkdown(column.title) : '';
+
     columnDiv.innerHTML = `
         <div class="column-header">
             <div class="column-title-section">
                 <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
                 <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
                 <div style="display: inline-block;">
-                    <h3 class="column-title" onclick="editColumnTitle('${column.id}')">${escapeHtml(column.title)}</h3>
+                    <div class="column-title" onclick="editColumnTitle('${column.id}')">${renderedTitle}</div>
                     <textarea class="column-title-edit" 
                                 data-column-id="${column.id}"
-                                style="display: none;">${escapeHtml(column.title)}</textarea>
+                                style="display: none;">${column.title}</textarea>
                 </div>
             </div>
             <div class="column-controls">

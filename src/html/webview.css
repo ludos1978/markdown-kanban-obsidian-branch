@@ -1,3 +1,10 @@
+:root {
+  --whitespace: 4px;
+  --whitespate-neg: calc(-var(--whitespace));
+  --whitespace-mul2: calc(var(--whitespace)*2);
+  --whitespace-div2: calc(var(--whitespace)/2);
+}
+
 * {
     box-sizing: border-box;
 }
@@ -13,15 +20,15 @@ body {
 
 .kanban-board {
     display: flex;
-    gap: 20px;
+    gap: var(--whitespace-mul2);
     min-height: calc(100vh - 150px);
     padding-bottom: 20px;
 }
 
 .kanban-column {
     background-color: var(--vscode-sideBar-background);
-    border-radius: 8px;
-    padding: 16px;
+    border-radius: var(--whitespace-div2);
+    padding: var(--whitespace-div2);
     min-width: 300px;
     max-width: 350px;
     flex-shrink: 0;
@@ -32,9 +39,9 @@ body {
 }
 
 .kanban-column.collapsed {
-    min-width: 50px;
-    max-width: 50px;
-    padding: 16px 4px;
+    min-width: 40px;
+    max-width: 40px;
+    padding: calc(0px - var(--whitespace-div2) + 14px)  var(--whitespace)  var(--whitespace-div2)  var(--whitespace);
     overflow: visible;
 }
 
@@ -53,7 +60,7 @@ body {
 
 .kanban-column.collapsed .column-title-section {
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     align-items: center;
     width: 100%; 
 }
@@ -71,6 +78,7 @@ body {
     transform-origin: center;
     white-space: nowrap;
     transform: rotate(180deg);
+    margin: 0;
 }
 
 .kanban-column.collapsed .column-title-edit {
@@ -105,9 +113,10 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid var(--vscode-panel-border);
+    margin-bottom:  var(--whitespace-div2);
+    padding-bottom:  var(--whitespace-div2);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    min-height: 40px;
 }
 
 .column-title-section {
@@ -116,6 +125,7 @@ body {
     gap: 8px;
     flex: 1;
     min-width: 0;
+    margin-top: -4px;
 }
 
 .collapse-toggle {
@@ -125,6 +135,7 @@ body {
     transition: all 0.2s;
     user-select: none;
     flex-shrink: 0;
+    transform: rotate(90deg);
 }
 
 .collapse-toggle:hover {
@@ -132,7 +143,7 @@ body {
 }
 
 .collapse-toggle.rotated {
-    transform: rotate(90deg);
+    transform: rotate(0deg);
 }
 
 .drag-handle {
@@ -153,16 +164,18 @@ body {
     cursor: grabbing;
 }
 
-.column-title {
-    font-size: 14px;
-    font-weight: 600;
+.column-title,
+.column-title * {
+    /* font-size: 14px; */
+    /* font-weight: 600; */
     color: var(--vscode-foreground);
     flex: 1;
     cursor: pointer;
-    padding: 2px 4px;
+    /* padding: 2px 4px; */
     border-radius: 3px;
     min-width: 0;
     word-break: break-word;
+    margin: 0;
 }
 
 .column-title:hover {
@@ -340,9 +353,9 @@ button.donut-menu-item {
 .task-item {
     background-color: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 6px;
-    padding: 12px;
-    margin-bottom: 8px;
+    border-radius: 4px;
+    padding: var(--whitespace);
+    margin-bottom: var(--whitespace-div2);
     transition: all 0.2s ease;
     position: relative;
 }
@@ -358,7 +371,7 @@ button.donut-menu-item {
 
 .task-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 8px;
     margin-bottom: 4px;
 }
@@ -396,6 +409,7 @@ button.donut-menu-item {
     user-select: none;
     flex-shrink: 0;
     margin-top: 2px;
+    transform: rotate(90deg);
 }
 
 .task-collapse-toggle:hover {
@@ -403,7 +417,7 @@ button.donut-menu-item {
 }
 
 .task-collapse-toggle.rotated {
-    transform: rotate(90deg);
+    transform: rotate(0deg);
 }
 
 .task-title-container {
@@ -413,7 +427,7 @@ button.donut-menu-item {
 
 .task-title-display {
     font-size: 14px;
-    font-weight: 500;
+    /* font-weight: 500; */
     color: var(--vscode-foreground);
     line-height: 1.4;
     word-break: break-word;
@@ -518,7 +532,7 @@ button.donut-menu-item {
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin-top: 8px;
+    margin-top: 0px;
 }
 
 .add-task-btn:hover {
@@ -728,6 +742,11 @@ button.donut-menu-item {
 
 .markdown-content p {
     margin: 1em 0;
+}
+
+.markdown-content p:first-child,
+.markdown-content p:last-child {
+    margin: 0;
 }
 
 .markdown-content ul,
