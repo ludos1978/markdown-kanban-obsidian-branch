@@ -42,19 +42,67 @@ if (typeof acquireVsCodeApi === 'undefined') {
 // Listen for messages from the extension
 window.addEventListener('message', event => {
     const message = event.data;
+    console.log('Received message:', message); // Debug log
     switch (message.type) {
         case 'updateBoard':
+            console.log('Updating board with:', message.board); // Debug log
             currentBoard = message.board;
             renderBoard();
             break;
     }
 });
 
+// Request board update when the webview loads/becomes visible
+window.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, requesting board update');
+    // Request initial board data
+    setTimeout(() => {
+        if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
+            console.log('No board data, requesting update from extension');
+            vscode.postMessage({ type: 'requestBoardUpdate' });
+        }
+    }, 100);
+});
+
+// Also request update when window becomes visible again
+window.addEventListener('focus', () => {
+    console.log('Window focused, checking board data');
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
+        console.log('No board data on focus, requesting update');
+        vscode.postMessage({ type: 'requestBoardUpdate' });
+    }
+});
+
 // Render Kanban board
 function renderBoard() {
-    if (!currentBoard) return;
-
+    console.log('Rendering board:', currentBoard); // Debug log
+    
     const boardElement = document.getElementById('kanban-board');
+    if (!boardElement) {
+        console.error('Board element not found');
+        return;
+    }
+
+    // Defensive check for currentBoard
+    if (!currentBoard) {
+        console.log('No current board, showing empty state');
+        boardElement.innerHTML = `
+            <div class="empty-board" style="
+                text-align: center; 
+                padding: 40px; 
+                color: var(--vscode-descriptionForeground);
+                font-style: italic;
+            ">
+                No board data available. Please open a Markdown file.
+            </div>`;
+        return;
+    }
+
+    // Ensure columns array exists
+    if (!currentBoard.columns) {
+        console.log('No columns in board, initializing empty array');
+        currentBoard.columns = [];
+    }
     
     // Save current scroll positions
     document.querySelectorAll('.tasks-container').forEach(container => {
@@ -90,13 +138,23 @@ function renderBoard() {
 }
 
 function createColumnElement(column, columnIndex) {
+    // Defensive checks for column data
+    if (!column) {
+        console.error('Column is null/undefined');
+        return document.createElement('div');
+    }
+
+    if (!column.tasks) {
+        column.tasks = [];
+    }
+
     const columnDiv = document.createElement('div');
     const isCollapsed = collapsedColumns.has(column.id);
     columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''}`;
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
 
-    const renderedTitle = column.title? renderMarkdown(column.title) : '';
+    const renderedTitle = column.title ? renderMarkdown(column.title) : 'Untitled Column';
 
     columnDiv.innerHTML = `
         <div class="column-header">
@@ -107,7 +165,7 @@ function createColumnElement(column, columnIndex) {
                     <div class="column-title" onclick="editColumnTitle('${column.id}')">${renderedTitle}</div>
                     <textarea class="column-title-edit" 
                                 data-column-id="${column.id}"
-                                style="display: none;">${column.title}</textarea>
+                                style="display: none;">${escapeHtml(column.title || '')}</textarea>
                 </div>
             </div>
             <div class="column-controls">
@@ -146,6 +204,12 @@ function createColumnElement(column, columnIndex) {
 }
 
 function createTaskElement(task, columnId, taskIndex) {
+    // Defensive checks for task data
+    if (!task) {
+        console.error('Task is null/undefined');
+        return '';
+    }
+
     const renderedDescription = task.description ? renderMarkdown(task.description) : '';
     const renderedTitle = task.title ? renderMarkdown(task.title) : '';
     const isCollapsed = collapsedTasks.has(task.id);
@@ -172,10 +236,10 @@ function createTaskElement(task, columnId, taskIndex) {
                         <div class="donut-menu-item has-submenu">
                             Move to list
                             <div class="donut-menu-submenu">
-                                ${currentBoard.columns.map(col => 
+                                ${currentBoard && currentBoard.columns ? currentBoard.columns.map(col => 
                                     col.id !== columnId ? 
-                                    `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title)}</button>` : ''
-                                ).join('')}
+                                    `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title || 'Untitled')}</button>` : ''
+                                ).join('') : ''}
                             </div>
                         </div>
                         <div class="donut-menu-divider"></div>
@@ -305,10 +369,13 @@ function editColumnTitle(columnId) {
                 title: newTitle
             });
             
-            const col = currentBoard.columns.find(c => c.id === columnId);
-            if (col) {
-                col.title = newTitle;
-                titleElement.textContent = newTitle;
+            // Update local state for immediate visual feedback
+            if (currentBoard && currentBoard.columns) {
+                const col = currentBoard.columns.find(c => c.id === columnId);
+                if (col) {
+                    col.title = newTitle;
+                    titleElement.innerHTML = renderMarkdown(newTitle);
+                }
             }
         }
         
@@ -318,7 +385,9 @@ function editColumnTitle(columnId) {
     };
     
     const cancelEdit = () => {
-        editElement.value = titleElement.textContent;
+        const currentTitle = currentBoard && currentBoard.columns ? 
+            currentBoard.columns.find(c => c.id === columnId)?.title || '' : '';
+        editElement.value = currentTitle;
         titleElement.style.display = 'block';
         editElement.style.display = 'none';
         dragHandle.draggable = true;
@@ -368,6 +437,7 @@ function insertColumnAfter(columnId) {
 }
 
 function moveColumnLeft(columnId) {
+    if (!currentBoard || !currentBoard.columns) return;
     const index = currentBoard.columns.findIndex(c => c.id === columnId);
     if (index > 0) {
         vscode.postMessage({
@@ -379,6 +449,7 @@ function moveColumnLeft(columnId) {
 }
 
 function moveColumnRight(columnId) {
+    if (!currentBoard || !currentBoard.columns) return;
     const index = currentBoard.columns.findIndex(c => c.id === columnId);
     if (index < currentBoard.columns.length - 1) {
         vscode.postMessage({
@@ -386,22 +457,6 @@ function moveColumnRight(columnId) {
             fromIndex: index,
             toIndex: index + 1
         });
-    }
-}
-
-function deleteColumn(columnId) {
-    if (confirm('Are you sure you want to delete this column and all its tasks?')) {
-        vscode.postMessage({
-            type: 'deleteColumn',
-            columnId: columnId
-        });
-        
-        // Update local state for immediate feedback
-        const columnIndex = currentBoard.columns.findIndex(c => c.id === columnId);
-        if (columnIndex !== -1) {
-            currentBoard.columns.splice(columnIndex, 1);
-            renderBoard();
-        }
     }
 }
 
@@ -672,12 +727,15 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
 
     if (!taskId || !columnId || !field) return;
 
-    const column = currentBoard?.columns.find(col => col.id === columnId);
-    const task = column?.tasks.find(t => t.id === taskId);
-    
-    if (!task) return;
-
-    task[field] = value;
+    // Update local state for immediate visual feedback
+    if (currentBoard && currentBoard.columns) {
+        const column = currentBoard.columns.find(col => col.id === columnId);
+        const task = column?.tasks.find(t => t.id === taskId);
+        
+        if (task) {
+            task[field] = value;
+        }
+    }
 
     const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
     
@@ -702,7 +760,7 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
         }
     }
 
-    const taskData = { ...task, [field]: value };
+    const taskData = { title: '', description: '', ...task, [field]: value };
     vscode.postMessage({
         type: 'editTask',
         taskId: taskId,
@@ -921,7 +979,7 @@ function calculateDropIndex(tasksContainer, clientY) {
 }
 
 function getOriginalColumnIndex(columnId) {
-    if (!currentBoard) return -1;
+    if (!currentBoard || !currentBoard.columns) return -1;
     return currentBoard.columns.findIndex(col => col.id === columnId);
 }
 

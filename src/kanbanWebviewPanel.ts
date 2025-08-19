@@ -78,10 +78,13 @@ export class KanbanWebviewPanel {
     private _setupEventListeners() {
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
+        // Fixed: Always ensure board is sent when panel becomes visible
         this._panel.onDidChangeViewState(
             e => {
-                if (e.webviewPanel.visible && this._board) {
-                    this._sendBoardUpdate();
+                if (e.webviewPanel.visible) {
+                    // Always try to send board update when panel becomes visible
+                    // This ensures the webview has the current board data
+                    this._ensureBoardAndSendUpdate();
                 }
             },
             null,
@@ -95,8 +98,32 @@ export class KanbanWebviewPanel {
         );
     }
 
+    // New method to ensure we have board data and send update
+    private _ensureBoardAndSendUpdate() {
+        // If we don't have a board but we have a document, reload it
+        if (!this._board && this._document) {
+            try {
+                this._board = MarkdownKanbanParser.parseMarkdown(this._document.getText());
+                // Store original task order for each column
+                this._board.columns.forEach(column => {
+                    this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
+                });
+            } catch (error) {
+                console.error('Error parsing Markdown:', error);
+                this._board = { title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
+            }
+        }
+        
+        // Always send the update
+        this._sendBoardUpdate();
+    }
+
     private _handleMessage(message: any) {
         switch (message.type) {
+            // Special request for board update
+            case 'requestBoardUpdate':
+                this._ensureBoardAndSendUpdate();
+                break;
             // Task operations
             case 'moveTask':
                 this.moveTask(message.taskId, message.fromColumnId, message.toColumnId, message.newIndex);
@@ -185,10 +212,14 @@ export class KanbanWebviewPanel {
         if (!this._panel.webview) return;
 
         const board = this._board || { title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
-        this._panel.webview.postMessage({
-            type: 'updateBoard',
-            board: board
-        });
+        
+        // Use setTimeout to ensure the webview is ready to receive messages
+        setTimeout(() => {
+            this._panel.webview.postMessage({
+                type: 'updateBoard',
+                board: board
+            });
+        }, 10);
     }
 
     private editColumnTitle(columnId: string, title: string) {
