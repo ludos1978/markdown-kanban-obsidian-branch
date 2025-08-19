@@ -1,23 +1,37 @@
-# Visual Studio Code - Kanban Markdown 
+# Kanban Markdown for Visual Studio Code & VSCodium
 
 Compatible with the Kanban Obsidian Markdown format from https://github.com/mgmeyers/obsidian-kanban.
 
 A VS Code extension that allows editing Markdown files as an interactive Kanban board.
 
-## ✨ Features
+It's mostly coded using Claude Code, based on the previous version if found online.
 
-### 📋 Basic Features
+I use it myself and found no similar extension that fulfilled my needs. 
+
+## Features
+
+### Basic Features
+
 - **Markdown Parsing**: Automatically parses task lists from Markdown files.
 - **Kanban View**: Displays tasks in a Kanban board format with multi-column layout.
 - **Drag & Drop**: Supports dragging and dropping tasks between different columns.
 - **Real-time Sync**: Ensures real-time, two-way synchronization between the Kanban board and the Markdown file.
 
-### 🎯 Task Management
-- **Task Collapse/Expand**: Tasks are collapsed by default, showing only the task name, priority, and tags. Click to expand for details.
+### Required Format
+
+Add a H2 Title (Boards) and Tasks (Cards) below it.
+
+```
+## Title of Board
+- [ ] Card
+  Text of Card
+- [ ] Next Card
+  Content of Card
+```
 
 ### Installation
 
-1. Download the vsix and install from theere
+1. Download the vsix and install
 
 ### How to Use
 

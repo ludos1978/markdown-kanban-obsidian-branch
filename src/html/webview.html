@@ -11,10 +11,11 @@
         .file-info-bar {
             background-color: var(--vscode-titleBar-activeBackground);
             border-bottom: 1px solid var(--vscode-panel-border);
-            padding: 8px 16px;
-            margin: -20px -20px 16px -20px;
+            padding: 0px;
+            margin: 0px;
+            padding: var(--whitespace-mul2) var(--whitespace-mul2) var(--whitespace-mul2) calc(2px + var(--whitespace-mul2));
+            margin-bottom: var(--whitespace);
             position: sticky;
-            top: -20px;
             z-index: 100;
         }
 
@@ -109,7 +110,7 @@
 
         /* Adjust kanban container to account for file bar */
         #kanban-container {
-            margin-top: 0;
+            margin: var(--whitespace) calc(var(--whitespace) + 2px) var(--whitespace) calc(var(--whitespace) + 2px);
         }
     </style>
 </head>

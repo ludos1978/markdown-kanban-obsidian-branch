@@ -13,8 +13,10 @@ body {
     font-family: var(--vscode-font-family);
     color: var(--vscode-foreground);
     background-color: var(--vscode-editor-background);
-    margin: 0;
-    padding: 20px;
+    /* margin: var(--whitespace) 0px var(--whitespace) var(--whitespace);
+    padding: var(--whitespace) 0px var(--whitespace) var(--whitespace); */
+    margin: 0px;
+    padding: 0px;
     overflow-x: auto;
 }
 
@@ -22,7 +24,7 @@ body {
     display: flex;
     gap: var(--whitespace-mul2);
     min-height: calc(100vh - 150px);
-    padding-bottom: 20px;
+    padding-bottom: var(--whitespace);
 }
 
 .kanban-column {
@@ -548,7 +550,7 @@ button.donut-menu-item {
 .add-column-btn {
     background: var(--vscode-button-background);
     color: var(--vscode-button-foreground);
-    border: none;
+    border: 1px solid var(--vscode-panel-border);
     border-radius: 6px;
     padding: 16px;
     font-size: 14px;

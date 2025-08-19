@@ -81,15 +81,15 @@ export class MarkdownKanbanParser {
       }
 
       // Parse board title
-      if (line.startsWith('# ') && !board.title) {
-        board.title = trimmedLine.substring(2).trim();
-        if (collectingDescription) {
-          this.finalizeCurrentTask(currentTask, currentColumn);
-          collectingDescription = false;
-        }
-        currentTask = null;
-        continue;
-      }
+      // if (line.startsWith('# ') && !board.title) {
+      //   board.title = trimmedLine.substring(2).trim();
+      //   if (collectingDescription) {
+      //     this.finalizeCurrentTask(currentTask, currentColumn);
+      //     collectingDescription = false;
+      //   }
+      //   currentTask = null;
+      //   continue;
+      // }
 
       // Parse column with ID comment
       if (line.startsWith('## ')) {
@@ -143,7 +143,6 @@ export class MarkdownKanbanParser {
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
         let descLine = line;
-        // if (line.startsWith('  ') || line.startsWith('\t')) {
         descLine = line.trimStart();
         if (currentTask.description) {
           currentTask.description += '\n' + descLine;
@@ -151,11 +150,6 @@ export class MarkdownKanbanParser {
           currentTask.description = descLine;
         }
         continue;
-        // }
-        // unindented line is not expected here
-        // else {
-        //   collectingDescription = false;
-        // }
       }
 
       if (trimmedLine === '') {
@@ -199,11 +193,11 @@ export class MarkdownKanbanParser {
     }
 
     // Add board title if it exists
-    if (board.title) {
-      markdown += `# ${board.title}\n\n`;
-    }
+    // if (board.title) {
+    //   markdown += `# ${board.title}\n\n`;
+    // }
 
-    // Add columns with ID comments
+    // Add columns
     for (const column of board.columns) {
       markdown += `## ${column.title}\n`;
 
