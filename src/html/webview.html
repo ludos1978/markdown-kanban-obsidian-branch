@@ -49,7 +49,7 @@
         }
 
         .lock-status {
-            font-size: 16px;
+            font-size: 12px;
             cursor: help;
             flex-shrink: 0;
             opacity: 0.8;
@@ -76,7 +76,7 @@
             color: var(--vscode-button-secondaryForeground);
             border: none;
             border-radius: 4px;
-            padding: 4px 12px;
+            padding: 2px;
             font-size: 12px;
             cursor: pointer;
             transition: background-color 0.2s;
@@ -87,13 +87,24 @@
             background: var(--vscode-button-secondaryHoverBackground);
         }
 
-        .file-control-btn.locked {
-            background: var(--vscode-charts-orange);
+        .file-control-btn.primary {
+            background: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
         }
 
+        .file-control-btn.primary:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
+        .file-control-btn.locked {
+            /* background: var(--vscode-charts-orange); */
+            color: var(--vscode-button-foreground);
+            border: 1px dotted var(--vscode-contrastActiveBorder);
+        }
+
         .file-control-btn.locked:hover {
-            background: var(--vscode-charts-yellow);
+            /* background: var(--vscode-charts-yellow); */
+            border: 1px solid var(--vscode-contrastActiveBorder);
         }
 
         /* Adjust kanban container to account for file bar */
@@ -109,14 +120,14 @@
             <div class="file-info-left">
                 <span class="file-icon">📄</span>
                 <span id="file-name" class="file-name">No file loaded</span>
-                <span id="lock-status" class="lock-status" title="File is unlocked - will auto-switch with active editor">🔓</span>
             </div>
             <div class="file-info-right">
                 <button id="lock-toggle-btn" class="file-control-btn" onclick="toggleFileLock()" title="Toggle file lock">
+                    <span id="lock-status" class="lock-status" title="File is unlocked - will auto-switch with active editor">🔓</span>
                     <span id="lock-btn-text">Lock</span>
                 </button>
                 <button id="select-file-btn" class="file-control-btn" onclick="selectFile()" title="Select different file">
-                    Select File
+                    📁 Open File
                 </button>
             </div>
         </div>

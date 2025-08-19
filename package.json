@@ -32,8 +32,14 @@
   "contributes": {
     "commands": [
       {
+        "command": "markdown-kanban.openKanbanFromPanel",
+        "title": "Open File",
+        "category": "Markdown Kanban",
+        "icon": "$(folder-opened)"
+      },
+      {
         "command": "markdown-kanban.openKanban",
-        "title": "Open Kanban Board",
+        "title": "Kanban",
         "category": "Markdown Kanban"
       },
       {
@@ -49,10 +55,23 @@
       {
         "command": "markdown-kanban.switchFile",
         "title": "Switch Kanban File",
-        "category": "Markdown Kanban"
+        "category": "Markdown Kanban",
+        "icon": "$(file)"
       }
     ],
     "menus": {
+      "webview/context": [
+        {
+          "command": "markdown-kanban.openKanbanFromPanel",
+          "when": "webviewId == markdownKanbanPanel",
+          "group": "navigation@1"
+        },
+        {
+          "command": "markdown-kanban.toggleFileLock",
+          "when": "webviewId == markdownKanbanPanel",
+          "group": "navigation@2"
+        }
+      ],
       "explorer/context": [
         {
           "command": "markdown-kanban.openKanban",
@@ -67,10 +86,21 @@
           "group": "navigation"
         }
       ],
+      "editor/title": [
+        {
+          "command": "markdown-kanban.openKanban",
+          "when": "resourceExtname == .md",
+          "group": "navigation"
+        }
+      ],
       "commandPalette": [
         {
           "command": "markdown-kanban.openKanban",
           "when": "true"
+        },
+        {
+          "command": "markdown-kanban.openKanbanFromPanel",
+          "when": "false"
         },
         {
           "command": "markdown-kanban.disableFileListener",

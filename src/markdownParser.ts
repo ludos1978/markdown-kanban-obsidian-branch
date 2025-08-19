@@ -102,7 +102,7 @@ export class MarkdownKanbanParser {
           board.columns.push(currentColumn);
         }
         
-        let columnTitle = trimmedLine.substring(3).trim();
+        let columnTitle = trimmedLine.substring(3);
         let columnId = this.generateId();
         
         currentColumn = {

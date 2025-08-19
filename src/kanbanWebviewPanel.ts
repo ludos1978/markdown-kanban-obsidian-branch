@@ -37,7 +37,8 @@ export class KanbanWebviewPanel {
             {
                 enableScripts: true,
                 localResourceRoots: [extensionUri],
-                retainContextWhenHidden: true
+                retainContextWhenHidden: true,
+                enableCommandUris: true
             }
         );
 

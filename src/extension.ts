@@ -81,6 +81,34 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	// Command to open file from kanban panel (for title bar button)
+	const openKanbanFromPanelCommand = vscode.commands.registerCommand('markdown-kanban.openKanbanFromPanel', async () => {
+		if (!KanbanWebviewPanel.currentPanel) {
+			vscode.window.showWarningMessage('No kanban panel is currently open.');
+			return;
+		}
+
+		const fileUris = await vscode.window.showOpenDialog({
+			canSelectFiles: true,
+			canSelectFolders: false,
+			canSelectMany: false,
+			filters: {
+				'Markdown files': ['md']
+			}
+		});
+
+		if (fileUris && fileUris.length > 0) {
+			const targetUri = fileUris[0];
+			try {
+				const document = await vscode.workspace.openTextDocument(targetUri);
+				KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
+				vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+			}
+		}
+	});
+
 	// Command to manually switch file
 	const switchFileCommand = vscode.commands.registerCommand('markdown-kanban.switchFile', async () => {
 		if (!KanbanWebviewPanel.currentPanel) {
@@ -149,6 +177,7 @@ export function activate(context: vscode.ExtensionContext) {
 		openKanbanCommand,
 		disableFileListenerCommand,
 		toggleFileLockCommand,
+		openKanbanFromPanelCommand,
 		switchFileCommand,
 		documentChangeListener,
 		activeEditorChangeListener,
