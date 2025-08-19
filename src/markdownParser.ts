@@ -45,7 +45,7 @@ export class MarkdownKanbanParser {
       const trimmedLine = line.trim();
 
       // Handle YAML front matter
-      if (trimmedLine === '---') {
+      if (line.startsWith('---')) {
         if (!yamlStartFound) {
           yamlStartFound = true;
           inYamlHeader = true;
@@ -65,7 +65,7 @@ export class MarkdownKanbanParser {
       }
 
       // Handle Kanban footer
-      if (trimmedLine.startsWith('%%')) {
+      if (line.startsWith('%%')) {
         if (collectingDescription) {
           this.finalizeCurrentTask(currentTask, currentColumn);
           collectingDescription = false;
@@ -81,7 +81,7 @@ export class MarkdownKanbanParser {
       }
 
       // Parse board title
-      if (trimmedLine.startsWith('# ') && !board.title) {
+      if (line.startsWith('# ') && !board.title) {
         board.title = trimmedLine.substring(2).trim();
         if (collectingDescription) {
           this.finalizeCurrentTask(currentTask, currentColumn);
@@ -92,7 +92,7 @@ export class MarkdownKanbanParser {
       }
 
       // Parse column with ID comment
-      if (trimmedLine.startsWith('## ')) {
+      if (line.startsWith('## ')) {
         if (collectingDescription) {
           this.finalizeCurrentTask(currentTask, currentColumn);
           collectingDescription = false;
@@ -143,19 +143,19 @@ export class MarkdownKanbanParser {
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
         let descLine = line;
-        if (line.startsWith('  ') || line.startsWith('\t')) {
-          descLine = line.trimStart();
-          if (currentTask.description) {
-            currentTask.description += '\n' + descLine;
-          } else {
-            currentTask.description = descLine;
-          }
-          continue;
+        // if (line.startsWith('  ') || line.startsWith('\t')) {
+        descLine = line.trimStart();
+        if (currentTask.description) {
+          currentTask.description += '\n' + descLine;
+        } else {
+          currentTask.description = descLine;
         }
+        continue;
+        // }
         // unindented line is not expected here
-        else {
-          collectingDescription = false;
-        }
+        // else {
+        //   collectingDescription = false;
+        // }
       }
 
       if (trimmedLine === '') {

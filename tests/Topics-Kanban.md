@@ -4,65 +4,69 @@ kanban-plugin: board
 
 ---
 
-## # h1
+## # column h1
 
-- [ ] # h1
+- [ ] # task h1
   some more text
-- [ ] ## h2
+- [ ] ## task h2
   '''anything else'''
-- [ ] ### h3
-  this is illegal
-- [ ] Text
+- [ ] ### task h3
+this is illegal
+- [ ] task Text
   # h1
   ## h2
   ### h3
+  Text
 
-## ## h2
+## ## column h2
 
-- [ ] # h1
-- [ ] ## h2
-- [ ] ### h3
-- [ ] Text
+- [ ] # task h1
+  # h1
+  ## h2
+  ### h3
+  Text
+- [ ] ## task h2
+- [ ] ### task h3
+- [ ] task Text
 
-## ### h3
+## ### column h3
 
-- [ ] # h1
-- [ ] ## h2
-- [ ] ### h3
-- [ ] Text
-
-## text
-
-- [ ] # h1
-- [ ] ## h2
-- [ ] ### h3
-- [ ] Text
-
-## # h1
-
-- [ ] # h1
-- [ ] ## h2
-- [ ] ### h3
-- [ ] Text
-
-## ## h2
-
-- [ ] # h1
-- [ ] ## h2
-- [ ] ### h3
-- [ ] Text
-
-## ### h3
-
-- [ ] # h1
-- [ ] ## h2
-- [ ] ### h3
-- [ ] Text
+- [ ] # task h1
+- [ ] ## task h2
+- [ ] ### task h3
+- [ ] task text
 
 ## text
 
-- [ ] # h1
-- [ ] ## h2
-- [ ] ### h3
-- [ ] Text
+- [ ] # task h1
+- [ ] ## task h2
+- [ ] ### task h3
+- [ ] task text
 
+## # column h1
+
+- [ ] # task h1
+- [ ] ## task h2
+- [ ] ### task h3
+- [ ] task text
+
+## ## column h2
+
+- [ ] # task h1
+- [ ] ## task h2
+- [ ] ### task h3
+- [ ] task text
+
+## ### column h3
+
+- [ ] # task h1
+- [ ] ## task h2
+- [ ] ### task h3
+- [ ] task text
+
+## column text
+
+- [ ] # task h1
+- [ ] ## task h2
+- [ ] ### task h3
+- [ ] task text
