@@ -134,16 +134,15 @@ function renderBoard() {
         `;
         
         initializeContainer.innerHTML = `
-            <div style="margin-bottom: 20px; font-size: 16px;">
-                This file is not initialized as a Kanban board.
-            </div>
-            <div style="margin-bottom: 20px; font-size: 14px; opacity: 0.8;">
-                Click the button below to add the required header.
+            <div style="margin-bottom: 20px; font-size: 16px; text-align: left;">
+                This file is not initialized as a Kanban board.<br><br>
+                Click the button below to add the required header.<br><br>
+                This might overwrite content of the file if not structured correctly!
             </div>
         `;
         
         const initializeBtn = document.createElement('button');
-        initializeBtn.className = 'add-column-btn';
+        initializeBtn.className = 'initialise-btn';
         initializeBtn.textContent = 'Initialize File';
         initializeBtn.onclick = () => initializeFile();
         

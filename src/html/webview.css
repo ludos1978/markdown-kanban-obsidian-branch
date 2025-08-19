@@ -561,6 +561,19 @@ button.donut-menu-item {
     writing-mode: vertical-rl;
 }
 
+.initialise-btn {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+    padding: 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    align-self: flex-start;
+    display: block;
+}
+
 .add-column-btn:hover {
     background: var(--vscode-button-hoverBackground);
 }
