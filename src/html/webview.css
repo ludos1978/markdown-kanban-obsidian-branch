@@ -62,7 +62,18 @@ body {
     flex-direction: column;
     gap: 8px;
     align-items: center;
-    width: 100%; 
+    width: 100%;
+    margin-left: 0px;
+}
+
+.column-title-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    margin-top: 0px;
+    margin-left: 10px;
 }
 
 .kanban-column.collapsed .column-title {
@@ -119,14 +130,6 @@ body {
     min-height: 40px;
 }
 
-.column-title-section {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
-    margin-top: -4px;
-}
 
 .collapse-toggle {
     cursor: pointer;
@@ -162,6 +165,12 @@ body {
 
 .drag-handle:active {
     cursor: grabbing;
+}
+
+
+.kanban-column.collapsed .column-title,
+.kanban-column.collapsed .column-title *  {
+    min-width: 0px;
 }
 
 .column-title,
@@ -375,6 +384,7 @@ button.donut-menu-item {
     align-items: center;
     gap: 8px;
     margin-bottom: 4px;
+    margin-left: 8px;
 }
 
 .task-drag-handle {
