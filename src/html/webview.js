@@ -296,11 +296,10 @@ function createTaskElement(task, columnId, taskIndex) {
             <div class="task-header">
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}')">▶</span>
-                <div class="task-title-container">
+                <div class="task-title-container" onclick="editTitle(this, '${task.id}', '${columnId}')">
                     <div class="task-title-display markdown-content" 
                             data-task-id="${task.id}" 
-                            data-column-id="${columnId}"
-                            onclick="editTitle(this)">${renderedTitle || '<span class="task-title-placeholder">Add title...</span>'}</div>
+                            data-column-id="${columnId}">${renderedTitle || '<span class="task-title-placeholder">Add title...</span>'}</div>
                     <textarea class="task-title-edit" 
                                 data-task-id="${task.id}" 
                                 data-column-id="${columnId}"

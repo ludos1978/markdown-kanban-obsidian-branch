@@ -428,7 +428,9 @@ button.donut-menu-item {
 .task-title-container {
     flex: 1;
     min-width: 0;
-    max-width: 255px;
+    width: 100%;           /* Take full available width */
+    max-width: 240px;       /* Remove the 255px restriction */
+    cursor: pointer;       /* Show pointer cursor for the whole area */
 }
 
 .task-title-container:hover {
@@ -440,7 +442,7 @@ button.donut-menu-item {
     color: var(--vscode-foreground);
     line-height: 1.4;
     word-break: break-word;
-    padding: 0px;
+    padding: 2px 4px;
     border-radius: 3px;
     cursor: pointer;
     min-height: 20px;
@@ -462,7 +464,7 @@ button.donut-menu-item {
     resize: vertical;
     overflow: hidden;
     height: 20px;
-    width: 260px;
+    width: 240px;
     font-family: inherit;
 }
 
