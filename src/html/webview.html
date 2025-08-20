@@ -88,6 +88,11 @@
             background: var(--vscode-button-secondaryHoverBackground);
         }
 
+        .file-control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .file-control-btn.primary {
             background: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
@@ -123,6 +128,13 @@
                 <span id="file-name" class="file-name">No file loaded</span>
             </div>
             <div class="file-info-right">
+                <button id="undo-btn" class="file-control-btn" onclick="undo()" title="Undo (Ctrl+Z)">
+                    ↶ Undo
+                </button>
+                <button id="redo-btn" class="file-control-btn" onclick="redo()" title="Redo (Ctrl+Y)">
+                    ↷ Redo
+                </button>
+                <span style="width: 8px; display: inline-block;"></span>
                 <button id="lock-toggle-btn" class="file-control-btn" onclick="toggleFileLock()" title="Toggle file lock">
                     <span id="lock-status" class="lock-status" title="File is unlocked - will auto-switch with active editor">🔓</span>
                     <span id="lock-btn-text">Lock</span>

@@ -10,6 +10,24 @@ export function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Markdown Kanban extension is now active!');
+	
+	// Function to get file listener status
+	const getFileListenerStatus = () => {
+		return fileListenerEnabled;
+	};
+	
+	// Function to toggle file listener
+	const setFileListenerStatus = (enabled: boolean) => {
+		fileListenerEnabled = enabled;
+		const status = fileListenerEnabled ? 'enabled' : 'disabled';
+		vscode.window.showInformationMessage(`Kanban auto-switching ${status}`);
+	};
+	
+	// Expose these functions to the KanbanWebviewPanel
+	(globalThis as any).kanbanFileListener = {
+		getStatus: getFileListenerStatus,
+		setStatus: setFileListenerStatus
+	};
 
 	// Register webview panel serializer (for restoring panel state)
 	if (vscode.window.registerWebviewPanelSerializer) {
@@ -101,6 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const targetUri = fileUris[0];
 			try {
 				const document = await vscode.workspace.openTextDocument(targetUri);
+				console.log('openKanbanFromPanelCommand:loadMarkdownFile');
 				KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
 				vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
 			} catch (error) {
@@ -129,6 +148,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const targetUri = fileUris[0];
 			try {
 				const document = await vscode.workspace.openTextDocument(targetUri);
+				console.log('switchFileCommand:loadMarkdownFile');
 				KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
 				vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
 			} catch (error) {
@@ -152,6 +172,7 @@ export function activate(context: vscode.ExtensionContext) {
 					
 					// Always update if the changed file is the current kanban file
 					if (currentUri === changedUri) {
+						console.log('documentChangeListener:loadMarkdownFile');
 						KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
 					}
 				}
@@ -165,6 +186,7 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
 			// If panel is open and not locked, automatically load current document
 			if (KanbanWebviewPanel.currentPanel && !KanbanWebviewPanel.currentPanel.isFileLocked()) {
+				console.log('activeEditorChangeListener:loadMarkdownFile');
 				KanbanWebviewPanel.currentPanel.loadMarkdownFile(editor.document);
 			}
 		} else {

@@ -4,6 +4,12 @@ import * as fs from 'fs';
 
 import { MarkdownKanbanParser, KanbanBoard, KanbanTask, KanbanColumn } from './markdownParser';
 
+// Deep clone helper for board state
+function deepCloneBoard(board: KanbanBoard): KanbanBoard {
+    // return JSON.parse(JSON.stringify(board));
+    return structuredClone(board);
+}
+
 export class KanbanWebviewPanel {
     public static currentPanel: KanbanWebviewPanel | undefined;
     public static readonly viewType = 'markdownKanbanPanel';
@@ -19,12 +25,18 @@ export class KanbanWebviewPanel {
     private _isUpdatingFromPanel: boolean = false; // Flag to prevent reload loops
     private _isFileLocked: boolean = false; // Flag to prevent automatic file switching
 
+    // Undo/Redo stacks
+    private _undoStack: KanbanBoard[] = [];
+    private _redoStack: KanbanBoard[] = [];
+    private readonly _maxUndoStackSize = 50; // Limit stack size to prevent memory issues
+
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn;
 
         if (KanbanWebviewPanel.currentPanel) {
             KanbanWebviewPanel.currentPanel._panel.reveal(column);
             if (document) {
+                console.log('CreateOrShow:1:loadMarkdownFile');
                 KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
             }
             return;
@@ -45,6 +57,7 @@ export class KanbanWebviewPanel {
         KanbanWebviewPanel.currentPanel = new KanbanWebviewPanel(panel, extensionUri, context);
 
         if (document) {
+            console.log('CreateOrShow:2:loadMarkdownFile');
             KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
         }
     }
@@ -66,6 +79,7 @@ export class KanbanWebviewPanel {
         this._setupEventListeners();
         
         if (this._document) {
+            console.log('Constructor:loadMarkdownFile');
             this.loadMarkdownFile(this._document);
         }
     }
@@ -137,12 +151,144 @@ export class KanbanWebviewPanel {
         this._sendBoardUpdate();
     }
 
-private _handleMessage(message: any) {
+    // Undo/Redo methods
+    private _saveStateForUndo() {
+        if (!this._board || !this._board.valid) return;
+        
+        // Push current state to undo stack
+        this._undoStack.push(deepCloneBoard(this._board));
+        
+        // Limit stack size
+        if (this._undoStack.length > this._maxUndoStackSize) {
+            this._undoStack.shift();
+        }
+        
+        // Clear redo stack when new action is performed
+        this._redoStack = [];
+        
+        // Send undo/redo status to webview
+        this._sendUndoRedoStatus();
+    }
+
+    private async _undo() {
+        if (this._undoStack.length === 0) {
+            vscode.window.showInformationMessage('Nothing to undo');
+            return;
+        }
+        
+        // Save current state to redo stack
+        if (this._board && this._board.valid) {
+            this._redoStack.push(deepCloneBoard(this._board));
+        }
+        
+        // Restore previous state
+        this._board = this._undoStack.pop()!;
+        
+        // Restore original task order for sorting
+        this._board.columns.forEach(column => {
+            this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
+        });
+        
+        // Disable file listener when undoing to prevent conflicts
+        try {
+            const kanbanFileListener = (globalThis as any).kanbanFileListener;
+            if (kanbanFileListener && kanbanFileListener.getStatus) {
+                const wasEnabled = kanbanFileListener.getStatus();
+                if (wasEnabled) {
+                    // Disable file listener temporarily during undo
+                    kanbanFileListener.setStatus(false);
+                    
+                    // Re-enable after a short delay to avoid interference with other operations
+                    setTimeout(() => {
+                        if (kanbanFileListener) {
+                            kanbanFileListener.setStatus(true);
+                        }
+                    }, 2000);
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to disable file listener during undo:', error);
+        }
+        
+        // Save and update
+        await this.saveToMarkdown();
+        this._sendBoardUpdate();
+        this._sendUndoRedoStatus();
+    }
+
+    private async _redo() {
+        if (this._redoStack.length === 0) {
+            vscode.window.showInformationMessage('Nothing to redo');
+            return;
+        }
+        
+        // Save current state to undo stack
+        if (this._board && this._board.valid) {
+            this._undoStack.push(deepCloneBoard(this._board));
+        }
+        
+        // Restore next state
+        this._board = this._redoStack.pop()!;
+        
+        // Restore original task order for sorting
+        this._board.columns.forEach(column => {
+            this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
+        });
+        
+        // Disable file listener when undoing to prevent conflicts
+        try {
+            const kanbanFileListener = (globalThis as any).kanbanFileListener;
+            if (kanbanFileListener && kanbanFileListener.getStatus) {
+                const wasEnabled = kanbanFileListener.getStatus();
+                if (wasEnabled) {
+                    // Disable file listener temporarily during undo
+                    kanbanFileListener.setStatus(false);
+                    
+                    // Re-enable after a short delay to avoid interference with other operations
+                    setTimeout(() => {
+                        if (kanbanFileListener) {
+                            kanbanFileListener.setStatus(true);
+                        }
+                    }, 2000);
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to disable file listener during undo:', error);
+        }
+        
+        // Save and update
+        await this.saveToMarkdown();
+        this._sendBoardUpdate();
+        this._sendUndoRedoStatus();
+    }
+
+    private _sendUndoRedoStatus() {
+        if (!this._panel.webview) return;
+        
+        setTimeout(() => {
+            this._panel.webview.postMessage({
+                type: 'undoRedoStatus',
+                canUndo: this._undoStack.length > 0,
+                canRedo: this._redoStack.length > 0
+            });
+        }, 10);
+    }
+
+    private _handleMessage(message: any) {
         switch (message.type) {
+            // Undo/Redo operations
+            case 'undo':
+                this._undo();
+                break;
+            case 'redo':
+                this._redo();
+                break;
+                
             // Special request for board update
             case 'requestBoardUpdate':
                 this._ensureBoardAndSendUpdate();
                 this._sendFileInfo();
+                this._sendUndoRedoStatus();
                 break;
             // File management
             case 'toggleFileLock':
@@ -238,6 +384,7 @@ private _handleMessage(message: any) {
             const targetUri = fileUris[0];
             try {
                 const document = await vscode.workspace.openTextDocument(targetUri);
+                console.log('_selectFile:loadMarkdownFile');
                 this.loadMarkdownFile(document);
                 vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
             } catch (error) {
@@ -283,11 +430,13 @@ private _handleMessage(message: any) {
         );
         
         try {
+            console.log('applyEdit & save');
             await vscode.workspace.applyEdit(edit);
             await this._document.save();
             
             // Reload the file
             setTimeout(() => {
+                console.log('_initializeFile:loadMarkdownFile');
                 this.loadMarkdownFile(this._document!);
                 this._isUpdatingFromPanel = false;
             }, 100);
@@ -312,6 +461,11 @@ private _handleMessage(message: any) {
             this._board.columns.forEach(column => {
                 this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
             });
+            
+            // Clear undo/redo stacks when loading new file
+            console.log('clearing undo & redo stack!');
+            this._undoStack = [];
+            this._redoStack = [];
         } catch (error) {
             console.error('Error parsing Markdown:', error);
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
@@ -319,6 +473,7 @@ private _handleMessage(message: any) {
         }
         this._sendBoardUpdate();
         this._sendFileInfo();
+        this._sendUndoRedoStatus();
     }
 
     private _sendBoardUpdate() {
@@ -383,8 +538,13 @@ private _handleMessage(message: any) {
         };
     }
 
-    private async performAction(action: () => void) {
+    private async performAction(action: () => void, saveUndo: boolean = true) {
         if (!this._board) return;
+        
+        // Save state for undo before performing action
+        if (saveUndo) {
+            this._saveStateForUndo();
+        }
         
         action();
         await this.saveToMarkdown();

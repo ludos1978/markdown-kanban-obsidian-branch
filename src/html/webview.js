@@ -9,6 +9,8 @@ let scrollPositions = new Map();
 let collapsedColumns = new Set();
 let collapsedTasks = new Set();
 let currentFileInfo = null;
+let canUndo = false;
+let canRedo = false;
 
 // Initialize with sample data for testing
 if (typeof acquireVsCodeApi === 'undefined') {
@@ -55,6 +57,12 @@ window.addEventListener('message', event => {
             currentFileInfo = message.fileInfo;
             updateFileInfoBar();
             break;
+        case 'undoRedoStatus':
+            console.log('Undo/Redo status:', message); // Debug log
+            canUndo = message.canUndo;
+            canRedo = message.canRedo;
+            updateUndoRedoButtons();
+            break;
     }
 });
 
@@ -83,7 +91,60 @@ window.addEventListener('focus', () => {
     }
 });
 
-// Render Kanban board
+// Keyboard shortcuts for undo/redo
+document.addEventListener('keydown', (e) => {
+    // Check if we're not in an input/textarea element
+    const activeElement = document.activeElement;
+    const isEditing = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' || 
+        activeElement.classList.contains('column-title-edit') ||
+        activeElement.classList.contains('task-title-edit') ||
+        activeElement.classList.contains('task-description-edit')
+    );
+    
+    if (!isEditing) {
+        // Ctrl+Z or Cmd+Z for undo
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+        }
+        // Ctrl+Y or Cmd+Y or Ctrl+Shift+Z or Cmd+Shift+Z for redo
+        else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+            e.preventDefault();
+            redo();
+        }
+    }
+});
+
+// Undo/Redo functions
+function undo() {
+    if (canUndo) {
+        vscode.postMessage({ type: 'undo' });
+    }
+}
+
+function redo() {
+    if (canRedo) {
+        vscode.postMessage({ type: 'redo' });
+    }
+}
+
+function updateUndoRedoButtons() {
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+    
+    if (undoBtn) {
+        undoBtn.disabled = !canUndo;
+        undoBtn.style.opacity = canUndo ? '1' : '0.5';
+    }
+    
+    if (redoBtn) {
+        redoBtn.disabled = !canRedo;
+        redoBtn.style.opacity = canRedo ? '1' : '0.5';
+    }
+}
+
 // Render Kanban board
 function renderBoard() {
     console.log('Rendering board:', currentBoard); // Debug log
@@ -1155,6 +1216,9 @@ function updateFileInfoBar() {
             lockToggleBtnElement.classList.remove('locked');
         }
     }
+    
+    // Update undo/redo buttons when file info changes
+    updateUndoRedoButtons();
 }
 
 function toggleFileLock() {
