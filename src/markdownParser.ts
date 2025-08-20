@@ -133,7 +133,7 @@ export class MarkdownKanbanParser {
         if (currentColumn) {
           currentTask = {
             id: this.generateId(),
-            title: line.substring(5),
+            title: line.substring(6),
             description: ''
           };
           collectingDescription = true;
