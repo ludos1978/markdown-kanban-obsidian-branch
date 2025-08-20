@@ -141,9 +141,9 @@ export class MarkdownKanbanParser {
         continue;
       }
 
-      if (trimmedLine === '') {
-        continue;
-      }
+      // if (trimmedLine === '') {
+      //   continue;
+      // }
 
       // backup case for when a user opens a normal markdown file. 
       // this should keep all data in the file, but some of it will be newly formatted.
@@ -168,10 +168,10 @@ export class MarkdownKanbanParser {
         if (line.startsWith('  ')) {
           descLine = line.substring(2);
         }
-        if (currentTask.description) {
-          currentTask.description += '\n' + descLine;
-        } else {
+        if (!currentTask.description) {
           currentTask.description = descLine;
+        } else {
+          currentTask.description += '\n' + descLine;
         }
         continue;
       }
