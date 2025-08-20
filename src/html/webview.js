@@ -221,6 +221,8 @@ function createColumnElement(column, columnIndex) {
                         <button class="donut-menu-item" onclick="insertColumnBefore('${column.id}')">Insert list before</button>
                         <button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
                         <div class="donut-menu-divider"></div>
+                        <button class="donut-menu-item" onclick="copyColumnAsMarkdown('${column.id}')">Copy as markdown</button>
+                        <div class="donut-menu-divider"></div>
                         <button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
                         <button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
                         <div class="donut-menu-divider"></div>
@@ -268,6 +270,8 @@ function createTaskElement(task, columnId, taskIndex) {
                         <button class="donut-menu-item" onclick="insertTaskBefore('${task.id}', '${columnId}')">Insert card before</button>
                         <button class="donut-menu-item" onclick="insertTaskAfter('${task.id}', '${columnId}')">Insert card after</button>
                         <button class="donut-menu-item" onclick="duplicateTask('${task.id}', '${columnId}')">Duplicate card</button>
+                        <div class="donut-menu-divider"></div>
+                        <button class="donut-menu-item" onclick="copyTaskAsMarkdown('${task.id}', '${columnId}')">Copy as markdown</button>
                         <div class="donut-menu-divider"></div>
                         <div class="donut-menu-item has-submenu">
                             Move
@@ -517,6 +521,59 @@ function sortColumn(columnId, sortType) {
         columnId: columnId,
         sortType: sortType
     });
+}
+
+
+// Copy as markdown functions
+function copyColumnAsMarkdown(columnId) {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) return;
+    
+    let markdown = `## ${column.title}\n\n`;
+    
+    column.tasks.forEach(task => {
+        markdown += `- [ ] ${task.title || ''}\n`;
+        if (task.description && task.description.trim()) {
+            const descLines = task.description.split('\n');
+            descLines.forEach(line => {
+                markdown += `  ${line}\n`;
+            });
+        }
+    });
+    
+    copyToClipboard(markdown);
+}
+
+function copyTaskAsMarkdown(taskId, columnId) {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) return;
+    
+    const task = column.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    let markdown = `- [ ] ${task.title || ''}\n`;
+    if (task.description && task.description.trim()) {
+        const descLines = task.description.split('\n');
+        descLines.forEach(line => {
+            markdown += `  ${line}\n`;
+        });
+    }
+    
+    copyToClipboard(markdown);
+}
+
+function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            vscode.postMessage({ type: 'showMessage', text: 'Copied to clipboard!' });
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+        });
+    }
 }
 
 // Task operations

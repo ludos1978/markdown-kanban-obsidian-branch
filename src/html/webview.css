@@ -819,9 +819,9 @@ button.donut-menu-item {
     display: inline;
 }
 
-.task-title-container .markdown-content {
+/* .task-title-container .markdown-content {
     display: inline;
-}
+} */
 
 .markdown-content h1 { font-size: 1.8em; }
 .markdown-content h2 { font-size: 1.5em; }

@@ -157,7 +157,11 @@ private _handleMessage(message: any) {
             case 'initializeFile':
                 this._initializeFile();
                 break;
-            // Task operations
+            case 'showMessage':
+                vscode.window.showInformationMessage(message.text);
+                break;
+
+                // Task operations
             case 'moveTask':
                 this.moveTask(message.taskId, message.fromColumnId, message.toColumnId, message.newIndex);
                 break;
@@ -462,7 +466,7 @@ private _handleMessage(message: any) {
 
             const newTask: KanbanTask = {
                 id: this.generateId('task', columnId),
-                title: result.task.title + ' (copy)',
+                title: result.task.title,
                 description: result.task.description
             };
 
