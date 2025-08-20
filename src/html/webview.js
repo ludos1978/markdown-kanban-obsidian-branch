@@ -878,7 +878,8 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
     const taskId = textarea.dataset.taskId;
     const columnId = textarea.dataset.columnId;
     const field = textarea.dataset.field;
-    const value = textarea.value.trim();
+    // Use the raw value without trim() for titles to preserve formatting
+    const value = textarea.value;
 
     if (!taskId || !columnId || !field) return;
 
@@ -896,8 +897,10 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
     
     if (field === 'title') {
         const displayDiv = taskItem.querySelector('.task-title-display');
-        if (value) {
-            displayDiv.innerHTML = renderMarkdown(value);
+        // Use trimmed value for display but preserve original formatting in the data
+        const displayValue = value.trim();
+        if (displayValue) {
+            displayDiv.innerHTML = renderMarkdown(displayValue);
         } else {
             displayDiv.innerHTML = '<span class="task-title-placeholder">Add title...</span>';
         }
@@ -905,7 +908,7 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
         const displayDiv = taskItem.querySelector('.task-description-display');
         const placeholder = taskItem.querySelector('.task-description-placeholder');
         
-        if (value) {
+        if (value.trim()) {
             displayDiv.innerHTML = renderMarkdown(value);
             displayDiv.style.display = 'block';
             if (placeholder) placeholder.style.display = 'none';
