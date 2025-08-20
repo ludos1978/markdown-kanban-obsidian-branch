@@ -592,14 +592,14 @@ function copyColumnAsMarkdown(columnId) {
     const column = currentBoard.columns.find(c => c.id === columnId);
     if (!column) return;
     
-    let markdown = `## ${column.title}\n\n`;
+    let markdown = `# ${column.title}\n\n`;
     
     column.tasks.forEach(task => {
-        markdown += `- [ ] ${task.title || ''}\n`;
+        markdown += `## ${task.title || ''}\n`;
         if (task.description && task.description.trim()) {
             const descLines = task.description.split('\n');
             descLines.forEach(line => {
-                markdown += `  ${line}\n`;
+                markdown += `${line}\n`;
             });
         }
     });
@@ -616,11 +616,11 @@ function copyTaskAsMarkdown(taskId, columnId) {
     const task = column.tasks.find(t => t.id === taskId);
     if (!task) return;
     
-    let markdown = `- [ ] ${task.title || ''}\n`;
+    let markdown = `## ${task.title || ''}\n`;
     if (task.description && task.description.trim()) {
         const descLines = task.description.split('\n');
         descLines.forEach(line => {
-            markdown += `  ${line}\n`;
+            markdown += `${line}\n`;
         });
     }
     
