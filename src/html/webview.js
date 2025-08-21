@@ -18,7 +18,7 @@ let currentExternalDropColumn = null;
 let externalDropIndicator = null;
 
 // Track currently active text editor for drag/drop
-let activeTextEditor = null;
+// let activeTextEditor = null;
 // Track if drag/drop is already set up to prevent multiple listeners
 let dragDropInitialized = false;
 let isProcessingDrop = false; // Prevent multiple simultaneous drops
@@ -448,6 +448,8 @@ class TaskEditor {
 
 // Initialize the editor system
 const taskEditor = new TaskEditor();
+// Optionally, make it globally accessible
+window.taskEditor = taskEditor;
 
 // Simplified edit trigger functions
 function editTitle(element, taskId, columnId) {
@@ -875,31 +877,15 @@ function handleVSCodeUriDrop(e, uriData) {
 }
 
 function getActiveTextEditor() {
-    // Check if we're currently editing a text field
-    const activeElement = document.activeElement;
-    
-    if (activeElement && (
-        activeElement.classList.contains('task-title-edit') ||
-        activeElement.classList.contains('task-description-edit') ||
-        activeElement.classList.contains('column-title-edit')
-    )) {
+    // Check if TaskEditor has an active editor
+    if (taskEditor.currentEditor) {
+        const editor = taskEditor.currentEditor;
         return {
-            type: activeElement.classList.contains('column-title-edit') ? 'column-title' : 
-                  activeElement.classList.contains('task-title-edit') ? 'task-title' : 'task-description',
-            taskId: activeElement.dataset.taskId,
-            columnId: activeElement.dataset.columnId,
-            cursorPosition: activeElement.selectionStart || 0,
-            element: activeElement
-        };
-    }
-    
-    // Also check if we have a stored reference
-    if (activeTextEditor && activeTextEditor.element && 
-        document.contains(activeTextEditor.element) && 
-        activeTextEditor.element.style.display !== 'none') {
-        return {
-            ...activeTextEditor,
-            cursorPosition: activeTextEditor.element.selectionStart || 0
+            type: editor.type.replace('task-', '').replace('-', '-'), // Convert back to original format
+            taskId: editor.taskId,
+            columnId: editor.columnId,
+            cursorPosition: editor.element.selectionStart || 0,
+            element: editor.element
         };
     }
     
@@ -958,7 +944,12 @@ function insertFileLink(fileInfo) {
                     autoResize(otherField);
                 }
                 // Save the other field too
-                setTimeout(() => saveTaskFieldAndUpdateDisplay(otherField), 100);
+                setTimeout(() => {
+                    // Save through the TaskEditor if it's active
+                    if (taskEditor.currentEditor && taskEditor.currentEditor.element === otherField) {
+                        taskEditor.saveCurrentField();
+                    }
+                }, 100);
             }
         }
         
