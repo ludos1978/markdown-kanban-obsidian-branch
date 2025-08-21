@@ -62,36 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab' && e.target.classList.contains('task-title-edit')) {
-        e.preventDefault();
-        
-        const titleTextarea = e.target;
-        const taskItem = titleTextarea.closest('.task-item');
-        const taskId = titleTextarea.dataset.taskId;
-        const columnId = titleTextarea.dataset.columnId;
-        
-        // Completely disable the blur handler to prevent interference
-        titleTextarea.onblur = () => {};
-        
-        // Save current title
-        saveTaskFieldAndUpdateDisplay(titleTextarea);
-        
-        // Hide title editing immediately
-        titleTextarea.style.display = 'none';
-        taskItem.querySelector('.task-title-display').style.display = 'block';
-        
-        // Clear active editor state
-        activeTextEditor = null;
-        
-        // Use requestAnimationFrame to ensure DOM updates are complete
-        requestAnimationFrame(() => {
-            // Start description editing directly with the task info
-            editDescription(taskItem.querySelector('.task-description-container'), taskId, columnId);
-        });
-    }
-});
-
 // Initialize with sample data for testing
 if (typeof acquireVsCodeApi === 'undefined') {
     currentBoard = {
@@ -242,6 +212,304 @@ document.addEventListener('click', (e) => {
         href: href
     });
 }, true); // Use capture phase to catch events earlier
+
+class TaskEditor {
+    constructor() {
+        this.currentEditor = null;
+        this.isTransitioning = false;
+        this.setupGlobalHandlers();
+    }
+
+    setupGlobalHandlers() {
+        // Single global keydown handler
+        document.addEventListener('keydown', (e) => {
+            if (!this.currentEditor) return;
+            
+            const element = this.currentEditor.element;
+            
+            if (e.key === 'Tab' && element.classList.contains('task-title-edit')) {
+                e.preventDefault();
+                this.transitionToDescription();
+            } else if (e.key === 'Enter' && !e.shiftKey) {
+                if (element.classList.contains('task-title-edit') || 
+                    element.classList.contains('column-title-edit')) {
+                    e.preventDefault();
+                    this.save();
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                this.cancel();
+            }
+        });
+
+        // Single global click handler for closing menus
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.donut-menu')) {
+                document.querySelectorAll('.donut-menu.active').forEach(menu => {
+                    menu.classList.remove('active');
+                });
+            }
+        });
+    }
+
+    startEdit(element, type, taskId = null, columnId = null) {
+        // If transitioning, don't interfere
+        if (this.isTransitioning) return;
+        
+        // Save any current editor first
+        if (this.currentEditor && !this.isTransitioning) {
+            this.save();
+        }
+
+        // Get the appropriate elements based on type
+        let displayElement, editElement, containerElement;
+        
+        if (type === 'task-title') {
+            containerElement = element.closest('.task-item') || element;
+            displayElement = containerElement.querySelector('.task-title-display');
+            editElement = containerElement.querySelector('.task-title-edit');
+        } else if (type === 'task-description') {
+            containerElement = element.closest('.task-item') || element;
+            displayElement = containerElement.querySelector('.task-description-display');
+            editElement = containerElement.querySelector('.task-description-edit');
+            const placeholder = containerElement.querySelector('.task-description-placeholder');
+            if (placeholder) placeholder.style.display = 'none';
+        } else if (type === 'column-title') {
+            containerElement = element.closest('.kanban-column') || element;
+            displayElement = containerElement.querySelector('.column-title');
+            editElement = containerElement.querySelector('.column-title-edit');
+        }
+
+        if (!editElement) return;
+
+        // Show edit element, hide display
+        if (displayElement) displayElement.style.display = 'none';
+        editElement.style.display = 'block';
+        
+        // Auto-resize if textarea
+        this.autoResize(editElement);
+        
+        // Focus and position cursor at end
+        editElement.focus();
+        editElement.setSelectionRange(editElement.value.length, editElement.value.length);
+
+        // Store current editor info
+        this.currentEditor = {
+            element: editElement,
+            displayElement: displayElement,
+            type: type,
+            taskId: taskId || editElement.dataset.taskId,
+            columnId: columnId || editElement.dataset.columnId,
+            originalValue: editElement.value
+        };
+
+        // Set up input handler for auto-resize
+        editElement.oninput = () => this.autoResize(editElement);
+        
+        // Set up blur handler (but it won't fire during transitions)
+        editElement.onblur = () => {
+            if (!this.isTransitioning) {
+                this.save();
+            }
+        };
+    }
+
+    transitionToDescription() {
+        if (!this.currentEditor || this.currentEditor.type !== 'task-title') return;
+        
+        this.isTransitioning = true;
+        
+        const taskId = this.currentEditor.taskId;
+        const columnId = this.currentEditor.columnId;
+        const taskItem = this.currentEditor.element.closest('.task-item');
+        
+        // Save title without triggering blur
+        this.saveCurrentField();
+        
+        // Hide title editor
+        this.currentEditor.element.style.display = 'none';
+        if (this.currentEditor.displayElement) {
+            this.currentEditor.displayElement.style.display = 'block';
+        }
+        
+        // Clear current editor
+        this.currentEditor = null;
+        
+        // Start editing description after a brief delay
+        setTimeout(() => {
+            this.isTransitioning = false;
+            const descContainer = taskItem.querySelector('.task-description-container');
+            if (descContainer) {
+                this.startEdit(descContainer, 'task-description', taskId, columnId);
+            }
+        }, 10);
+    }
+
+    save() {
+        if (!this.currentEditor || this.isTransitioning) return;
+        
+        this.saveCurrentField();
+        this.closeEditor();
+    }
+
+    cancel() {
+        if (!this.currentEditor || this.isTransitioning) return;
+        
+        // Restore original value
+        this.currentEditor.element.value = this.currentEditor.originalValue;
+        this.closeEditor();
+    }
+
+    saveCurrentField() {
+        if (!this.currentEditor) return;
+        
+        const { element, type, taskId, columnId } = this.currentEditor;
+        const value = element.value;
+
+        // Update local state for immediate feedback
+        if (currentBoard && currentBoard.columns) {
+            if (type === 'column-title') {
+                const column = currentBoard.columns.find(c => c.id === columnId);
+                if (column) {
+                    column.title = value;
+                    if (this.currentEditor.displayElement) {
+                        this.currentEditor.displayElement.innerHTML = renderMarkdown(value);
+                    }
+                }
+                
+                // Send to extension
+                vscode.postMessage({
+                    type: 'editColumnTitle',
+                    columnId: columnId,
+                    title: value
+                });
+            } else if (type === 'task-title' || type === 'task-description') {
+                const column = currentBoard.columns.find(c => c.id === columnId);
+                const task = column?.tasks.find(t => t.id === taskId);
+                
+                if (task) {
+                    const field = type === 'task-title' ? 'title' : 'description';
+                    task[field] = value;
+                    
+                    if (this.currentEditor.displayElement) {
+                        if (value.trim()) {
+                            this.currentEditor.displayElement.innerHTML = renderMarkdown(value);
+                            this.currentEditor.displayElement.style.display = 'block';
+                        } else if (type === 'task-description') {
+                            this.currentEditor.displayElement.style.display = 'none';
+                            const placeholder = element.closest('.task-description-container')
+                                ?.querySelector('.task-description-placeholder');
+                            if (placeholder) placeholder.style.display = 'block';
+                        }
+                    }
+                }
+                
+                // Send to extension
+                vscode.postMessage({
+                    type: 'editTask',
+                    taskId: taskId,
+                    columnId: columnId,
+                    taskData: task
+                });
+            }
+        }
+    }
+
+    closeEditor() {
+        if (!this.currentEditor) return;
+        
+        const { element, displayElement, type } = this.currentEditor;
+        
+        // Hide edit element
+        element.style.display = 'none';
+        element.onblur = null;
+        element.oninput = null;
+        
+        // Show display element
+        if (displayElement) {
+            displayElement.style.display = 'block';
+        } else if (type === 'task-description') {
+            // Show placeholder if description is empty
+            const container = element.closest('.task-description-container');
+            const placeholder = container?.querySelector('.task-description-placeholder');
+            if (placeholder && !element.value.trim()) {
+                placeholder.style.display = 'block';
+            }
+        }
+        
+        this.currentEditor = null;
+    }
+
+    autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+}
+
+// Initialize the editor system
+const taskEditor = new TaskEditor();
+
+// Simplified edit trigger functions
+function editTitle(element, taskId, columnId) {
+    taskEditor.startEdit(element, 'task-title', taskId, columnId);
+}
+
+function editDescription(element, taskId, columnId) {
+    // Find the actual container if needed
+    const container = element.closest('.task-description-container') || element;
+    taskEditor.startEdit(container, 'task-description', taskId, columnId);
+}
+
+function editColumnTitle(columnId) {
+    const column = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (column && !column.classList.contains('collapsed')) {
+        taskEditor.startEdit(column, 'column-title', null, columnId);
+    }
+}
+
+// Simplified toggle functions
+function toggleColumnCollapse(columnId) {
+    const column = document.querySelector(`[data-column-id="${columnId}"]`);
+    const toggle = column.querySelector('.collapse-toggle');
+    
+    column.classList.toggle('collapsed');
+    toggle.classList.toggle('rotated');
+    
+    // Store state if needed
+    if (column.classList.contains('collapsed')) {
+        collapsedColumns.add(columnId);
+    } else {
+        collapsedColumns.delete(columnId);
+    }
+}
+
+function toggleTaskCollapse(taskId) {
+    const task = document.querySelector(`[data-task-id="${taskId}"]`);
+    const toggle = task.querySelector('.task-collapse-toggle');
+    
+    task.classList.toggle('collapsed');
+    toggle.classList.toggle('rotated');
+    
+    // Store state if needed
+    if (task.classList.contains('collapsed')) {
+        collapsedTasks.add(taskId);
+    } else {
+        collapsedTasks.delete(taskId);
+    }
+}
+
+function toggleDonutMenu(event, button) {
+    event.stopPropagation();
+    const menu = button.parentElement;
+    
+    // Close all other menus
+    document.querySelectorAll('.donut-menu.active').forEach(m => {
+        if (m !== menu) m.classList.remove('active');
+    });
+    
+    // Toggle this menu
+    menu.classList.toggle('active');
+}
 
 // Undo/Redo functions
 function undo() {
@@ -1117,80 +1385,6 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Column title editing
-function editColumnTitle(columnId) {
-    const column = document.querySelector(`[data-column-id="${columnId}"]`);
-    
-    // Don't allow editing if column is collapsed
-    if (column.classList.contains('collapsed')) {
-        return;
-    }
-    
-    const titleElement = column.querySelector('.column-title');
-    const editElement = column.querySelector('.column-title-edit');
-    const dragHandle = column.querySelector('.column-drag-handle');
-    
-    titleElement.style.display = 'none';
-    editElement.style.display = 'block';
-    dragHandle.draggable = false;
-    
-    editElement.focus();
-    // editElement.select();
-    
-    // Store reference to active editor
-    activeTextEditor = {
-        type: 'column-title',
-        columnId: columnId,
-        element: editElement
-    };
-    
-    const saveTitle = () => {
-        const newTitle = editElement.value.trim();
-        if (newTitle) {
-            vscode.postMessage({
-                type: 'editColumnTitle',
-                columnId: columnId,
-                title: newTitle
-            });
-            
-            // Update local state for immediate visual feedback
-            if (currentBoard && currentBoard.columns) {
-                const col = currentBoard.columns.find(c => c.id === columnId);
-                if (col) {
-                    col.title = newTitle;
-                    titleElement.innerHTML = renderMarkdown(newTitle);
-                }
-            }
-        }
-        
-        titleElement.style.display = 'block';
-        editElement.style.display = 'none';
-        dragHandle.draggable = true;
-        activeTextEditor = null;
-    };
-    
-    const cancelEdit = () => {
-        const currentTitle = currentBoard && currentBoard.columns ? 
-            currentBoard.columns.find(c => c.id === columnId)?.title || '' : '';
-        editElement.value = currentTitle;
-        titleElement.style.display = 'block';
-        editElement.style.display = 'none';
-        dragHandle.draggable = true;
-        activeTextEditor = null;
-    };
-    
-    editElement.onblur = saveTitle;
-    editElement.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            saveTitle();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            cancelEdit();
-        }
-    };
-}
-
 // Column operations
 function insertColumnBefore(columnId) {
     showInputModal(
@@ -1422,200 +1616,9 @@ function addColumn() {
     });
 }
 
-// Edit functions with improved scroll stability
-function editTitle(element, taskId = null, columnId = null) {
-    if (!taskId) {
-        taskId = element.dataset.taskId || element.closest('.task-item').dataset.taskId;
-    }
-    if (!columnId) {
-        columnId = element.dataset.columnId || element.closest('.task-item').dataset.columnId;
-    }
-    
-    const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
-    const displayDiv = taskItem.querySelector('.task-title-display');
-    const editTextarea = taskItem.querySelector('.task-title-edit');
-    
-    const scrollContainer = taskItem.closest('.tasks-container');
-    const beforeEditOffset = taskItem.offsetTop - scrollContainer.scrollTop;
-    
-    displayDiv.style.display = 'none';
-    editTextarea.style.display = 'block';
-    autoResize(editTextarea);
-    editTextarea.focus();
-    // editTextarea.select();
-    
-    // Store reference to active editor
-    activeTextEditor = {
-        type: 'task-title',
-        taskId: taskId,
-        columnId: columnId,
-        element: editTextarea
-    };
-    
-    requestAnimationFrame(() => {
-        const newScrollTop = taskItem.offsetTop - beforeEditOffset;
-        scrollContainer.scrollTop = newScrollTop;
-    });
-    
-    const saveAndHide = () => {
-        const beforeSaveOffset = taskItem.offsetTop - scrollContainer.scrollTop;
-        
-        saveTaskFieldAndUpdateDisplay(editTextarea);
-        editTextarea.style.display = 'none';
-        displayDiv.style.display = 'block';
-        activeTextEditor = null;
-        
-        requestAnimationFrame(() => {
-            const newScrollTop = taskItem.offsetTop - beforeSaveOffset;
-            scrollContainer.scrollTop = newScrollTop;
-        });
-    };
-    
-    const cancelEdit = () => {
-        const beforeCancelOffset = taskItem.offsetTop - scrollContainer.scrollTop;
-        
-        editTextarea.style.display = 'none';
-        displayDiv.style.display = 'block';
-        activeTextEditor = null;
-        
-        requestAnimationFrame(() => {
-            const newScrollTop = taskItem.offsetTop - beforeCancelOffset;
-            scrollContainer.scrollTop = newScrollTop;
-        });
-    };
-    
-    editTextarea.onblur = saveAndHide;
-    editTextarea.onkeydown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            saveAndHide();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            cancelEdit();
-        }
-    };
-    
-    editTextarea.oninput = () => autoResize(editTextarea);
-}
-
-function editDescription(element, taskId = null, columnId = null) {
-    if (!taskId) {
-        taskId = element.dataset.taskId || element.closest('.task-item').dataset.taskId;
-    }
-    if (!columnId) {
-        columnId = element.dataset.columnId || element.closest('.task-item').dataset.columnId;
-    }
-    
-    const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
-    const displayDiv = taskItem.querySelector('.task-description-display');
-    const editTextarea = taskItem.querySelector('.task-description-edit');
-    const placeholder = taskItem.querySelector('.task-description-placeholder');
-    
-    const scrollContainer = taskItem.closest('.tasks-container');
-    const beforeEditOffset = taskItem.offsetTop - scrollContainer.scrollTop;
-    
-    if (displayDiv) displayDiv.style.display = 'none';
-    if (placeholder) placeholder.style.display = 'none';
-    
-    editTextarea.style.display = 'block';
-    autoResize(editTextarea);
-    editTextarea.focus();
-    
-    // Store reference to active editor
-    activeTextEditor = {
-        type: 'task-description',
-        taskId: taskId,
-        columnId: columnId,
-        element: editTextarea
-    };
-    
-    requestAnimationFrame(() => {
-        const newScrollTop = taskItem.offsetTop - beforeEditOffset;
-        scrollContainer.scrollTop = newScrollTop;
-    });
-    
-    const saveAndHide = () => {
-        const beforeSaveOffset = taskItem.offsetTop - scrollContainer.scrollTop;
-        
-        saveTaskFieldAndUpdateDisplay(editTextarea);
-        editTextarea.style.display = 'none';
-        activeTextEditor = null;
-        
-        requestAnimationFrame(() => {
-            const newTaskItem = document.querySelector(`[data-task-id="${taskId}"]`);
-            const newScrollContainer = newTaskItem?.closest('.tasks-container');
-            
-            if (newTaskItem && newScrollContainer) {
-                const newScrollTop = newTaskItem.offsetTop - beforeSaveOffset;
-                newScrollContainer.scrollTop = newScrollTop;
-            }
-        });
-    };
-    
-    const cancelEdit = () => {
-        const beforeCancelOffset = taskItem.offsetTop - scrollContainer.scrollTop;
-        
-        editTextarea.style.display = 'none';
-        if (editTextarea.value.trim()) {
-            displayDiv.style.display = 'block';
-        } else {
-            placeholder.style.display = 'block';
-        }
-        activeTextEditor = null;
-        
-        requestAnimationFrame(() => {
-            const newScrollTop = taskItem.offsetTop - beforeCancelOffset;
-            scrollContainer.scrollTop = newScrollTop;
-        });
-    };
-    
-    editTextarea.onblur = saveAndHide;
-    editTextarea.onkeydown = (e) => {
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            cancelEdit();
-        }
-    };
-    
-    editTextarea.oninput = () => autoResize(editTextarea);
-}
-
 function autoResize(textarea) {
     textarea.style.height = 'auto';
     textarea.style.height = textarea.scrollHeight + 'px';
-}
-
-function saveTaskFieldAndUpdateDisplay(textarea) {
-    const taskId = textarea.dataset.taskId;
-    const columnId = textarea.dataset.columnId;
-    const field = textarea.dataset.field;
-    const value = textarea.value;
-
-    if (!taskId || !columnId || !field) return;
-
-    // Update local state for immediate visual feedback
-    if (currentBoard && currentBoard.columns) {
-        const column = currentBoard.columns.find(col => col.id === columnId);
-        const task = column?.tasks.find(t => t.id === taskId);
-        
-        if (task) {
-            task[field] = value;
-        }
-    }
-
-    // No need to update display divs - the textarea IS the display!
-    
-    // Send update to extension
-    const column = currentBoard?.columns?.find(col => col.id === columnId);
-    const task = column?.tasks?.find(t => t.id === taskId) || { title: '', description: '' };
-    
-    const taskData = { ...task, [field]: value };
-    vscode.postMessage({
-        type: 'editTask',
-        taskId: taskId,
-        columnId: columnId,
-        taskData: taskData
-    });
 }
 
 function renderMarkdown(text) {
