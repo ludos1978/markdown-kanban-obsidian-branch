@@ -274,7 +274,99 @@ export class KanbanWebviewPanel {
         }, 10);
     }
 
+    // Helper methods for drag and drop
+    private _getRelativePath(filePath: string): string {
+        if (!this._document) {
+            return filePath;
+        }
+        
+        const documentDir = path.dirname(this._document.uri.fsPath);
+        const relativePath = path.relative(documentDir, filePath);
+        
+        // Convert backslashes to forward slashes for markdown compatibility
+        return relativePath.replace(/\\/g, '/');
+    }
+
+    private _isImageFile(fileName: string): boolean {
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.bmp', '.webp'];
+        const ext = path.extname(fileName).toLowerCase();
+        return imageExtensions.includes(ext);
+    }
+
+    private async _handleFileDrop(message: any) {
+        try {
+            const { fileName, dropPosition, activeEditor } = message;
+            
+            // For files dropped from explorer, we need to find the actual file
+            // This is a limitation - we can't easily get the full path from just the filename
+            // In a real implementation, VS Code would provide better drag/drop APIs
+            
+            vscode.window.showInformationMessage(`File dropped: ${fileName}. Please use "Insert Link" from the file explorer context menu for now.`);
+            
+        } catch (error) {
+            console.error('Error handling file drop:', error);
+            vscode.window.showErrorMessage(`Failed to handle file drop: ${error}`);
+        }
+    }
+
+    private async _handleUriDrop(message: any) {
+        try {
+            console.log('_handleUriDrop called with:', message);
+            const { uris, dropPosition, activeEditor } = message;
+            
+            for (const uriString of uris) {
+                console.log('Processing URI:', uriString);
+                
+                let uri: vscode.Uri;
+                try {
+                    // Handle both file:// URIs and regular paths
+                    if (uriString.startsWith('file://')) {
+                        uri = vscode.Uri.parse(uriString);
+                    } else {
+                        // Try to parse as a file path
+                        uri = vscode.Uri.file(uriString);
+                    }
+                } catch (parseError) {
+                    console.error('Failed to parse URI:', uriString, parseError);
+                    continue;
+                }
+                
+                console.log('Parsed URI:', uri.toString());
+                console.log('File path:', uri.fsPath);
+                
+                const fileName = path.basename(uri.fsPath);
+                const relativePath = this._getRelativePath(uri.fsPath);
+                const isImage = this._isImageFile(fileName);
+                
+                console.log('File info - Name:', fileName, 'Relative:', relativePath, 'IsImage:', isImage);
+                
+                const fileInfo = {
+                    fileName,
+                    relativePath,
+                    isImage,
+                    activeEditor,
+                    dropPosition
+                };
+                
+                // Send back to webview to insert the link
+                console.log('Sending insertFileLink message back to webview');
+                this._panel.webview.postMessage({
+                    type: 'insertFileLink',
+                    fileInfo: fileInfo
+                });
+                
+                break; // Only handle the first file for now
+            }
+            
+        } catch (error) {
+            console.error('Error handling URI drop:', error);
+            vscode.window.showErrorMessage(`Failed to handle URI drop: ${error}`);
+        }
+    }
+
     private _handleMessage(message: any) {
+        console.log('KanbanWebviewPanel received message:', message.type, message);
+        
         switch (message.type) {
             // Undo/Redo operations
             case 'undo':
@@ -290,6 +382,17 @@ export class KanbanWebviewPanel {
                 this._sendFileInfo();
                 this._sendUndoRedoStatus();
                 break;
+
+            // Drag and drop operations
+            case 'handleFileDrop':
+                console.log('Handling file drop message');
+                this._handleFileDrop(message);
+                break;
+            case 'handleUriDrop':
+                console.log('Handling URI drop message');
+                this._handleUriDrop(message);
+                break;
+                
             // File management
             case 'toggleFileLock':
                 this.toggleFileLock();
@@ -312,6 +415,7 @@ export class KanbanWebviewPanel {
                 this.moveTask(message.taskId, message.fromColumnId, message.toColumnId, message.newIndex);
                 break;
             case 'addTask':
+                console.log('Adding task:', message.columnId, message.taskData);
                 this.addTask(message.columnId, message.taskData);
                 break;
             case 'deleteTask':

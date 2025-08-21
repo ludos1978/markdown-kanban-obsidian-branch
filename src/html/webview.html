@@ -116,6 +116,36 @@
         /* Adjust kanban container to account for file bar */
         #kanban-container {
             margin: var(--whitespace) calc(var(--whitespace) + 2px) var(--whitespace) calc(var(--whitespace) + 2px);
+            min-height: calc(100vh - 120px);
+            position: relative;
+        }
+
+        /* Drop zone feedback */
+        .drop-zone-feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--vscode-editor-background);
+            border: 2px dashed var(--vscode-focusBorder);
+            border-radius: 12px;
+            padding: 24px 32px;
+            font-size: 18px;
+            color: var(--vscode-foreground);
+            z-index: 10000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .drop-zone-feedback.active {
+            opacity: 1;
+        }
+
+        .drop-zone-feedback::before {
+            content: "📎";
+            margin-right: 8px;
         }
     </style>
 </head>
@@ -144,6 +174,11 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- Drop zone feedback -->
+    <div id="drop-zone-feedback" class="drop-zone-feedback">
+        Drop files here to create links
     </div>
 
     <div id="kanban-container">

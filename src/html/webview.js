@@ -12,6 +12,9 @@ let currentFileInfo = null;
 let canUndo = false;
 let canRedo = false;
 
+// Track currently active text editor for drag/drop
+let activeTextEditor = null;
+
 // Initialize with sample data for testing
 if (typeof acquireVsCodeApi === 'undefined') {
     currentBoard = {
@@ -63,6 +66,10 @@ window.addEventListener('message', event => {
             canRedo = message.canRedo;
             updateUndoRedoButtons();
             break;
+        case 'insertFileLink':
+            console.log('Insert file link:', message.fileInfo); // Debug log
+            insertFileLink(message.fileInfo);
+            break;
     }
 });
 
@@ -80,6 +87,9 @@ window.addEventListener('DOMContentLoaded', () => {
             vscode.postMessage({ type: 'requestFileInfo' });
         }
     }, 100);
+    
+    // Setup drag and drop
+    setupDragAndDrop();
 });
 
 // Also request update when window becomes visible again
@@ -142,6 +152,354 @@ function updateUndoRedoButtons() {
     if (redoBtn) {
         redoBtn.disabled = !canRedo;
         redoBtn.style.opacity = canRedo ? '1' : '0.5';
+    }
+}
+
+// Drag and Drop Setup
+function setupGlobalDragAndDrop() {
+    const boardContainer = document.getElementById('kanban-container');
+    const dropFeedback = document.getElementById('drop-zone-feedback');
+    
+    console.log('Setting up global drag and drop...');
+    
+    // Prevent default drag behaviors on the entire board
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        boardContainer.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    // Show drop zone feedback
+    ['dragenter', 'dragover'].forEach(eventName => {
+        boardContainer.addEventListener(eventName, showDropFeedback, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        boardContainer.addEventListener(eventName, hideDropFeedback, false);
+    });
+    
+    // Also handle at document level to catch drags from outside
+    document.addEventListener('dragenter', (e) => {
+        console.log('Document dragenter, types:', e.dataTransfer?.types);
+        // Only show feedback if dragging files from outside
+        if (e.dataTransfer && (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('text/uri-list'))) {
+            showDropFeedback(e);
+        }
+    });
+    
+    document.addEventListener('dragleave', (e) => {
+        // Hide when leaving the document
+        if (!document.body.contains(e.relatedTarget)) {
+            hideDropFeedback(e);
+        }
+    });
+    
+    function showDropFeedback(e) {
+        console.log('Showing drop feedback');
+        if (dropFeedback) {
+            dropFeedback.classList.add('active');
+            boardContainer.classList.add('drag-highlight');
+        }
+    }
+    
+    function hideDropFeedback(e) {
+        console.log('Hiding drop feedback');
+        if (dropFeedback) {
+            dropFeedback.classList.remove('active');
+            boardContainer.classList.remove('drag-highlight');
+        }
+    }
+    
+    // Handle dropped files
+    boardContainer.addEventListener('drop', handleFileDrop, false);
+    document.addEventListener('drop', handleFileDrop, false);
+    
+    function handleFileDrop(e) {
+        console.log('File drop detected!');
+        hideDropFeedback(e);
+        
+        const dt = e.dataTransfer;
+        console.log('DataTransfer types:', dt.types);
+        console.log('DataTransfer files length:', dt.files.length);
+        
+        // Check all available data
+        for (let i = 0; i < dt.types.length; i++) {
+            const type = dt.types[i];
+            const data = dt.getData(type);
+            console.log(`DataTransfer[${type}]:`, data);
+        }
+        
+        const files = dt.files;
+        
+        // Check if it's an internal drag (task or column) - be more specific
+        const taskId = dt.getData('text/plain');
+        const columnId = dt.getData('application/column-id');
+        
+        // Only skip if we have task/column specific data
+        if ((taskId && taskId.includes('task_')) || (columnId && columnId.includes('col_'))) {
+            console.log('Internal drag detected, skipping file drop handling');
+            return;
+        }
+        
+        if (files && files.length > 0) {
+            console.log('Handling file drop with', files.length, 'files');
+            // Handle VS Code file drops
+            handleVSCodeFileDrop(e, files);
+        } else {
+            // Check for VS Code internal drag data
+            const uriList = dt.getData('text/uri-list');
+            const textPlain = dt.getData('text/plain');
+            console.log('URI list:', uriList);
+            console.log('Text plain:', textPlain);
+            
+            if (uriList) {
+                console.log('Handling URI list drop');
+                handleVSCodeUriDrop(e, uriList);
+            } else if (textPlain && (textPlain.startsWith('file://') || textPlain.includes('/'))) {
+                console.log('Handling text plain as URI');
+                handleVSCodeUriDrop(e, textPlain);
+            } else {
+                console.log('No file data found in drop');
+            }
+        }
+    }
+}
+
+function handleVSCodeFileDrop(e, files) {
+    console.log('handleVSCodeFileDrop called with', files.length, 'files');
+    const file = files[0];
+    const fileName = file.name;
+    
+    console.log('File name:', fileName);
+    console.log('File type:', file.type);
+    console.log('File size:', file.size);
+    
+    // Try to get file path from file object (limited in browser)
+    // This approach has limitations, so we'll create a simple relative path
+    const isImage = fileName.match(/\.(jpg|jpeg|png|gif|svg|bmp|webp)$/i);
+    
+    console.log('Is image:', isImage);
+    
+    // Create a simple file link since we can't get the full path in browser
+    const fileInfo = {
+        fileName: fileName,
+        relativePath: `./${fileName}`, // Simple relative path
+        isImage: !!isImage,
+        activeEditor: getActiveTextEditor(),
+        dropPosition: {
+            x: e.clientX,
+            y: e.clientY
+        }
+    };
+    
+    console.log('Created fileInfo:', fileInfo);
+    
+    // For browser-based file drops, we can't get the actual VS Code file path
+    // So let's insert the link directly
+    insertFileLink(fileInfo);
+}
+
+function handleVSCodeUriDrop(e, uriData) {
+    console.log('handleVSCodeUriDrop called with:', uriData);
+    
+    // Parse URI data from VS Code
+    const uris = uriData.split('\n').filter(uri => uri.trim()).filter(uri => {
+        // Filter out non-file URIs and internal drag data
+        const isFile = uri.startsWith('file://') || (uri.includes('/') && !uri.includes('task_') && !uri.includes('col_'));
+        console.log('URI:', uri, 'isFile:', isFile);
+        return isFile;
+    });
+    
+    console.log('Filtered URIs:', uris);
+    
+    if (uris.length > 0) {
+        console.log('Sending handleUriDrop message to extension');
+        vscode.postMessage({
+            type: 'handleUriDrop',
+            uris: uris,
+            dropPosition: {
+                x: e.clientX,
+                y: e.clientY
+            },
+            activeEditor: getActiveTextEditor()
+        });
+    } else {
+        console.log('No valid URIs found, trying direct file creation');
+        // Fallback: try to extract filename from the data
+        let fileName = uriData;
+        if (fileName.includes('/')) {
+            fileName = fileName.split('/').pop();
+        }
+        if (fileName.includes('\\')) {
+            fileName = fileName.split('\\').pop();
+        }
+        
+        if (fileName && fileName.length > 0) {
+            const isImage = fileName.match(/\.(jpg|jpeg|png|gif|svg|bmp|webp)$/i);
+            const fileInfo = {
+                fileName: fileName,
+                relativePath: `./${fileName}`,
+                isImage: !!isImage,
+                activeEditor: getActiveTextEditor(),
+                dropPosition: {
+                    x: e.clientX,
+                    y: e.clientY
+                }
+            };
+            
+            console.log('Fallback fileInfo:', fileInfo);
+            insertFileLink(fileInfo);
+        }
+    }
+}
+
+function getActiveTextEditor() {
+    // Check if we're currently editing a text field
+    const activeElement = document.activeElement;
+    
+    if (activeElement && (
+        activeElement.classList.contains('task-title-edit') ||
+        activeElement.classList.contains('task-description-edit') ||
+        activeElement.classList.contains('column-title-edit')
+    )) {
+        return {
+            type: activeElement.classList.contains('column-title-edit') ? 'column-title' : 
+                  activeElement.classList.contains('task-title-edit') ? 'task-title' : 'task-description',
+            taskId: activeElement.dataset.taskId,
+            columnId: activeElement.dataset.columnId,
+            cursorPosition: activeElement.selectionStart || 0,
+            element: activeElement
+        };
+    }
+    
+    // Also check if we have a stored reference
+    if (activeTextEditor && activeTextEditor.element && 
+        document.contains(activeTextEditor.element) && 
+        activeTextEditor.element.style.display !== 'none') {
+        return {
+            ...activeTextEditor,
+            cursorPosition: activeTextEditor.element.selectionStart || 0
+        };
+    }
+    
+    return null;
+}
+
+function insertFileLink(fileInfo) {
+    const { fileName, relativePath, isImage } = fileInfo;
+    let activeEditor = fileInfo.activeEditor || getActiveTextEditor();
+    
+    // Create appropriate markdown link
+    let markdownLink;
+    if (isImage) {
+        // For images, use image syntax
+        const altText = fileName.split('.')[0]; // filename without extension
+        markdownLink = `![${altText}](${relativePath})`;
+    } else {
+        // For other files, use link syntax
+        markdownLink = `[${fileName}](${relativePath})`;
+    }
+    
+    if (activeEditor && activeEditor.element && 
+        document.contains(activeEditor.element) && 
+        activeEditor.element.style.display !== 'none') {
+        // Insert at current cursor position
+        const element = activeEditor.element;
+        const cursorPos = element.selectionStart || activeEditor.cursorPosition || 0;
+        const currentValue = element.value;
+        
+        const newValue = currentValue.slice(0, cursorPos) + markdownLink + currentValue.slice(cursorPos);
+        element.value = newValue;
+        
+        // Update cursor position
+        const newCursorPos = cursorPos + markdownLink.length;
+        element.setSelectionRange(newCursorPos, newCursorPos);
+        
+        // Trigger input event to auto-resize if needed
+        element.dispatchEvent(new Event('input'));
+        if (typeof autoResize === 'function') {
+            autoResize(element);
+        }
+        
+        // Focus back on the element
+        element.focus();
+        
+        // Save the changes immediately
+        setTimeout(() => {
+            if (element.classList.contains('task-title-edit') || element.classList.contains('task-description-edit')) {
+                saveTaskFieldAndUpdateDisplay(element);
+            } else if (element.classList.contains('column-title-edit')) {
+                // Trigger save for column title
+                element.blur();
+            }
+        }, 50);
+        
+        vscode.postMessage({ type: 'showMessage', text: `Inserted ${isImage ? 'image' : 'file'} link: ${fileName}` });
+    } else {
+        // Create new task with the file link
+        createNewTaskWithContent(markdownLink, fileInfo.dropPosition);
+        vscode.postMessage({ type: 'showMessage', text: `Created new task with ${isImage ? 'image' : 'file'} link: ${fileName}` });
+    }
+}
+
+function createNewTaskWithContent(content, dropPosition) {
+    console.log('createNewTaskWithContent called with:', content, dropPosition);
+    
+    // Find the nearest column to the drop position
+    const columns = document.querySelectorAll('.kanban-column');
+    let targetColumnId = null;
+    let minDistance = Infinity;
+    
+    console.log('Found', columns.length, 'columns');
+    
+    columns.forEach(column => {
+        const rect = column.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const distance = Math.abs(centerX - dropPosition.x);
+        
+        console.log('Column', column.dataset.columnId, 'distance:', distance);
+        
+        if (distance < minDistance) {
+            minDistance = distance;
+            targetColumnId = column.dataset.columnId;
+        }
+    });
+    
+    // Default to first column if no suitable column found
+    if (!targetColumnId && currentBoard && currentBoard.columns.length > 0) {
+        targetColumnId = currentBoard.columns[0].id;
+        console.log('Using first column as fallback:', targetColumnId);
+    }
+    
+    console.log('Target column ID:', targetColumnId);
+    
+    if (targetColumnId) {
+        // Create task with the content as title
+        const taskData = {
+            title: content,
+            description: ''
+        };
+        
+        console.log('Sending addTask message:', taskData);
+        
+        vscode.postMessage({
+            type: 'addTask',
+            columnId: targetColumnId,
+            taskData: taskData
+        });
+        
+        // Show success message
+        console.log('Task creation message sent successfully');
+    } else {
+        console.error('No target column found for task creation');
+        vscode.postMessage({ 
+            type: 'showMessage', 
+            text: 'Error: Could not find a column to create the task in.' 
+        });
     }
 }
 
@@ -469,6 +827,13 @@ function editColumnTitle(columnId) {
     editElement.focus();
     editElement.select();
     
+    // Store reference to active editor
+    activeTextEditor = {
+        type: 'column-title',
+        columnId: columnId,
+        element: editElement
+    };
+    
     const saveTitle = () => {
         const newTitle = editElement.value.trim();
         if (newTitle) {
@@ -491,6 +856,7 @@ function editColumnTitle(columnId) {
         titleElement.style.display = 'block';
         editElement.style.display = 'none';
         dragHandle.draggable = true;
+        activeTextEditor = null;
     };
     
     const cancelEdit = () => {
@@ -500,6 +866,7 @@ function editColumnTitle(columnId) {
         titleElement.style.display = 'block';
         editElement.style.display = 'none';
         dragHandle.draggable = true;
+        activeTextEditor = null;
     };
     
     editElement.onblur = saveTitle;
@@ -767,6 +1134,14 @@ function editTitle(element, taskId = null, columnId = null) {
     editTextarea.focus();
     editTextarea.select();
     
+    // Store reference to active editor
+    activeTextEditor = {
+        type: 'task-title',
+        taskId: taskId,
+        columnId: columnId,
+        element: editTextarea
+    };
+    
     requestAnimationFrame(() => {
         const newScrollTop = taskItem.offsetTop - beforeEditOffset;
         scrollContainer.scrollTop = newScrollTop;
@@ -778,6 +1153,7 @@ function editTitle(element, taskId = null, columnId = null) {
         saveTaskFieldAndUpdateDisplay(editTextarea);
         editTextarea.style.display = 'none';
         displayDiv.style.display = 'block';
+        activeTextEditor = null;
         
         requestAnimationFrame(() => {
             const newScrollTop = taskItem.offsetTop - beforeSaveOffset;
@@ -790,6 +1166,7 @@ function editTitle(element, taskId = null, columnId = null) {
         
         editTextarea.style.display = 'none';
         displayDiv.style.display = 'block';
+        activeTextEditor = null;
         
         requestAnimationFrame(() => {
             const newScrollTop = taskItem.offsetTop - beforeCancelOffset;
@@ -834,6 +1211,14 @@ function editDescription(element, taskId = null, columnId = null) {
     autoResize(editTextarea);
     editTextarea.focus();
     
+    // Store reference to active editor
+    activeTextEditor = {
+        type: 'task-description',
+        taskId: taskId,
+        columnId: columnId,
+        element: editTextarea
+    };
+    
     requestAnimationFrame(() => {
         const newScrollTop = taskItem.offsetTop - beforeEditOffset;
         scrollContainer.scrollTop = newScrollTop;
@@ -844,6 +1229,7 @@ function editDescription(element, taskId = null, columnId = null) {
         
         saveTaskFieldAndUpdateDisplay(editTextarea);
         editTextarea.style.display = 'none';
+        activeTextEditor = null;
         
         requestAnimationFrame(() => {
             const newTaskItem = document.querySelector(`[data-task-id="${taskId}"]`);
@@ -865,6 +1251,7 @@ function editDescription(element, taskId = null, columnId = null) {
         } else {
             placeholder.style.display = 'block';
         }
+        activeTextEditor = null;
         
         requestAnimationFrame(() => {
             const newScrollTop = taskItem.offsetTop - beforeCancelOffset;
@@ -970,6 +1357,7 @@ function renderMarkdown(text) {
 
 // Drag and drop setup
 function setupDragAndDrop() {
+    setupGlobalDragAndDrop();
     setupColumnDragAndDrop();
     setupTaskDragAndDrop();
 }
@@ -1245,3 +1633,25 @@ function toggleFileLock() {
 function selectFile() {
     vscode.postMessage({ type: 'selectFile' });
 }
+
+// Debug function to test task creation
+function testTaskCreation() {
+    console.log('Testing task creation...');
+    if (currentBoard && currentBoard.columns.length > 0) {
+        const testFileInfo = {
+            fileName: 'test-image.jpg',
+            relativePath: './test-image.jpg',
+            isImage: true,
+            activeEditor: null,
+            dropPosition: { x: 300, y: 300 }
+        };
+        
+        console.log('Creating test task with:', testFileInfo);
+        insertFileLink(testFileInfo);
+    } else {
+        console.log('No board or columns available for test');
+    }
+}
+
+// Make test function globally available for debugging
+window.testTaskCreation = testTaskCreation;

@@ -748,6 +748,31 @@ button.donut-menu-item {
     right: -4px;
 }
 
+/* Global drag and drop highlighting */
+#kanban-container.drag-highlight {
+    background-color: rgba(0, 122, 204, 0.1);
+    border: 2px dashed var(--vscode-focusBorder);
+    border-radius: 8px;
+    position: relative;
+}
+
+#kanban-container.drag-highlight::before {
+    content: '📎 Drop files here';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--vscode-editor-background);
+    padding: 16px 24px;
+    border-radius: 8px;
+    border: 1px solid var(--vscode-focusBorder);
+    font-size: 16px;
+    color: var(--vscode-foreground);
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
 /* Markdown content styles */
 .markdown-content {
     word-wrap: break-word;
@@ -830,3 +855,80 @@ button.donut-menu-item {
 .markdown-content h5 { font-size: 1em; }
 .markdown-content h6 { font-size: 0.9em; }
 
+/* Image and file link styles for embedded content */
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 8px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid var(--vscode-panel-border);
+}
+
+/* Specific sizing for images in task titles vs descriptions */
+.task-title-container .markdown-content img {
+    max-width: 100%;
+    max-height: 60px;
+    margin: 2px 0;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.task-description-container .markdown-content img {
+    max-width: 100%;
+    max-height: 200px;
+    margin: 8px 0;
+    display: block;
+}
+
+/* File links styling */
+.markdown-content a[href$=".pdf"],
+.markdown-content a[href$=".doc"],
+.markdown-content a[href$=".docx"],
+.markdown-content a[href$=".txt"],
+.markdown-content a[href$=".zip"],
+.markdown-content a[href$=".rar"] {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border-radius: 4px;
+    text-decoration: none;
+    margin: 2px;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+
+.markdown-content a[href$=".pdf"]:hover,
+.markdown-content a[href$=".doc"]:hover,
+.markdown-content a[href$=".docx"]:hover,
+.markdown-content a[href$=".txt"]:hover,
+.markdown-content a[href$=".zip"]:hover,
+.markdown-content a[href$=".rar"]:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Add file type icons */
+.markdown-content a[href$=".pdf"]::before { content: "📄 "; }
+.markdown-content a[href$=".doc"]::before,
+.markdown-content a[href$=".docx"]::before { content: "📝 "; }
+.markdown-content a[href$=".txt"]::before { content: "📄 "; }
+.markdown-content a[href$=".zip"]::before,
+.markdown-content a[href$=".rar"]::before { content: "📦 "; }
+.markdown-content a[href$=".jpg"]::before,
+.markdown-content a[href$=".jpeg"]::before,
+.markdown-content a[href$=".png"]::before,
+.markdown-content a[href$=".gif"]::before,
+.markdown-content a[href$=".svg"]::before { content: "🖼️ "; }
+
+/* Responsive image handling */
+@media (max-width: 768px) {
+    .task-description-container .markdown-content img {
+        max-height: 150px;
+    }
+    
+    .task-title-container .markdown-content img {
+        max-height: 40px;
+    }
+}
