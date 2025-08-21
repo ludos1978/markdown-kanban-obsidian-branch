@@ -1785,7 +1785,6 @@ function renderMarkdown(text) {
 }
 
 function setupLinkHandling() {
-    // Add click handlers to all links in markdown content
     document.addEventListener('click', (e) => {
         const link = e.target.closest('a[href]');
         if (!link) return;
@@ -1799,8 +1798,8 @@ function setupLinkHandling() {
             return;
         }
         
-        // Check if it's a file link (relative or absolute path)
-        if (href.includes('.') || href.startsWith('/') || href.startsWith('./') || href.startsWith('../') || href.startsWith('file://')) {
+        // Check if it's a file link
+        if (isFileLink(href)) {
             e.preventDefault(); // Prevent default browser behavior
             
             // Send to extension to handle file opening
@@ -1816,6 +1815,36 @@ function setupLinkHandling() {
     });
 }
 
+function isFileLink(href) {
+    // External URLs - not files
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+        return false;
+    }
+    
+    // Explicit file protocols
+    if (href.startsWith('file://')) {
+        return true;
+    }
+    
+    // Path-based indicators
+    if (href.startsWith('/') || href.startsWith('./') || href.startsWith('../')) {
+        return true;
+    }
+    
+    // Check if it looks like a filename (has a file extension)
+    const hasFileExtension = /\.[a-zA-Z0-9]{1,6}$/.test(href);
+    if (hasFileExtension) {
+        return true;
+    }
+    
+    // Check for common file patterns (even without extension)
+    const filePatterns = [
+        /^[^\/\s]+\.(md|txt|pdf|doc|docx|jpg|jpeg|png|gif|svg|html|css|js|json|xml|csv)$/i,
+        /^[^\/\s]+$/ // Bare name without spaces or slashes - could be a file
+    ];
+    
+    return filePatterns.some(pattern => pattern.test(href));
+}
 
 // Track pending image conversions
 let pendingImageConversions = new Map();

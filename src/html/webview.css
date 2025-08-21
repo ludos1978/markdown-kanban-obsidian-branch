@@ -348,10 +348,6 @@ button.donut-menu-item {
     z-index: 50;
 }
 
-/* Task Styles */
-.tasks-container {
-}
-
 .task-item {
     background-color: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
