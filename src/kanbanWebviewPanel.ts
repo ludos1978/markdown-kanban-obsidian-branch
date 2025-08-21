@@ -295,13 +295,30 @@ export class KanbanWebviewPanel {
 
     private async _handleFileDrop(message: any) {
         try {
+            console.log('_handleFileDrop called with:', message);
             const { fileName, dropPosition, activeEditor } = message;
             
-            // For files dropped from explorer, we need to find the actual file
-            // This is a limitation - we can't easily get the full path from just the filename
-            // In a real implementation, VS Code would provide better drag/drop APIs
+            // Since we can't get the actual file path from a browser file drop,
+            // we'll create a simple relative path
+            const isImage = this._isImageFile(fileName);
+            const relativePath = `./${fileName}`;
             
-            vscode.window.showInformationMessage(`File dropped: ${fileName}. Please use "Insert Link" from the file explorer context menu for now.`);
+            console.log('File info - Name:', fileName, 'Relative:', relativePath, 'IsImage:', isImage);
+            
+            const fileInfo = {
+                fileName,
+                relativePath,
+                isImage,
+                activeEditor,
+                dropPosition
+            };
+            
+            // Send back to webview to insert the link
+            console.log('Sending insertFileLink message back to webview');
+            this._panel.webview.postMessage({
+                type: 'insertFileLink',
+                fileInfo: fileInfo
+            });
             
         } catch (error) {
             console.error('Error handling file drop:', error);

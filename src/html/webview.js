@@ -14,6 +14,9 @@ let canRedo = false;
 
 // Track currently active text editor for drag/drop
 let activeTextEditor = null;
+// Track if drag/drop is already set up to prevent multiple listeners
+let dragDropInitialized = false;
+let isProcessingDrop = false; // Prevent multiple simultaneous drops
 
 // Initialize with sample data for testing
 if (typeof acquireVsCodeApi === 'undefined') {
@@ -53,7 +56,7 @@ window.addEventListener('message', event => {
         case 'updateBoard':
             console.log('Updating board with:', message.board); // Debug log
             currentBoard = message.board;
-            renderBoard();
+            debouncedRenderBoard(); // Use debounced render
             break;
         case 'updateFileInfo':
             console.log('Updating file info with:', message.fileInfo); // Debug log
@@ -222,6 +225,12 @@ function setupGlobalDragAndDrop() {
         console.log('File drop detected!');
         hideDropFeedback(e);
         
+        // Prevent multiple simultaneous drops
+        if (isProcessingDrop) {
+            console.log('Already processing a drop, ignoring this one');
+            return;
+        }
+        
         const dt = e.dataTransfer;
         console.log('DataTransfer types:', dt.types);
         console.log('DataTransfer files length:', dt.files.length);
@@ -245,6 +254,14 @@ function setupGlobalDragAndDrop() {
             return;
         }
         
+        // Set processing flag
+        isProcessingDrop = true;
+        
+        // Reset flag after a delay
+        setTimeout(() => {
+            isProcessingDrop = false;
+        }, 1000);
+        
         if (files && files.length > 0) {
             console.log('Handling file drop with', files.length, 'files');
             // Handle VS Code file drops
@@ -264,6 +281,8 @@ function setupGlobalDragAndDrop() {
                 handleVSCodeUriDrop(e, textPlain);
             } else {
                 console.log('No file data found in drop');
+                // Reset processing flag
+                isProcessingDrop = false;
             }
         }
     }
@@ -278,29 +297,17 @@ function handleVSCodeFileDrop(e, files) {
     console.log('File type:', file.type);
     console.log('File size:', file.size);
     
-    // Try to get file path from file object (limited in browser)
-    // This approach has limitations, so we'll create a simple relative path
-    const isImage = fileName.match(/\.(jpg|jpeg|png|gif|svg|bmp|webp)$/i);
-    
-    console.log('Is image:', isImage);
-    
-    // Create a simple file link since we can't get the full path in browser
-    const fileInfo = {
+    // Send to extension to get proper VS Code URI and handle the drop
+    // Don't create the link directly here to avoid duplication
+    vscode.postMessage({
+        type: 'handleFileDrop',
         fileName: fileName,
-        relativePath: `./${fileName}`, // Simple relative path
-        isImage: !!isImage,
-        activeEditor: getActiveTextEditor(),
         dropPosition: {
             x: e.clientX,
             y: e.clientY
-        }
-    };
-    
-    console.log('Created fileInfo:', fileInfo);
-    
-    // For browser-based file drops, we can't get the actual VS Code file path
-    // So let's insert the link directly
-    insertFileLink(fileInfo);
+        },
+        activeEditor: getActiveTextEditor()
+    });
 }
 
 function handleVSCodeUriDrop(e, uriData) {
@@ -328,32 +335,13 @@ function handleVSCodeUriDrop(e, uriData) {
             activeEditor: getActiveTextEditor()
         });
     } else {
-        console.log('No valid URIs found, trying direct file creation');
-        // Fallback: try to extract filename from the data
-        let fileName = uriData;
-        if (fileName.includes('/')) {
-            fileName = fileName.split('/').pop();
-        }
-        if (fileName.includes('\\')) {
-            fileName = fileName.split('\\').pop();
-        }
-        
-        if (fileName && fileName.length > 0) {
-            const isImage = fileName.match(/\.(jpg|jpeg|png|gif|svg|bmp|webp)$/i);
-            const fileInfo = {
-                fileName: fileName,
-                relativePath: `./${fileName}`,
-                isImage: !!isImage,
-                activeEditor: getActiveTextEditor(),
-                dropPosition: {
-                    x: e.clientX,
-                    y: e.clientY
-                }
-            };
-            
-            console.log('Fallback fileInfo:', fileInfo);
-            insertFileLink(fileInfo);
-        }
+        console.log('No valid URIs found');
+        // Don't create fallback here to avoid duplication
+        // The extension will handle showing an appropriate message
+        vscode.postMessage({
+            type: 'showMessage',
+            text: 'Could not process the dropped file. Please try dragging from the Explorer panel.'
+        });
     }
 }
 
@@ -446,8 +434,28 @@ function insertFileLink(fileInfo) {
     }
 }
 
+// Track recently created tasks to prevent duplicates
+let recentlyCreatedTasks = new Set();
+// Track board rendering to prevent rapid re-renders
+let renderTimeout = null;
+
 function createNewTaskWithContent(content, dropPosition) {
     console.log('createNewTaskWithContent called with:', content, dropPosition);
+    
+    // Check for recent duplicates
+    const taskKey = `${content}-${Date.now().toString().slice(-5)}`; // Use last 5 digits of timestamp for uniqueness
+    if (recentlyCreatedTasks.has(content)) {
+        console.log('Duplicate task creation prevented for:', content);
+        return;
+    }
+    
+    // Add to recent tasks
+    recentlyCreatedTasks.add(content);
+    
+    // Remove from recent tasks after 2 seconds
+    setTimeout(() => {
+        recentlyCreatedTasks.delete(content);
+    }, 2000);
     
     // Find the nearest column to the drop position
     const columns = document.querySelectorAll('.kanban-column');
@@ -501,6 +509,18 @@ function createNewTaskWithContent(content, dropPosition) {
             text: 'Error: Could not find a column to create the task in.' 
         });
     }
+}
+
+// Debounced render function to prevent rapid re-renders
+function debouncedRenderBoard() {
+    if (renderTimeout) {
+        clearTimeout(renderTimeout);
+    }
+    
+    renderTimeout = setTimeout(() => {
+        renderBoard();
+        renderTimeout = null;
+    }, 50); // Small delay to batch updates
 }
 
 // Render Kanban board
@@ -1357,7 +1377,14 @@ function renderMarkdown(text) {
 
 // Drag and drop setup
 function setupDragAndDrop() {
-    setupGlobalDragAndDrop();
+    // Only set up global drag/drop once to prevent multiple listeners
+    if (!dragDropInitialized) {
+        setupGlobalDragAndDrop();
+        dragDropInitialized = true;
+        console.log('Global drag and drop initialized');
+    }
+    
+    // Always refresh column and task drag/drop since DOM changes
     setupColumnDragAndDrop();
     setupTaskDragAndDrop();
 }
@@ -1634,24 +1661,49 @@ function selectFile() {
     vscode.postMessage({ type: 'selectFile' });
 }
 
+// Debug function to clear duplication tracking (useful for testing)
+function clearDuplicationTracking() {
+    console.log('Clearing duplication tracking');
+    recentlyCreatedTasks.clear();
+    isProcessingDrop = false;
+    if (renderTimeout) {
+        clearTimeout(renderTimeout);
+        renderTimeout = null;
+    }
+}
+
 // Debug function to test task creation
 function testTaskCreation() {
     console.log('Testing task creation...');
     if (currentBoard && currentBoard.columns.length > 0) {
-        const testFileInfo = {
+        // Test via extension message to match the normal flow
+        vscode.postMessage({
+            type: 'handleFileDrop',
             fileName: 'test-image.jpg',
-            relativePath: './test-image.jpg',
-            isImage: true,
-            activeEditor: null,
-            dropPosition: { x: 300, y: 300 }
-        };
-        
-        console.log('Creating test task with:', testFileInfo);
-        insertFileLink(testFileInfo);
+            dropPosition: { x: 300, y: 300 },
+            activeEditor: null
+        });
     } else {
         console.log('No board or columns available for test');
     }
 }
 
-// Make test function globally available for debugging
+// Direct test function for debugging the insertFileLink function
+function testDirectInsert() {
+    console.log('Testing direct file link insertion...');
+    const testFileInfo = {
+        fileName: 'direct-test.jpg',
+        relativePath: './direct-test.jpg',
+        isImage: true,
+        activeEditor: null,
+        dropPosition: { x: 300, y: 300 }
+    };
+    
+    console.log('Creating test task with:', testFileInfo);
+    insertFileLink(testFileInfo);
+}
+
+// Make test functions globally available for debugging
 window.testTaskCreation = testTaskCreation;
+window.testDirectInsert = testDirectInsert;
+window.clearDuplicationTracking = clearDuplicationTracking;
