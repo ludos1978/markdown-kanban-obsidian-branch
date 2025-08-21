@@ -20,6 +20,9 @@ let activeTextEditor = null;
 let dragDropInitialized = false;
 let isProcessingDrop = false; // Prevent multiple simultaneous drops
 
+// Track pending image conversions - modified for immediate processing
+let pendingImageConversions = new Map();
+let isProcessingImages = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Set up link click handling using event delegation
@@ -331,195 +334,6 @@ function cleanupExternalDropIndicators() {
         externalDropIndicator = null;
     }
 }
-
-// Drag and Drop Setup
-// function setupGlobalDragAndDrop() {
-//     const boardContainer = document.getElementById('kanban-container');
-//     const dropFeedback = document.getElementById('drop-zone-feedback');
-    
-//     console.log('Setting up global drag and drop...');
-    
-//     // Prevent default drag behaviors on the entire board
-//     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-//         boardContainer.addEventListener(eventName, preventDefaults, false);
-//         document.body.addEventListener(eventName, preventDefaults, false);
-//     });
-    
-//     function preventDefaults(e) {
-//         e.preventDefault();
-//         e.stopPropagation();
-//     }
-    
-//     // Show drop zone feedback - only for external file drags
-//     ['dragenter', 'dragover'].forEach(eventName => {
-//         boardContainer.addEventListener(eventName, (e) => {
-//             // Only show feedback for external file drags, not internal task/column drags
-//             if (isExternalFileDrag(e)) {
-//                 showDropFeedback(e);
-//             }
-//         }, false);
-//     });
-    
-//     ['dragleave', 'drop'].forEach(eventName => {
-//         boardContainer.addEventListener(eventName, hideDropFeedback, false);
-//     });
-    
-//     // Check if this is an external file drag (not internal task/column drag)
-//     function isExternalFileDrag(e) {
-//         const dt = e.dataTransfer;
-//         if (!dt) return false;
-        
-//         // Check for our specific internal kanban drag identifiers
-//         const hasKanbanTask = dt.types.includes('application/kanban-task');
-//         const hasKanbanColumn = dt.types.includes('application/kanban-column');
-//         if (hasKanbanTask || hasKanbanColumn) {
-//             console.log('Internal kanban drag detected, not showing file drop feedback');
-//             return false;
-//         }
-        
-//         // Check if it's an internal kanban drag by examining data
-//         const hasInternalData = dt.types.includes('text/plain') || dt.types.includes('application/column-id');
-//         if (hasInternalData) {
-//             // For internal drags, check if the data contains our task/column IDs
-//             try {
-//                 const textData = dt.getData('text/plain');
-//                 const columnData = dt.getData('application/column-id');
-//                 if ((textData && (textData.includes('task_') || textData.includes('col_'))) || 
-//                     (columnData && columnData.includes('col_'))) {
-//                     console.log('Internal kanban drag detected by ID format');
-//                     return false; // This is internal kanban drag
-//                 }
-//             } catch (e) {
-//                 // getData might fail during dragenter, that's ok
-//                 // Fall back to checking just the types
-//             }
-//         }
-        
-//         // Check for external file indicators
-//         const hasFiles = dt.types.includes('Files');
-//         const hasUriList = dt.types.includes('text/uri-list');
-        
-//         const isExternal = hasFiles || hasUriList;
-//         if (isExternal) {
-//             console.log('External file drag detected');
-//         }
-        
-//         return isExternal;
-//     }
-    
-//     // Also handle at document level to catch drags from outside, but be more specific
-//     document.addEventListener('dragenter', (e) => {
-//         console.log('Document dragenter, types:', e.dataTransfer?.types);
-//         // Only show feedback if it's clearly an external file drag
-//         if (isExternalFileDrag(e)) {
-//             showDropFeedback(e);
-//         }
-//     });
-    
-//     document.addEventListener('dragleave', (e) => {
-//         // Hide when leaving the document
-//         if (!document.body.contains(e.relatedTarget)) {
-//             hideDropFeedback(e);
-//         }
-//     });
-    
-//     function showDropFeedback(e) {
-//         console.log('Showing drop feedback for external file');
-//         if (dropFeedback) {
-//             dropFeedback.classList.add('active');
-//         }
-//         // Don't add the CSS class that creates the competing overlay
-//         // boardContainer.classList.add('drag-highlight');
-//     }
-    
-//     function hideDropFeedback(e) {
-//         console.log('Hiding drop feedback');
-//         if (dropFeedback) {
-//             dropFeedback.classList.remove('active');
-//         }
-//         // Make sure to remove the CSS class too
-//         boardContainer.classList.remove('drag-highlight');
-//     }
-    
-//     // Handle dropped files
-//     boardContainer.addEventListener('drop', handleFileDrop, false);
-//     document.addEventListener('drop', handleFileDrop, false);
-    
-//     function handleFileDrop(e) {
-//         console.log('File drop detected!');
-//         hideDropFeedback(e);
-        
-//         // Prevent multiple simultaneous drops
-//         if (isProcessingDrop) {
-//             console.log('Already processing a drop, ignoring this one');
-//             return;
-//         }
-        
-//         const dt = e.dataTransfer;
-//         console.log('DataTransfer types:', dt.types);
-//         console.log('DataTransfer files length:', dt.files.length);
-        
-//         // Check for internal kanban drags first - be very specific
-//         const hasKanbanTask = dt.types.includes('application/kanban-task');
-//         const hasKanbanColumn = dt.types.includes('application/kanban-column');
-        
-//         if (hasKanbanTask || hasKanbanColumn) {
-//             console.log('Internal kanban drag detected by type, skipping file drop handling');
-//             return;
-//         }
-        
-//         // Additional check: examine the actual data for task/column IDs
-//         const taskId = dt.getData('text/plain');
-//         const columnId = dt.getData('application/column-id');
-        
-//         if ((taskId && (taskId.includes('task_') || taskId.includes('col_'))) || 
-//             (columnId && columnId.includes('col_'))) {
-//             console.log('Internal kanban drag detected by data content, skipping file drop handling');
-//             return;
-//         }
-        
-//         // Check all available data for debugging
-//         for (let i = 0; i < dt.types.length; i++) {
-//             const type = dt.types[i];
-//             const data = dt.getData(type);
-//             console.log(`DataTransfer[${type}]:`, data);
-//         }
-        
-//         const files = dt.files;
-        
-//         // Set processing flag
-//         isProcessingDrop = true;
-        
-//         // Reset flag after a delay
-//         setTimeout(() => {
-//             isProcessingDrop = false;
-//         }, 1000);
-        
-//         if (files && files.length > 0) {
-//             console.log('Handling file drop with', files.length, 'files');
-//             // Handle VS Code file drops
-//             handleVSCodeFileDrop(e, files);
-//         } else {
-//             // Check for VS Code internal drag data
-//             const uriList = dt.getData('text/uri-list');
-//             const textPlain = dt.getData('text/plain');
-//             console.log('URI list:', uriList);
-//             console.log('Text plain:', textPlain);
-            
-//             if (uriList) {
-//                 console.log('Handling URI list drop');
-//                 handleVSCodeUriDrop(e, uriList);
-//             } else if (textPlain && (textPlain.startsWith('file://') || (textPlain.includes('/') && !textPlain.includes('task_') && !textPlain.includes('col_')))) {
-//                 console.log('Handling text plain as URI');
-//                 handleVSCodeUriDrop(e, textPlain);
-//             } else {
-//                 console.log('No file data found in drop');
-//                 // Reset processing flag
-//                 isProcessingDrop = false;
-//             }
-//         }
-//     }
-// }
 
 function setupGlobalDragAndDrop() {
     const boardContainer = document.getElementById('kanban-container');
@@ -1061,6 +875,9 @@ function renderBoard() {
     }, 0);
 
     setupDragAndDrop();
+    
+    // Process any pending images immediately after board render
+    processAllPendingImages();
 }
 
 function initializeFile() {
@@ -1800,6 +1617,7 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
     });
 }
 
+// IMPROVED IMAGE PROCESSING - Process immediately without delays
 function renderMarkdown(text) {
     if (!text) return '';
     
@@ -1829,10 +1647,10 @@ function renderMarkdown(text) {
                 // Request conversion to webview URI from extension
                 if (currentFileInfo && currentFileInfo.documentPath) {
                     const absolutePath = resolveRelativePath(currentFileInfo.documentPath, href);
-                    // Store the original href and request conversion
+                    // Store the original href and request conversion immediately
                     pendingImageConversions.set(href, { absolutePath, element: null });
                     
-                    // For now, use a placeholder that we'll replace later
+                    // For now, use a placeholder that we'll replace immediately
                     const placeholder = `data-original-src="${href}"`;
                     return `<img src="" ${placeholder} alt="${text || ''}" title="${title || ''}" class="pending-image-conversion" />`;
                 }
@@ -1846,11 +1664,7 @@ function renderMarkdown(text) {
         
         const rendered = marked.parse(text);
         
-        // Process any pending image conversions
-        if (pendingImageConversions.size > 0) {
-            setTimeout(() => processImageConversions(), 10);
-        }
-        
+        // Remove paragraph wrapping for single line content
         if (!text.includes('\n') && rendered.startsWith('<p>') && rendered.endsWith('</p>\n')) {
             return rendered.slice(3, -5);
         }
@@ -1861,9 +1675,6 @@ function renderMarkdown(text) {
         return escapeHtml(text);
     }
 }
-
-// Track pending image conversions
-let pendingImageConversions = new Map();
 
 function resolveRelativePath(documentPath, relativePath) {
     // Simple path resolution - you might want to use a more robust solution
@@ -1888,11 +1699,18 @@ function resolveRelativePath(documentPath, relativePath) {
     }
 }
 
-function processImageConversions() {
-    const conversions = Array.from(pendingImageConversions.entries());
-    if (conversions.length === 0) return;
+// IMPROVED: Process all pending images immediately
+function processAllPendingImages() {
+    if (pendingImageConversions.size === 0 || isProcessingImages) {
+        return;
+    }
     
-    // Send all pending conversions to extension
+    isProcessingImages = true;
+    console.log('Processing', pendingImageConversions.size, 'pending image conversions immediately');
+    
+    const conversions = Array.from(pendingImageConversions.entries());
+    
+    // Send all pending conversions to extension immediately
     vscode.postMessage({
         type: 'convertImagePaths',
         conversions: conversions.map(([relativePath, data]) => ({
@@ -1900,21 +1718,30 @@ function processImageConversions() {
             absolutePath: data.absolutePath
         }))
     });
+    
+    // Clear the pending map since we've sent them for processing
+    pendingImageConversions.clear();
+    isProcessingImages = false;
 }
 
 function updateImageSources(pathMappings) {
+    console.log('Updating image sources with mappings:', pathMappings);
+    
     // Update all pending images with their webview URIs
+    let updatedCount = 0;
     document.querySelectorAll('.pending-image-conversion').forEach(img => {
         const originalSrc = img.getAttribute('data-original-src');
         if (originalSrc && pathMappings[originalSrc]) {
             img.src = pathMappings[originalSrc];
             img.classList.remove('pending-image-conversion');
             img.removeAttribute('data-original-src');
+            updatedCount++;
+            console.log('Updated image src for:', originalSrc);
         }
     });
     
-    // Clear processed conversions
-    pendingImageConversions.clear();
+    console.log('Updated', updatedCount, 'images');
+    isProcessingImages = false;
 }
 
 // Drag and drop setup
