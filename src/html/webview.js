@@ -959,7 +959,10 @@ function insertFileLink(fileInfo) {
         // Save the changes immediately
         setTimeout(() => {
             if (element.classList.contains('task-title-edit') || element.classList.contains('task-description-edit')) {
-                saveTaskFieldAndUpdateDisplay(element);
+                // If TaskEditor is active, use its save method
+                if (taskEditor.currentEditor && taskEditor.currentEditor.element === element) {
+                    taskEditor.save();
+                }
             } else if (element.classList.contains('column-title-edit')) {
                 element.blur();
             }
