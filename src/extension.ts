@@ -90,6 +90,17 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage(`Kanban auto-switching ${status}`);
 	});
 
+	// Command to toggle file opening behavior
+	const toggleFileOpeningCommand = vscode.commands.registerCommand('markdown-kanban.toggleFileOpening', async () => {
+		const config = vscode.workspace.getConfiguration('markdownKanban');
+		const currentSetting = config.get<boolean>('openLinksInNewTab', false);
+		
+		await config.update('openLinksInNewTab', !currentSetting, vscode.ConfigurationTarget.Global);
+		
+		const newBehavior = !currentSetting ? 'new tabs' : 'current tab';
+		vscode.window.showInformationMessage(`Kanban file links will now open in ${newBehavior}`);
+	});
+
 	// Command to toggle file lock
 	const toggleFileLockCommand = vscode.commands.registerCommand('markdown-kanban.toggleFileLock', async () => {
 		if (KanbanWebviewPanel.currentPanel) {
@@ -198,6 +209,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		openKanbanCommand,
 		disableFileListenerCommand,
+		toggleFileOpeningCommand,
 		toggleFileLockCommand,
 		openKanbanFromPanelCommand,
 		switchFileCommand,

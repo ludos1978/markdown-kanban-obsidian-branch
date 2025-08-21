@@ -596,12 +596,26 @@ export class KanbanWebviewPanel {
                 // Open folder in explorer
                 vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(targetPath));
             } else {
+                // Get configuration for how to open files
+                const config = vscode.workspace.getConfiguration('markdownKanban');
+                const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
+                
                 // Open file in VS Code
                 const document = await vscode.workspace.openTextDocument(targetPath);
-                await vscode.window.showTextDocument(document, {
-                    preview: false,
-                    viewColumn: vscode.ViewColumn.Beside
-                });
+                
+                if (openInNewTab) {
+                    // Open in a new tab (beside current)
+                    await vscode.window.showTextDocument(document, {
+                        preview: false,
+                        viewColumn: vscode.ViewColumn.Beside
+                    });
+                } else {
+                    // Open in current tab (replace current editor)
+                    await vscode.window.showTextDocument(document, {
+                        preview: false,
+                        preserveFocus: false
+                    });
+                }
             }
             
         } catch (error) {
