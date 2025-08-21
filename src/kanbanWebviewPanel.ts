@@ -427,13 +427,17 @@ export class KanbanWebviewPanel {
                 vscode.window.showInformationMessage(message.text);
                 break;
 
-                // Task operations
+            // Task operations
             case 'moveTask':
                 this.moveTask(message.taskId, message.fromColumnId, message.toColumnId, message.newIndex);
                 break;
             case 'addTask':
                 console.log('Adding task:', message.columnId, message.taskData);
                 this.addTask(message.columnId, message.taskData);
+                break;
+            case 'addTaskAtPosition':  // NEW CASE
+                console.log('Adding task at position:', message.columnId, message.taskData, 'at index:', message.insertionIndex);
+                this.addTaskAtPosition(message.columnId, message.taskData, message.insertionIndex);
                 break;
             case 'deleteTask':
                 this.deleteTask(message.taskId, message.columnId);
@@ -488,9 +492,12 @@ export class KanbanWebviewPanel {
             case 'editColumnTitle':
                 this.editColumnTitle(message.columnId, message.title);
                 break;
+            default:
+                console.warn('Unknown message type:', message.type);
+                break;
         }
     }
-
+    
     private async _selectFile() {
         const fileUris = await vscode.window.showOpenDialog({
             canSelectFiles: true,
@@ -713,6 +720,35 @@ export class KanbanWebviewPanel {
             };
 
             column.tasks.push(newTask);
+        });
+    }
+
+    private addTaskAtPosition(columnId: string, taskData: any, insertionIndex: number) {
+        console.log(`addTaskAtPosition called: columnId=${columnId}, insertionIndex=${insertionIndex}`, taskData);
+        
+        this.performAction(() => {
+            const column = this.findColumn(columnId);
+            if (!column) {
+                console.error('Column not found:', columnId);
+                return;
+            }
+
+            const newTask: KanbanTask = {
+                id: this.generateId('task', columnId),
+                title: taskData.title || '',
+                description: taskData.description || ''
+            };
+
+            // Insert at specific position or append to end
+            if (insertionIndex >= 0 && insertionIndex <= column.tasks.length) {
+                console.log(`Inserting task at position ${insertionIndex} in column ${columnId}`);
+                column.tasks.splice(insertionIndex, 0, newTask);
+            } else {
+                console.log(`Appending task to end of column ${columnId} (insertionIndex was ${insertionIndex})`);
+                column.tasks.push(newTask);
+            }
+            
+            console.log(`Task added successfully. Column now has ${column.tasks.length} tasks.`);
         });
     }
 

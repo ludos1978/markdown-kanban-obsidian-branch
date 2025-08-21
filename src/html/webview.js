@@ -781,14 +781,14 @@ let renderTimeout = null;
 function createNewTaskWithContent(content, dropPosition) {
     console.log('createNewTaskWithContent called with:', content, dropPosition);
     
-    // Check for recent duplicates
-    const taskKey = `${content}-${Date.now().toString().slice(-5)}`; // Use last 5 digits of timestamp for uniqueness
+    // Check for recent duplicates to prevent spam creation
+    const taskKey = `${content}-${Date.now().toString().slice(-5)}`;
     if (recentlyCreatedTasks.has(content)) {
         console.log('Duplicate task creation prevented for:', content);
         return;
     }
     
-    // Add to recent tasks
+    // Add to recent tasks set
     recentlyCreatedTasks.add(content);
     
     // Remove from recent tasks after 2 seconds
@@ -796,9 +796,10 @@ function createNewTaskWithContent(content, dropPosition) {
         recentlyCreatedTasks.delete(content);
     }, 2000);
     
-    // Find the nearest column to the drop position
+    // Find the nearest column to the drop position AND calculate insertion index
     const columns = document.querySelectorAll('.kanban-column');
     let targetColumnId = null;
+    let insertionIndex = -1; // -1 means append to end
     let minDistance = Infinity;
     
     console.log('Found', columns.length, 'columns');
@@ -813,33 +814,43 @@ function createNewTaskWithContent(content, dropPosition) {
         if (distance < minDistance) {
             minDistance = distance;
             targetColumnId = column.dataset.columnId;
+            
+            // Calculate where to insert within this column based on Y position
+            insertionIndex = calculateInsertionIndex(column, dropPosition.y);
+            console.log('Updated target column:', targetColumnId, 'insertion index:', insertionIndex);
         }
     });
     
     // Default to first column if no suitable column found
     if (!targetColumnId && currentBoard && currentBoard.columns.length > 0) {
         targetColumnId = currentBoard.columns[0].id;
+        insertionIndex = -1; // Append to end as fallback
         console.log('Using first column as fallback:', targetColumnId);
     }
     
-    console.log('Target column ID:', targetColumnId);
+    console.log('Final target column ID:', targetColumnId, 'Final insertion index:', insertionIndex);
     
     if (targetColumnId) {
-        // Create task with the content as title
+        // Create task data with the content as title
         const taskData = {
             title: content,
             description: ''
         };
         
-        console.log('Sending addTask message:', taskData);
-        
-        vscode.postMessage({
-            type: 'addTask',
+        console.log('Sending addTaskAtPosition message:', {
             columnId: targetColumnId,
-            taskData: taskData
+            taskData: taskData,
+            insertionIndex: insertionIndex
         });
         
-        // Show success message
+        // Send positioned insertion message to backend
+        vscode.postMessage({
+            type: 'addTaskAtPosition',
+            columnId: targetColumnId,
+            taskData: taskData,
+            insertionIndex: insertionIndex
+        });
+        
         console.log('Task creation message sent successfully');
     } else {
         console.error('No target column found for task creation');
@@ -848,6 +859,36 @@ function createNewTaskWithContent(content, dropPosition) {
             text: 'Error: Could not find a column to create the task in.' 
         });
     }
+}
+
+function calculateInsertionIndex(column, clientY) {
+    const tasksContainer = column.querySelector('.tasks-container');
+    if (!tasksContainer) {
+        console.log('No tasks container found, defaulting to append');
+        return -1; // Append to end if no tasks container
+    }
+    
+    const tasks = Array.from(tasksContainer.children);
+    
+    if (tasks.length === 0) {
+        console.log('Empty column, inserting as first task');
+        return 0; // Insert as first task in empty column
+    }
+    
+    // Find insertion point based on Y position
+    for (let i = 0; i < tasks.length; i++) {
+        const taskRect = tasks[i].getBoundingClientRect();
+        const taskCenter = taskRect.top + taskRect.height / 2;
+        
+        if (clientY < taskCenter) {
+            console.log('Inserting before task at index', i);
+            return i; // Insert before this task
+        }
+    }
+    
+    // If not above any task, insert at the end
+    console.log('Inserting at end, after', tasks.length, 'tasks');
+    return -1; // -1 means append to end
 }
 
 // Debounced render function to prevent rapid re-renders
