@@ -742,6 +742,7 @@ function insertFileLink(fileInfo) {
     if (activeEditor && activeEditor.element && 
         document.contains(activeEditor.element) && 
         activeEditor.element.style.display !== 'none') {
+        
         // Insert at current cursor position
         const element = activeEditor.element;
         const cursorPos = element.selectionStart || activeEditor.cursorPosition || 0;
@@ -760,6 +761,25 @@ function insertFileLink(fileInfo) {
             autoResize(element);
         }
         
+        // FOR IMAGES: Also add to the other field
+        if (isImage && (activeEditor.type === 'task-title' || activeEditor.type === 'task-description')) {
+            const taskItem = element.closest('.task-item');
+            const otherField = activeEditor.type === 'task-title' ? 
+                taskItem.querySelector('.task-description-edit') : 
+                taskItem.querySelector('.task-title-edit');
+            
+            if (otherField) {
+                const otherValue = otherField.value;
+                otherField.value = otherValue ? `${otherValue}\n${markdownLink}` : markdownLink;
+                otherField.dispatchEvent(new Event('input'));
+                if (typeof autoResize === 'function') {
+                    autoResize(otherField);
+                }
+                // Save the other field too
+                setTimeout(() => saveTaskFieldAndUpdateDisplay(otherField), 100);
+            }
+        }
+        
         // Focus back on the element
         element.focus();
         
@@ -768,7 +788,6 @@ function insertFileLink(fileInfo) {
             if (element.classList.contains('task-title-edit') || element.classList.contains('task-description-edit')) {
                 saveTaskFieldAndUpdateDisplay(element);
             } else if (element.classList.contains('column-title-edit')) {
-                // Trigger save for column title
                 element.blur();
             }
         }, 50);
@@ -776,7 +795,7 @@ function insertFileLink(fileInfo) {
         vscode.postMessage({ type: 'showMessage', text: `Inserted ${isImage ? 'image' : 'file'} link: ${fileName}` });
     } else {
         // Create new task with the file link
-        createNewTaskWithContent(markdownLink, fileInfo.dropPosition);
+        createNewTaskWithContent(markdownLink, fileInfo.dropPosition, isImage ? markdownLink : '');
         vscode.postMessage({ type: 'showMessage', text: `Created new task with ${isImage ? 'image' : 'file'} link: ${fileName}` });
     }
 }
@@ -786,11 +805,10 @@ let recentlyCreatedTasks = new Set();
 // Track board rendering to prevent rapid re-renders
 let renderTimeout = null;
 
-function createNewTaskWithContent(content, dropPosition) {
+function createNewTaskWithContent(content, dropPosition, description = '') {
     console.log('createNewTaskWithContent called with:', content, dropPosition);
     
     // Check for recent duplicates to prevent spam creation
-    const taskKey = `${content}-${Date.now().toString().slice(-5)}`;
     if (recentlyCreatedTasks.has(content)) {
         console.log('Duplicate task creation prevented for:', content);
         return;
@@ -798,73 +816,43 @@ function createNewTaskWithContent(content, dropPosition) {
     
     // Add to recent tasks set
     recentlyCreatedTasks.add(content);
+    setTimeout(() => recentlyCreatedTasks.delete(content), 2000);
     
-    // Remove from recent tasks after 2 seconds
-    setTimeout(() => {
-        recentlyCreatedTasks.delete(content);
-    }, 2000);
-    
-    // Find the nearest column to the drop position AND calculate insertion index
+    // Find the nearest column (existing logic)...
     const columns = document.querySelectorAll('.kanban-column');
     let targetColumnId = null;
-    let insertionIndex = -1; // -1 means append to end
+    let insertionIndex = -1;
     let minDistance = Infinity;
-    
-    console.log('Found', columns.length, 'columns');
     
     columns.forEach(column => {
         const rect = column.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const distance = Math.abs(centerX - dropPosition.x);
         
-        console.log('Column', column.dataset.columnId, 'distance:', distance);
-        
         if (distance < minDistance) {
             minDistance = distance;
             targetColumnId = column.dataset.columnId;
-            
-            // Calculate where to insert within this column based on Y position
             insertionIndex = calculateInsertionIndex(column, dropPosition.y);
-            console.log('Updated target column:', targetColumnId, 'insertion index:', insertionIndex);
         }
     });
     
-    // Default to first column if no suitable column found
     if (!targetColumnId && currentBoard && currentBoard.columns.length > 0) {
         targetColumnId = currentBoard.columns[0].id;
-        insertionIndex = -1; // Append to end as fallback
-        console.log('Using first column as fallback:', targetColumnId);
+        insertionIndex = -1;
     }
     
-    console.log('Final target column ID:', targetColumnId, 'Final insertion index:', insertionIndex);
-    
     if (targetColumnId) {
-        // Create task data with the content as title
+        // Create task data - use description parameter for images
         const taskData = {
             title: content,
-            description: ''
+            description: description  // Will be the same image link for images, empty for files
         };
         
-        console.log('Sending addTaskAtPosition message:', {
-            columnId: targetColumnId,
-            taskData: taskData,
-            insertionIndex: insertionIndex
-        });
-        
-        // Send positioned insertion message to backend
         vscode.postMessage({
             type: 'addTaskAtPosition',
             columnId: targetColumnId,
             taskData: taskData,
             insertionIndex: insertionIndex
-        });
-        
-        console.log('Task creation message sent successfully');
-    } else {
-        console.error('No target column found for task creation');
-        vscode.postMessage({ 
-            type: 'showMessage', 
-            text: 'Error: Could not find a column to create the task in.' 
         });
     }
 }
