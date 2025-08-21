@@ -62,6 +62,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && e.target.classList.contains('task-title-edit')) {
+        e.preventDefault();
+        
+        const titleTextarea = e.target;
+        const taskItem = titleTextarea.closest('.task-item');
+        const taskId = titleTextarea.dataset.taskId;
+        const columnId = titleTextarea.dataset.columnId;
+        
+        // Completely disable the blur handler to prevent interference
+        titleTextarea.onblur = () => {};
+        
+        // Save current title
+        saveTaskFieldAndUpdateDisplay(titleTextarea);
+        
+        // Hide title editing immediately
+        titleTextarea.style.display = 'none';
+        taskItem.querySelector('.task-title-display').style.display = 'block';
+        
+        // Clear active editor state
+        activeTextEditor = null;
+        
+        // Use requestAnimationFrame to ensure DOM updates are complete
+        requestAnimationFrame(() => {
+            // Start description editing directly with the task info
+            editDescription(taskItem.querySelector('.task-description-container'), taskId, columnId);
+        });
+    }
+});
 
 // Initialize with sample data for testing
 if (typeof acquireVsCodeApi === 'undefined') {
