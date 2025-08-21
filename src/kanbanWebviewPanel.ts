@@ -409,7 +409,11 @@ export class KanbanWebviewPanel {
                 console.log('Handling URI drop message');
                 this._handleUriDrop(message);
                 break;
-                
+            
+            case 'convertImagePaths':
+                this._convertImagePaths(message.conversions);
+                break;
+            
             // File management
             case 'toggleFileLock':
                 this.toggleFileLock();
@@ -497,7 +501,7 @@ export class KanbanWebviewPanel {
                 break;
         }
     }
-    
+
     private async _selectFile() {
         const fileUris = await vscode.window.showOpenDialog({
             canSelectFiles: true,
@@ -521,21 +525,27 @@ export class KanbanWebviewPanel {
         }
     }
 
-    private _sendFileInfo() {
-        if (!this._panel.webview) return;
-
-        const fileInfo = {
-            fileName: this._document ? path.basename(this._document.fileName) : 'No file loaded',
-            filePath: this._document ? this._document.fileName : '',
-            isLocked: this._isFileLocked
-        };
-
-        setTimeout(() => {
-            this._panel.webview.postMessage({
-                type: 'updateFileInfo',
-                fileInfo: fileInfo
-            });
-        }, 10);
+    private _convertImagePaths(conversions: Array<{relativePath: string, absolutePath: string}>) {
+        const pathMappings: {[key: string]: string} = {};
+        
+        for (const conversion of conversions) {
+            try {
+                // Convert absolute file path to webview URI
+                const fileUri = vscode.Uri.file(conversion.absolutePath);
+                const webviewUri = this._panel.webview.asWebviewUri(fileUri);
+                pathMappings[conversion.relativePath] = webviewUri.toString();
+            } catch (error) {
+                console.error('Failed to convert image path:', conversion.absolutePath, error);
+                // Fallback to original path
+                pathMappings[conversion.relativePath] = conversion.relativePath;
+            }
+        }
+        
+        // Send the converted paths back to webview
+        this._panel.webview.postMessage({
+            type: 'imagePathsConverted',
+            pathMappings: pathMappings
+        });
     }
 
     private async _initializeFile() {
@@ -617,6 +627,24 @@ export class KanbanWebviewPanel {
             });
         }, 10);
     }
+
+    private _sendFileInfo() {
+        if (!this._panel.webview) return;
+
+        const fileInfo = {
+            fileName: this._document ? path.basename(this._document.fileName) : 'No file loaded',
+            filePath: this._document ? this._document.fileName : '',
+            documentPath: this._document ? this._document.uri.fsPath : '', // Add this line
+            isLocked: this._isFileLocked
+        };
+
+        setTimeout(() => {
+            this._panel.webview.postMessage({
+                type: 'updateFileInfo',
+                fileInfo: fileInfo
+            });
+        }, 10);
+}
 
     private editColumnTitle(columnId: string, title: string) {
         this.performAction(() => {

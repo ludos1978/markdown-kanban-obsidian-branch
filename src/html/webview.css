@@ -890,9 +890,12 @@ button.donut-menu-item {
 
 .task-description-container .markdown-content img {
     max-width: 100%;
-    max-height: 200px;
+    width: 100%;
+    max-height: 400px;
+    height: auto;
     margin: 8px 0;
     display: block;
+    object-fit: contain;
 }
 
 /* File links styling */
