@@ -3,6 +3,9 @@ const vscode = typeof acquireVsCodeApi !== 'undefined' ? acquireVsCodeApi() : {
     postMessage: (msg) => console.log('Message to extension:', msg)
 };
 
+let isActivelyEditing = false;
+let focusedElement = null;
+let focusPosition = { start: 0, end: 0 };
 let currentBoard = null;
 let editingTask = null;
 let scrollPositions = new Map();
@@ -19,10 +22,6 @@ let activeTextEditor = null;
 // Track if drag/drop is already set up to prevent multiple listeners
 let dragDropInitialized = false;
 let isProcessingDrop = false; // Prevent multiple simultaneous drops
-
-// Track pending image conversions - modified for immediate processing
-let pendingImageConversions = new Map();
-let isProcessingImages = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Set up link click handling using event delegation
@@ -787,7 +786,7 @@ function debouncedRenderBoard() {
 
 // Render Kanban board
 function renderBoard() {
-    console.log('Rendering board:', currentBoard); // Debug log
+    console.log('Rendering board:', currentBoard);
     
     const boardElement = document.getElementById('kanban-board');
     if (!boardElement) {
@@ -875,9 +874,6 @@ function renderBoard() {
     }, 0);
 
     setupDragAndDrop();
-    
-    // Process any pending images immediately after board render
-    processAllPendingImages();
 }
 
 function initializeFile() {
@@ -1110,7 +1106,7 @@ function editColumnTitle(columnId) {
     dragHandle.draggable = false;
     
     editElement.focus();
-    editElement.select();
+    // editElement.select();
     
     // Store reference to active editor
     activeTextEditor = {
@@ -1417,7 +1413,7 @@ function editTitle(element, taskId = null, columnId = null) {
     editTextarea.style.display = 'block';
     autoResize(editTextarea);
     editTextarea.focus();
-    editTextarea.select();
+    // editTextarea.select();
     
     // Store reference to active editor
     activeTextEditor = {
@@ -1617,7 +1613,6 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
     });
 }
 
-// IMPROVED IMAGE PROCESSING - Process immediately without delays
 function renderMarkdown(text) {
     if (!text) return '';
     
@@ -1629,36 +1624,19 @@ function renderMarkdown(text) {
             renderer: new marked.Renderer()
         });
         
-        // Create custom renderer to handle images and links
+        // Create custom renderer to handle links
         const renderer = new marked.Renderer();
         
         // Override link rendering to preserve original href and prevent browser handling
         renderer.link = function(href, title, text) {
-            // Store the original href as a data attribute to prevent URL transformation
             const titleAttr = title ? ` title="${title}"` : '';
-            // Use javascript:void(0) to prevent any navigation, and store original href in data attribute
             return `<a href="javascript:void(0)" data-original-href="${escapeHtml(href)}"${titleAttr} class="markdown-link">${text}</a>`;
         };
         
-        // Override image rendering to convert relative paths to webview URIs
-        renderer.image = function(href, title, text) {
-            // Check if it's a relative path (not http/https/data URI)
-            if (href && !href.startsWith('http') && !href.startsWith('data:') && !href.startsWith('vscode-webview-resource:')) {
-                // Request conversion to webview URI from extension
-                if (currentFileInfo && currentFileInfo.documentPath) {
-                    const absolutePath = resolveRelativePath(currentFileInfo.documentPath, href);
-                    // Store the original href and request conversion immediately
-                    pendingImageConversions.set(href, { absolutePath, element: null });
-                    
-                    // For now, use a placeholder that we'll replace immediately
-                    const placeholder = `data-original-src="${href}"`;
-                    return `<img src="" ${placeholder} alt="${text || ''}" title="${title || ''}" class="pending-image-conversion" />`;
-                }
-            }
-            
-            // Default rendering for absolute URLs
-            return `<img src="${href}" alt="${text || ''}" title="${title || ''}" />`;
-        };
+        // Images now work naturally with base href - no custom processing needed!
+        // renderer.image = function(href, title, text) {
+        //     return `<img src="${href}" alt="${text || ''}" title="${title || ''}" />`;
+        // };
         
         marked.setOptions({ renderer: renderer });
         
@@ -1676,73 +1654,73 @@ function renderMarkdown(text) {
     }
 }
 
-function resolveRelativePath(documentPath, relativePath) {
-    // Simple path resolution - you might want to use a more robust solution
-    const documentDir = documentPath.substring(0, documentPath.lastIndexOf('/'));
-    if (relativePath.startsWith('./')) {
-        return documentDir + '/' + relativePath.substring(2);
-    } else if (relativePath.startsWith('../')) {
-        // Handle parent directory navigation
-        const parts = documentDir.split('/');
-        const relativeParts = relativePath.split('/');
+// function resolveRelativePath(documentPath, relativePath) {
+//     // Simple path resolution - you might want to use a more robust solution
+//     const documentDir = documentPath.substring(0, documentPath.lastIndexOf('/'));
+//     if (relativePath.startsWith('./')) {
+//         return documentDir + '/' + relativePath.substring(2);
+//     } else if (relativePath.startsWith('../')) {
+//         // Handle parent directory navigation
+//         const parts = documentDir.split('/');
+//         const relativeParts = relativePath.split('/');
         
-        for (const part of relativeParts) {
-            if (part === '..') {
-                parts.pop();
-            } else if (part !== '.' && part !== '') {
-                parts.push(part);
-            }
-        }
-        return parts.join('/');
-    } else {
-        return documentDir + '/' + relativePath;
-    }
-}
+//         for (const part of relativeParts) {
+//             if (part === '..') {
+//                 parts.pop();
+//             } else if (part !== '.' && part !== '') {
+//                 parts.push(part);
+//             }
+//         }
+//         return parts.join('/');
+//     } else {
+//         return documentDir + '/' + relativePath;
+//     }
+// }
 
 // IMPROVED: Process all pending images immediately
-function processAllPendingImages() {
-    if (pendingImageConversions.size === 0 || isProcessingImages) {
-        return;
-    }
+// function processAllPendingImages() {
+//     if (pendingImageConversions.size === 0 || isProcessingImages) {
+//         return;
+//     }
     
-    isProcessingImages = true;
-    console.log('Processing', pendingImageConversions.size, 'pending image conversions immediately');
+//     isProcessingImages = true;
+//     console.log('Processing', pendingImageConversions.size, 'pending image conversions immediately');
     
-    const conversions = Array.from(pendingImageConversions.entries());
+//     const conversions = Array.from(pendingImageConversions.entries());
     
-    // Send all pending conversions to extension immediately
-    vscode.postMessage({
-        type: 'convertImagePaths',
-        conversions: conversions.map(([relativePath, data]) => ({
-            relativePath,
-            absolutePath: data.absolutePath
-        }))
-    });
+//     // Send all pending conversions to extension immediately
+//     vscode.postMessage({
+//         type: 'convertImagePaths',
+//         conversions: conversions.map(([relativePath, data]) => ({
+//             relativePath,
+//             absolutePath: data.absolutePath
+//         }))
+//     });
     
-    // Clear the pending map since we've sent them for processing
-    pendingImageConversions.clear();
-    isProcessingImages = false;
-}
+//     // Clear the pending map since we've sent them for processing
+//     pendingImageConversions.clear();
+//     isProcessingImages = false;
+// }
 
-function updateImageSources(pathMappings) {
-    console.log('Updating image sources with mappings:', pathMappings);
+// function updateImageSources(pathMappings) {
+//     console.log('Updating image sources with mappings:', pathMappings);
     
-    // Update all pending images with their webview URIs
-    let updatedCount = 0;
-    document.querySelectorAll('.pending-image-conversion').forEach(img => {
-        const originalSrc = img.getAttribute('data-original-src');
-        if (originalSrc && pathMappings[originalSrc]) {
-            img.src = pathMappings[originalSrc];
-            img.classList.remove('pending-image-conversion');
-            img.removeAttribute('data-original-src');
-            updatedCount++;
-            console.log('Updated image src for:', originalSrc);
-        }
-    });
+//     // Update all pending images with their webview URIs
+//     let updatedCount = 0;
+//     document.querySelectorAll('.pending-image-conversion').forEach(img => {
+//         const originalSrc = img.getAttribute('data-original-src');
+//         if (originalSrc && pathMappings[originalSrc]) {
+//             img.src = pathMappings[originalSrc];
+//             img.classList.remove('pending-image-conversion');
+//             img.removeAttribute('data-original-src');
+//             updatedCount++;
+//             console.log('Updated image src for:', originalSrc);
+//         }
+//     });
     
-    console.log('Updated', updatedCount, 'images');
-    isProcessingImages = false;
-}
+//     console.log('Updated', updatedCount, 'images');
+//     isProcessingImages = false;
+// }
 
 // Drag and drop setup
 function setupDragAndDrop() {

@@ -298,12 +298,8 @@ export class KanbanWebviewPanel {
             console.log('_handleFileDrop called with:', message);
             const { fileName, dropPosition, activeEditor } = message;
             
-            // Since we can't get the actual file path from a browser file drop,
-            // we'll create a simple relative path
             const isImage = this._isImageFile(fileName);
             const relativePath = `./${fileName}`;
-            
-            console.log('File info - Name:', fileName, 'Relative:', relativePath, 'IsImage:', isImage);
             
             const fileInfo = {
                 fileName,
@@ -313,8 +309,7 @@ export class KanbanWebviewPanel {
                 dropPosition
             };
             
-            // Send back to webview to insert the link
-            console.log('Sending insertFileLink message back to webview');
+            // No need for image conversion - just send the relative path
             this._panel.webview.postMessage({
                 type: 'insertFileLink',
                 fileInfo: fileInfo
@@ -332,15 +327,11 @@ export class KanbanWebviewPanel {
             const { uris, dropPosition, activeEditor } = message;
             
             for (const uriString of uris) {
-                console.log('Processing URI:', uriString);
-                
                 let uri: vscode.Uri;
                 try {
-                    // Handle both file:// URIs and regular paths
                     if (uriString.startsWith('file://')) {
                         uri = vscode.Uri.parse(uriString);
                     } else {
-                        // Try to parse as a file path
                         uri = vscode.Uri.file(uriString);
                     }
                 } catch (parseError) {
@@ -348,14 +339,9 @@ export class KanbanWebviewPanel {
                     continue;
                 }
                 
-                console.log('Parsed URI:', uri.toString());
-                console.log('File path:', uri.fsPath);
-                
                 const fileName = path.basename(uri.fsPath);
                 const relativePath = this._getRelativePath(uri.fsPath);
                 const isImage = this._isImageFile(fileName);
-                
-                console.log('File info - Name:', fileName, 'Relative:', relativePath, 'IsImage:', isImage);
                 
                 const fileInfo = {
                     fileName,
@@ -365,8 +351,7 @@ export class KanbanWebviewPanel {
                     dropPosition
                 };
                 
-                // Send back to webview to insert the link
-                console.log('Sending insertFileLink message back to webview');
+                // No need for image conversion - relative paths work with base href
                 this._panel.webview.postMessage({
                     type: 'insertFileLink',
                     fileInfo: fileInfo
@@ -380,7 +365,6 @@ export class KanbanWebviewPanel {
             vscode.window.showErrorMessage(`Failed to handle URI drop: ${error}`);
         }
     }
-
     private _handleMessage(message: any) {
         console.log('KanbanWebviewPanel received message:', message.type, message);
         
@@ -410,9 +394,9 @@ export class KanbanWebviewPanel {
                 this._handleUriDrop(message);
                 break;
             
-            case 'convertImagePaths':
-                this._convertImagePaths(message.conversions);
-                break;
+            // case 'convertImagePaths':
+            //     this._convertImagePaths(message.conversions);
+            //     break;
             case 'openFileLink':
                 this._handleFileLink(message.href);
                 break;
@@ -536,28 +520,28 @@ export class KanbanWebviewPanel {
         }
     }
 
-    private _convertImagePaths(conversions: Array<{relativePath: string, absolutePath: string}>) {
-        const pathMappings: {[key: string]: string} = {};
+    // private _convertImagePaths(conversions: Array<{relativePath: string, absolutePath: string}>) {
+    //     const pathMappings: {[key: string]: string} = {};
         
-        for (const conversion of conversions) {
-            try {
-                // Convert absolute file path to webview URI
-                const fileUri = vscode.Uri.file(conversion.absolutePath);
-                const webviewUri = this._panel.webview.asWebviewUri(fileUri);
-                pathMappings[conversion.relativePath] = webviewUri.toString();
-            } catch (error) {
-                console.error('Failed to convert image path:', conversion.absolutePath, error);
-                // Fallback to original path
-                pathMappings[conversion.relativePath] = conversion.relativePath;
-            }
-        }
+    //     for (const conversion of conversions) {
+    //         try {
+    //             // Convert absolute file path to webview URI
+    //             const fileUri = vscode.Uri.file(conversion.absolutePath);
+    //             const webviewUri = this._panel.webview.asWebviewUri(fileUri);
+    //             pathMappings[conversion.relativePath] = webviewUri.toString();
+    //         } catch (error) {
+    //             console.error('Failed to convert image path:', conversion.absolutePath, error);
+    //             // Fallback to original path
+    //             pathMappings[conversion.relativePath] = conversion.relativePath;
+    //         }
+    //     }
         
-        // Send the converted paths back to webview
-        this._panel.webview.postMessage({
-            type: 'imagePathsConverted',
-            pathMappings: pathMappings
-        });
-    }
+    //     // Send the converted paths back to webview
+    //     this._panel.webview.postMessage({
+    //         type: 'imagePathsConverted',
+    //         pathMappings: pathMappings
+    //     });
+    // }
 
     private async _handleFileLink(href: string) {
         try {
@@ -661,14 +645,21 @@ export class KanbanWebviewPanel {
             vscode.window.showErrorMessage(`Failed to initialize file: ${error}`);
         }
     }
-
+    
     public loadMarkdownFile(document: vscode.TextDocument) {
         // Don't reload if we're the ones who just updated the document
         if (this._isUpdatingFromPanel) {
             return;
         }
         
+        const documentChanged = this._document?.uri.toString() !== document.uri.toString();
         this._document = document;
+        
+        // If document changed, we need to refresh the HTML to update base href
+        if (documentChanged) {
+            this._panel.webview.html = this._getHtmlForWebview();
+        }
+        
         try {
             this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
             // Store original task order for each column
@@ -1097,14 +1088,25 @@ export class KanbanWebviewPanel {
         const filePath = vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html', 'webview.html'));
         let html = fs.readFileSync(filePath.fsPath, 'utf8');
 
-        const baseWebviewUri = this._panel.webview.asWebviewUri(
+        // Convert CSS and JS to absolute webview URIs
+        const webviewDir = this._panel.webview.asWebviewUri(
             vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html'))
         );
+        
+        // Replace relative paths with absolute webview URIs for CSS/JS
+        html = html.replace(/href="webview\.css"/, `href="${webviewDir}/webview.css"`);
+        html = html.replace(/src="webview\.js"/, `src="${webviewDir}/webview.js"`);
 
-        html = html.replace(/<head>/, `<head><base href="${baseWebviewUri.toString()}/">`);
+        // Set base href to the document's directory for relative image/file links
+        if (this._document) {
+            const documentDir = vscode.Uri.file(path.dirname(this._document.uri.fsPath));
+            const baseHref = this._panel.webview.asWebviewUri(documentDir).toString() + '/';
+            html = html.replace(/<head>/, `<head><base href="${baseHref}">`);
+        }
 
         return html;
     }
+
 
     public dispose() {
         KanbanWebviewPanel.currentPanel = undefined;
