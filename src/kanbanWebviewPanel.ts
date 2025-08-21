@@ -414,7 +414,15 @@ export class KanbanWebviewPanel {
                 this._convertImagePaths(message.conversions);
                 break;
             case 'openFileLink':
-                this._handleFileLink(message.href, message.currentDocumentPath);
+                this._handleFileLink(message.href);
+                break;
+            case 'openFileLink':
+                console.log('Opening file link:', message.href);
+                this._handleFileLink(message.href);
+                break;
+            case 'openExternalLink':
+                console.log('Opening external link:', message.href);
+                vscode.env.openExternal(vscode.Uri.parse(message.href));
                 break;
                         
             // File management
@@ -551,29 +559,49 @@ export class KanbanWebviewPanel {
         });
     }
 
-    private async _handleFileLink(href: string, currentDocumentPath: string) {
+    private async _handleFileLink(href: string) {
         try {
+            // Always use the current document's path as the base for relative paths
+            if (!this._document) {
+                vscode.window.showErrorMessage('No document is currently loaded');
+                return;
+            }
+
             let targetPath: string;
             
             if (href.startsWith('file://')) {
                 // Handle file:// URLs
                 targetPath = vscode.Uri.parse(href).fsPath;
-            } else if (href.startsWith('/')) {
+            } else if (path.isAbsolute(href)) {
                 // Absolute path
                 targetPath = href;
             } else {
                 // Relative path - resolve relative to current document
-                const currentDir = path.dirname(currentDocumentPath);
+                const currentDir = path.dirname(this._document.uri.fsPath);
                 targetPath = path.resolve(currentDir, href);
             }
             
+            console.log('Opening file link:', href, '-> resolved to:', targetPath);
+            
             // Check if file exists
-            if (fs.existsSync(targetPath)) {
-                // Open in VS Code
-                const document = await vscode.workspace.openTextDocument(targetPath);
-                await vscode.window.showTextDocument(document);
-            } else {
+            if (!fs.existsSync(targetPath)) {
                 vscode.window.showWarningMessage(`File not found: ${targetPath}`);
+                return;
+            }
+            
+            // Get file stats to check if it's a file or directory
+            const stats = fs.statSync(targetPath);
+            
+            if (stats.isDirectory()) {
+                // Open folder in explorer
+                vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(targetPath));
+            } else {
+                // Open file in VS Code
+                const document = await vscode.workspace.openTextDocument(targetPath);
+                await vscode.window.showTextDocument(document, {
+                    preview: false,
+                    viewColumn: vscode.ViewColumn.Beside
+                });
             }
             
         } catch (error) {
@@ -678,7 +706,7 @@ export class KanbanWebviewPanel {
                 fileInfo: fileInfo
             });
         }, 10);
-}
+    }
 
     private editColumnTitle(columnId: string, title: string) {
         this.performAction(() => {

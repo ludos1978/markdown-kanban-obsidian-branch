@@ -20,6 +20,47 @@ let activeTextEditor = null;
 let dragDropInitialized = false;
 let isProcessingDrop = false; // Prevent multiple simultaneous drops
 
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Set up link click handling using event delegation
+    document.body.addEventListener('click', (e) => {
+        // Check if the clicked element is a markdown link
+        const link = e.target.closest('a.markdown-link');
+        if (!link) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const href = link.getAttribute('data-original-href');
+        if (!href) {
+            console.log('No href found on link');
+            return;
+        }
+        
+        console.log('Markdown link clicked with href:', href);
+        
+        // Check if it's an external URL
+        if (href.startsWith('http://') || href.startsWith('https://')) {
+            console.log('Opening external URL:', href);
+            // Open external URLs in default browser via VS Code
+            vscode.postMessage({
+                type: 'openExternalLink',
+                href: href
+            });
+        } else {
+            // It's a file link - send to extension to open in VS Code
+            console.log('Opening file link:', href);
+            vscode.postMessage({
+                type: 'openFileLink',
+                href: href
+            });
+        }
+        
+        return false;
+    });
+});
+
+
 // Initialize with sample data for testing
 if (typeof acquireVsCodeApi === 'undefined') {
     currentBoard = {
@@ -139,6 +180,37 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+document.addEventListener('click', (e) => {
+    // Check if clicked element is a link or inside a link with data-file-href
+    const link = e.target.closest('a[data-file-href]');
+    if (!link) return;
+    
+    e.preventDefault(); // Prevent any default behavior
+    e.stopPropagation(); // Stop event propagation
+    
+    const href = link.getAttribute('data-file-href');
+    if (!href) return;
+    
+    console.log('Link clicked with href:', href);
+    
+    // Check if it's an external URL
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+        // Open external URLs in default browser
+        vscode.postMessage({
+            type: 'openExternalLink',
+            href: href
+        });
+        return;
+    }
+    
+    // For file links, send to extension to handle
+    console.log('Sending file link to extension:', href);
+    vscode.postMessage({
+        type: 'openFileLink',
+        href: href
+    });
+}, true); // Use capture phase to catch events earlier
 
 // Undo/Redo functions
 function undo() {
@@ -1739,8 +1811,16 @@ function renderMarkdown(text) {
             renderer: new marked.Renderer()
         });
         
-        // Create custom renderer to handle images
+        // Create custom renderer to handle images and links
         const renderer = new marked.Renderer();
+        
+        // Override link rendering to preserve original href and prevent browser handling
+        renderer.link = function(href, title, text) {
+            // Store the original href as a data attribute to prevent URL transformation
+            const titleAttr = title ? ` title="${title}"` : '';
+            // Use javascript:void(0) to prevent any navigation, and store original href in data attribute
+            return `<a href="javascript:void(0)" data-original-href="${escapeHtml(href)}"${titleAttr} class="markdown-link">${text}</a>`;
+        };
         
         // Override image rendering to convert relative paths to webview URIs
         renderer.image = function(href, title, text) {
@@ -1780,70 +1860,6 @@ function renderMarkdown(text) {
         console.error('Error rendering markdown:', error);
         return escapeHtml(text);
     }
-
-    setTimeout(() => setupLinkHandling(), 100);
-}
-
-function setupLinkHandling() {
-    document.addEventListener('click', (e) => {
-        const link = e.target.closest('a[href]');
-        if (!link) return;
-        
-        const href = link.getAttribute('href');
-        if (!href) return;
-        
-        // Check if it's an external URL
-        if (href.startsWith('http://') || href.startsWith('https://')) {
-            // Let it open as normal (external website)
-            return;
-        }
-        
-        // Check if it's a file link
-        if (isFileLink(href)) {
-            e.preventDefault(); // Prevent default browser behavior
-            
-            // Send to extension to handle file opening
-            vscode.postMessage({
-                type: 'openFileLink',
-                href: href,
-                currentDocumentPath: currentFileInfo?.filePath || ''
-            });
-            return;
-        }
-        
-        // For other links (like anchors), let default behavior happen
-    });
-}
-
-function isFileLink(href) {
-    // External URLs - not files
-    if (href.startsWith('http://') || href.startsWith('https://')) {
-        return false;
-    }
-    
-    // Explicit file protocols
-    if (href.startsWith('file://')) {
-        return true;
-    }
-    
-    // Path-based indicators
-    if (href.startsWith('/') || href.startsWith('./') || href.startsWith('../')) {
-        return true;
-    }
-    
-    // Check if it looks like a filename (has a file extension)
-    const hasFileExtension = /\.[a-zA-Z0-9]{1,6}$/.test(href);
-    if (hasFileExtension) {
-        return true;
-    }
-    
-    // Check for common file patterns (even without extension)
-    const filePatterns = [
-        /^[^\/\s]+\.(md|txt|pdf|doc|docx|jpg|jpeg|png|gif|svg|html|css|js|json|xml|csv)$/i,
-        /^[^\/\s]+$/ // Bare name without spaces or slashes - could be a file
-    ];
-    
-    return filePatterns.some(pattern => pattern.test(href));
 }
 
 // Track pending image conversions

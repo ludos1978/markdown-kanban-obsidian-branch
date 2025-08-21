@@ -6,48 +6,35 @@ kanban-plugin: board
 
 ## # column h1
 - [ ] # task h1
-  some more text
+  a
 - [ ] ## task h2
-  '''anything else'''
+  a
+  
+  b
 - [ ] ### task h3
-  this is illegal
 - [ ] task Text
-  # h1
-  ## h2
-  ### h3
-  Text
-- [ ] x
-  # h1
-  # h1
-  # h1
-  # h1
-  # h1
-  # h1
-  # h1
-  # h1
-  # h1
-  # h1
-  # h1
-  # h1
+- [ ] [some.md](some.md)
+- [ ] dome.docx
 
 ## ## column h2
 - [ ] # task h1
-  # h1
-  ## h2
-  ### h3
-  Text
 - [ ] ## task h2
 - [ ] ### task h3
-- [ ] task Text
+- [ ] ![image](image.png)
+  ![image](image.png)
 
 ## ### column h3
 - [ ] # task h1
 - [ ] ## task h2
 - [ ] ### task h3
-- [ ] task text
+- [ ] [./some.md](./some.md)
 
 ## text
 - [ ] # task h1
+  # h1
+  ## h2
+  ### h3
+  Text
 - [ ] ## task h2
 - [ ] ### task h3
 - [ ] task text
@@ -75,3 +62,5 @@ kanban-plugin: board
 - [ ] ## task h2
 - [ ] ### task h3
 - [ ] task text
+
+
