@@ -1780,7 +1780,42 @@ function renderMarkdown(text) {
         console.error('Error rendering markdown:', error);
         return escapeHtml(text);
     }
+
+    setTimeout(() => setupLinkHandling(), 100);
 }
+
+function setupLinkHandling() {
+    // Add click handlers to all links in markdown content
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest('a[href]');
+        if (!link) return;
+        
+        const href = link.getAttribute('href');
+        if (!href) return;
+        
+        // Check if it's an external URL
+        if (href.startsWith('http://') || href.startsWith('https://')) {
+            // Let it open as normal (external website)
+            return;
+        }
+        
+        // Check if it's a file link (relative or absolute path)
+        if (href.includes('.') || href.startsWith('/') || href.startsWith('./') || href.startsWith('../') || href.startsWith('file://')) {
+            e.preventDefault(); // Prevent default browser behavior
+            
+            // Send to extension to handle file opening
+            vscode.postMessage({
+                type: 'openFileLink',
+                href: href,
+                currentDocumentPath: currentFileInfo?.filePath || ''
+            });
+            return;
+        }
+        
+        // For other links (like anchors), let default behavior happen
+    });
+}
+
 
 // Track pending image conversions
 let pendingImageConversions = new Map();

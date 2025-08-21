@@ -413,7 +413,10 @@ export class KanbanWebviewPanel {
             case 'convertImagePaths':
                 this._convertImagePaths(message.conversions);
                 break;
-            
+            case 'openFileLink':
+                this._handleFileLink(message.href, message.currentDocumentPath);
+                break;
+                        
             // File management
             case 'toggleFileLock':
                 this.toggleFileLock();
@@ -548,6 +551,37 @@ export class KanbanWebviewPanel {
         });
     }
 
+    private async _handleFileLink(href: string, currentDocumentPath: string) {
+        try {
+            let targetPath: string;
+            
+            if (href.startsWith('file://')) {
+                // Handle file:// URLs
+                targetPath = vscode.Uri.parse(href).fsPath;
+            } else if (href.startsWith('/')) {
+                // Absolute path
+                targetPath = href;
+            } else {
+                // Relative path - resolve relative to current document
+                const currentDir = path.dirname(currentDocumentPath);
+                targetPath = path.resolve(currentDir, href);
+            }
+            
+            // Check if file exists
+            if (fs.existsSync(targetPath)) {
+                // Open in VS Code
+                const document = await vscode.workspace.openTextDocument(targetPath);
+                await vscode.window.showTextDocument(document);
+            } else {
+                vscode.window.showWarningMessage(`File not found: ${targetPath}`);
+            }
+            
+        } catch (error) {
+            console.error('Error opening file link:', error);
+            vscode.window.showErrorMessage(`Failed to open file: ${href}`);
+        }
+    }
+    
     private async _initializeFile() {
         if (!this._document) {
             vscode.window.showErrorMessage('No document loaded');
