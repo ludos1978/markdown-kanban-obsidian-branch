@@ -13,8 +13,6 @@ body {
     font-family: var(--vscode-font-family);
     color: var(--vscode-foreground);
     background-color: var(--vscode-editor-background);
-    /* margin: var(--whitespace) 0px var(--whitespace) var(--whitespace);
-    padding: var(--whitespace) 0px var(--whitespace) var(--whitespace); */
     margin: 0px;
     padding: 0px;
     overflow-x: auto;
@@ -428,9 +426,9 @@ button.donut-menu-item {
 .task-title-container {
     flex: 1;
     min-width: 0;
-    width: 100%;           /* Take full available width */
-    max-width: 240px;       /* Remove the 255px restriction */
-    cursor: pointer;       /* Show pointer cursor for the whole area */
+    width: 100%;
+    max-width: 240px;
+    cursor: pointer;
 }
 
 .task-title-container:hover {
@@ -689,12 +687,16 @@ button.donut-menu-item {
     opacity: 0.5;
 }
 
-.kanban-column.drag-over {
-    background-color: var(--vscode-list-hoverBackground);
-    border: 2px dashed var(--vscode-focusBorder) !important;
+.kanban-column.column-dragging {
+    opacity: 0.6;
+    transform: scale(0.95);
 }
 
-/* Task drag indicators - lines that show where the item will be inserted */
+.kanban-column.drag-over {
+    position: relative;
+    background-color: var(--vscode-list-hoverBackground);
+}
+
 .task-item.drag-insert-before::before {
     content: '';
     position: absolute;
@@ -729,26 +731,6 @@ button.donut-menu-item {
     position: relative;
 }
 
-.kanban-column.drag-over::before,
-.kanban-column.drag-over::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background-color: var(--vscode-focusBorder);
-    z-index: 10;
-}
-
-.kanban-column.drag-over::before {
-    left: -4px;
-}
-
-.kanban-column.drag-over::after {
-    right: -4px;
-}
-
-/* Global drag and drop highlighting - simplified */
 #kanban-container.drag-highlight {
     background-color: rgba(0, 122, 204, 0.1);
     border: 2px dashed var(--vscode-focusBorder);
@@ -756,25 +738,56 @@ button.donut-menu-item {
     position: relative;
 }
 
-/* Remove the competing overlay - we use the HTML drop-zone-feedback instead */
-/* #kanban-container.drag-highlight::before {
-    content: '📎 Drop files here';
+.kanban-column.drag-over::before {
+    content: '';
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--vscode-editor-background);
-    padding: 16px 24px;
+    left: -4px;
+    top: 0;
+    width: 4px;
+    height: 100%;
+    background-color: var(--vscode-focusBorder);
+    z-index: 10;
+    border-radius: 2px;
+}
+
+.kanban-column.external-drag-over {
+    background-color: var(--vscode-list-hoverBackground);
+    border: 2px dashed var(--vscode-focusBorder);
     border-radius: 8px;
-    border: 1px solid var(--vscode-focusBorder);
-    font-size: 16px;
-    color: var(--vscode-foreground);
+    position: relative;
+}
+
+.external-drop-indicator {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    height: 3px;
+    background-color: var(--vscode-charts-blue);
+    border-radius: 2px;
     z-index: 1000;
     pointer-events: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-} */
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    box-shadow: 0 0 4px rgba(0, 122, 255, 0.5);
+}
 
-/* Markdown content styles */
+.external-drop-indicator.active {
+    opacity: 1;
+}
+
+.external-drop-indicator::before {
+    content: '📎';
+    position: absolute;
+    left: -20px;
+    top: -8px;
+    font-size: 14px;
+    background: var(--vscode-editor-background);
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--vscode-charts-blue);
+}
+
+/* markdown content */
 .markdown-content {
     word-wrap: break-word;
 }

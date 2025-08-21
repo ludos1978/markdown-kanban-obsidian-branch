@@ -11,6 +11,8 @@ let collapsedTasks = new Set();
 let currentFileInfo = null;
 let canUndo = false;
 let canRedo = false;
+let currentExternalDropColumn = null;
+let externalDropIndicator = null;
 
 // Track currently active text editor for drag/drop
 let activeTextEditor = null;
@@ -158,7 +160,287 @@ function updateUndoRedoButtons() {
     }
 }
 
+// External file drop location indicators
+function createExternalDropIndicator() {
+    if (externalDropIndicator) {
+        return externalDropIndicator;
+    }
+    
+    const indicator = document.createElement('div');
+    indicator.className = 'external-drop-indicator';
+    indicator.style.display = 'none';
+    document.body.appendChild(indicator);
+    externalDropIndicator = indicator;
+    return indicator;
+}
+
+function showExternalDropIndicator(column, clientY) {
+    const indicator = createExternalDropIndicator();
+    const tasksContainer = column.querySelector('.tasks-container');
+    
+    if (!tasksContainer) return;
+    
+    // Calculate insertion position
+    const containerRect = tasksContainer.getBoundingClientRect();
+    const relativeY = clientY - containerRect.top;
+    
+    // Find insertion point between tasks
+    const tasks = Array.from(tasksContainer.children);
+    let insertionY = containerRect.top;
+    
+    if (tasks.length === 0) {
+        // Empty column - show at top of tasks container
+        insertionY = containerRect.top + 10;
+    } else {
+        // Find the task that the cursor is above
+        let foundPosition = false;
+        for (let i = 0; i < tasks.length; i++) {
+            const taskRect = tasks[i].getBoundingClientRect();
+            const taskCenter = taskRect.top + taskRect.height / 2;
+            
+            if (clientY < taskCenter) {
+                insertionY = taskRect.top - 2;
+                foundPosition = true;
+                break;
+            }
+        }
+        
+        // If not above any task, position after the last task
+        if (!foundPosition && tasks.length > 0) {
+            const lastTaskRect = tasks[tasks.length - 1].getBoundingClientRect();
+            insertionY = lastTaskRect.bottom + 2;
+        }
+    }
+    
+    // Position the indicator
+    const columnRect = column.getBoundingClientRect();
+    indicator.style.position = 'fixed';
+    indicator.style.left = (columnRect.left + columnRect.width * 0.1) + 'px';
+    indicator.style.right = 'auto';
+    indicator.style.width = (columnRect.width * 0.8) + 'px';
+    indicator.style.top = insertionY + 'px';
+    indicator.style.display = 'block';
+    indicator.classList.add('active');
+    
+    // Add highlight to column
+    column.classList.add('external-drag-over');
+    currentExternalDropColumn = column;
+}
+
+function hideExternalDropIndicator() {
+    if (externalDropIndicator) {
+        externalDropIndicator.classList.remove('active');
+        externalDropIndicator.style.display = 'none';
+    }
+    
+    if (currentExternalDropColumn) {
+        currentExternalDropColumn.classList.remove('external-drag-over');
+        currentExternalDropColumn = null;
+    }
+    
+    // Remove highlight from all columns
+    document.querySelectorAll('.kanban-column').forEach(col => {
+        col.classList.remove('external-drag-over');
+    });
+}
+
+function cleanupExternalDropIndicators() {
+    hideExternalDropIndicator();
+    if (externalDropIndicator) {
+        externalDropIndicator.remove();
+        externalDropIndicator = null;
+    }
+}
+
 // Drag and Drop Setup
+// function setupGlobalDragAndDrop() {
+//     const boardContainer = document.getElementById('kanban-container');
+//     const dropFeedback = document.getElementById('drop-zone-feedback');
+    
+//     console.log('Setting up global drag and drop...');
+    
+//     // Prevent default drag behaviors on the entire board
+//     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+//         boardContainer.addEventListener(eventName, preventDefaults, false);
+//         document.body.addEventListener(eventName, preventDefaults, false);
+//     });
+    
+//     function preventDefaults(e) {
+//         e.preventDefault();
+//         e.stopPropagation();
+//     }
+    
+//     // Show drop zone feedback - only for external file drags
+//     ['dragenter', 'dragover'].forEach(eventName => {
+//         boardContainer.addEventListener(eventName, (e) => {
+//             // Only show feedback for external file drags, not internal task/column drags
+//             if (isExternalFileDrag(e)) {
+//                 showDropFeedback(e);
+//             }
+//         }, false);
+//     });
+    
+//     ['dragleave', 'drop'].forEach(eventName => {
+//         boardContainer.addEventListener(eventName, hideDropFeedback, false);
+//     });
+    
+//     // Check if this is an external file drag (not internal task/column drag)
+//     function isExternalFileDrag(e) {
+//         const dt = e.dataTransfer;
+//         if (!dt) return false;
+        
+//         // Check for our specific internal kanban drag identifiers
+//         const hasKanbanTask = dt.types.includes('application/kanban-task');
+//         const hasKanbanColumn = dt.types.includes('application/kanban-column');
+//         if (hasKanbanTask || hasKanbanColumn) {
+//             console.log('Internal kanban drag detected, not showing file drop feedback');
+//             return false;
+//         }
+        
+//         // Check if it's an internal kanban drag by examining data
+//         const hasInternalData = dt.types.includes('text/plain') || dt.types.includes('application/column-id');
+//         if (hasInternalData) {
+//             // For internal drags, check if the data contains our task/column IDs
+//             try {
+//                 const textData = dt.getData('text/plain');
+//                 const columnData = dt.getData('application/column-id');
+//                 if ((textData && (textData.includes('task_') || textData.includes('col_'))) || 
+//                     (columnData && columnData.includes('col_'))) {
+//                     console.log('Internal kanban drag detected by ID format');
+//                     return false; // This is internal kanban drag
+//                 }
+//             } catch (e) {
+//                 // getData might fail during dragenter, that's ok
+//                 // Fall back to checking just the types
+//             }
+//         }
+        
+//         // Check for external file indicators
+//         const hasFiles = dt.types.includes('Files');
+//         const hasUriList = dt.types.includes('text/uri-list');
+        
+//         const isExternal = hasFiles || hasUriList;
+//         if (isExternal) {
+//             console.log('External file drag detected');
+//         }
+        
+//         return isExternal;
+//     }
+    
+//     // Also handle at document level to catch drags from outside, but be more specific
+//     document.addEventListener('dragenter', (e) => {
+//         console.log('Document dragenter, types:', e.dataTransfer?.types);
+//         // Only show feedback if it's clearly an external file drag
+//         if (isExternalFileDrag(e)) {
+//             showDropFeedback(e);
+//         }
+//     });
+    
+//     document.addEventListener('dragleave', (e) => {
+//         // Hide when leaving the document
+//         if (!document.body.contains(e.relatedTarget)) {
+//             hideDropFeedback(e);
+//         }
+//     });
+    
+//     function showDropFeedback(e) {
+//         console.log('Showing drop feedback for external file');
+//         if (dropFeedback) {
+//             dropFeedback.classList.add('active');
+//         }
+//         // Don't add the CSS class that creates the competing overlay
+//         // boardContainer.classList.add('drag-highlight');
+//     }
+    
+//     function hideDropFeedback(e) {
+//         console.log('Hiding drop feedback');
+//         if (dropFeedback) {
+//             dropFeedback.classList.remove('active');
+//         }
+//         // Make sure to remove the CSS class too
+//         boardContainer.classList.remove('drag-highlight');
+//     }
+    
+//     // Handle dropped files
+//     boardContainer.addEventListener('drop', handleFileDrop, false);
+//     document.addEventListener('drop', handleFileDrop, false);
+    
+//     function handleFileDrop(e) {
+//         console.log('File drop detected!');
+//         hideDropFeedback(e);
+        
+//         // Prevent multiple simultaneous drops
+//         if (isProcessingDrop) {
+//             console.log('Already processing a drop, ignoring this one');
+//             return;
+//         }
+        
+//         const dt = e.dataTransfer;
+//         console.log('DataTransfer types:', dt.types);
+//         console.log('DataTransfer files length:', dt.files.length);
+        
+//         // Check for internal kanban drags first - be very specific
+//         const hasKanbanTask = dt.types.includes('application/kanban-task');
+//         const hasKanbanColumn = dt.types.includes('application/kanban-column');
+        
+//         if (hasKanbanTask || hasKanbanColumn) {
+//             console.log('Internal kanban drag detected by type, skipping file drop handling');
+//             return;
+//         }
+        
+//         // Additional check: examine the actual data for task/column IDs
+//         const taskId = dt.getData('text/plain');
+//         const columnId = dt.getData('application/column-id');
+        
+//         if ((taskId && (taskId.includes('task_') || taskId.includes('col_'))) || 
+//             (columnId && columnId.includes('col_'))) {
+//             console.log('Internal kanban drag detected by data content, skipping file drop handling');
+//             return;
+//         }
+        
+//         // Check all available data for debugging
+//         for (let i = 0; i < dt.types.length; i++) {
+//             const type = dt.types[i];
+//             const data = dt.getData(type);
+//             console.log(`DataTransfer[${type}]:`, data);
+//         }
+        
+//         const files = dt.files;
+        
+//         // Set processing flag
+//         isProcessingDrop = true;
+        
+//         // Reset flag after a delay
+//         setTimeout(() => {
+//             isProcessingDrop = false;
+//         }, 1000);
+        
+//         if (files && files.length > 0) {
+//             console.log('Handling file drop with', files.length, 'files');
+//             // Handle VS Code file drops
+//             handleVSCodeFileDrop(e, files);
+//         } else {
+//             // Check for VS Code internal drag data
+//             const uriList = dt.getData('text/uri-list');
+//             const textPlain = dt.getData('text/plain');
+//             console.log('URI list:', uriList);
+//             console.log('Text plain:', textPlain);
+            
+//             if (uriList) {
+//                 console.log('Handling URI list drop');
+//                 handleVSCodeUriDrop(e, uriList);
+//             } else if (textPlain && (textPlain.startsWith('file://') || (textPlain.includes('/') && !textPlain.includes('task_') && !textPlain.includes('col_')))) {
+//                 console.log('Handling text plain as URI');
+//                 handleVSCodeUriDrop(e, textPlain);
+//             } else {
+//                 console.log('No file data found in drop');
+//                 // Reset processing flag
+//                 isProcessingDrop = false;
+//             }
+//         }
+//     }
+// }
+
 function setupGlobalDragAndDrop() {
     const boardContainer = document.getElementById('kanban-container');
     const dropFeedback = document.getElementById('drop-zone-feedback');
@@ -176,10 +458,22 @@ function setupGlobalDragAndDrop() {
         e.stopPropagation();
     }
     
+    // Enhanced dragover handling with column-specific indicators
+    boardContainer.addEventListener('dragover', (e) => {
+        if (isExternalFileDrag(e)) {
+            const column = e.target.closest('.kanban-column');
+            if (column && !column.classList.contains('collapsed')) {
+                showExternalDropIndicator(column, e.clientY);
+            } else {
+                hideExternalDropIndicator();
+            }
+            showDropFeedback(e);
+        }
+    }, false);
+    
     // Show drop zone feedback - only for external file drags
-    ['dragenter', 'dragover'].forEach(eventName => {
+    ['dragenter'].forEach(eventName => {
         boardContainer.addEventListener(eventName, (e) => {
-            // Only show feedback for external file drags, not internal task/column drags
             if (isExternalFileDrag(e)) {
                 showDropFeedback(e);
             }
@@ -187,7 +481,13 @@ function setupGlobalDragAndDrop() {
     });
     
     ['dragleave', 'drop'].forEach(eventName => {
-        boardContainer.addEventListener(eventName, hideDropFeedback, false);
+        boardContainer.addEventListener(eventName, (e) => {
+            // Only hide if we're actually leaving the board area
+            if (!boardContainer.contains(e.relatedTarget)) {
+                hideDropFeedback(e);
+                hideExternalDropIndicator();
+            }
+        }, false);
     });
     
     // Check if this is an external file drag (not internal task/column drag)
@@ -206,18 +506,16 @@ function setupGlobalDragAndDrop() {
         // Check if it's an internal kanban drag by examining data
         const hasInternalData = dt.types.includes('text/plain') || dt.types.includes('application/column-id');
         if (hasInternalData) {
-            // For internal drags, check if the data contains our task/column IDs
             try {
                 const textData = dt.getData('text/plain');
                 const columnData = dt.getData('application/column-id');
                 if ((textData && (textData.includes('task_') || textData.includes('col_'))) || 
                     (columnData && columnData.includes('col_'))) {
                     console.log('Internal kanban drag detected by ID format');
-                    return false; // This is internal kanban drag
+                    return false;
                 }
             } catch (e) {
                 // getData might fail during dragenter, that's ok
-                // Fall back to checking just the types
             }
         }
         
@@ -233,19 +531,18 @@ function setupGlobalDragAndDrop() {
         return isExternal;
     }
     
-    // Also handle at document level to catch drags from outside, but be more specific
+    // Enhanced document-level handling
     document.addEventListener('dragenter', (e) => {
         console.log('Document dragenter, types:', e.dataTransfer?.types);
-        // Only show feedback if it's clearly an external file drag
         if (isExternalFileDrag(e)) {
             showDropFeedback(e);
         }
     });
     
     document.addEventListener('dragleave', (e) => {
-        // Hide when leaving the document
         if (!document.body.contains(e.relatedTarget)) {
             hideDropFeedback(e);
+            hideExternalDropIndicator();
         }
     });
     
@@ -254,8 +551,6 @@ function setupGlobalDragAndDrop() {
         if (dropFeedback) {
             dropFeedback.classList.add('active');
         }
-        // Don't add the CSS class that creates the competing overlay
-        // boardContainer.classList.add('drag-highlight');
     }
     
     function hideDropFeedback(e) {
@@ -263,19 +558,19 @@ function setupGlobalDragAndDrop() {
         if (dropFeedback) {
             dropFeedback.classList.remove('active');
         }
-        // Make sure to remove the CSS class too
         boardContainer.classList.remove('drag-highlight');
     }
     
-    // Handle dropped files
+    // Handle dropped files (existing logic)
     boardContainer.addEventListener('drop', handleFileDrop, false);
     document.addEventListener('drop', handleFileDrop, false);
     
     function handleFileDrop(e) {
         console.log('File drop detected!');
         hideDropFeedback(e);
+        hideExternalDropIndicator(); // Hide the drop indicator
         
-        // Prevent multiple simultaneous drops
+        // ... rest of existing handleFileDrop logic remains the same
         if (isProcessingDrop) {
             console.log('Already processing a drop, ignoring this one');
             return;
@@ -285,7 +580,6 @@ function setupGlobalDragAndDrop() {
         console.log('DataTransfer types:', dt.types);
         console.log('DataTransfer files length:', dt.files.length);
         
-        // Check for internal kanban drags first - be very specific
         const hasKanbanTask = dt.types.includes('application/kanban-task');
         const hasKanbanColumn = dt.types.includes('application/kanban-column');
         
@@ -294,7 +588,6 @@ function setupGlobalDragAndDrop() {
             return;
         }
         
-        // Additional check: examine the actual data for task/column IDs
         const taskId = dt.getData('text/plain');
         const columnId = dt.getData('application/column-id');
         
@@ -304,29 +597,17 @@ function setupGlobalDragAndDrop() {
             return;
         }
         
-        // Check all available data for debugging
-        for (let i = 0; i < dt.types.length; i++) {
-            const type = dt.types[i];
-            const data = dt.getData(type);
-            console.log(`DataTransfer[${type}]:`, data);
-        }
-        
         const files = dt.files;
         
-        // Set processing flag
         isProcessingDrop = true;
-        
-        // Reset flag after a delay
         setTimeout(() => {
             isProcessingDrop = false;
         }, 1000);
         
         if (files && files.length > 0) {
             console.log('Handling file drop with', files.length, 'files');
-            // Handle VS Code file drops
             handleVSCodeFileDrop(e, files);
         } else {
-            // Check for VS Code internal drag data
             const uriList = dt.getData('text/uri-list');
             const textPlain = dt.getData('text/plain');
             console.log('URI list:', uriList);
@@ -340,7 +621,6 @@ function setupGlobalDragAndDrop() {
                 handleVSCodeUriDrop(e, textPlain);
             } else {
                 console.log('No file data found in drop');
-                // Reset processing flag
                 isProcessingDrop = false;
             }
         }
