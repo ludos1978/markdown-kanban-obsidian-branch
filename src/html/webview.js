@@ -1589,7 +1589,6 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
     const taskId = textarea.dataset.taskId;
     const columnId = textarea.dataset.columnId;
     const field = textarea.dataset.field;
-    // Use the raw value without trim() for titles to preserve formatting
     const value = textarea.value;
 
     if (!taskId || !columnId || !field) return;
@@ -1604,32 +1603,9 @@ function saveTaskFieldAndUpdateDisplay(textarea) {
         }
     }
 
-    const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
+    // No need to update display divs - the textarea IS the display!
     
-    if (field === 'title') {
-        const displayDiv = taskItem.querySelector('.task-title-display');
-        // Use trimmed value for display but preserve original formatting in the data
-        const displayValue = value.trim();
-        if (displayValue) {
-            displayDiv.innerHTML = renderMarkdown(displayValue);
-        } else {
-            displayDiv.innerHTML = '<span class="task-title-placeholder">Add title...</span>';
-        }
-    } else if (field === 'description') {
-        const displayDiv = taskItem.querySelector('.task-description-display');
-        const placeholder = taskItem.querySelector('.task-description-placeholder');
-        
-        if (value.trim()) {
-            displayDiv.innerHTML = renderMarkdown(value);
-            displayDiv.style.display = 'block';
-            if (placeholder) placeholder.style.display = 'none';
-        } else {
-            displayDiv.style.display = 'none';
-            if (placeholder) placeholder.style.display = 'block';
-        }
-    }
-
-    // Find the task for the request data
+    // Send update to extension
     const column = currentBoard?.columns?.find(col => col.id === columnId);
     const task = column?.tasks?.find(t => t.id === taskId) || { title: '', description: '' };
     
@@ -1682,74 +1658,6 @@ function renderMarkdown(text) {
         return escapeHtml(text);
     }
 }
-
-// function resolveRelativePath(documentPath, relativePath) {
-//     // Simple path resolution - you might want to use a more robust solution
-//     const documentDir = documentPath.substring(0, documentPath.lastIndexOf('/'));
-//     if (relativePath.startsWith('./')) {
-//         return documentDir + '/' + relativePath.substring(2);
-//     } else if (relativePath.startsWith('../')) {
-//         // Handle parent directory navigation
-//         const parts = documentDir.split('/');
-//         const relativeParts = relativePath.split('/');
-        
-//         for (const part of relativeParts) {
-//             if (part === '..') {
-//                 parts.pop();
-//             } else if (part !== '.' && part !== '') {
-//                 parts.push(part);
-//             }
-//         }
-//         return parts.join('/');
-//     } else {
-//         return documentDir + '/' + relativePath;
-//     }
-// }
-
-// IMPROVED: Process all pending images immediately
-// function processAllPendingImages() {
-//     if (pendingImageConversions.size === 0 || isProcessingImages) {
-//         return;
-//     }
-    
-//     isProcessingImages = true;
-//     console.log('Processing', pendingImageConversions.size, 'pending image conversions immediately');
-    
-//     const conversions = Array.from(pendingImageConversions.entries());
-    
-//     // Send all pending conversions to extension immediately
-//     vscode.postMessage({
-//         type: 'convertImagePaths',
-//         conversions: conversions.map(([relativePath, data]) => ({
-//             relativePath,
-//             absolutePath: data.absolutePath
-//         }))
-//     });
-    
-//     // Clear the pending map since we've sent them for processing
-//     pendingImageConversions.clear();
-//     isProcessingImages = false;
-// }
-
-// function updateImageSources(pathMappings) {
-//     console.log('Updating image sources with mappings:', pathMappings);
-    
-//     // Update all pending images with their webview URIs
-//     let updatedCount = 0;
-//     document.querySelectorAll('.pending-image-conversion').forEach(img => {
-//         const originalSrc = img.getAttribute('data-original-src');
-//         if (originalSrc && pathMappings[originalSrc]) {
-//             img.src = pathMappings[originalSrc];
-//             img.classList.remove('pending-image-conversion');
-//             img.removeAttribute('data-original-src');
-//             updatedCount++;
-//             console.log('Updated image src for:', originalSrc);
-//         }
-//     });
-    
-//     console.log('Updated', updatedCount, 'images');
-//     isProcessingImages = false;
-// }
 
 // Drag and drop setup
 function setupDragAndDrop() {
