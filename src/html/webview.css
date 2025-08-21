@@ -802,9 +802,12 @@ button.donut-menu-item {
     margin: 1em 0;
 }
 
-.markdown-content p:first-child,
+.markdown-content p:first-child {
+    margin-top: 0;
+}
+
 .markdown-content p:last-child {
-    margin: 0;
+    margin-bottom: 0;
 }
 
 .markdown-content ul,
@@ -944,4 +947,13 @@ button.donut-menu-item {
     .task-title-container .markdown-content img {
         max-height: 40px;
     }
+}
+
+blockquote {
+    margin-block-start: 0.5em;
+    margin-block-end: 0.5em;
+    margin-inline-start: 10px;
+    margin-inline-end: 20px;
+    padding-left: 10px;
+    border-left: 2px solid #1371b8;
 }

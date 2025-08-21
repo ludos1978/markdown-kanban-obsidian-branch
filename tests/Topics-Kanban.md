@@ -6,12 +6,17 @@ kanban-plugin: board
 
 ## # column h1
 - [ ] # task h1
-  a
+  > a
+  
+  * b
 - [ ] ## task h2
   a
   
   b
-- [ ] ### task h3
+- [ ] ### task h3 test
+  blablabla
+  
+  something
 - [ ] task Text
 - [ ] [some.md](some.md)
 - [ ] dome.docx
