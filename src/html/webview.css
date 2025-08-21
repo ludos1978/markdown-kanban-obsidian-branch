@@ -748,7 +748,7 @@ button.donut-menu-item {
     right: -4px;
 }
 
-/* Global drag and drop highlighting */
+/* Global drag and drop highlighting - simplified */
 #kanban-container.drag-highlight {
     background-color: rgba(0, 122, 204, 0.1);
     border: 2px dashed var(--vscode-focusBorder);
@@ -756,7 +756,8 @@ button.donut-menu-item {
     position: relative;
 }
 
-#kanban-container.drag-highlight::before {
+/* Remove the competing overlay - we use the HTML drop-zone-feedback instead */
+/* #kanban-container.drag-highlight::before {
     content: '📎 Drop files here';
     position: absolute;
     top: 50%;
@@ -771,7 +772,7 @@ button.donut-menu-item {
     z-index: 1000;
     pointer-events: none;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
+} */
 
 /* Markdown content styles */
 .markdown-content {

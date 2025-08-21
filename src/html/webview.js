@@ -176,20 +176,68 @@ function setupGlobalDragAndDrop() {
         e.stopPropagation();
     }
     
-    // Show drop zone feedback
+    // Show drop zone feedback - only for external file drags
     ['dragenter', 'dragover'].forEach(eventName => {
-        boardContainer.addEventListener(eventName, showDropFeedback, false);
+        boardContainer.addEventListener(eventName, (e) => {
+            // Only show feedback for external file drags, not internal task/column drags
+            if (isExternalFileDrag(e)) {
+                showDropFeedback(e);
+            }
+        }, false);
     });
     
     ['dragleave', 'drop'].forEach(eventName => {
         boardContainer.addEventListener(eventName, hideDropFeedback, false);
     });
     
-    // Also handle at document level to catch drags from outside
+    // Check if this is an external file drag (not internal task/column drag)
+    function isExternalFileDrag(e) {
+        const dt = e.dataTransfer;
+        if (!dt) return false;
+        
+        // Check for our specific internal kanban drag identifiers
+        const hasKanbanTask = dt.types.includes('application/kanban-task');
+        const hasKanbanColumn = dt.types.includes('application/kanban-column');
+        if (hasKanbanTask || hasKanbanColumn) {
+            console.log('Internal kanban drag detected, not showing file drop feedback');
+            return false;
+        }
+        
+        // Check if it's an internal kanban drag by examining data
+        const hasInternalData = dt.types.includes('text/plain') || dt.types.includes('application/column-id');
+        if (hasInternalData) {
+            // For internal drags, check if the data contains our task/column IDs
+            try {
+                const textData = dt.getData('text/plain');
+                const columnData = dt.getData('application/column-id');
+                if ((textData && (textData.includes('task_') || textData.includes('col_'))) || 
+                    (columnData && columnData.includes('col_'))) {
+                    console.log('Internal kanban drag detected by ID format');
+                    return false; // This is internal kanban drag
+                }
+            } catch (e) {
+                // getData might fail during dragenter, that's ok
+                // Fall back to checking just the types
+            }
+        }
+        
+        // Check for external file indicators
+        const hasFiles = dt.types.includes('Files');
+        const hasUriList = dt.types.includes('text/uri-list');
+        
+        const isExternal = hasFiles || hasUriList;
+        if (isExternal) {
+            console.log('External file drag detected');
+        }
+        
+        return isExternal;
+    }
+    
+    // Also handle at document level to catch drags from outside, but be more specific
     document.addEventListener('dragenter', (e) => {
         console.log('Document dragenter, types:', e.dataTransfer?.types);
-        // Only show feedback if dragging files from outside
-        if (e.dataTransfer && (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('text/uri-list'))) {
+        // Only show feedback if it's clearly an external file drag
+        if (isExternalFileDrag(e)) {
             showDropFeedback(e);
         }
     });
@@ -202,19 +250,21 @@ function setupGlobalDragAndDrop() {
     });
     
     function showDropFeedback(e) {
-        console.log('Showing drop feedback');
+        console.log('Showing drop feedback for external file');
         if (dropFeedback) {
             dropFeedback.classList.add('active');
-            boardContainer.classList.add('drag-highlight');
         }
+        // Don't add the CSS class that creates the competing overlay
+        // boardContainer.classList.add('drag-highlight');
     }
     
     function hideDropFeedback(e) {
         console.log('Hiding drop feedback');
         if (dropFeedback) {
             dropFeedback.classList.remove('active');
-            boardContainer.classList.remove('drag-highlight');
         }
+        // Make sure to remove the CSS class too
+        boardContainer.classList.remove('drag-highlight');
     }
     
     // Handle dropped files
@@ -235,7 +285,26 @@ function setupGlobalDragAndDrop() {
         console.log('DataTransfer types:', dt.types);
         console.log('DataTransfer files length:', dt.files.length);
         
-        // Check all available data
+        // Check for internal kanban drags first - be very specific
+        const hasKanbanTask = dt.types.includes('application/kanban-task');
+        const hasKanbanColumn = dt.types.includes('application/kanban-column');
+        
+        if (hasKanbanTask || hasKanbanColumn) {
+            console.log('Internal kanban drag detected by type, skipping file drop handling');
+            return;
+        }
+        
+        // Additional check: examine the actual data for task/column IDs
+        const taskId = dt.getData('text/plain');
+        const columnId = dt.getData('application/column-id');
+        
+        if ((taskId && (taskId.includes('task_') || taskId.includes('col_'))) || 
+            (columnId && columnId.includes('col_'))) {
+            console.log('Internal kanban drag detected by data content, skipping file drop handling');
+            return;
+        }
+        
+        // Check all available data for debugging
         for (let i = 0; i < dt.types.length; i++) {
             const type = dt.types[i];
             const data = dt.getData(type);
@@ -243,16 +312,6 @@ function setupGlobalDragAndDrop() {
         }
         
         const files = dt.files;
-        
-        // Check if it's an internal drag (task or column) - be more specific
-        const taskId = dt.getData('text/plain');
-        const columnId = dt.getData('application/column-id');
-        
-        // Only skip if we have task/column specific data
-        if ((taskId && taskId.includes('task_')) || (columnId && columnId.includes('col_'))) {
-            console.log('Internal drag detected, skipping file drop handling');
-            return;
-        }
         
         // Set processing flag
         isProcessingDrop = true;
@@ -276,7 +335,7 @@ function setupGlobalDragAndDrop() {
             if (uriList) {
                 console.log('Handling URI list drop');
                 handleVSCodeUriDrop(e, uriList);
-            } else if (textPlain && (textPlain.startsWith('file://') || textPlain.includes('/'))) {
+            } else if (textPlain && (textPlain.startsWith('file://') || (textPlain.includes('/') && !textPlain.includes('task_') && !textPlain.includes('col_')))) {
                 console.log('Handling text plain as URI');
                 handleVSCodeUriDrop(e, textPlain);
             } else {
@@ -1400,13 +1459,22 @@ function setupColumnDragAndDrop() {
 
         dragHandle.addEventListener('dragstart', e => {
             draggedColumn = column;
+            const columnId = column.getAttribute('data-column-id');
+            
+            // Set specific data to identify this as internal kanban drag
+            e.dataTransfer.setData('text/plain', columnId);
+            e.dataTransfer.setData('application/column-id', columnId);
+            e.dataTransfer.setData('application/kanban-column', columnId); // Additional identifier
             e.dataTransfer.effectAllowed = 'move';
             column.classList.add('column-dragging');
+            
+            console.log('Column drag started:', columnId);
         });
 
         dragHandle.addEventListener('dragend', e => {
             column.classList.remove('column-dragging');
             columns.forEach(col => col.classList.remove('drag-over'));
+            console.log('Column drag ended');
         });
 
         column.addEventListener('dragover', e => {
@@ -1521,10 +1589,17 @@ function setupTaskDragHandle(handle) {
         const taskItem = e.target.closest('.task-item');
         if (taskItem) {
             e.stopPropagation();
-            e.dataTransfer.setData('text/plain', taskItem.dataset.taskId);
-            e.dataTransfer.setData('application/column-id', taskItem.dataset.columnId);
+            const taskId = taskItem.dataset.taskId;
+            const columnId = taskItem.dataset.columnId;
+            
+            // Set specific data to identify this as internal kanban drag
+            e.dataTransfer.setData('text/plain', taskId);
+            e.dataTransfer.setData('application/column-id', columnId);
+            e.dataTransfer.setData('application/kanban-task', taskId); // Additional identifier
             e.dataTransfer.effectAllowed = 'move';
             taskItem.classList.add('dragging');
+            
+            console.log('Task drag started:', taskId);
         }
     });
 
@@ -1532,6 +1607,7 @@ function setupTaskDragHandle(handle) {
         const taskItem = e.target.closest('.task-item');
         if (taskItem) {
             taskItem.classList.remove('dragging');
+            console.log('Task drag ended');
         }
     });
 }
