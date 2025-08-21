@@ -323,8 +323,21 @@ class TaskEditor {
         const columnId = this.currentEditor.columnId;
         const taskItem = this.currentEditor.element.closest('.task-item');
         
-        // Save title without triggering blur
-        this.saveCurrentField();
+        // DON'T SAVE YET - just update local state
+        const value = this.currentEditor.element.value;
+        if (currentBoard && currentBoard.columns) {
+            const column = currentBoard.columns.find(c => c.id === columnId);
+            const task = column?.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.title = value;
+                if (this.currentEditor.displayElement) {
+                    this.currentEditor.displayElement.innerHTML = renderMarkdown(value);
+                }
+            }
+        }
+        
+        // Remove blur handler
+        this.currentEditor.element.onblur = null;
         
         // Hide title editor
         this.currentEditor.element.style.display = 'none';
@@ -335,14 +348,12 @@ class TaskEditor {
         // Clear current editor
         this.currentEditor = null;
         
-        // Start editing description after a brief delay
-        setTimeout(() => {
-            this.isTransitioning = false;
-            const descContainer = taskItem.querySelector('.task-description-container');
-            if (descContainer) {
-                this.startEdit(descContainer, 'task-description', taskId, columnId);
-            }
-        }, 10);
+        // Immediately start editing description (no async needed)
+        this.isTransitioning = false;
+        const descContainer = taskItem.querySelector('.task-description-container');
+        if (descContainer) {
+            this.startEdit(descContainer, 'task-description', taskId, columnId);
+        }
     }
 
     save() {
@@ -404,13 +415,24 @@ class TaskEditor {
                     }
                 }
                 
-                // Send to extension
-                vscode.postMessage({
-                    type: 'editTask',
-                    taskId: taskId,
-                    columnId: columnId,
-                    taskData: task
-                });
+                // Only send to extension if not transitioning
+                if (!this.isTransitioning) {
+                    if (type === 'column-title') {
+                        vscode.postMessage({
+                            type: 'editColumnTitle',
+                            columnId: columnId,
+                            title: value
+                        });
+                    } else if (type === 'task-title' || type === 'task-description') {
+                        // Send to extension
+                        vscode.postMessage({
+                            type: 'editTask',
+                            taskId: taskId,
+                            columnId: columnId,
+                            taskData: task
+                        });
+                    }
+                }
             }
         }
     }
