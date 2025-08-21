@@ -14,8 +14,12 @@ I use it myself and found no similar extension that fulfilled my needs.
 
 - **Markdown Parsing**: Automatically parses task lists from Markdown files.
 - **Kanban View**: Displays tasks in a Kanban board format with multi-column layout.
-- **Drag & Drop**: Supports dragging and dropping tasks between different columns.
+- **Drag & Drop**: Supports dragging and dropping tasks between different columns. Proper movement and displaying of card and column movements. however they seem to be placed on top/bottom incoherently.
 - **Real-time Sync**: Ensures real-time, two-way synchronization between the Kanban board and the Markdown file.
+- **Undo & Redo**
+- **Image & File dropping** creates new cards
+- **Tab** from Card Title switches to Description. From Description it ends editing.
+- **Locking the file** so switching the md doesnt change the kaban view.
 
 ### Required Format
 
