@@ -221,6 +221,63 @@ export function activate(context: vscode.ExtensionContext) {
 	if (vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.languageId === 'markdown') {
 		vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
 	}
+
+	// some way to receive full paths when dropping files from outside the editor...
+	const provider: vscode.WebviewDropEditProvider = {
+		async provideWebviewDropEdits(document, dataTransfer, token) {
+			const item = dataTransfer.get('text/uri-list');
+			if (!item) return;
+
+			const uris = await item.asString();
+			const fileUri = vscode.Uri.parse(uris.split('\n')[0].trim());
+
+			vscode.window.showInformationMessage(`Dropped: ${fileUri.fsPath}`);
+			return undefined;
+		}
+	};
+
+	context.subscriptions.push(
+		vscode.window.registerWebviewDropEditProvider('my-custom-view', provider)
+	);
+	// some way to receive full paths when dropping files from outside the editor... but not implemented fully
+
+	// additionally it needs 
+	// 1.You create a webview panel (or webview view) with a matching viewType:
+	// -- ts --
+	// const panel = vscode.window.createWebviewPanel(
+	// 	'my-custom-view',        // must match the type in registerWebviewDropEditProvider
+	// 	'Drop Example',
+	// 	vscode.ViewColumn.One,
+	// 	{ enableScripts: true }
+	// 	);
+	// 	panel.webview.html = `<h1>Drop files onto this panel!</h1>`;
+	// --
+	// 2.You register a provider:
+	// -- ts --
+	// const provider: vscode.WebviewDropEditProvider = {
+	// async provideWebviewDropEdits(document, dataTransfer, token) {
+	// 	const item = dataTransfer.get('text/uri-list');
+	// 	if (!item) return;
+
+	// 	const uris = await item.asString();
+	// 	const fileUri = vscode.Uri.parse(uris.split('\n')[0].trim());
+
+	// 	// ✅ This is where you "receive" the drop
+	// 	vscode.window.showInformationMessage(`Dropped: ${fileUri.fsPath}`);
+
+	// 	// You can also return a WebviewEdit if you want VS Code to apply changes,
+	// 	// but if you just need the event, you can return undefined.
+	// 	return undefined;
+	// 	}
+	// 	};
+
+	// 	context.subscriptions.push(
+	// 	vscode.window.registerWebviewDropEditProvider('my-custom-view', provider)
+	// );
+	// --
+	// Now when you drag a file from Explorer and drop it into your webview, VS Code calls your provideWebviewDropEdits function, and you can grab:
+	// fileUri.fsPath → absolute path
+	// fileUri.path → URI path style
 }
 
 // This method is called when your extension is deactivated

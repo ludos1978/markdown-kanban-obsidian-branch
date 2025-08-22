@@ -850,11 +850,39 @@ function handleVSCodeFileDrop(e, files) {
     console.log('File type:', file.type);
     console.log('File size:', file.size);
     
-    // Send to extension to get proper VS Code URI and handle the drop
-    // Don't create the link directly here to avoid duplication
+    const everything = JSON.stringify({
+        'dataTransfer.types': Array.from(e.dataTransfer.types),
+        'dataTransfer.getData(text/uri-list)': e.dataTransfer.getData('text/uri-list'),
+        'dataTransfer.getData(text/plain)': e.dataTransfer.getData('text/plain'),
+        'dataTransfer.files.0.name': e.dataTransfer.files.item(0)?.name,
+        'dataTransfer.files[0].path': e.dataTransfer.files[0].path
+    }, null, 2);
+
+    console.log('File path:', e.dataTransfer.files[0].path);
+    // https://www.electronjs.org/docs/latest/breaking-changes#removed-filepath
+    // console.log('File path v32:', webUtils.getPathForFile(e.dataTransfer.files[0]));
+    console.log('Dropped:', everything);
+
+    // Get the full path if possible
+    let fullPath = null;
+    try {
+        // Try to get the full file path from File object
+        if (file.path) {
+            console.log('File path:', file.path);
+            fullPath = file.path;
+        } else if (typeof e.dataTransfer !== 'undefined' && typeof e.dataTransfer.files[0] !== 'undefined') {
+            // Fallback: try to get path from dataTransfer
+            fullPath = e.dataTransfer.files[0].path;
+        }
+    } catch (err) {
+        console.warn('Could not get full file path:', err);
+    }
+
+    // Send to extension with the full path if available
     vscode.postMessage({
         type: 'handleFileDrop',
         fileName: fileName,
+        filePath: fullPath, // Send the full path for proper relative calculation
         dropPosition: {
             x: e.clientX,
             y: e.clientY

@@ -298,8 +298,11 @@ export class KanbanWebviewPanel {
             console.log('_handleFileDrop called with:', message);
             const { fileName, dropPosition, activeEditor } = message;
             
+            // Use the relative path method to get proper path based on document location
+            const fullFilePath = message.filePath; // This should be passed from the webview
+            const relativePath = this._getRelativePath(fullFilePath || fileName);
+            
             const isImage = this._isImageFile(fileName);
-            const relativePath = `./${fileName}`;
             
             const fileInfo = {
                 fileName,
