@@ -23,6 +23,8 @@ let externalDropIndicator = null;
 let dragDropInitialized = false;
 let isProcessingDrop = false; // Prevent multiple simultaneous drops
 
+let currentImageMappings = {};
+
 document.addEventListener('DOMContentLoaded', () => {
     // Set up link click handling using event delegation
     document.body.addEventListener('click', (e) => {
@@ -100,6 +102,11 @@ window.addEventListener('message', event => {
         case 'updateBoard':
             console.log('Updating board with:', message.board); // Debug log
             currentBoard = message.board;
+            // Store image mappings if provided
+            if (message.imageMappings) {
+                currentImageMappings = message.imageMappings;
+                console.log('Received image mappings:', currentImageMappings);
+            }
             debouncedRenderBoard(); // Use debounced render
             break;
         case 'updateFileInfo':
@@ -118,15 +125,107 @@ window.addEventListener('message', event => {
             insertFileLink(message.fileInfo);
             break;
         case 'imagePathsConverted':
-            updateImageSources(message.pathMappings);
+            console.log('Image paths converted:', message.pathMappings);
+            currentImageMappings = { ...currentImageMappings, ...message.pathMappings };
+            updateImageSources();
             break;
         case 'updateFileInfo':
             console.log('Updating file info with:', message.fileInfo);
             currentFileInfo = message.fileInfo;
             updateFileInfoBar();
             break;
+        case 'updateImagePaths':
+            updateImagePaths(message.pathMappings);
+            break;
+
     }
 });
+
+function updateImageSources() {
+    // Update all images in the rendered content
+    document.querySelectorAll('img').forEach(img => {
+        const originalSrc = img.getAttribute('data-original-src') || img.src;
+        
+        // Extract path from src (remove any base URL)
+        let imagePath = originalSrc;
+        try {
+            const url = new URL(originalSrc);
+            imagePath = url.pathname;
+        } catch (e) {
+            // If it's not a full URL, use as-is
+        }
+        
+        // Try to find a mapping for this image
+        const mappedSrc = findImageMapping(imagePath);
+        if (mappedSrc && mappedSrc !== originalSrc) {
+            console.log('Updating image src:', originalSrc, '->', mappedSrc);
+            img.src = mappedSrc;
+            img.setAttribute('data-original-src', originalSrc);
+        }
+    });
+}
+
+function updateImagePaths(pathMappings) {
+    // Update all image sources in the rendered markdown
+    document.querySelectorAll('.markdown-content img').forEach(img => {
+        const currentSrc = img.getAttribute('src');
+        if (pathMappings[currentSrc]) {
+            img.src = pathMappings[currentSrc];
+        }
+    });
+    
+    // Also update links that might be images
+    document.querySelectorAll('.markdown-content a').forEach(link => {
+        const href = link.getAttribute('data-original-href') || link.getAttribute('href');
+        if (pathMappings[href] && isImageLink(href)) {
+            // Convert link to image
+            const img = document.createElement('img');
+            img.src = pathMappings[href];
+            img.alt = link.textContent;
+            link.parentNode.replaceChild(img, link);
+        }
+    });
+}
+
+function isImageLink(href) {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.bmp', '.webp'];
+    const lower = href.toLowerCase();
+    return imageExtensions.some(ext => lower.endsWith(ext));
+}
+
+function findImageMapping(imagePath) {
+    // Direct match
+    if (currentImageMappings[imagePath]) {
+        return currentImageMappings[imagePath];
+    }
+    
+    // Try without leading ./
+    const cleanPath = imagePath.replace(/^\.\//, '');
+    if (currentImageMappings[cleanPath]) {
+        return currentImageMappings[cleanPath];
+    }
+    
+    // Try with leading ./
+    const withDot = './' + cleanPath;
+    if (currentImageMappings[withDot]) {
+        return currentImageMappings[withDot];
+    }
+    
+    // Try just the filename
+    const filename = imagePath.split('/').pop();
+    if (filename && currentImageMappings[filename]) {
+        return currentImageMappings[filename];
+    }
+    
+    // Try to find by partial match
+    for (const [key, value] of Object.entries(currentImageMappings)) {
+        if (key.endsWith(imagePath) || imagePath.endsWith(key)) {
+            return value;
+        }
+    }
+    
+    return null;
+}
 
 // Request board update when the webview loads/becomes visible
 window.addEventListener('DOMContentLoaded', () => {
@@ -1186,6 +1285,11 @@ function renderBoard() {
         });
     }, 0);
 
+    // Update image sources after rendering
+    setTimeout(() => {
+        updateImageSources();
+    }, 100);
+    
     setupDragAndDrop();
 }
 
@@ -1640,6 +1744,17 @@ function autoResize(textarea) {
 function renderMarkdown(text) {
     if (!text) return '';
     
+    // const renderer = new marked.Renderer();
+
+    // // Images are already converted to webview URIs, so they just work
+    // renderer.image = function(href, title, text) {
+    //     // href is already "vscode-webview://..." from the conversion
+    //     return `<img src="${href}" alt="${text || ''}" title="${title || ''}" />`;
+    // };
+
+    // marked.setOptions({ renderer: renderer });
+    // return marked.parse(text);
+
     try {
         marked.setOptions({
             breaks: true,
@@ -1648,7 +1763,7 @@ function renderMarkdown(text) {
             renderer: new marked.Renderer()
         });
         
-        // Create custom renderer to handle links
+        // Create custom renderer to handle links and images
         const renderer = new marked.Renderer();
         
         // Override link rendering to preserve original href and prevent browser handling
@@ -1657,10 +1772,19 @@ function renderMarkdown(text) {
             return `<a href="javascript:void(0)" data-original-href="${escapeHtml(href)}"${titleAttr} class="markdown-link">${text}</a>`;
         };
         
-        // Images now work naturally with base href - no custom processing needed!
-        // renderer.image = function(href, title, text) {
-        //     return `<img src="${href}" alt="${text || ''}" title="${title || ''}" />`;
-        // };
+        // Override image rendering to handle VS Code webview URIs
+        renderer.image = function(href, title, text) {
+            const titleAttr = title ? ` title="${title}"` : '';
+            const altText = text || '';
+            
+            // Try to find converted path
+            const mappedSrc = findImageMapping(href);
+            const actualSrc = mappedSrc || href;
+            
+            console.log('Rendering image:', href, '->', actualSrc);
+            
+            return `<img src="${actualSrc}" alt="${altText}" data-original-src="${escapeHtml(href)}"${titleAttr} />`;
+        };
         
         marked.setOptions({ renderer: renderer });
         
