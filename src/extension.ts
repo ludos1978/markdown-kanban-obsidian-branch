@@ -223,23 +223,23 @@ export function activate(context: vscode.ExtensionContext) {
 	}
 
 	// some way to receive full paths when dropping files from outside the editor...
-	const provider: vscode.WebviewDropEditProvider = {
-		async provideWebviewDropEdits(document, dataTransfer, token) {
-			const item = dataTransfer.get('text/uri-list');
-			if (!item) return;
+	// const provider: vscode.WebviewDropEditProvider = {
+	// 	async provideWebviewDropEdits(document, dataTransfer, token) {
+	// 		const item = dataTransfer.get('text/uri-list');
+	// 		if (!item) return;
 
-			const uris = await item.asString();
-			const fileUri = vscode.Uri.parse(uris.split('\n')[0].trim());
+	// 		const uris = await item.asString();
+	// 		const fileUri = vscode.Uri.parse(uris.split('\n')[0].trim());
 
-			vscode.window.showInformationMessage(`Dropped: ${fileUri.fsPath}`);
-			return undefined;
-		}
-	};
+	// 		vscode.window.showInformationMessage(`Dropped: ${fileUri.fsPath}`);
+	// 		return undefined;
+	// 	}
+	// };
 
-	context.subscriptions.push(
-		vscode.window.registerWebviewDropEditProvider('my-custom-view', provider)
-	);
-	// some way to receive full paths when dropping files from outside the editor... but not implemented fully
+	// context.subscriptions.push(
+	// 	vscode.window.registerWebviewDropEditProvider('my-custom-view', provider)
+	// );
+	// end: some way to receive full paths when dropping files from outside the editor... but not implemented fully
 
 	// additionally it needs 
 	// 1.You create a webview panel (or webview view) with a matching viewType:
