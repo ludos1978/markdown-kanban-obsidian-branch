@@ -110,7 +110,7 @@ window.addEventListener('message', event => {
             debouncedRenderBoard(); // Use debounced render
             break;
         case 'updateFileInfo':
-            console.log('Updating file info with:', message.fileInfo); // Debug log
+            console.log('Updating file info with:', message.fileInfo);
             currentFileInfo = message.fileInfo;
             updateFileInfoBar();
             break;
@@ -128,11 +128,6 @@ window.addEventListener('message', event => {
             console.log('Image paths converted:', message.pathMappings);
             currentImageMappings = { ...currentImageMappings, ...message.pathMappings };
             updateImageSources();
-            break;
-        case 'updateFileInfo':
-            console.log('Updating file info with:', message.fileInfo);
-            currentFileInfo = message.fileInfo;
-            updateFileInfoBar();
             break;
         case 'updateImagePaths':
             updateImagePaths(message.pathMappings);
@@ -255,6 +250,17 @@ window.addEventListener('focus', () => {
     }
 });
 
+window.addEventListener('error', function(e) {
+    if (e.target && e.target.tagName === 'IMG') {
+        console.error(`IMAGE LOAD FAILED: ${e.target.src}`);
+        console.error('Image element:', e.target);
+        
+        // Make the error visible
+        e.target.style.border = '2px solid red';
+        e.target.alt = `FAILED: ${e.target.src}`;
+    }
+}, true);
+
 // Keyboard shortcuts for undo/redo
 document.addEventListener('keydown', (e) => {
     // Check if we're not in an input/textarea element
@@ -281,36 +287,47 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// Also update the click handler for images that are actually file links
 document.addEventListener('click', (e) => {
-    // Check if clicked element is a link or inside a link with data-file-href
-    const link = e.target.closest('a[data-file-href]');
+    // Check if clicked element is an image with a webview URI (for opening in editor)
+    const img = e.target.closest('img');
+    if (img && img.src && img.src.startsWith('vscode-webview://')) {
+        // Don't do anything for images - they should just display
+        return;
+    }
+    
+    // Existing link handling code...
+    const link = e.target.closest('a[data-original-href]');
     if (!link) return;
     
-    e.preventDefault(); // Prevent any default behavior
-    e.stopPropagation(); // Stop event propagation
+    e.preventDefault();
+    e.stopPropagation();
     
-    const href = link.getAttribute('data-file-href');
+    const href = link.getAttribute('data-original-href');
     if (!href) return;
+    
+    // Skip webview URIs - they're for display only
+    if (href.startsWith('vscode-webview://')) {
+        console.log('Webview URI clicked, ignoring:', href);
+        return;
+    }
     
     console.log('Link clicked with href:', href);
     
     // Check if it's an external URL
     if (href.startsWith('http://') || href.startsWith('https://')) {
-        // Open external URLs in default browser
         vscode.postMessage({
             type: 'openExternalLink',
             href: href
         });
-        return;
+    } else {
+        // It's a file link
+        vscode.postMessage({
+            type: 'openFileLink',
+            href: href
+        });
     }
-    
-    // For file links, send to extension to handle
-    console.log('Sending file link to extension:', href);
-    vscode.postMessage({
-        type: 'openFileLink',
-        href: href
-    });
-}, true); // Use capture phase to catch events earlier
+}, true);
 
 class TaskEditor {
     constructor() {
@@ -1744,49 +1761,49 @@ function autoResize(textarea) {
 function renderMarkdown(text) {
     if (!text) return '';
     
-    // const renderer = new marked.Renderer();
-
-    // // Images are already converted to webview URIs, so they just work
-    // renderer.image = function(href, title, text) {
-    //     // href is already "vscode-webview://..." from the conversion
-    //     return `<img src="${href}" alt="${text || ''}" title="${title || ''}" />`;
-    // };
-
-    // marked.setOptions({ renderer: renderer });
-    // return marked.parse(text);
-
     try {
-        marked.setOptions({
-            breaks: true,
-            gfm: true,
-            sanitize: false,
-            renderer: new marked.Renderer()
-        });
-        
-        // Create custom renderer to handle links and images
         const renderer = new marked.Renderer();
         
-        // Override link rendering to preserve original href and prevent browser handling
+        // Strict image renderer - MUST have webview URIs
+        renderer.image = function(href, title, text) {
+            console.log(`Rendering image: ${href}`);
+            
+            // ONLY accept properly converted URIs
+            if (href.startsWith('vscode-webview://')) {
+                return `<img src="${href}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
+            }
+            
+            // External URLs are OK
+            if (href.startsWith('https://') || href.startsWith('http://')) {
+                return `<img src="${href}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
+            }
+            
+            // Data URIs are OK (including error placeholders)
+            if (href.startsWith('data:')) {
+                return `<img src="${href}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
+            }
+            
+            // ANYTHING ELSE IS AN ERROR
+            console.error(`ERROR: Unconverted image path in markdown: ${href}`);
+            return `<div style="color: red; border: 2px solid red; padding: 10px;">IMAGE ERROR: Unconverted path: ${escapeHtml(href)}</div>`;
+        };
+        
+        // Strict link renderer
         renderer.link = function(href, title, text) {
-            const titleAttr = title ? ` title="${title}"` : '';
+            // Webview URIs should not be clickable
+            if (href.startsWith('vscode-webview://')) {
+                return `<span class="webview-uri-text">${text}</span>`;
+            }
+            
+            const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
             return `<a href="javascript:void(0)" data-original-href="${escapeHtml(href)}"${titleAttr} class="markdown-link">${text}</a>`;
         };
         
-        // Override image rendering to handle VS Code webview URIs
-        renderer.image = function(href, title, text) {
-            const titleAttr = title ? ` title="${title}"` : '';
-            const altText = text || '';
-            
-            // Try to find converted path
-            const mappedSrc = findImageMapping(href);
-            const actualSrc = mappedSrc || href;
-            
-            console.log('Rendering image:', href, '->', actualSrc);
-            
-            return `<img src="${actualSrc}" alt="${altText}" data-original-src="${escapeHtml(href)}"${titleAttr} />`;
-        };
-        
-        marked.setOptions({ renderer: renderer });
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            renderer: renderer
+        });
         
         const rendered = marked.parse(text);
         
@@ -1797,8 +1814,8 @@ function renderMarkdown(text) {
         
         return rendered;
     } catch (error) {
-        console.error('Error rendering markdown:', error);
-        return escapeHtml(text);
+        console.error('CRITICAL: Error rendering markdown:', error);
+        return `<div style="color: red;">RENDER ERROR: ${escapeHtml(text)}</div>`;
     }
 }
 

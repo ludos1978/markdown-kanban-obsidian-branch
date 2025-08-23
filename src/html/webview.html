@@ -206,5 +206,21 @@
     </div>
 
     <script src="webview.js"></script>
+    <script>
+        // Debug image loading
+        window.addEventListener('error', function(e) {
+            if (e.target.tagName === 'IMG') {
+                console.error('Image failed to load:', e.target.src);
+                console.error('Original markdown src:', e.target.getAttribute('data-original-src'));
+            }
+        }, true);
+        
+        // Log successful image loads for debugging
+        window.addEventListener('load', function(e) {
+            if (e.target.tagName === 'IMG') {
+                console.log('Image loaded successfully:', e.target.src);
+            }
+        }, true);
+    </script>
 </body>
 </html>

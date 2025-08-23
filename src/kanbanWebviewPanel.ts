@@ -304,34 +304,28 @@ export class KanbanWebviewPanel {
 
     private async _handleFileDrop(message: any) {
         try {
-            console.log('_handleFileDrop called with:', message);
             const { fileName, dropPosition, activeEditor } = message;
-            
             const isImage = this._isImageFile(fileName);
-            let processedPath = `./${fileName}`;
+            let relativePath = `./${fileName}`;
             
-            // For images, try to convert to webview URI or base64
+            // For images, convert to webview URI immediately
             if (isImage && this._document) {
                 const documentDir = path.dirname(this._document.uri.fsPath);
-                const imagePath = path.join(documentDir, fileName);
+                const imagePath = path.resolve(documentDir, fileName);
                 
-                // Check if file exists using vscode.workspace.fs
                 try {
                     const imageUri = vscode.Uri.file(imagePath);
-                    await vscode.workspace.fs.stat(imageUri);
-                    
-                    // Option 1: Use asWebviewUri (preferred)
+                    // Convert to webview URI right away
                     const webviewUri = this._panel.webview.asWebviewUri(imageUri);
-                    processedPath = webviewUri.toString();
-                } catch (statError) {
-                    // File doesn't exist yet, keep relative path
-                    console.log('Image file not found, using relative path:', fileName);
+                    relativePath = webviewUri.toString();
+                } catch (error) {
+                    console.log('MDKB: Could not convert image to webview URI:', error);
                 }
             }
             
             const fileInfo = {
                 fileName,
-                relativePath: processedPath,
+                relativePath,
                 isImage,
                 activeEditor,
                 dropPosition
@@ -788,7 +782,7 @@ export class KanbanWebviewPanel {
             }
             
         } catch (error) {
-            console.error('Error opening file link:', error);
+            console.error('MDKB: Error opening file link:', error);
             vscode.window.showErrorMessage(`Failed to open file: ${href}`);
         }
     }
@@ -813,7 +807,7 @@ export class KanbanWebviewPanel {
         );
         
         try {
-            console.log('applyEdit & save');
+            console.log('MDKB: applyEdit & save');
             await vscode.workspace.applyEdit(edit);
             await this._document.save();
             
@@ -846,25 +840,74 @@ export class KanbanWebviewPanel {
         }
         
         try {
+            // Parse the markdown
             this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
-            // Store original task order for each column
+            console.log(`Board parsed. Valid: ${this._board.valid}, Columns: ${this._board.columns?.length}`);
+            
+            // Process images in each task
+            if (this._board.valid && this._board.columns) {
+                for (const column of this._board.columns) {
+                    console.log(`\nProcessing column: ${column.title}`);
+                    
+                    for (let i = 0; i < column.tasks.length; i++) {
+                        const task = column.tasks[i];
+                        console.log(`  Task ${i}:`);
+                        
+                        // Process title
+                        if (task.title) {
+                            const originalTitle = task.title;
+                            task.title = await this._preprocessImagePaths(task.title);
+                            if (originalTitle !== task.title) {
+                                console.log(`    Title changed!`);
+                            }
+                        }
+                        
+                        // Process description
+                        if (task.description) {
+                            const originalDesc = task.description;
+                            task.description = await this._preprocessImagePaths(task.description);
+                            if (originalDesc !== task.description) {
+                                console.log(`    Description changed!`);
+                            }
+                        }
+                    }
+                }
+                
+                // Verify the changes
+                console.log('MDKB: \n=== VERIFICATION ===');
+                for (const column of this._board.columns) {
+                    for (const task of column.tasks) {
+                        if (task.title?.includes('![')) {
+                            console.log('MDKB: Task title with image:', task.title);
+                            if (!task.title.includes('vscode-webview://')) {
+                                console.error('MDKB: WARNING: Task title still has unconverted image!');
+                            }
+                        }
+                        if (task.description?.includes('![')) {
+                            console.log('MDKB: Task description with image:', task.description.substring(0, 100));
+                            if (!task.description.includes('vscode-webview://')) {
+                                console.error('MDKB: WARNING: Task description still has unconverted image!');
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Store original task order
             this._board.columns.forEach(column => {
                 this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
             });
             
-            // Clear undo/redo stacks when loading new file
-            console.log('clearing undo & redo stack!');
             this._undoStack = [];
             this._redoStack = [];
             
-            // Process existing images in the board
-            await this._processExistingImages();
-            
         } catch (error) {
-            console.error('Error parsing Markdown:', error);
+            console.error('MDKB: CRITICAL ERROR:', error);
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
             this._board = { valid:false, title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
         }
+        
+        console.log('MDKB: === SENDING BOARD UPDATE ===\n');
         this._sendBoardUpdate();
         this._sendFileInfo();
         this._sendUndoRedoStatus();
@@ -874,21 +917,27 @@ export class KanbanWebviewPanel {
     private _sendBoardUpdate() {
         if (!this._panel.webview) return;
 
-        const board = this._board || { valid: false, title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
+        const board = this._board || { title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
         
-        // Extract and convert image paths
-        let imageMappings: {[key: string]: string} = {};
-        if (this._board && this._board.valid) {
-            const imageReferences = this._extractImageReferences(this._board);
-            imageMappings = this._convertImagePaths(imageReferences);
+        // CRITICAL DEBUG: Log the exact data being sent
+        console.log('MDKB: === EXACT DATA BEING SENT TO WEBVIEW ===');
+        if (board.columns && board.columns.length > 0) {
+            board.columns.forEach((col, idx) => {
+                col.tasks.forEach((task, taskIdx) => {
+                    if (task.title?.includes('![') || task.description?.includes('![')) {
+                        console.log(`Column ${idx}, Task ${taskIdx}:`);
+                        console.log('MDKB:   Title:', task.title);
+                        console.log('MDKB:   Description:', task.description?.substring(0, 200));
+                    }
+                });
+            });
         }
+        console.log('MDKB: === END DATA ===');
         
-        // Use setTimeout to ensure the webview is ready to receive messages
         setTimeout(() => {
             this._panel.webview.postMessage({
                 type: 'updateBoard',
-                board: board,
-                imageMappings: imageMappings
+                board: board
             });
         }, 10);
     }
@@ -959,17 +1008,49 @@ export class KanbanWebviewPanel {
         };
     }
 
-    private async performAction(action: () => void, saveUndo: boolean = true) {
+    private async performAction(action: (() => void) | (() => Promise<void>), saveUndo: boolean = true) {
         if (!this._board) return;
         
-        // Save state for undo before performing action
         if (saveUndo) {
             this._saveStateForUndo();
         }
         
-        action();
+        await action();
         await this.saveToMarkdown();
         this._sendBoardUpdate();
+    }
+
+    private async _fixAllImagePaths() {
+        if (!this._board || !this._board.valid) return;
+        
+        let hasChanges = false;
+        
+        for (const column of this._board.columns) {
+            for (const task of column.tasks) {
+                // Process title
+                if (task.title) {
+                    const processed = await this._preprocessImagePaths(task.title);
+                    if (processed !== task.title) {
+                        task.title = processed;
+                        hasChanges = true;
+                    }
+                }
+                // Process description
+                if (task.description) {
+                    const processed = await this._preprocessImagePaths(task.description);
+                    if (processed !== task.description) {
+                        task.description = processed;
+                        hasChanges = true;
+                    }
+                }
+            }
+        }
+        
+        if (hasChanges) {
+            await this.saveToMarkdown();
+            this._sendBoardUpdate();
+            vscode.window.showInformationMessage('Image paths have been updated');
+        }
     }
 
     private generateId(type: 'column' | 'task', parentId?: string): string {
@@ -1057,10 +1138,18 @@ export class KanbanWebviewPanel {
         });
     }
 
-    private editTask(taskId: string, columnId: string, taskData: any) {
-        this.performAction(() => {
+    private async editTask(taskId: string, columnId: string, taskData: any) {
+        await this.performAction(async () => {
             const result = this.findTask(columnId, taskId);
             if (!result) return;
+
+            // Process image paths in edited content
+            if (taskData.title) {
+                taskData.title = await this._preprocessImagePaths(taskData.title);
+            }
+            if (taskData.description) {
+                taskData.description = await this._preprocessImagePaths(taskData.description);
+            }
 
             Object.assign(result.task, {
                 title: taskData.title,
@@ -1307,41 +1396,39 @@ export class KanbanWebviewPanel {
     }
 
     private _getHtmlForWebview() {
+        console.error('MDKB: !!! GENERATING HTML !!!');
+        
         const filePath = vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html', 'webview.html'));
         let html = fs.readFileSync(filePath.fsPath, 'utf8');
 
-        // Critical: Set up CSP to allow images
+        // CSP MUST be added
         const nonce = this._getNonce();
         const cspSource = this._panel.webview.cspSource;
         
-        // This CSP allows images from webview URIs, HTTPS, and data URIs
-        const csp = `
-            <meta http-equiv="Content-Security-Policy" content="
-                default-src 'none';
-                img-src ${cspSource} https: data: blob:;
-                script-src ${cspSource} 'nonce-${nonce}' https://cdnjs.cloudflare.com;
-                style-src ${cspSource} 'unsafe-inline';
-                font-src ${cspSource};
-            ">`;
+        // This MUST be in the HTML
+        const cspMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${cspSource} https: data: blob:; script-src ${cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; style-src ${cspSource} 'unsafe-inline'; font-src ${cspSource};">`;
         
-        html = html.replace('<head>', `<head>${csp}`);
-
-        // Critical: Grant access to workspace folder
+        // Make sure it's added
+        if (!html.includes('Content-Security-Policy')) {
+            html = html.replace('<head>', `<head>\n    ${cspMeta}`);
+        }
+        
+        // Resource roots
+        const localResourceRoots = [this._extensionUri];
         if (this._document) {
+            localResourceRoots.push(vscode.Uri.file(path.dirname(this._document.uri.fsPath)));
             const workspaceFolder = vscode.workspace.getWorkspaceFolder(this._document.uri);
             if (workspaceFolder) {
-                this._panel.webview.options = {
-                    enableScripts: true,
-                    localResourceRoots: [
-                        this._extensionUri,
-                        workspaceFolder.uri,  // This allows access to workspace files!
-                        vscode.Uri.file(path.dirname(this._document.uri.fsPath)) // Document directory
-                    ]
-                };
+                localResourceRoots.push(workspaceFolder.uri);
             }
         }
-
-        // Replace paths for extension resources
+        
+        this._panel.webview.options = {
+            enableScripts: true,
+            localResourceRoots: localResourceRoots
+        };
+        
+        // Convert paths
         const webviewDir = this._panel.webview.asWebviewUri(
             vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html'))
         );
@@ -1360,6 +1447,142 @@ export class KanbanWebviewPanel {
             text += possible.charAt(Math.floor(Math.random() * possible.length));
         }
         return text;
+    }
+
+    // private async _preprocessImagePaths(content: string): Promise<string> {
+    //     console.error('MDKB: !!! PREPROCESS CALLED WITH:', content);
+    //     vscode.window.showWarningMessage(`Processing images in: ${content.substring(0, 50)}`);
+        
+    //     // Just add a prefix to prove it's running
+    //     if (content.includes('![')) {
+    //         return content.replace(/!\[/g, '![PROCESSED-');
+    //     }
+        
+    //     return content;
+    // }
+
+    private async _preprocessImagePaths(content: string): Promise<string> {
+        if (!content || !this._document) {
+            return content;
+        }
+        
+        console.log(`Processing content for images: "${content.substring(0, 100)}"`);
+        
+        const documentDir = path.dirname(this._document.uri.fsPath);
+        
+        // Find all image references
+        const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        let result = content;
+        let match;
+        const replacements: Array<{from: string, to: string}> = [];
+        
+        // First, collect all replacements
+        while ((match = imageRegex.exec(content)) !== null) {
+            const fullMatch = match[0];
+            const alt = match[1];
+            const imagePath = match[2];
+            
+            console.log(`Found image: ${imagePath}`);
+            
+            // Skip if already converted or external
+            if (imagePath.startsWith('vscode-webview://') || 
+                imagePath.startsWith('http://') || 
+                imagePath.startsWith('https://') ||
+                imagePath.startsWith('data:')) {
+                console.log(`  Skipping (already processed or external): ${imagePath}`);
+                continue;
+            }
+            
+            // Convert to absolute path
+            let absolutePath: string;
+            if (path.isAbsolute(imagePath)) {
+                absolutePath = imagePath;
+            } else {
+                absolutePath = path.resolve(documentDir, imagePath);
+            }
+            
+            console.log(`  Resolving: ${imagePath} -> ${absolutePath}`);
+            
+            try {
+                const imageUri = vscode.Uri.file(absolutePath);
+                
+                // Try to stat the file to check existence
+                await vscode.workspace.fs.stat(imageUri);
+                
+                // Convert to webview URI
+                const webviewUri = this._panel.webview.asWebviewUri(imageUri);
+                const newImageMarkdown = `![${alt}](${webviewUri.toString()})`;
+                
+                console.log(`  SUCCESS: Will replace with ${webviewUri.toString()}`);
+                replacements.push({
+                    from: fullMatch,
+                    to: newImageMarkdown
+                });
+            } catch (error) {
+                console.error(`  FAILED: Could not process ${imagePath}:`, error);
+                // Mark as error
+                replacements.push({
+                    from: fullMatch,
+                    to: `![ERROR: ${imagePath}](data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Ctext%3EFile not found%3C/text%3E%3C/svg%3E)`
+                });
+            }
+        }
+        
+        // Now apply all replacements
+        for (const replacement of replacements) {
+            result = result.replace(replacement.from, replacement.to);
+            console.log(`Applied replacement: ${replacement.from} -> ${replacement.to.substring(0, 50)}...`);
+        }
+        
+        console.log(`Final result: "${result.substring(0, 200)}"`);
+        return result;
+    }
+
+    private async _replaceAsyncImages(
+        str: string, 
+        regex: RegExp, 
+        asyncFn: (match: string, alt: string, imagePath: string) => Promise<string>
+    ): Promise<string> {
+        const matches: Array<{match: string, alt: string, path: string, index: number}> = [];
+        let m;
+        
+        while ((m = regex.exec(str)) !== null) {
+            matches.push({
+                match: m[0],
+                alt: m[1],
+                path: m[2],
+                index: m.index
+            });
+        }
+        
+        // Process all matches
+        let result = str;
+        let offset = 0;
+        
+        for (const matchInfo of matches) {
+            const replacement = await asyncFn(matchInfo.match, matchInfo.alt, matchInfo.path);
+            const startIndex = matchInfo.index + offset;
+            const endIndex = startIndex + matchInfo.match.length;
+            
+            result = result.substring(0, startIndex) + replacement + result.substring(endIndex);
+            offset += replacement.length - matchInfo.match.length;
+        }
+        
+        return result;
+    }
+
+    private async _replaceAsync(
+        str: string, 
+        regex: RegExp, 
+        asyncFn: (match: string, ...args: string[]) => Promise<string>
+    ): Promise<string> {
+        const promises: Promise<string>[] = [];
+        str.replace(regex, (match: string, ...args: any[]): string => {
+            promises.push(asyncFn(match, ...args));
+            return match;
+        });
+        const data = await Promise.all(promises);
+        return str.replace(regex, () => data.shift()!);
     }
 
     public dispose() {
