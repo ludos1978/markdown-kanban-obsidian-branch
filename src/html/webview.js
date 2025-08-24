@@ -1,7 +1,4 @@
-// VS Code API mock for testing
-const vscode = typeof acquireVsCodeApi !== 'undefined' ? acquireVsCodeApi() : {
-    postMessage: (msg) => console.log('Message to extension:', msg)
-};
+const vscode = acquireVsCodeApi();
 
 let isActivelyEditing = false;
 let focusedElement = null;
@@ -57,35 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Initialize with sample data for testing
-if (typeof acquireVsCodeApi === 'undefined') {
-    currentBoard = {
-        title: 'Sample Kanban Board',
-        columns: [
-            {
-                id: 'col1',
-                title: 'To Do',
-                tasks: [
-                    { id: 'task1', title: '**Important** Task', description: 'This is a sample task with *markdown* support' },
-                    { id: 'task2', title: 'Another Task', description: 'More description here\n\nWith multiple lines' }
-                ]
-            },
-            {
-                id: 'col2',
-                title: 'In Progress',
-                tasks: [
-                    { id: 'task3', title: 'Working on this', description: '' }
-                ]
-            },
-            {
-                id: 'col3',
-                title: 'Done',
-                tasks: []
-            }
-        ]
-    };
-    setTimeout(() => renderBoard(), 100);
-}
 
 // Listen for messages from the extension
 window.addEventListener('message', event => {
@@ -125,9 +93,46 @@ window.addEventListener('message', event => {
         case 'updateImagePaths':
             updateImagePaths(message.pathMappings);
             break;
-
     }
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Set up link click handling using event delegation
+    document.body.addEventListener('click', (e) => {
+        // Check if the clicked element is a markdown link
+        const link = e.target.closest('a.markdown-link');
+        if (!link) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const href = link.getAttribute('data-original-href');
+        if (!href) {
+            return;
+        }
+        
+        // Check if it's an external URL
+        if (href.startsWith('http://') || href.startsWith('https://')) {
+            // Open external URLs in default browser via VS Code
+            vscode.postMessage({
+                type: 'openExternalLink',
+                href: href
+            });
+        } else {
+            // It's a file link - send to extension to open in VS Code
+            vscode.postMessage({
+                type: 'openFileLink',
+                href: href
+            });
+        }
+        
+        return false;
+    });
+});
+
+function updateWhitespace(value) {
+    document.documentElement.style.setProperty('--whitespace', value);
+}
 
 function updateImageSources() {
     // Update all images in the rendered content
@@ -1243,6 +1248,8 @@ function initializeFile() {
     vscode.postMessage({
         type: 'initializeFile'
     });
+    // If not above any task, insert at the end
+    return -1; // -1 means append to end
 }
 
 function createColumnElement(column, columnIndex) {
@@ -1518,7 +1525,6 @@ function sortColumn(columnId, sortType) {
         sortType: sortType
     });
 }
-
 
 // Copy as markdown functions
 function copyColumnAsMarkdown(columnId) {
