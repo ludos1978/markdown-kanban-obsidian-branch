@@ -27,7 +27,7 @@
   "main": "./dist/extension.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/holooooo/markdown-kanban"
+    "url": "https://github.com/ludos1978/markdown-kanban-obsidian"
   },
   "contributes": {
     "configuration": {
@@ -36,7 +36,14 @@
         "markdownKanban.openLinksInNewTab": {
           "type": "boolean",
           "default": false,
-          "description": "When enabled, file links from kanban cards will open in a new tab. When disabled (default), they will replace the current editor."
+          "description": "Open file links in new tabs instead of replacing the current editor"
+        },
+        "markdownKanban.whitespace": {
+          "type": "string",
+          "default": "4px",
+          "description": "Spacing between elements in the Kanban board (CSS value like '4px', '8px', '0.5rem')",
+          "pattern": "^\\d+(\\.\\d+)?(px|em|rem|pt|%)$",
+          "examples": ["4px", "8px", "0.5rem", "2px"]
         }
       }
     },

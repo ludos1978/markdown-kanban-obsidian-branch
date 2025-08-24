@@ -1,15 +1,8 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { KanbanWebviewPanel } from './kanbanWebviewPanel';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 	let fileListenerEnabled = true;
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Markdown Kanban extension is now active!');
 	
 	// Function to get file listener status
 	const getFileListenerStatus = () => {
@@ -130,7 +123,6 @@ export function activate(context: vscode.ExtensionContext) {
 			const targetUri = fileUris[0];
 			try {
 				const document = await vscode.workspace.openTextDocument(targetUri);
-				console.log('openKanbanFromPanelCommand:loadMarkdownFile');
 				KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
 				vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
 			} catch (error) {
@@ -159,7 +151,6 @@ export function activate(context: vscode.ExtensionContext) {
 			const targetUri = fileUris[0];
 			try {
 				const document = await vscode.workspace.openTextDocument(targetUri);
-				console.log('switchFileCommand:loadMarkdownFile');
 				KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
 				vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
 			} catch (error) {
@@ -173,17 +164,12 @@ export function activate(context: vscode.ExtensionContext) {
 		if (event.document.languageId === 'markdown' && fileListenerEnabled) {
 			// Delay update to avoid frequent refresh
 			setTimeout(() => {
-				// Update kanban panel if:
-				// 1. The changed document is the current kanban document (whether locked or not)
-				// 2. OR if not locked and this is just any markdown file change
 				if (KanbanWebviewPanel.currentPanel) {
 					const currentUri = KanbanWebviewPanel.currentPanel.getCurrentDocumentUri()?.toString();
 					const changedUri = event.document.uri.toString();
-					const isLocked = KanbanWebviewPanel.currentPanel.isFileLocked();
 					
 					// Always update if the changed file is the current kanban file
 					if (currentUri === changedUri) {
-						console.log('documentChangeListener:loadMarkdownFile');
 						KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
 					}
 				}
@@ -197,7 +183,6 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
 			// If panel is open and not locked, automatically load current document
 			if (KanbanWebviewPanel.currentPanel && !KanbanWebviewPanel.currentPanel.isFileLocked()) {
-				console.log('activeEditorChangeListener:loadMarkdownFile');
 				KanbanWebviewPanel.currentPanel.loadMarkdownFile(editor.document);
 			}
 		} else {
@@ -223,7 +208,6 @@ export function activate(context: vscode.ExtensionContext) {
 	}
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {
 	// Clean up context
 	vscode.commands.executeCommand('setContext', 'markdownKanbanActive', false);
