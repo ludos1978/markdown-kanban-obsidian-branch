@@ -31,9 +31,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // Check if the clicked element is a markdown link
-        // const mdLink = e.target.closest('a.markdown-link');
-        // if (!mdLink) return;
+        // Check for wiki links first
+        const wikiLink = e.target.closest('.wiki-link');
+        if (wikiLink) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const document = wikiLink.getAttribute('data-document');
+            if (document) {
+                // Handle wiki link - open the markdown file
+                vscode.postMessage({
+                    type: 'openFileLink',
+                    href: document + '.md'
+                });
+            }
+            return;
+        }
 
         // Existing link handling code...
         const link = e.target.closest('a[data-original-href]');
@@ -1584,11 +1597,11 @@ function wikiLinksPlugin(md, options = {}) {
         className = 'wiki-link'
     } = options;
 
-    function parseWikiLink(state, start, max, silent) {
-        let pos = start;
+    function parseWikiLink(state, silent) {
+        let pos = state.pos;
         
         // Check for opening [[
-        if (pos + 1 >= max) return false;
+        if (pos + 1 >= state.posMax) return false;
         if (state.src.charCodeAt(pos) !== 0x5B /* [ */) return false;
         if (state.src.charCodeAt(pos + 1) !== 0x5B /* [ */) return false;
         
@@ -1599,9 +1612,9 @@ function wikiLinksPlugin(md, options = {}) {
         let content = '';
         let contentStart = pos;
         
-        while (pos < max) {
+        while (pos < state.posMax) {
             if (state.src.charCodeAt(pos) === 0x5D /* ] */ && 
-                pos + 1 < max && 
+                pos + 1 < state.posMax && 
                 state.src.charCodeAt(pos + 1) === 0x5D /* ] */) {
                 found = true;
                 content = state.src.slice(contentStart, pos);
@@ -1672,21 +1685,13 @@ function renderMarkdown(text) {
     
     try {
 
-        // const md = window.markdownit({
-        //     breaks: true,
-        //     linkify: false
-        // });
-
-        // const { wikiLinksPlugin } = require('./mdit.js');
-        
         // Initialize markdown-it with wiki links plugin
         const md = window.markdownit({
             html: true,
             linkify: false,
             typographer: true,
             breaks: true
-        })
-        .use(wikiLinksPlugin, {
+        }).use(wikiLinksPlugin, {
             baseUrl: 'vscode://file/',
             generatePath: (filename) => filename + '.md'
         });

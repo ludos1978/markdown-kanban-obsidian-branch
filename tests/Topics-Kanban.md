@@ -20,9 +20,13 @@ kanban-plugin: board
 - [ ] task Text
 - [ ] [some.md](some.md)
 - [ ] [[some]]
+  [[thing]]
+  
 - [ ] <some.md>
 - [ ] ![image](md/image.png)
   ![image](md/image.png)
+- [ ] ![image](../../../../../../https:/file+.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_EXTERNAL/markdown-kanban-obsidian/tests/md/image.png)
+  ![image](../../../../../../https:/file+.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_EXTERNAL/markdown-kanban-obsidian/tests/md/image.png)
 - [ ] ![blue](blue.png)
   ![blue](blue.png)
 
