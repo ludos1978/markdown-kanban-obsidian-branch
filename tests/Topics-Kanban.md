@@ -19,7 +19,12 @@ kanban-plugin: board
   something
 - [ ] task Text
 - [ ] [some.md](some.md)
-- [ ] dome.docx
+- [ ] [[some]]
+- [ ] <some.md>
+- [ ] ![image](md/image.png)
+  ![image](md/image.png)
+- [ ] ![blue](blue.png)
+  ![blue](blue.png)
 
 ## ## column h2
 - [ ] # task h1

@@ -6,7 +6,8 @@ import { MarkdownKanbanParser, KanbanBoard, KanbanTask, KanbanColumn } from './m
 
 // Deep clone helper for board state
 function deepCloneBoard(board: KanbanBoard): KanbanBoard {
-    return structuredClone(board);
+    // return structuredClone(board);
+    return JSON.parse(JSON.stringify(board));
 }
 
 export class KanbanWebviewPanel {
@@ -1366,7 +1367,7 @@ export class KanbanWebviewPanel {
     }
 
     private _getHtmlForWebview() {
-        console.error('MDKB: !!! GENERATING HTML !!!');
+        // console.log('MDKB: !!! GENERATING HTML !!!');
         
         const filePath = vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html', 'webview.html'));
         let html = fs.readFileSync(filePath.fsPath, 'utf8');
@@ -1388,7 +1389,13 @@ export class KanbanWebviewPanel {
         if (this._document) {
             const documentDir = vscode.Uri.file(path.dirname(this._document.uri.fsPath));
             const baseHref = this._panel.webview.asWebviewUri(documentDir).toString() + '/';
+            // define the source path for files relative path
             html = html.replace(/<head>/, `<head><base href="${baseHref}">`);
+
+            const markdownItUri = this._panel.webview.asWebviewUri(
+                vscode.Uri.joinPath(this._extensionUri, 'node_modules', 'markdown-it', 'dist', 'markdown-it.min.js')
+            );
+            html = html.replace(/<head>/, `<script src="${markdownItUri}"></script>`);
 
             localResourceRoots.push(vscode.Uri.file(path.dirname(this._document.uri.fsPath)));
             const workspaceFolder = vscode.workspace.getWorkspaceFolder(this._document.uri);

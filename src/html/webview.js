@@ -21,37 +21,64 @@ let isProcessingDrop = false; // Prevent multiple simultaneous drops
 let currentImageMappings = {};
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Set up link click handling using event delegation
-    document.body.addEventListener('click', (e) => {
+
+    // Click handler for any link, image or document
+    document.addEventListener('click', (e) => {
+        // Check if clicked element is an image with a webview URI (for opening in editor)
+        const img = e.target.closest('img');
+        if (img && img.src && img.src.startsWith('vscode-webview://')) {
+            // Don't do anything for images - they should just display
+            return;
+        }
+        
         // Check if the clicked element is a markdown link
-        const link = e.target.closest('a.markdown-link');
+        // const mdLink = e.target.closest('a.markdown-link');
+        // if (!mdLink) return;
+
+        // Existing link handling code...
+        const link = e.target.closest('a[data-original-href]');
         if (!link) return;
         
         e.preventDefault();
         e.stopPropagation();
         
         const href = link.getAttribute('data-original-href');
-        if (!href) {
+        if (!href) return;
+        
+        // Skip webview URIs - they're for display only
+        if (href.startsWith('vscode-webview://')) {
             return;
         }
-        
+
         // Check if it's an external URL
         if (href.startsWith('http://') || href.startsWith('https://')) {
-            // Open external URLs in default browser via VS Code
             vscode.postMessage({
                 type: 'openExternalLink',
                 href: href
             });
         } else {
-            // It's a file link - send to extension to open in VS Code
+            // It's a file link
             vscode.postMessage({
                 type: 'openFileLink',
                 href: href
             });
         }
-        
+
         return false;
-    });
+    }, true);
+
+    // Request initial board data and file info
+    setTimeout(() => {
+        if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
+            vscode.postMessage({ type: 'requestBoardUpdate' });
+        }
+        if (!currentFileInfo) {
+            vscode.postMessage({ type: 'requestFileInfo' });
+        }
+    }, 100);
+    
+    // Setup drag and drop
+    setupDragAndDrop();
 });
 
 
@@ -96,93 +123,8 @@ window.addEventListener('message', event => {
     }
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Set up link click handling using event delegation
-    document.body.addEventListener('click', (e) => {
-        // Check if the clicked element is a markdown link
-        const link = e.target.closest('a.markdown-link');
-        if (!link) return;
-        
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const href = link.getAttribute('data-original-href');
-        if (!href) {
-            return;
-        }
-        
-        // Check if it's an external URL
-        if (href.startsWith('http://') || href.startsWith('https://')) {
-            // Open external URLs in default browser via VS Code
-            vscode.postMessage({
-                type: 'openExternalLink',
-                href: href
-            });
-        } else {
-            // It's a file link - send to extension to open in VS Code
-            vscode.postMessage({
-                type: 'openFileLink',
-                href: href
-            });
-        }
-        
-        return false;
-    });
-});
-
 function updateWhitespace(value) {
     document.documentElement.style.setProperty('--whitespace', value);
-}
-
-// function updateImageSources() {
-//     // Update all images in the rendered content
-//     document.querySelectorAll('img').forEach(img => {
-//         const originalSrc = img.getAttribute('data-original-src') || img.src;
-        
-//         // Extract path from src (remove any base URL)
-//         let imagePath = originalSrc;
-//         try {
-//             const url = new URL(originalSrc);
-//             imagePath = url.pathname;
-//         } catch (e) {
-//             // If it's not a full URL, use as-is
-//         }
-        
-//         // Try to find a mapping for this image
-//         const mappedSrc = findImageMapping(imagePath);
-//         if (mappedSrc && mappedSrc !== originalSrc) {
-//             img.src = mappedSrc;
-//             img.setAttribute('data-original-src', originalSrc);
-//         }
-//     });
-// }
-
-// function updateImagePaths(pathMappings) {
-//     // Update all image sources in the rendered markdown
-//     document.querySelectorAll('.markdown-content img').forEach(img => {
-//         const currentSrc = img.getAttribute('src');
-//         if (pathMappings[currentSrc]) {
-//             img.src = pathMappings[currentSrc];
-//         }
-//     });
-    
-//     // Also update links that might be images
-//     document.querySelectorAll('.markdown-content a').forEach(link => {
-//         const href = link.getAttribute('data-original-href') || link.getAttribute('href');
-//         if (pathMappings[href] && isImageLink(href)) {
-//             // Convert link to image
-//             const img = document.createElement('img');
-//             img.src = pathMappings[href];
-//             img.alt = link.textContent;
-//             link.parentNode.replaceChild(img, link);
-//         }
-//     });
-// }
-
-function isImageLink(href) {
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.bmp', '.webp'];
-    const lower = href.toLowerCase();
-    return imageExtensions.some(ext => lower.endsWith(ext));
 }
 
 function findImageMapping(imagePath) {
@@ -219,22 +161,6 @@ function findImageMapping(imagePath) {
     return null;
 }
 
-// Request board update when the webview loads/becomes visible
-window.addEventListener('DOMContentLoaded', () => {
-    // Request initial board data and file info
-    setTimeout(() => {
-        if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
-            vscode.postMessage({ type: 'requestBoardUpdate' });
-        }
-        if (!currentFileInfo) {
-            vscode.postMessage({ type: 'requestFileInfo' });
-        }
-    }, 100);
-    
-    // Setup drag and drop
-    setupDragAndDrop();
-});
-
 // Also request update when window becomes visible again
 window.addEventListener('focus', () => {
     if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
@@ -267,45 +193,6 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
-
-// Also update the click handler for images that are actually file links
-document.addEventListener('click', (e) => {
-    // Check if clicked element is an image with a webview URI (for opening in editor)
-    const img = e.target.closest('img');
-    if (img && img.src && img.src.startsWith('vscode-webview://')) {
-        // Don't do anything for images - they should just display
-        return;
-    }
-    
-    // Existing link handling code...
-    const link = e.target.closest('a[data-original-href]');
-    if (!link) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const href = link.getAttribute('data-original-href');
-    if (!href) return;
-    
-    // Skip webview URIs - they're for display only
-    if (href.startsWith('vscode-webview://')) {
-        return;
-    }
-    
-    // Check if it's an external URL
-    if (href.startsWith('http://') || href.startsWith('https://')) {
-        vscode.postMessage({
-            type: 'openExternalLink',
-            href: href
-        });
-    } else {
-        // It's a file link
-        vscode.postMessage({
-            type: 'openFileLink',
-            href: href
-        });
-    }
-}, true);
 
 class TaskEditor {
     constructor() {
@@ -1685,53 +1572,170 @@ function autoResize(textarea) {
     textarea.style.height = textarea.scrollHeight + 'px';
 }
 
+// import { wikiLinksPlugin } from './mdit.js';
+
+
+// Wiki Links Plugin for markdown-it
+function wikiLinksPlugin(md, options = {}) {
+    const {
+        baseUrl = '',
+        generatePath = (filename) => filename + '.md',
+        target = '_blank',
+        className = 'wiki-link'
+    } = options;
+
+    function parseWikiLink(state, start, max, silent) {
+        let pos = start;
+        
+        // Check for opening [[
+        if (pos + 1 >= max) return false;
+        if (state.src.charCodeAt(pos) !== 0x5B /* [ */) return false;
+        if (state.src.charCodeAt(pos + 1) !== 0x5B /* [ */) return false;
+        
+        pos += 2;
+        
+        // Find closing ]]
+        let found = false;
+        let content = '';
+        let contentStart = pos;
+        
+        while (pos < max) {
+            if (state.src.charCodeAt(pos) === 0x5D /* ] */ && 
+                pos + 1 < max && 
+                state.src.charCodeAt(pos + 1) === 0x5D /* ] */) {
+                found = true;
+                content = state.src.slice(contentStart, pos);
+                break;
+            }
+            pos++;
+        }
+        
+        if (!found) return false;
+        
+        // Parse content: [[document|title]] or [[document]]
+        const parts = content.split('|');
+        const document = parts[0].trim();
+        const title = parts[1] ? parts[1].trim() : document;
+        
+        if (!document) return false;
+        
+        // Don't process if we're in silent mode
+        if (silent) return true;
+        
+        // Create token
+        const token_open = state.push('wiki_link_open', 'a', 1);
+        token_open.attrSet('href', baseUrl + generatePath(document));
+        if (target) token_open.attrSet('target', target);
+        if (className) token_open.attrSet('class', className);
+        token_open.attrSet('data-document', document);
+        
+        const token_text = state.push('text', '', 0);
+        token_text.content = title;
+        
+        const token_close = state.push('wiki_link_close', 'a', -1);
+        
+        state.pos = pos + 2; // Skip closing ]]
+        return true;
+    }
+
+    // Register the inline rule
+    md.inline.ruler.before('emphasis', 'wiki_link', parseWikiLink);
+    
+    // Add render rules
+    md.renderer.rules.wiki_link_open = function(tokens, idx) {
+        const token = tokens[idx];
+        let attrs = '';
+        
+        if (token.attrIndex('href') >= 0) {
+            attrs += ` href="${token.attrGet('href')}"`;
+        }
+        if (token.attrIndex('class') >= 0) {
+            attrs += ` class="${token.attrGet('class')}"`;
+        }
+        if (token.attrIndex('target') >= 0) {
+            attrs += ` target="${token.attrGet('target')}"`;
+        }
+        if (token.attrIndex('data-document') >= 0) {
+            attrs += ` data-document="${token.attrGet('data-document')}"`;
+        }
+        
+        return `<a${attrs}>`;
+    };
+    
+    md.renderer.rules.wiki_link_close = function() {
+        return '</a>';
+    };
+}
+
 function renderMarkdown(text) {
     if (!text) return '';
     
     try {
-        const renderer = new marked.Renderer();
+
+        // const md = window.markdownit({
+        //     breaks: true,
+        //     linkify: false
+        // });
+
+        // const { wikiLinksPlugin } = require('./mdit.js');
         
+        // Initialize markdown-it with wiki links plugin
+        const md = window.markdownit({
+            html: true,
+            linkify: false,
+            typographer: true,
+            breaks: true
+        })
+        .use(wikiLinksPlugin, {
+            baseUrl: 'vscode://file/',
+            generatePath: (filename) => filename + '.md'
+        });
+
         // Enhanced image renderer - handles webview URIs properly
-        renderer.image = function(href, title, text) {
-            // At this point, href should already be converted to webview URI by the backend
-            // for relative paths. We just need to render it properly.
+        md.renderer.rules.image = function(tokens, idx, options, env, renderer) {
+            const token = tokens[idx];
+            const href = token.attrGet('src') || '';
+            const title = token.attrGet('title') || '';
+            const alt = token.content || '';
             
             // External URLs and data URIs are fine as-is
             if (href.startsWith('http://') || 
                 href.startsWith('https://') || 
                 href.startsWith('data:') ||
                 href.startsWith('vscode-webview://')) {
-                return `<img src="${href}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
+                return `<img src="${href}" alt="${escapeHtml(alt)}" title="${escapeHtml(title)}" />`;
             }
             
             // If we get here, it's an unconverted relative path (shouldn't happen with new system)
             console.warn('Unconverted relative image path in display:', href);
             
-            // src="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'200'%20height%3D'100'%3E%3Crect%20width%3D'200'%20height%3D'100'%20fill%3D'%23f0f0f0'%20stroke%3D'%23ccc'%2F%3E%3Ctext%20x%3D'100'%20y%3D'50'%20text-anchor%3D'middle'%20font-family%3D'Arial'%20font-size%3D'12'%20fill%3D'%23666'%3ELoading%20image%3A%20image.png%3C%2Ftext%3E%3C%2Fsvg%3E"
-            // Show placeholder for unconverted paths
-            // const errorSvg = encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100'><rect width='200' height='100' fill='#f0f0f0' stroke='#ccc'/><text x='100' y='50' text-anchor='middle' font-family='Arial' font-size='12' fill='#666'>Loading image: ${href}</text></svg>`);
-            // return `<img src="data:image/svg+xml,${errorSvg}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
-            return `<img src="${href}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
+            return `<img src="${href}" alt="${escapeHtml(alt)}" title="${escapeHtml(title)}" />`;
         };
         
         // Enhanced link renderer
-        renderer.link = function(href, title, text) {
+        md.renderer.rules.link_open = function(tokens, idx, options, env, renderer) {
+            const token = tokens[idx];
+            const href = token.attrGet('href') || '';
+            const title = token.attrGet('title') || '';
+            
             // Webview URIs should not be clickable links (they're for images)
             if (href.startsWith('vscode-webview://')) {
-                return `<span class="webview-uri-text">${text}</span>`;
+                return '<span class="webview-uri-text">';
             }
             
             const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
-            return `<a href="javascript:void(0)" data-original-href="${escapeHtml(href)}"${titleAttr} class="markdown-link">${text}</a>`;
+            return `<a href="javascript:void(0)" data-original-href="${escapeHtml(href)}"${titleAttr} class="markdown-link">`;
         };
         
-        marked.setOptions({
-            breaks: true,
-            gfm: true,
-            renderer: renderer
-        });
+        md.renderer.rules.link_close = function(tokens, idx, options, env, renderer) {
+            const openToken = tokens[idx - 2]; // link_open token
+            if (openToken && openToken.attrGet && openToken.attrGet('href') && openToken.attrGet('href').startsWith('vscode-webview://')) {
+                return '</span>';
+            }
+            return '</a>';
+        };
         
-        const rendered = marked.parse(text);
+        const rendered = md.render(text);
         
         // Remove paragraph wrapping for single line content
         if (!text.includes('\n') && rendered.startsWith('<p>') && rendered.endsWith('</p>\n')) {
