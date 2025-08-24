@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enhanced Markdown Kanban</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js" integrity="sha512-SYfDUYPg5xspsG6OOpXU366G8SZsdHOhqk/icdrYJ2E/WKZxPxze7d2HD3AyXpT7U22PZ5y74xRpqZ6A2bJ+kQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <link href="webview.css" rel="stylesheet">
     <style>
         /* File info bar styles */
@@ -206,7 +207,7 @@
     </div>
 
     <script src="webview.js"></script>
-    <script>
+    <!-- <script>
         // Debug image loading
         window.addEventListener('error', function(e) {
             if (e.target.tagName === 'IMG') {
@@ -221,6 +222,6 @@
                 console.log('Image loaded successfully:', e.target.src);
             }
         }, true);
-    </script>
+    </script> -->
 </body>
 </html>

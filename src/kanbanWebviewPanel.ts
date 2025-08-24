@@ -1423,132 +1423,52 @@ export class KanbanWebviewPanel {
         return text;
     }
 
-    // private async _preprocessImagePaths(content: string): Promise<string> {
-    //     console.error('MDKB: !!! PREPROCESS CALLED WITH:', content);
-    //     vscode.window.showWarningMessage(`Processing images in: ${content.substring(0, 50)}`);
+    // private async _replaceAsyncImages(
+    //     str: string, 
+    //     regex: RegExp, 
+    //     asyncFn: (match: string, alt: string, imagePath: string) => Promise<string>
+    // ): Promise<string> {
+    //     const matches: Array<{match: string, alt: string, path: string, index: number}> = [];
+    //     let m;
         
-    //     // Just add a prefix to prove it's running
-    //     if (content.includes('![')) {
-    //         return content.replace(/!\[/g, '![PROCESSED-');
+    //     while ((m = regex.exec(str)) !== null) {
+    //         matches.push({
+    //             match: m[0],
+    //             alt: m[1],
+    //             path: m[2],
+    //             index: m.index
+    //         });
     //     }
         
-    //     return content;
-    // }
-
-    // private async _preprocessImagePaths(content: string): Promise<string> {
-    //     if (!content || !this._document) {
-    //         return content;
-    //     }
+    //     // Process all matches
+    //     let result = str;
+    //     let offset = 0;
         
-    //     const documentDir = path.dirname(this._document.uri.fsPath);
-        
-    //     // Find all image references
-    //     const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-    //     let result = content;
-    //     let match;
-    //     const replacements: Array<{from: string, to: string}> = [];
-        
-    //     // First, collect all replacements
-    //     while ((match = imageRegex.exec(content)) !== null) {
-    //         const fullMatch = match[0];
-    //         const alt = match[1];
-    //         const imagePath = match[2];
+    //     for (const matchInfo of matches) {
+    //         const replacement = await asyncFn(matchInfo.match, matchInfo.alt, matchInfo.path);
+    //         const startIndex = matchInfo.index + offset;
+    //         const endIndex = startIndex + matchInfo.match.length;
             
-    //         // Skip if already converted or external
-    //         if (imagePath.startsWith('vscode-webview://') || 
-    //             imagePath.startsWith('http://') || 
-    //             imagePath.startsWith('https://') ||
-    //             imagePath.startsWith('data:')) {
-    //             continue;
-    //         }
-            
-    //         // Convert to absolute path
-    //         let absolutePath: string;
-    //         if (path.isAbsolute(imagePath)) {
-    //             absolutePath = imagePath;
-    //         } else {
-    //             absolutePath = path.resolve(documentDir, imagePath);
-    //         }
-            
-    //         try {
-    //             const imageUri = vscode.Uri.file(absolutePath);
-                
-    //             // Try to stat the file to check existence
-    //             await vscode.workspace.fs.stat(imageUri);
-                
-    //             // Convert to webview URI
-    //             const webviewUri = this._panel.webview.asWebviewUri(imageUri);
-    //             const newImageMarkdown = `![${alt}](${webviewUri.toString()})`;
-                
-    //             replacements.push({
-    //                 from: fullMatch,
-    //                 to: newImageMarkdown
-    //             });
-    //         } catch (error) {
-    //             // Mark as error
-    //             replacements.push({
-    //                 from: fullMatch,
-    //                 to: `![ERROR: ${imagePath}](data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Ctext%3EFile not found%3C/text%3E%3C/svg%3E)`
-    //             });
-    //         }
+    //         result = result.substring(0, startIndex) + replacement + result.substring(endIndex);
+    //         offset += replacement.length - matchInfo.match.length;
     //     }
         
-    //     // Now apply all replacements
-    //     for (const replacement of replacements) {
-    //         result = result.replace(replacement.from, replacement.to);
-    //         console.log(`Applied replacement: ${replacement.from} -> ${replacement.to.substring(0, 50)}...`);
-    //     }
-        
-    //     console.log(`Final result: "${result.substring(0, 200)}"`);
     //     return result;
     // }
 
-    private async _replaceAsyncImages(
-        str: string, 
-        regex: RegExp, 
-        asyncFn: (match: string, alt: string, imagePath: string) => Promise<string>
-    ): Promise<string> {
-        const matches: Array<{match: string, alt: string, path: string, index: number}> = [];
-        let m;
-        
-        while ((m = regex.exec(str)) !== null) {
-            matches.push({
-                match: m[0],
-                alt: m[1],
-                path: m[2],
-                index: m.index
-            });
-        }
-        
-        // Process all matches
-        let result = str;
-        let offset = 0;
-        
-        for (const matchInfo of matches) {
-            const replacement = await asyncFn(matchInfo.match, matchInfo.alt, matchInfo.path);
-            const startIndex = matchInfo.index + offset;
-            const endIndex = startIndex + matchInfo.match.length;
-            
-            result = result.substring(0, startIndex) + replacement + result.substring(endIndex);
-            offset += replacement.length - matchInfo.match.length;
-        }
-        
-        return result;
-    }
-
-    private async _replaceAsync(
-        str: string, 
-        regex: RegExp, 
-        asyncFn: (match: string, ...args: string[]) => Promise<string>
-    ): Promise<string> {
-        const promises: Promise<string>[] = [];
-        str.replace(regex, (match: string, ...args: any[]): string => {
-            promises.push(asyncFn(match, ...args));
-            return match;
-        });
-        const data = await Promise.all(promises);
-        return str.replace(regex, () => data.shift()!);
-    }
+    // private async _replaceAsync(
+    //     str: string, 
+    //     regex: RegExp, 
+    //     asyncFn: (match: string, ...args: string[]) => Promise<string>
+    // ): Promise<string> {
+    //     const promises: Promise<string>[] = [];
+    //     str.replace(regex, (match: string, ...args: any[]): string => {
+    //         promises.push(asyncFn(match, ...args));
+    //         return match;
+    //     });
+    //     const data = await Promise.all(promises);
+    //     return str.replace(regex, () => data.shift()!);
+    // }
 
     public dispose() {
         KanbanWebviewPanel.currentPanel = undefined;
