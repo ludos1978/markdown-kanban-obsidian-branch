@@ -134,50 +134,50 @@ function updateWhitespace(value) {
     document.documentElement.style.setProperty('--whitespace', value);
 }
 
-function updateImageSources() {
-    // Update all images in the rendered content
-    document.querySelectorAll('img').forEach(img => {
-        const originalSrc = img.getAttribute('data-original-src') || img.src;
+// function updateImageSources() {
+//     // Update all images in the rendered content
+//     document.querySelectorAll('img').forEach(img => {
+//         const originalSrc = img.getAttribute('data-original-src') || img.src;
         
-        // Extract path from src (remove any base URL)
-        let imagePath = originalSrc;
-        try {
-            const url = new URL(originalSrc);
-            imagePath = url.pathname;
-        } catch (e) {
-            // If it's not a full URL, use as-is
-        }
+//         // Extract path from src (remove any base URL)
+//         let imagePath = originalSrc;
+//         try {
+//             const url = new URL(originalSrc);
+//             imagePath = url.pathname;
+//         } catch (e) {
+//             // If it's not a full URL, use as-is
+//         }
         
-        // Try to find a mapping for this image
-        const mappedSrc = findImageMapping(imagePath);
-        if (mappedSrc && mappedSrc !== originalSrc) {
-            img.src = mappedSrc;
-            img.setAttribute('data-original-src', originalSrc);
-        }
-    });
-}
+//         // Try to find a mapping for this image
+//         const mappedSrc = findImageMapping(imagePath);
+//         if (mappedSrc && mappedSrc !== originalSrc) {
+//             img.src = mappedSrc;
+//             img.setAttribute('data-original-src', originalSrc);
+//         }
+//     });
+// }
 
-function updateImagePaths(pathMappings) {
-    // Update all image sources in the rendered markdown
-    document.querySelectorAll('.markdown-content img').forEach(img => {
-        const currentSrc = img.getAttribute('src');
-        if (pathMappings[currentSrc]) {
-            img.src = pathMappings[currentSrc];
-        }
-    });
+// function updateImagePaths(pathMappings) {
+//     // Update all image sources in the rendered markdown
+//     document.querySelectorAll('.markdown-content img').forEach(img => {
+//         const currentSrc = img.getAttribute('src');
+//         if (pathMappings[currentSrc]) {
+//             img.src = pathMappings[currentSrc];
+//         }
+//     });
     
-    // Also update links that might be images
-    document.querySelectorAll('.markdown-content a').forEach(link => {
-        const href = link.getAttribute('data-original-href') || link.getAttribute('href');
-        if (pathMappings[href] && isImageLink(href)) {
-            // Convert link to image
-            const img = document.createElement('img');
-            img.src = pathMappings[href];
-            img.alt = link.textContent;
-            link.parentNode.replaceChild(img, link);
-        }
-    });
-}
+//     // Also update links that might be images
+//     document.querySelectorAll('.markdown-content a').forEach(link => {
+//         const href = link.getAttribute('data-original-href') || link.getAttribute('href');
+//         if (pathMappings[href] && isImageLink(href)) {
+//             // Convert link to image
+//             const img = document.createElement('img');
+//             img.src = pathMappings[href];
+//             img.alt = link.textContent;
+//             link.parentNode.replaceChild(img, link);
+//         }
+//     });
+// }
 
 function isImageLink(href) {
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.bmp', '.webp'];
@@ -975,14 +975,15 @@ function insertFileLink(fileInfo) {
     const { fileName, relativePath, isImage } = fileInfo;
     let activeEditor = fileInfo.activeEditor || getActiveTextEditor();
     
-    // Create appropriate markdown link
+    // Create markdown link with ORIGINAL relative path
+    // DO NOT convert to webview URI here - that's only for display
     let markdownLink;
     if (isImage) {
-        // For images, use image syntax
+        // For images, use image syntax with original path
         const altText = fileName.split('.')[0]; // filename without extension
         markdownLink = `![${altText}](${relativePath})`;
     } else {
-        // For other files, use link syntax
+        // For other files, use link syntax with original path
         markdownLink = `[${fileName}](${relativePath})`;
     }
     
@@ -1008,7 +1009,7 @@ function insertFileLink(fileInfo) {
             autoResize(element);
         }
         
-        // FOR IMAGES: Also add to the other field
+        // FOR IMAGES: Also add to the other field if needed
         if (isImage && (activeEditor.type === 'task-title' || activeEditor.type === 'task-description')) {
             const taskItem = element.closest('.task-item');
             const otherField = activeEditor.type === 'task-title' ? 
@@ -1022,13 +1023,6 @@ function insertFileLink(fileInfo) {
                 if (typeof autoResize === 'function') {
                     autoResize(otherField);
                 }
-                // Save the other field too
-                setTimeout(() => {
-                    // Save through the TaskEditor if it's active
-                    if (taskEditor.currentEditor && taskEditor.currentEditor.element === otherField) {
-                        taskEditor.saveCurrentField();
-                    }
-                }, 100);
             }
         }
         
@@ -1049,7 +1043,7 @@ function insertFileLink(fileInfo) {
         
         vscode.postMessage({ type: 'showMessage', text: `Inserted ${isImage ? 'image' : 'file'} link: ${fileName}` });
     } else {
-        // Create new task with the file link
+        // Create new task with the file link (original path)
         createNewTaskWithContent(markdownLink, fileInfo.dropPosition, isImage ? markdownLink : '');
         vscode.postMessage({ type: 'showMessage', text: `Created new task with ${isImage ? 'image' : 'file'} link: ${fileName}` });
     }
@@ -1070,7 +1064,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     recentlyCreatedTasks.add(content);
     setTimeout(() => recentlyCreatedTasks.delete(content), 2000);
     
-    // Find the nearest column (existing logic)...
+    // Find the nearest column
     const columns = document.querySelectorAll('.kanban-column');
     let targetColumnId = null;
     let insertionIndex = -1;
@@ -1094,10 +1088,10 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     }
     
     if (targetColumnId) {
-        // Create task data - use description parameter for images
+        // Create task data with original markdown paths
         const taskData = {
             title: content,
-            description: description  // Will be the same image link for images, empty for files
+            description: description
         };
         
         vscode.postMessage({
@@ -1697,32 +1691,32 @@ function renderMarkdown(text) {
     try {
         const renderer = new marked.Renderer();
         
-        // Strict image renderer - MUST have webview URIs
+        // Enhanced image renderer - handles webview URIs properly
         renderer.image = function(href, title, text) {
+            // At this point, href should already be converted to webview URI by the backend
+            // for relative paths. We just need to render it properly.
             
-            // ONLY accept properly converted URIs
-            if (href.startsWith('vscode-webview://')) {
+            // External URLs and data URIs are fine as-is
+            if (href.startsWith('http://') || 
+                href.startsWith('https://') || 
+                href.startsWith('data:') ||
+                href.startsWith('vscode-webview://')) {
                 return `<img src="${href}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
             }
             
-            // External URLs are OK
-            if (href.startsWith('https://') || href.startsWith('http://')) {
-                return `<img src="${href}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
-            }
+            // If we get here, it's an unconverted relative path (shouldn't happen with new system)
+            console.warn('Unconverted relative image path in display:', href);
             
-            // Data URIs are OK (including error placeholders)
-            if (href.startsWith('data:')) {
-                return `<img src="${href}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
-            }
-            
-            // ANYTHING ELSE IS AN ERROR
-            console.error(`ERROR: Unconverted image path in markdown: ${href}`);
-            return `<div style="color: red; border: 2px solid red; padding: 10px;">IMAGE ERROR: Unconverted path: ${escapeHtml(href)}</div>`;
+            // src="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'200'%20height%3D'100'%3E%3Crect%20width%3D'200'%20height%3D'100'%20fill%3D'%23f0f0f0'%20stroke%3D'%23ccc'%2F%3E%3Ctext%20x%3D'100'%20y%3D'50'%20text-anchor%3D'middle'%20font-family%3D'Arial'%20font-size%3D'12'%20fill%3D'%23666'%3ELoading%20image%3A%20image.png%3C%2Ftext%3E%3C%2Fsvg%3E"
+            // Show placeholder for unconverted paths
+            // const errorSvg = encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100'><rect width='200' height='100' fill='#f0f0f0' stroke='#ccc'/><text x='100' y='50' text-anchor='middle' font-family='Arial' font-size='12' fill='#666'>Loading image: ${href}</text></svg>`);
+            // return `<img src="data:image/svg+xml,${errorSvg}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
+            return `<img src="${href}" alt="${escapeHtml(text || '')}" title="${escapeHtml(title || '')}" />`;
         };
         
-        // Strict link renderer
+        // Enhanced link renderer
         renderer.link = function(href, title, text) {
-            // Webview URIs should not be clickable
+            // Webview URIs should not be clickable links (they're for images)
             if (href.startsWith('vscode-webview://')) {
                 return `<span class="webview-uri-text">${text}</span>`;
             }
@@ -1746,8 +1740,8 @@ function renderMarkdown(text) {
         
         return rendered;
     } catch (error) {
-        console.error('CRITICAL: Error rendering markdown:', error);
-        return `<div style="color: red;">RENDER ERROR: ${escapeHtml(text)}</div>`;
+        console.error('Error rendering markdown:', error);
+        return escapeHtml(text);
     }
 }
 
