@@ -17,8 +17,6 @@ let canRedo = false;
 let currentExternalDropColumn = null;
 let externalDropIndicator = null;
 
-// Track currently active text editor for drag/drop
-// let activeTextEditor = null;
 // Track if drag/drop is already set up to prevent multiple listeners
 let dragDropInitialized = false;
 let isProcessingDrop = false; // Prevent multiple simultaneous drops
@@ -37,15 +35,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const href = link.getAttribute('data-original-href');
         if (!href) {
-            console.log('No href found on link');
             return;
         }
         
-        console.log('Markdown link clicked with href:', href);
-        
         // Check if it's an external URL
         if (href.startsWith('http://') || href.startsWith('https://')) {
-            console.log('Opening external URL:', href);
             // Open external URLs in default browser via VS Code
             vscode.postMessage({
                 type: 'openExternalLink',
@@ -53,7 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } else {
             // It's a file link - send to extension to open in VS Code
-            console.log('Opening file link:', href);
             vscode.postMessage({
                 type: 'openFileLink',
                 href: href
@@ -153,7 +146,6 @@ function updateImageSources() {
         // Try to find a mapping for this image
         const mappedSrc = findImageMapping(imagePath);
         if (mappedSrc && mappedSrc !== originalSrc) {
-            console.log('Updating image src:', originalSrc, '->', mappedSrc);
             img.src = mappedSrc;
             img.setAttribute('data-original-src', originalSrc);
         }
@@ -224,15 +216,12 @@ function findImageMapping(imagePath) {
 
 // Request board update when the webview loads/becomes visible
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, requesting board update');
     // Request initial board data and file info
     setTimeout(() => {
         if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
-            console.log('No board data, requesting update from extension');
             vscode.postMessage({ type: 'requestBoardUpdate' });
         }
         if (!currentFileInfo) {
-            console.log('No file info, requesting update from extension');
             vscode.postMessage({ type: 'requestFileInfo' });
         }
     }, 100);
@@ -243,23 +232,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Also request update when window becomes visible again
 window.addEventListener('focus', () => {
-    console.log('Window focused, checking board data');
     if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
-        console.log('No board data on focus, requesting update');
         vscode.postMessage({ type: 'requestBoardUpdate' });
     }
 });
-
-window.addEventListener('error', function(e) {
-    if (e.target && e.target.tagName === 'IMG') {
-        console.error(`IMAGE LOAD FAILED: ${e.target.src}`);
-        console.error('Image element:', e.target);
-        
-        // Make the error visible
-        e.target.style.border = '2px solid red';
-        e.target.alt = `FAILED: ${e.target.src}`;
-    }
-}, true);
 
 // Keyboard shortcuts for undo/redo
 document.addEventListener('keydown', (e) => {
@@ -308,11 +284,8 @@ document.addEventListener('click', (e) => {
     
     // Skip webview URIs - they're for display only
     if (href.startsWith('vscode-webview://')) {
-        console.log('Webview URI clicked, ignoring:', href);
         return;
     }
-    
-    console.log('Link clicked with href:', href);
     
     // Check if it's an external URL
     if (href.startsWith('http://') || href.startsWith('https://')) {
@@ -775,8 +748,6 @@ function setupGlobalDragAndDrop() {
     const boardContainer = document.getElementById('kanban-container');
     const dropFeedback = document.getElementById('drop-zone-feedback');
     
-    console.log('Setting up global drag and drop...');
-    
     // Prevent default drag behaviors on the entire board
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         boardContainer.addEventListener(eventName, preventDefaults, false);
@@ -829,7 +800,6 @@ function setupGlobalDragAndDrop() {
         const hasKanbanTask = dt.types.includes('application/kanban-task');
         const hasKanbanColumn = dt.types.includes('application/kanban-column');
         if (hasKanbanTask || hasKanbanColumn) {
-            console.log('Internal kanban drag detected, not showing file drop feedback');
             return false;
         }
         
@@ -841,7 +811,6 @@ function setupGlobalDragAndDrop() {
                 const columnData = dt.getData('application/column-id');
                 if ((textData && (textData.includes('task_') || textData.includes('col_'))) || 
                     (columnData && columnData.includes('col_'))) {
-                    console.log('Internal kanban drag detected by ID format');
                     return false;
                 }
             } catch (e) {
@@ -854,16 +823,12 @@ function setupGlobalDragAndDrop() {
         const hasUriList = dt.types.includes('text/uri-list');
         
         const isExternal = hasFiles || hasUriList;
-        if (isExternal) {
-            console.log('External file drag detected');
-        }
         
         return isExternal;
     }
     
     // Enhanced document-level handling
     document.addEventListener('dragenter', (e) => {
-        console.log('Document dragenter, types:', e.dataTransfer?.types);
         if (isExternalFileDrag(e)) {
             showDropFeedback(e);
         }
@@ -877,14 +842,12 @@ function setupGlobalDragAndDrop() {
     });
     
     function showDropFeedback(e) {
-        console.log('Showing drop feedback for external file');
         if (dropFeedback) {
             dropFeedback.classList.add('active');
         }
     }
     
     function hideDropFeedback(e) {
-        console.log('Hiding drop feedback');
         if (dropFeedback) {
             dropFeedback.classList.remove('active');
         }
@@ -896,25 +859,20 @@ function setupGlobalDragAndDrop() {
     document.addEventListener('drop', handleFileDrop, false);
     
     function handleFileDrop(e) {
-        console.log('File drop detected!');
         hideDropFeedback(e);
         hideExternalDropIndicator(); // Hide the drop indicator
         
         // ... rest of existing handleFileDrop logic remains the same
         if (isProcessingDrop) {
-            console.log('Already processing a drop, ignoring this one');
             return;
         }
         
         const dt = e.dataTransfer;
-        console.log('DataTransfer types:', dt.types);
-        console.log('DataTransfer files length:', dt.files.length);
         
         const hasKanbanTask = dt.types.includes('application/kanban-task');
         const hasKanbanColumn = dt.types.includes('application/kanban-column');
         
         if (hasKanbanTask || hasKanbanColumn) {
-            console.log('Internal kanban drag detected by type, skipping file drop handling');
             return;
         }
         
@@ -923,7 +881,6 @@ function setupGlobalDragAndDrop() {
         
         if ((taskId && (taskId.includes('task_') || taskId.includes('col_'))) || 
             (columnId && columnId.includes('col_'))) {
-            console.log('Internal kanban drag detected by data content, skipping file drop handling');
             return;
         }
         
@@ -935,22 +892,16 @@ function setupGlobalDragAndDrop() {
         }, 1000);
         
         if (files && files.length > 0) {
-            console.log('Handling file drop with', files.length, 'files');
             handleVSCodeFileDrop(e, files);
         } else {
             const uriList = dt.getData('text/uri-list');
             const textPlain = dt.getData('text/plain');
-            console.log('URI list:', uriList);
-            console.log('Text plain:', textPlain);
             
             if (uriList) {
-                console.log('Handling URI list drop');
                 handleVSCodeUriDrop(e, uriList);
             } else if (textPlain && (textPlain.startsWith('file://') || (textPlain.includes('/') && !textPlain.includes('task_') && !textPlain.includes('col_')))) {
-                console.log('Handling text plain as URI');
                 handleVSCodeUriDrop(e, textPlain);
             } else {
-                console.log('No file data found in drop');
                 isProcessingDrop = false;
             }
         }
@@ -958,16 +909,10 @@ function setupGlobalDragAndDrop() {
 }
 
 function handleVSCodeFileDrop(e, files) {
-    console.log('handleVSCodeFileDrop called with', files.length, 'files');
     const file = files[0];
     const fileName = file.name;
     
-    console.log('File name:', fileName);
-    console.log('File type:', file.type);
-    console.log('File size:', file.size);
-    
     // Send to extension to get proper VS Code URI and handle the drop
-    // Don't create the link directly here to avoid duplication
     vscode.postMessage({
         type: 'handleFileDrop',
         fileName: fileName,
@@ -980,20 +925,14 @@ function handleVSCodeFileDrop(e, files) {
 }
 
 function handleVSCodeUriDrop(e, uriData) {
-    console.log('handleVSCodeUriDrop called with:', uriData);
-    
     // Parse URI data from VS Code
     const uris = uriData.split('\n').filter(uri => uri.trim()).filter(uri => {
         // Filter out non-file URIs and internal drag data
         const isFile = uri.startsWith('file://') || (uri.includes('/') && !uri.includes('task_') && !uri.includes('col_'));
-        console.log('URI:', uri, 'isFile:', isFile);
         return isFile;
     });
     
-    console.log('Filtered URIs:', uris);
-    
     if (uris.length > 0) {
-        console.log('Sending handleUriDrop message to extension');
         vscode.postMessage({
             type: 'handleUriDrop',
             uris: uris,
@@ -1004,9 +943,6 @@ function handleVSCodeUriDrop(e, uriData) {
             activeEditor: getActiveTextEditor()
         });
     } else {
-        console.log('No valid URIs found');
-        // Don't create fallback here to avoid duplication
-        // The extension will handle showing an appropriate message
         vscode.postMessage({
             type: 'showMessage',
             text: 'Could not process the dropped file. Please try dragging from the Explorer panel.'
@@ -1120,11 +1056,8 @@ let recentlyCreatedTasks = new Set();
 let renderTimeout = null;
 
 function createNewTaskWithContent(content, dropPosition, description = '') {
-    console.log('createNewTaskWithContent called with:', content, dropPosition);
-    
     // Check for recent duplicates to prevent spam creation
     if (recentlyCreatedTasks.has(content)) {
-        console.log('Duplicate task creation prevented for:', content);
         return;
     }
     
@@ -1174,14 +1107,12 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
 function calculateInsertionIndex(column, clientY) {
     const tasksContainer = column.querySelector('.tasks-container');
     if (!tasksContainer) {
-        console.log('No tasks container found, defaulting to append');
         return -1; // Append to end if no tasks container
     }
     
     const tasks = Array.from(tasksContainer.children);
     
     if (tasks.length === 0) {
-        console.log('Empty column, inserting as first task');
         return 0; // Insert as first task in empty column
     }
     
@@ -1191,13 +1122,11 @@ function calculateInsertionIndex(column, clientY) {
         const taskCenter = taskRect.top + taskRect.height / 2;
         
         if (clientY < taskCenter) {
-            console.log('Inserting before task at index', i);
             return i; // Insert before this task
         }
     }
     
     // If not above any task, insert at the end
-    console.log('Inserting at end, after', tasks.length, 'tasks');
     return -1; // -1 means append to end
 }
 
@@ -1319,7 +1248,6 @@ function initializeFile() {
 function createColumnElement(column, columnIndex) {
     // Defensive checks for column data
     if (!column) {
-        console.error('Column is null/undefined');
         return document.createElement('div');
     }
 
@@ -1387,7 +1315,6 @@ function createColumnElement(column, columnIndex) {
 function createTaskElement(task, columnId, taskIndex) {
     // Defensive checks for task data
     if (!task) {
-        console.error('Task is null/undefined');
         return '';
     }
 
@@ -1766,7 +1693,6 @@ function renderMarkdown(text) {
         
         // Strict image renderer - MUST have webview URIs
         renderer.image = function(href, title, text) {
-            console.log(`Rendering image: ${href}`);
             
             // ONLY accept properly converted URIs
             if (href.startsWith('vscode-webview://')) {
@@ -1825,7 +1751,6 @@ function setupDragAndDrop() {
     if (!dragDropInitialized) {
         setupGlobalDragAndDrop();
         dragDropInitialized = true;
-        console.log('Global drag and drop initialized');
     }
     
     // Always refresh column and task drag/drop since DOM changes
@@ -1852,14 +1777,11 @@ function setupColumnDragAndDrop() {
             e.dataTransfer.setData('application/kanban-column', columnId); // Additional identifier
             e.dataTransfer.effectAllowed = 'move';
             column.classList.add('column-dragging');
-            
-            console.log('Column drag started:', columnId);
         });
 
         dragHandle.addEventListener('dragend', e => {
             column.classList.remove('column-dragging');
             columns.forEach(col => col.classList.remove('drag-over'));
-            console.log('Column drag ended');
         });
 
         column.addEventListener('dragover', e => {
@@ -1983,8 +1905,6 @@ function setupTaskDragHandle(handle) {
             e.dataTransfer.setData('application/kanban-task', taskId); // Additional identifier
             e.dataTransfer.effectAllowed = 'move';
             taskItem.classList.add('dragging');
-            
-            console.log('Task drag started:', taskId);
         }
     });
 
@@ -1992,7 +1912,6 @@ function setupTaskDragHandle(handle) {
         const taskItem = e.target.closest('.task-item');
         if (taskItem) {
             taskItem.classList.remove('dragging');
-            console.log('Task drag ended');
         }
     });
 }
@@ -2122,49 +2041,3 @@ function selectFile() {
     vscode.postMessage({ type: 'selectFile' });
 }
 
-// Debug function to clear duplication tracking (useful for testing)
-function clearDuplicationTracking() {
-    console.log('Clearing duplication tracking');
-    recentlyCreatedTasks.clear();
-    isProcessingDrop = false;
-    if (renderTimeout) {
-        clearTimeout(renderTimeout);
-        renderTimeout = null;
-    }
-}
-
-// Debug function to test task creation
-function testTaskCreation() {
-    console.log('Testing task creation...');
-    if (currentBoard && currentBoard.columns.length > 0) {
-        // Test via extension message to match the normal flow
-        vscode.postMessage({
-            type: 'handleFileDrop',
-            fileName: 'test-image.jpg',
-            dropPosition: { x: 300, y: 300 },
-            activeEditor: null
-        });
-    } else {
-        console.log('No board or columns available for test');
-    }
-}
-
-// Direct test function for debugging the insertFileLink function
-function testDirectInsert() {
-    console.log('Testing direct file link insertion...');
-    const testFileInfo = {
-        fileName: 'direct-test.jpg',
-        relativePath: './direct-test.jpg',
-        isImage: true,
-        activeEditor: null,
-        dropPosition: { x: 300, y: 300 }
-    };
-    
-    console.log('Creating test task with:', testFileInfo);
-    insertFileLink(testFileInfo);
-}
-
-// Make test functions globally available for debugging
-window.testTaskCreation = testTaskCreation;
-window.testDirectInsert = testDirectInsert;
-window.clearDuplicationTracking = clearDuplicationTracking;

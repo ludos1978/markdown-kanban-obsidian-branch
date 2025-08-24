@@ -2,14 +2,10 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// check this for image preview
-// https://github.com/microsoft/vscode-livepreview/blob/main/src/editorPreview/browserPreview.ts
-
 import { MarkdownKanbanParser, KanbanBoard, KanbanTask, KanbanColumn } from './markdownParser';
 
 // Deep clone helper for board state
 function deepCloneBoard(board: KanbanBoard): KanbanBoard {
-    // return JSON.parse(JSON.stringify(board));
     return structuredClone(board);
 }
 
@@ -88,7 +84,6 @@ export class KanbanWebviewPanel {
         this._setupEventListeners();
         
         if (this._document) {
-            console.log('Constructor:loadMarkdownFile');
             this.loadMarkdownFile(this._document);
         }
     }
@@ -151,7 +146,6 @@ export class KanbanWebviewPanel {
                     this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
                 });
             } catch (error) {
-                console.error('Error parsing Markdown:', error);
                 this._board = { valid:false, title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
             }
         }
@@ -319,7 +313,7 @@ export class KanbanWebviewPanel {
                     const webviewUri = this._panel.webview.asWebviewUri(imageUri);
                     relativePath = webviewUri.toString();
                 } catch (error) {
-                    console.log('MDKB: Could not convert image to webview URI:', error);
+                    // Keep relative path if conversion fails
                 }
             }
             
@@ -337,14 +331,12 @@ export class KanbanWebviewPanel {
             });
             
         } catch (error) {
-            console.error('Error handling file drop:', error);
             vscode.window.showErrorMessage(`Failed to handle file drop: ${error}`);
         }
     }
 
     private async _handleUriDrop(message: any) {
         try {
-            console.log('_handleUriDrop called with:', message);
             const { uris, dropPosition, activeEditor } = message;
             
             for (const uriString of uris) {
@@ -356,7 +348,6 @@ export class KanbanWebviewPanel {
                         uri = vscode.Uri.file(uriString);
                     }
                 } catch (parseError) {
-                    console.error('Failed to parse URI:', uriString, parseError);
                     continue;
                 }
                 
@@ -374,7 +365,7 @@ export class KanbanWebviewPanel {
                         const webviewUri = this._panel.webview.asWebviewUri(uri);
                         processedPath = webviewUri.toString();
                     } catch (error) {
-                        console.log('Could not access image file, using relative path');
+                        // Keep relative path if stat fails
                     }
                 }
                 
@@ -395,7 +386,6 @@ export class KanbanWebviewPanel {
             }
             
         } catch (error) {
-            console.error('Error handling URI drop:', error);
             vscode.window.showErrorMessage(`Failed to handle URI drop: ${error}`);
         }
     }
@@ -505,11 +495,9 @@ export class KanbanWebviewPanel {
 
             // Drag and drop operations
             case 'handleFileDrop':
-                console.log('Handling file drop message');
                 this._handleFileDrop(message);
                 break;
             case 'handleUriDrop':
-                console.log('Handling URI drop message');
                 this._handleUriDrop(message);
                 break;
             
@@ -519,12 +507,7 @@ export class KanbanWebviewPanel {
             case 'openFileLink':
                 this._handleFileLink(message.href);
                 break;
-            case 'openFileLink':
-                console.log('Opening file link:', message.href);
-                this._handleFileLink(message.href);
-                break;
             case 'openExternalLink':
-                console.log('Opening external link:', message.href);
                 vscode.env.openExternal(vscode.Uri.parse(message.href));
                 break;
                         
@@ -550,11 +533,9 @@ export class KanbanWebviewPanel {
                 this.moveTask(message.taskId, message.fromColumnId, message.toColumnId, message.newIndex);
                 break;
             case 'addTask':
-                console.log('Adding task:', message.columnId, message.taskData);
                 this.addTask(message.columnId, message.taskData);
                 break;
-            case 'addTaskAtPosition':  // NEW CASE
-                console.log('Adding task at position:', message.columnId, message.taskData, 'at index:', message.insertionIndex);
+            case 'addTaskAtPosition':
                 this.addTaskAtPosition(message.columnId, message.taskData, message.insertionIndex);
                 break;
             case 'deleteTask':
@@ -630,7 +611,6 @@ export class KanbanWebviewPanel {
             const targetUri = fileUris[0];
             try {
                 const document = await vscode.workspace.openTextDocument(targetUri);
-                console.log('_selectFile:loadMarkdownFile');
                 this.loadMarkdownFile(document);
                 vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
             } catch (error) {
@@ -744,8 +724,6 @@ export class KanbanWebviewPanel {
                 targetPath = path.resolve(currentDir, href);
             }
             
-            console.log('Opening file link:', href, '-> resolved to:', targetPath);
-            
             // Check if file exists
             if (!fs.existsSync(targetPath)) {
                 vscode.window.showWarningMessage(`File not found: ${targetPath}`);
@@ -782,7 +760,6 @@ export class KanbanWebviewPanel {
             }
             
         } catch (error) {
-            console.error('MDKB: Error opening file link:', error);
             vscode.window.showErrorMessage(`Failed to open file: ${href}`);
         }
     }
@@ -807,13 +784,11 @@ export class KanbanWebviewPanel {
         );
         
         try {
-            console.log('MDKB: applyEdit & save');
             await vscode.workspace.applyEdit(edit);
             await this._document.save();
             
             // Reload the file
             setTimeout(() => {
-                console.log('_initializeFile:loadMarkdownFile');
                 this.loadMarkdownFile(this._document!);
                 this._isUpdatingFromPanel = false;
             }, 100);
@@ -842,52 +817,21 @@ export class KanbanWebviewPanel {
         try {
             // Parse the markdown
             this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
-            console.log(`Board parsed. Valid: ${this._board.valid}, Columns: ${this._board.columns?.length}`);
             
             // Process images in each task
             if (this._board.valid && this._board.columns) {
                 for (const column of this._board.columns) {
-                    console.log(`\nProcessing column: ${column.title}`);
-                    
                     for (let i = 0; i < column.tasks.length; i++) {
                         const task = column.tasks[i];
-                        console.log(`  Task ${i}:`);
                         
                         // Process title
                         if (task.title) {
-                            const originalTitle = task.title;
                             task.title = await this._preprocessImagePaths(task.title);
-                            if (originalTitle !== task.title) {
-                                console.log(`    Title changed!`);
-                            }
                         }
                         
                         // Process description
                         if (task.description) {
-                            const originalDesc = task.description;
                             task.description = await this._preprocessImagePaths(task.description);
-                            if (originalDesc !== task.description) {
-                                console.log(`    Description changed!`);
-                            }
-                        }
-                    }
-                }
-                
-                // Verify the changes
-                console.log('MDKB: \n=== VERIFICATION ===');
-                for (const column of this._board.columns) {
-                    for (const task of column.tasks) {
-                        if (task.title?.includes('![')) {
-                            console.log('MDKB: Task title with image:', task.title);
-                            if (!task.title.includes('vscode-webview://')) {
-                                console.error('MDKB: WARNING: Task title still has unconverted image!');
-                            }
-                        }
-                        if (task.description?.includes('![')) {
-                            console.log('MDKB: Task description with image:', task.description.substring(0, 100));
-                            if (!task.description.includes('vscode-webview://')) {
-                                console.error('MDKB: WARNING: Task description still has unconverted image!');
-                            }
                         }
                     }
                 }
@@ -902,37 +846,19 @@ export class KanbanWebviewPanel {
             this._redoStack = [];
             
         } catch (error) {
-            console.error('MDKB: CRITICAL ERROR:', error);
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
             this._board = { valid:false, title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
         }
         
-        console.log('MDKB: === SENDING BOARD UPDATE ===\n');
         this._sendBoardUpdate();
         this._sendFileInfo();
         this._sendUndoRedoStatus();
     }
 
-
     private _sendBoardUpdate() {
         if (!this._panel.webview) return;
 
         const board = this._board || { title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
-        
-        // CRITICAL DEBUG: Log the exact data being sent
-        console.log('MDKB: === EXACT DATA BEING SENT TO WEBVIEW ===');
-        if (board.columns && board.columns.length > 0) {
-            board.columns.forEach((col, idx) => {
-                col.tasks.forEach((task, taskIdx) => {
-                    if (task.title?.includes('![') || task.description?.includes('![')) {
-                        console.log(`Column ${idx}, Task ${taskIdx}:`);
-                        console.log('MDKB:   Title:', task.title);
-                        console.log('MDKB:   Description:', task.description?.substring(0, 200));
-                    }
-                });
-            });
-        }
-        console.log('MDKB: === END DATA ===');
         
         setTimeout(() => {
             this._panel.webview.postMessage({
@@ -948,7 +874,7 @@ export class KanbanWebviewPanel {
         const fileInfo = {
             fileName: this._document ? path.basename(this._document.fileName) : 'No file loaded',
             filePath: this._document ? this._document.fileName : '',
-            documentPath: this._document ? this._document.uri.fsPath : '', // Add this line
+            documentPath: this._document ? this._document.uri.fsPath : '',
             isLocked: this._isFileLocked
         };
 
@@ -1098,12 +1024,9 @@ export class KanbanWebviewPanel {
     }
 
     private addTaskAtPosition(columnId: string, taskData: any, insertionIndex: number) {
-        console.log(`addTaskAtPosition called: columnId=${columnId}, insertionIndex=${insertionIndex}`, taskData);
-        
         this.performAction(() => {
             const column = this.findColumn(columnId);
             if (!column) {
-                console.error('Column not found:', columnId);
                 return;
             }
 
@@ -1115,14 +1038,10 @@ export class KanbanWebviewPanel {
 
             // Insert at specific position or append to end
             if (insertionIndex >= 0 && insertionIndex <= column.tasks.length) {
-                console.log(`Inserting task at position ${insertionIndex} in column ${columnId}`);
                 column.tasks.splice(insertionIndex, 0, newTask);
             } else {
-                console.log(`Appending task to end of column ${columnId} (insertionIndex was ${insertionIndex})`);
                 column.tasks.push(newTask);
             }
-            
-            console.log(`Task added successfully. Column now has ${column.tasks.length} tasks.`);
         });
     }
 
@@ -1466,8 +1385,6 @@ export class KanbanWebviewPanel {
             return content;
         }
         
-        console.log(`Processing content for images: "${content.substring(0, 100)}"`);
-        
         const documentDir = path.dirname(this._document.uri.fsPath);
         
         // Find all image references
@@ -1482,14 +1399,11 @@ export class KanbanWebviewPanel {
             const alt = match[1];
             const imagePath = match[2];
             
-            console.log(`Found image: ${imagePath}`);
-            
             // Skip if already converted or external
             if (imagePath.startsWith('vscode-webview://') || 
                 imagePath.startsWith('http://') || 
                 imagePath.startsWith('https://') ||
                 imagePath.startsWith('data:')) {
-                console.log(`  Skipping (already processed or external): ${imagePath}`);
                 continue;
             }
             
@@ -1501,8 +1415,6 @@ export class KanbanWebviewPanel {
                 absolutePath = path.resolve(documentDir, imagePath);
             }
             
-            console.log(`  Resolving: ${imagePath} -> ${absolutePath}`);
-            
             try {
                 const imageUri = vscode.Uri.file(absolutePath);
                 
@@ -1513,13 +1425,11 @@ export class KanbanWebviewPanel {
                 const webviewUri = this._panel.webview.asWebviewUri(imageUri);
                 const newImageMarkdown = `![${alt}](${webviewUri.toString()})`;
                 
-                console.log(`  SUCCESS: Will replace with ${webviewUri.toString()}`);
                 replacements.push({
                     from: fullMatch,
                     to: newImageMarkdown
                 });
             } catch (error) {
-                console.error(`  FAILED: Could not process ${imagePath}:`, error);
                 // Mark as error
                 replacements.push({
                     from: fullMatch,
