@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { MarkdownKanbanParser, KanbanBoard } from './markdownParser';
-import { FileManager } from './fileManager';
+import { FileManager, ImagePathMapping } from './fileManager';
 import { UndoRedoManager } from './undoRedoManager';
 import { BoardOperations } from './boardOperations';
 import { LinkHandler } from './linkHandler';
@@ -212,39 +212,45 @@ export class KanbanWebviewPanel {
             kanbanFooter: null 
         };
         
-        const displayBoard = await this._createDisplayBoard(board);
+        // Generate image path mappings without modifying the board content
+        const imageMappings = await this._generateImageMappings(board);
         
         setTimeout(() => {
             this._panel.webview.postMessage({
                 type: 'updateBoard',
-                board: displayBoard
+                board: board, // Send original board without modifications
+                imageMappings: imageMappings
             });
         }, 10);
     }
 
-    private async _createDisplayBoard(board: KanbanBoard): Promise<KanbanBoard> {
+    private async _generateImageMappings(board: KanbanBoard): Promise<ImagePathMapping> {
+        const mappings: ImagePathMapping = {};
+        
         if (!board.valid || !this._fileManager.getDocument()) {
-            return board;
+            return mappings;
         }
 
-        const displayBoard: KanbanBoard = JSON.parse(JSON.stringify(board));
-        
-        for (const column of displayBoard.columns) {
+        // Collect all content that might contain images
+        for (const column of board.columns) {
             if (column.title) {
-                column.title = await this._fileManager.processImagesInContent(column.title);
+                const titleMappings = await this._fileManager.generateImagePathMappings(column.title);
+                Object.assign(mappings, titleMappings);
             }
             
             for (const task of column.tasks) {
                 if (task.title) {
-                    task.title = await this._fileManager.processImagesInContent(task.title);
+                    const titleMappings = await this._fileManager.generateImagePathMappings(task.title);
+                    Object.assign(mappings, titleMappings);
                 }
                 if (task.description) {
-                    task.description = await this._fileManager.processImagesInContent(task.description);
+                    const descMappings = await this._fileManager.generateImagePathMappings(task.description);
+                    Object.assign(mappings, descMappings);
                 }
             }
         }
 
-        return displayBoard;
+        return mappings;
     }
 
     private async saveToMarkdown() {

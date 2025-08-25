@@ -17,6 +17,10 @@ export interface FileDropInfo {
     dropPosition?: { x: number; y: number };
 }
 
+export interface ImagePathMapping {
+    [originalPath: string]: string;
+}
+
 export class FileManager {
     private _document?: vscode.TextDocument;
     private _isFileLocked: boolean = false;
@@ -220,6 +224,10 @@ export class FileManager {
             : null;
     }
 
+    /**
+     * Resolve an image path to a webview URI for display
+     * This does NOT modify content, just returns the display URI
+     */
     public async resolveImageForDisplay(imagePath: string): Promise<string> {
         if (imagePath.startsWith('vscode-webview://') || 
             imagePath.startsWith('data:') ||
@@ -248,28 +256,37 @@ export class FileManager {
         return imagePath;
     }
 
-    public async processImagesInContent(content: string): Promise<string> {
-        if (!content) return content;
+    /**
+     * Generate image path mappings for the webview without modifying content
+     * Returns a map of original paths to webview URIs
+     */
+    public async generateImagePathMappings(content: string): Promise<ImagePathMapping> {
+        const mappings: ImagePathMapping = {};
+        if (!content) return mappings;
 
+        // Find all image references in the content
         const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-        const matches: Array<{match: string, alt: string, path: string}> = [];
         let match;
         
         while ((match = imageRegex.exec(content)) !== null) {
-            matches.push({
-                match: match[0],
-                alt: match[1],
-                path: match[2]
-            });
+            const imagePath = match[2];
+            
+            // Skip if already processed or if it's a special URI
+            if (mappings[imagePath] || 
+                imagePath.startsWith('vscode-webview://') || 
+                imagePath.startsWith('data:') ||
+                imagePath.startsWith('http://') || 
+                imagePath.startsWith('https://')) {
+                continue;
+            }
+            
+            // Resolve the image path to a webview URI
+            const webviewUri = await this.resolveImageForDisplay(imagePath);
+            if (webviewUri !== imagePath) {
+                mappings[imagePath] = webviewUri;
+            }
         }
         
-        let result = content;
-        for (const imageMatch of matches) {
-            const resolvedPath = await this.resolveImageForDisplay(imageMatch.path);
-            const newImageTag = `![${imageMatch.alt}](${resolvedPath})`;
-            result = result.replace(imageMatch.match, newImageTag);
-        }
-        
-        return result;
+        return mappings;
     }
 }

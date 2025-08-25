@@ -4,7 +4,7 @@ const vscode = acquireVsCodeApi();
 let currentFileInfo = null;
 let canUndo = false;
 let canRedo = false;
-let currentImageMappings = {};
+window.currentImageMappings = {}; // Make it available globally for the renderer
 
 document.addEventListener('DOMContentLoaded', () => {
     // Enhanced click handler for links, images, and wiki links
@@ -30,6 +30,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = e.target.closest('img');
         if (img && img.src) {
             if (img.src.startsWith('vscode-webview://')) {
+                // Get original source from data attribute for opening
+                const originalSrc = img.getAttribute('data-original-src');
+                if (originalSrc) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    console.log('Opening image file:', originalSrc);
+                    vscode.postMessage({
+                        type: 'openFileLink',
+                        href: originalSrc
+                    });
+                }
                 return;
             }
             
@@ -143,8 +155,8 @@ window.addEventListener('message', event => {
             console.log('Updating board with:', message.board);
             currentBoard = message.board;
             if (message.imageMappings) {
-                currentImageMappings = message.imageMappings;
-                console.log('Received image mappings:', currentImageMappings);
+                window.currentImageMappings = message.imageMappings;
+                console.log('Received image mappings:', window.currentImageMappings);
             }
             debouncedRenderBoard();
             break;
@@ -162,14 +174,6 @@ window.addEventListener('message', event => {
         case 'insertFileLink':
             console.log('Insert file link:', message.fileInfo);
             insertFileLink(message.fileInfo);
-            break;
-        case 'imagePathsConverted':
-            console.log('Image paths converted:', message.pathMappings);
-            currentImageMappings = { ...currentImageMappings, ...message.pathMappings };
-            updateImageSources();
-            break;
-        case 'updateImagePaths':
-            updateImagePaths(message.pathMappings);
             break;
     }
 });
@@ -304,16 +308,6 @@ function insertFileLink(fileInfo) {
         createNewTaskWithContent(markdownLink, fileInfo.dropPosition, isImage ? markdownLink : '');
         vscode.postMessage({ type: 'showMessage', text: `Created new task with ${isImage ? 'image' : 'file'} link: ${fileName}` });
     }
-}
-
-function updateImageSources() {
-    // This function would handle updating image sources if needed
-    // Currently handled by the backend processing
-}
-
-function updateImagePaths(pathMappings) {
-    // Handle image path updates if needed
-    currentImageMappings = { ...currentImageMappings, ...pathMappings };
 }
 
 // File management functions

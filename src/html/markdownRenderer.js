@@ -104,18 +104,21 @@ function renderMarkdown(text) {
             className: 'wiki-link'
         });
 
-        // Enhanced image renderer - preserves original paths
+        // Enhanced image renderer - uses mappings for display but preserves original paths
         md.renderer.rules.image = function(tokens, idx, options, env, renderer) {
             const token = tokens[idx];
-            const src = token.attrGet('src') || '';
+            const originalSrc = token.attrGet('src') || '';
             const title = token.attrGet('title') || '';
             const alt = token.content || '';
             
+            // Use mapped path if available, otherwise use original
+            const displaySrc = (window.currentImageMappings && window.currentImageMappings[originalSrc]) || originalSrc;
+            
             // Store original src for click handling
-            const originalSrcAttr = src.startsWith('vscode-webview://') ? '' : ` data-original-src="${escapeHtml(src)}"`;
+            const originalSrcAttr = ` data-original-src="${escapeHtml(originalSrc)}"`;
             const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
             
-            return `<img src="${src}" alt="${escapeHtml(alt)}"${titleAttr}${originalSrcAttr} class="markdown-image" />`;
+            return `<img src="${displaySrc}" alt="${escapeHtml(alt)}"${titleAttr}${originalSrcAttr} class="markdown-image" />`;
         };
         
         // Enhanced link renderer

@@ -76,7 +76,6 @@ export class MarkdownKanbanParser {
         continue;
       }
 
-
       // Handle Kanban footer
       if (line.startsWith('%%')) {
         if (collectingDescription) {

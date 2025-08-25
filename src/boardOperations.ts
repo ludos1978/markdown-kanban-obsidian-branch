@@ -97,6 +97,24 @@ export class BoardOperations {
         return true;
     }
 
+    public editTask(board: KanbanBoard, taskId: string, columnId: string, taskData: Partial<KanbanTask>): boolean {
+        const column = this.findColumn(board, columnId);
+        if (!column) return false;
+
+        const task = column.tasks.find(t => t.id === taskId);
+        if (!task) return false;
+
+        // Update task properties
+        if (taskData.title !== undefined) {
+            task.title = taskData.title;
+        }
+        if (taskData.description !== undefined) {
+            task.description = taskData.description;
+        }
+
+        return true;
+    }
+
     public duplicateTask(board: KanbanBoard, taskId: string, columnId: string): boolean {
         const result = this.findTask(board, columnId, taskId);
         if (!result) return false;
