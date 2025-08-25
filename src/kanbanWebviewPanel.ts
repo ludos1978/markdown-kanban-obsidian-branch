@@ -301,31 +301,18 @@ export class KanbanWebviewPanel {
         try {
             const { fileName, dropPosition, activeEditor } = message;
             const isImage = this._isImageFile(fileName);
-            const relativePath = `./${fileName}`;
+            
+            // Use consistent path resolution for dropped files
+            let relativePath = await this._getSmartRelativePath(fileName);
             
             const fileInfo = {
                 fileName,
-                relativePath, // Keep original relative path
+                relativePath,
                 isImage,
                 activeEditor,
                 dropPosition
             };
 
-            // For images, convert to webview URI immediately
-            // if (isImage && this._document) {
-            //     const documentDir = path.dirname(this._document.uri.fsPath);
-            //     const imagePath = path.resolve(documentDir, fileName);
-                
-            //     try {
-            //         const imageUri = vscode.Uri.file(imagePath);
-            //         // Convert to webview URI right away
-            //         const webviewUri = this._panel.webview.asWebviewUri(imageUri);
-            //         relativePath = webviewUri.toString();
-            //     } catch (error) {
-            //         // Keep relative path if conversion fails
-            //     }
-            // }
-            
             this._panel.webview.postMessage({
                 type: 'insertFileLink',
                 fileInfo: fileInfo
@@ -355,13 +342,12 @@ export class KanbanWebviewPanel {
                 const fileName = path.basename(uri.fsPath);
                 const isImage = this._isImageFile(fileName);
                 
-                // ALWAYS get relative path for markdown storage
-                // DO NOT convert to webview URI here
-                const relativePath = this._getRelativePath(uri.fsPath);
+                // Use smart relative path that will work with our resolution logic
+                const relativePath = await this._getSmartRelativePath(uri.fsPath);
                 
                 const fileInfo = {
                     fileName,
-                    relativePath, // Keep original relative path
+                    relativePath,
                     isImage,
                     activeEditor,
                     dropPosition
@@ -378,6 +364,41 @@ export class KanbanWebviewPanel {
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to handle URI drop: ${error}`);
         }
+    }
+
+    // Smart relative path generator that creates the shortest working path
+    private async _getSmartRelativePath(filePath: string): Promise<string> {
+        if (!this._document) {
+            return path.basename(filePath);
+        }
+        
+        const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
+        
+        // Try to make relative to document first
+        const documentDir = path.dirname(this._document.uri.fsPath);
+        const docRelative = path.relative(documentDir, absolutePath);
+        
+        // If the relative path goes up too many levels, try workspace relative
+        const upLevels = (docRelative.match(/\.\.[\\\/]/g) || []).length;
+        
+        if (upLevels > 2) {
+            // Try relative to workspace root instead
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders) {
+                for (const folder of workspaceFolders) {
+                    const workspaceRelative = path.relative(folder.uri.fsPath, absolutePath);
+                    const workspaceUpLevels = (workspaceRelative.match(/\.\.[\\\/]/g) || []).length;
+                    
+                    // Use workspace relative if it's simpler
+                    if (workspaceUpLevels < upLevels) {
+                        return workspaceRelative.replace(/\\/g, '/');
+                    }
+                }
+            }
+        }
+        
+        // Use document relative path (convert backslashes for cross-platform compatibility)
+        return docRelative.replace(/\\/g, '/');
     }
 
     private _handleImageConversionRequest(imageReferences: string[]) {
@@ -699,86 +720,132 @@ export class KanbanWebviewPanel {
                 return;
             }
 
-            let targetPath: string | null = null;
-            
-            // Rule 1: Check if path is absolute (starts with drive letter, / or \)
-            const isAbsolute = path.isAbsolute(href) || /^[a-zA-Z]:/.test(href);
+            // Clean up the href - remove any file:// prefix for processing
+            let cleanPath = href;
+            if (cleanPath.startsWith('file://')) {
+                cleanPath = vscode.Uri.parse(cleanPath).fsPath;
+            }
+
+            // Handle wiki links - add .md extension if not present
+            const isWikiLink = !path.extname(cleanPath) && !cleanPath.includes('://');
+            if (isWikiLink) {
+                cleanPath = cleanPath + '.md';
+            }
+
+            // Rule 1: Check if path is absolute
+            const isAbsolute = this._isAbsolutePath(cleanPath);
             
             if (isAbsolute) {
-                // Handle as absolute path
-                if (href.startsWith('file://')) {
-                    targetPath = vscode.Uri.parse(href).fsPath;
-                } else {
-                    targetPath = href;
-                }
-                
-                // Check if absolute file exists
-                if (fs.existsSync(targetPath)) {
-                    await this._openFile(targetPath);
+                // Try to open as absolute path
+                if (await this._fileExists(cleanPath)) {
+                    await this._openFile(cleanPath);
                     return;
                 } else {
-                    vscode.window.showWarningMessage(`File not found: ${targetPath}`);
+                    vscode.window.showWarningMessage(`File not found: ${cleanPath}`);
                     return;
                 }
             }
             
-            // Rule 2: Handle as relative path - first try relative to document
+            // Rule 2: Try relative to current document
             const currentDir = path.dirname(this._document.uri.fsPath);
-            const documentRelativePath = path.resolve(currentDir, href);
+            const documentRelativePath = path.resolve(currentDir, cleanPath);
             
-            if (fs.existsSync(documentRelativePath)) {
+            if (await this._fileExists(documentRelativePath)) {
                 await this._openFile(documentRelativePath);
                 return;
             }
             
-            // Rule 3: Try relative to workspace folders
+            // Rule 3: Try relative to each workspace folder
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (workspaceFolders && workspaceFolders.length > 0) {
                 for (const workspaceFolder of workspaceFolders) {
-                    const workspaceRelativePath = path.join(workspaceFolder.uri.fsPath, href);
-                    if (fs.existsSync(workspaceRelativePath)) {
+                    const workspaceRelativePath = path.join(workspaceFolder.uri.fsPath, cleanPath);
+                    if (await this._fileExists(workspaceRelativePath)) {
                         await this._openFile(workspaceRelativePath);
                         return;
                     }
                 }
             }
             
-            // File not found anywhere
-            vscode.window.showWarningMessage(`File not found: ${href}`);
+            // If still not found, show more helpful error with attempted paths
+            const attemptedPaths = [
+                `Document relative: ${documentRelativePath}`,
+                ...(workspaceFolders?.map(w => 
+                    `Workspace relative: ${path.join(w.uri.fsPath, cleanPath)}`
+                ) || [])
+            ];
+            
+            vscode.window.showWarningMessage(
+                `File not found: ${cleanPath}\n\nSearched in:\n${attemptedPaths.join('\n')}`
+            );
             
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to open file: ${href} - ${error}`);
         }
     }
 
-    private async _openFile(targetPath: string) {
-        // Get file stats to check if it's a file or directory
-        const stats = fs.statSync(targetPath);
+    private async _fileExists(filePath: string): Promise<boolean> {
+        try {
+            const uri = vscode.Uri.file(filePath);
+            await vscode.workspace.fs.stat(uri);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private _isAbsolutePath(filePath: string): boolean {
+        // Check for Windows drive letters (C:, D:, etc.)
+        if (/^[a-zA-Z]:/.test(filePath)) {
+            return true;
+        }
         
-        if (stats.isDirectory()) {
-            // Open folder in explorer
-            vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(targetPath));
-        } else {
-            // Get configuration for how to open files
-            const config = vscode.workspace.getConfiguration('markdownKanban');
-            const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
+        // Check for Unix/Mac absolute paths (starts with /)
+        if (filePath.startsWith('/')) {
+            return true;
+        }
+        
+        // Check for Windows UNC paths (\\server\share)
+        if (filePath.startsWith('\\\\')) {
+            return true;
+        }
+        
+        // Use path.isAbsolute as fallback
+        return path.isAbsolute(filePath);
+    }
+
+    private async _openFile(targetPath: string) {
+        try {
+            const uri = vscode.Uri.file(targetPath);
+            const stat = await vscode.workspace.fs.stat(uri);
             
-            // Open file in VS Code
-            const document = await vscode.workspace.openTextDocument(targetPath);
-            
-            if (openInNewTab) {
-                // Open in a new tab (beside current)
-                await vscode.window.showTextDocument(document, {
-                    preview: false,
-                    viewColumn: vscode.ViewColumn.Beside
-                });
+            if (stat.type === vscode.FileType.Directory) {
+                // Open folder in OS explorer
+                vscode.commands.executeCommand('revealFileInOS', uri);
             } else {
-                // Open in current tab (replace current editor)
-                await vscode.window.showTextDocument(document, {
-                    preview: false,
-                    preserveFocus: false
-                });
+                // Get configuration for how to open files
+                const config = vscode.workspace.getConfiguration('markdownKanban');
+                const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
+                
+                // Open file in VS Code
+                const document = await vscode.workspace.openTextDocument(uri);
+                
+                if (openInNewTab) {
+                    // Open in a new tab (beside current)
+                    await vscode.window.showTextDocument(document, {
+                        preview: false,
+                        viewColumn: vscode.ViewColumn.Beside
+                    });
+                } else {
+                    // Open in current tab (replace current editor)
+                    await vscode.window.showTextDocument(document, {
+                        preview: false,
+                        preserveFocus: false
+                    });
+                }
             }
+        } catch (error) {
+            throw new Error(`Failed to open ${targetPath}: ${error}`);
         }
     }
 
@@ -857,13 +924,145 @@ export class KanbanWebviewPanel {
         this._sendUndoRedoStatus();
     }
 
-    private _sendBoardUpdate() {
+    // private _sendBoardUpdate() {
+    //     if (!this._panel.webview) return;
+
+    //     let board = this._board || { valid: false, title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
+        
+    //     // Create a display version of the board with converted image paths
+    //     const displayBoard = this._createDisplayBoard(board);
+        
+    //     setTimeout(() => {
+    //         this._panel.webview.postMessage({
+    //             type: 'updateBoard',
+    //             board: displayBoard
+    //         });
+    //     }, 10);
+    // }
+
+    // private _createDisplayBoard(board: KanbanBoard): KanbanBoard {
+    //     if (!board.valid || !this._document) {
+    //         return board;
+    //     }
+
+    //     // Deep clone the board to avoid modifying original
+    //     const displayBoard: KanbanBoard = JSON.parse(JSON.stringify(board));
+    //     const documentDir = path.dirname(this._document.uri.fsPath);
+
+    //     // Convert image paths for display only
+    //     // displayBoard.columns.forEach(column => {
+    //     //     column.tasks.forEach(task => {
+    //     //         if (task.title) {
+    //     //             task.title = this._convertImagePathsForDisplay(task.title, documentDir);
+    //     //         }
+    //     //         if (task.description) {
+    //     //             task.description = this._convertImagePathsForDisplay(task.description, documentDir);
+    //     //         }
+    //     //     });
+    //     // });
+
+    //     return displayBoard;
+    // }
+
+    // Updated method to convert all image paths in the board for display
+    private async _createDisplayBoard(board: KanbanBoard): Promise<KanbanBoard> {
+        if (!board.valid || !this._document) {
+            return board;
+        }
+
+        // Deep clone the board to avoid modifying original
+        const displayBoard: KanbanBoard = JSON.parse(JSON.stringify(board));
+        
+        // Collect all image paths that need conversion
+        const imagePaths = new Set<string>();
+        const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        
+        // Extract image paths from all content
+        displayBoard.columns.forEach(column => {
+            // Check column title for images
+            if (column.title) {
+                let match;
+                while ((match = imagePattern.exec(column.title)) !== null) {
+                    imagePaths.add(match[2]);
+                }
+            }
+            
+            // Check tasks for images
+            column.tasks.forEach(task => {
+                if (task.title) {
+                    let match;
+                    imagePattern.lastIndex = 0;
+                    while ((match = imagePattern.exec(task.title)) !== null) {
+                        imagePaths.add(match[2]);
+                    }
+                }
+                if (task.description) {
+                    let match;
+                    imagePattern.lastIndex = 0;
+                    while ((match = imagePattern.exec(task.description)) !== null) {
+                        imagePaths.add(match[2]);
+                    }
+                }
+            });
+        });
+            
+        // Create mapping of original paths to webview URIs
+        const pathMappings: { [key: string]: string } = {};
+        
+        for (const imagePath of imagePaths) {
+            const webviewUri = await this._processImageForWebview(imagePath);
+            if (webviewUri !== imagePath) {
+                pathMappings[imagePath] = webviewUri;
+            }
+        }
+        
+        // Apply the mappings to the display board
+        displayBoard.columns.forEach(column => {
+            if (column.title) {
+                column.title = this._replaceImagePaths(column.title, pathMappings);
+            }
+            
+            column.tasks.forEach(task => {
+                if (task.title) {
+                    task.title = this._replaceImagePaths(task.title, pathMappings);
+                }
+                if (task.description) {
+                    task.description = this._replaceImagePaths(task.description, pathMappings);
+                }
+            });
+        });
+        
+        return displayBoard;
+    }
+
+
+    // Helper to replace image paths in text
+    private _replaceImagePaths(text: string, pathMappings: { [key: string]: string }): string {
+        const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        
+        return text.replace(imagePattern, (match, alt, imagePath) => {
+            const mappedPath = pathMappings[imagePath];
+            if (mappedPath) {
+                return `![${alt}](${mappedPath})`;
+            }
+            return match;
+        });
+    }
+
+    // Update sendBoardUpdate to use async display board creation
+    private async _sendBoardUpdate() {
         if (!this._panel.webview) return;
 
-        let board = this._board || { valid: false, title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
+        let board = this._board || { 
+            valid: false, 
+            title: 'Please open a Markdown Kanban file', 
+            columns: [], 
+            yamlHeader: null, 
+            kanbanFooter: null 
+        };
         
         // Create a display version of the board with converted image paths
-        const displayBoard = this._createDisplayBoard(board);
+        const displayBoard = await this._createDisplayBoard(board);
         
         setTimeout(() => {
             this._panel.webview.postMessage({
@@ -871,30 +1070,6 @@ export class KanbanWebviewPanel {
                 board: displayBoard
             });
         }, 10);
-    }
-
-    private _createDisplayBoard(board: KanbanBoard): KanbanBoard {
-        if (!board.valid || !this._document) {
-            return board;
-        }
-
-        // Deep clone the board to avoid modifying original
-        const displayBoard: KanbanBoard = JSON.parse(JSON.stringify(board));
-        const documentDir = path.dirname(this._document.uri.fsPath);
-
-        // Convert image paths for display only
-        // displayBoard.columns.forEach(column => {
-        //     column.tasks.forEach(task => {
-        //         if (task.title) {
-        //             task.title = this._convertImagePathsForDisplay(task.title, documentDir);
-        //         }
-        //         if (task.description) {
-        //             task.description = this._convertImagePathsForDisplay(task.description, documentDir);
-        //         }
-        //     });
-        // });
-
-        return displayBoard;
     }
 
     // private _convertImagePathsForDisplay(content: string, documentDir: string): string {
@@ -1373,25 +1548,56 @@ export class KanbanWebviewPanel {
     private async _processImageForWebview(imagePath: string): Promise<string> {
         if (!this._document) return imagePath;
         
-        // Convert relative path to absolute
-        const documentDir = path.dirname(this._document.uri.fsPath);
-        const absolutePath = path.isAbsolute(imagePath) 
-            ? imagePath 
-            : path.join(documentDir, imagePath);
-        
-        try {
-            const imageUri = vscode.Uri.file(absolutePath);
-            
-            // Check if file exists using workspace.fs
-            await vscode.workspace.fs.stat(imageUri);
-            
-            // Convert to webview URI - this is the key!
-            const webviewUri = this._panel.webview.asWebviewUri(imageUri);
-            return webviewUri.toString();
-        } catch (error) {
-            // If file doesn't exist, return original path
+        // Skip if already a webview URI or external URL
+        if (imagePath.startsWith('vscode-webview://') || 
+            imagePath.startsWith('http://') || 
+            imagePath.startsWith('https://') ||
+            imagePath.startsWith('data:')) {
             return imagePath;
         }
+        
+        let resolvedPath: string | null = null;
+        
+        // Check if absolute path
+        if (this._isAbsolutePath(imagePath)) {
+            if (await this._fileExists(imagePath)) {
+                resolvedPath = imagePath;
+            }
+        } else {
+            // Try relative to document first
+            const documentDir = path.dirname(this._document.uri.fsPath);
+            const documentRelativePath = path.resolve(documentDir, imagePath);
+            
+            if (await this._fileExists(documentRelativePath)) {
+                resolvedPath = documentRelativePath;
+            } else {
+                // Try relative to workspace folders
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                if (workspaceFolders) {
+                    for (const folder of workspaceFolders) {
+                        const workspaceRelativePath = path.join(folder.uri.fsPath, imagePath);
+                        if (await this._fileExists(workspaceRelativePath)) {
+                            resolvedPath = workspaceRelativePath;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Convert resolved path to webview URI
+        if (resolvedPath) {
+            try {
+                const imageUri = vscode.Uri.file(resolvedPath);
+                const webviewUri = this._panel.webview.asWebviewUri(imageUri);
+                return webviewUri.toString();
+            } catch (error) {
+                console.error(`Failed to convert image to webview URI: ${imagePath}`, error);
+            }
+        }
+        
+        // Return original if not found or conversion failed
+        return imagePath;
     }
 
     private _getHtmlForWebview() {

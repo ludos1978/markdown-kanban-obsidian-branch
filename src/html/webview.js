@@ -28,7 +28,7 @@ document.addEventListener('click', (e) => {
         return;
     }
     
-    // Check for wiki links first
+    // Check for wiki links first [[file]] or [[file|title]]
     const wikiLink = e.target.closest('.wiki-link');
     if (wikiLink) {
         e.preventDefault();
@@ -36,16 +36,32 @@ document.addEventListener('click', (e) => {
         
         const document = wikiLink.getAttribute('data-document');
         if (document) {
-            // Handle wiki link - open the markdown file
+            // Wiki links typically don't have extension, VS Code will add .md
             vscode.postMessage({
                 type: 'openFileLink',
-                href: document + '.md'
+                href: document // Extension will be added in the handler
             });
         }
         return;
     }
 
-    // Existing link handling code...
+    // Check for angle bracket links <file.md>
+    const angleBracketLink = e.target.closest('.angle-bracket-link');
+    if (angleBracketLink) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const href = angleBracketLink.getAttribute('data-href');
+        if (href) {
+            vscode.postMessage({
+                type: 'openFileLink',
+                href: href
+            });
+        }
+        return;
+    }
+
+    // Handle standard markdown links [text](url)
     const link = e.target.closest('a[data-original-href]');
     if (!link) return;
     
@@ -1689,7 +1705,9 @@ function renderMarkdown(text) {
     if (!text) return '';
     
     try {
-
+        // Pre-process angle bracket links <file.md> before markdown-it
+        text = preprocessAngleBracketLinks(text);
+        
         // Initialize markdown-it with wiki links plugin
         const md = window.markdownit({
             html: true,
@@ -1697,9 +1715,9 @@ function renderMarkdown(text) {
             typographer: true,
             breaks: true
         }).use(wikiLinksPlugin, {
-            baseUrl: 'vscode://file/',
-            generatePath: (filename) => filename + '.md'
-        });
+            baseUrl: '', // We'll handle the path in the click handler
+            generatePath: (filename) => filename // Don't add extension here
+        }).use(angleBracketLinksPlugin); // Add custom plugin for angle bracket links
 
         // Enhanced image renderer - handles webview URIs properly
         md.renderer.rules.image = function(tokens, idx, options, env, renderer) {
@@ -1708,18 +1726,10 @@ function renderMarkdown(text) {
             const title = token.attrGet('title') || '';
             const alt = token.content || '';
             
-            // External URLs and data URIs are fine as-is
-            if (href.startsWith('http://') || 
-                href.startsWith('https://') || 
-                href.startsWith('data:') ||
-                href.startsWith('vscode-webview://')) {
-                return `<img src="${href}" alt="${escapeHtml(alt)}" title="${escapeHtml(title)}" />`;
-            }
+            // Store original path as data attribute for debugging
+            const originalPath = href.startsWith('vscode-webview://') ? '' : ` data-original-src="${escapeHtml(href)}"`;
             
-            // If we get here, it's an unconverted relative path (shouldn't happen with new system)
-            console.warn('Unconverted relative image path in display:', href);
-            
-            return `<img src="${href}" alt="${escapeHtml(alt)}" title="${escapeHtml(title)}" />`;
+            return `<img src="${href}" alt="${escapeHtml(alt)}" title="${escapeHtml(title)}"${originalPath} />`;
         };
         
         // Enhanced link renderer
@@ -1757,6 +1767,91 @@ function renderMarkdown(text) {
         console.error('Error rendering markdown:', error);
         return escapeHtml(text);
     }
+}
+
+function preprocessAngleBracketLinks(text) {
+    // Match <file.md> pattern but not HTML tags
+    const angleBracketPattern = /<([^<>]+\.[a-zA-Z0-9]+)>/g;
+    
+    return text.replace(angleBracketPattern, (match, filepath) => {
+        // Check if it looks like an HTML tag (starts with common tag names)
+        const htmlTags = ['div', 'span', 'p', 'a', 'img', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+                         'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'thead', 'tbody', 'code', 'pre',
+                         'strong', 'em', 'i', 'b', 'u', 'strike', 'del', 'ins', 'sub', 'sup'];
+        
+        const firstPart = filepath.split(/[\s\/]/)[0].toLowerCase();
+        if (htmlTags.includes(firstPart)) {
+            return match; // Keep as-is if it looks like HTML
+        }
+        
+        // Convert to a temporary marker that will be processed by our plugin
+        return `{{ANGLE_BRACKET_LINK:${filepath}}}`;
+    });
+}
+
+function angleBracketLinksPlugin(md, options = {}) {
+    function parseAngleBracketLink(state, silent) {
+        let pos = state.pos;
+        
+        // Check for our marker {{ANGLE_BRACKET_LINK:
+        const marker = '{{ANGLE_BRACKET_LINK:';
+        if (pos + marker.length >= state.posMax) return false;
+        
+        const slice = state.src.slice(pos, pos + marker.length);
+        if (slice !== marker) return false;
+        
+        pos += marker.length;
+        
+        // Find the closing }}
+        let endPos = state.src.indexOf('}}', pos);
+        if (endPos === -1) return false;
+        
+        const filepath = state.src.slice(pos, endPos);
+        
+        if (!filepath) return false;
+        
+        // Don't process if we're in silent mode
+        if (silent) return true;
+        
+        // Create token
+        const token_open = state.push('angle_bracket_link_open', 'a', 1);
+        token_open.attrSet('href', 'javascript:void(0)');
+        token_open.attrSet('class', 'angle-bracket-link');
+        token_open.attrSet('data-href', filepath);
+        
+        const token_text = state.push('text', '', 0);
+        token_text.content = filepath;
+        
+        const token_close = state.push('angle_bracket_link_close', 'a', -1);
+        
+        state.pos = endPos + 2; // Skip closing }}
+        return true;
+    }
+
+    // Register the inline rule
+    md.inline.ruler.before('emphasis', 'angle_bracket_link', parseAngleBracketLink);
+    
+    // Add render rules
+    md.renderer.rules.angle_bracket_link_open = function(tokens, idx) {
+        const token = tokens[idx];
+        let attrs = '';
+        
+        if (token.attrIndex('href') >= 0) {
+            attrs += ` href="${token.attrGet('href')}"`;
+        }
+        if (token.attrIndex('class') >= 0) {
+            attrs += ` class="${token.attrGet('class')}"`;
+        }
+        if (token.attrIndex('data-href') >= 0) {
+            attrs += ` data-href="${token.attrGet('data-href')}"`;
+        }
+        
+        return `<a${attrs}>`;
+    };
+    
+    md.renderer.rules.angle_bracket_link_close = function() {
+        return '</a>';
+    };
 }
 
 // Drag and drop setup
