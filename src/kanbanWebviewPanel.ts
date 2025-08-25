@@ -302,12 +302,13 @@ export class KanbanWebviewPanel {
             const { fileName, dropPosition, activeEditor } = message;
             const isImage = this._isImageFile(fileName);
             
-            // Use consistent path resolution for dropped files
-            let relativePath = await this._getSmartRelativePath(fileName);
+            // Create simple relative path that will be saved to markdown
+            // This path is NOT converted - resolution happens at display time
+            let relativePath = `./${fileName}`;
             
             const fileInfo = {
                 fileName,
-                relativePath,
+                relativePath, // Original path for markdown
                 isImage,
                 activeEditor,
                 dropPosition
@@ -322,6 +323,7 @@ export class KanbanWebviewPanel {
             vscode.window.showErrorMessage(`Failed to handle file drop: ${error}`);
         }
     }
+
 
     private async _handleUriDrop(message: any) {
         try {
@@ -342,12 +344,12 @@ export class KanbanWebviewPanel {
                 const fileName = path.basename(uri.fsPath);
                 const isImage = this._isImageFile(fileName);
                 
-                // Use smart relative path that will work with our resolution logic
-                const relativePath = await this._getSmartRelativePath(uri.fsPath);
+                // Create relative path for markdown - NOT converted
+                const relativePath = this._getRelativePathForMarkdown(uri.fsPath);
                 
                 const fileInfo = {
                     fileName,
-                    relativePath,
+                    relativePath, // Original path for markdown
                     isImage,
                     activeEditor,
                     dropPosition
@@ -358,12 +360,24 @@ export class KanbanWebviewPanel {
                     fileInfo: fileInfo
                 });
                 
-                break; // Only handle the first file for now
+                break;
             }
             
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to handle URI drop: ${error}`);
         }
+    }
+
+    private _getRelativePathForMarkdown(filePath: string): string {
+        if (!this._document) {
+            return path.basename(filePath);
+        }
+        
+        const documentDir = path.dirname(this._document.uri.fsPath);
+        const relativePath = path.relative(documentDir, filePath);
+        
+        // Convert backslashes to forward slashes for cross-platform markdown
+        return relativePath.replace(/\\/g, '/');
     }
 
     // Smart relative path generator that creates the shortest working path
@@ -970,24 +984,23 @@ export class KanbanWebviewPanel {
             return board;
         }
 
-        // Deep clone the board to avoid modifying original
+        // Deep clone to create display version - original board is untouched
         const displayBoard: KanbanBoard = JSON.parse(JSON.stringify(board));
         
-        // Collect all image paths that need conversion
+        // Collect all image paths that need display conversion
         const imagePaths = new Set<string>();
         const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
         
         // Extract image paths from all content
         displayBoard.columns.forEach(column => {
-            // Check column title for images
             if (column.title) {
                 let match;
+                imagePattern.lastIndex = 0;
                 while ((match = imagePattern.exec(column.title)) !== null) {
                     imagePaths.add(match[2]);
                 }
             }
             
-            // Check tasks for images
             column.tasks.forEach(task => {
                 if (task.title) {
                     let match;
@@ -1005,29 +1018,29 @@ export class KanbanWebviewPanel {
                 }
             });
         });
-            
-        // Create mapping of original paths to webview URIs
+        
+        // Create mapping for DISPLAY ONLY - original paths stay in markdown
         const pathMappings: { [key: string]: string } = {};
         
         for (const imagePath of imagePaths) {
-            const webviewUri = await this._processImageForWebview(imagePath);
-            if (webviewUri !== imagePath) {
-                pathMappings[imagePath] = webviewUri;
+            const displayUri = await this._resolveImagePathForDisplay(imagePath);
+            if (displayUri !== imagePath) {
+                pathMappings[imagePath] = displayUri;
             }
         }
         
-        // Apply the mappings to the display board
+        // Apply mappings ONLY to display board - original board unchanged
         displayBoard.columns.forEach(column => {
             if (column.title) {
-                column.title = this._replaceImagePaths(column.title, pathMappings);
+                column.title = this._replaceImagePathsForDisplay(column.title, pathMappings);
             }
             
             column.tasks.forEach(task => {
                 if (task.title) {
-                    task.title = this._replaceImagePaths(task.title, pathMappings);
+                    task.title = this._replaceImagePathsForDisplay(task.title, pathMappings);
                 }
                 if (task.description) {
-                    task.description = this._replaceImagePaths(task.description, pathMappings);
+                    task.description = this._replaceImagePathsForDisplay(task.description, pathMappings);
                 }
             });
         });
@@ -1035,6 +1048,19 @@ export class KanbanWebviewPanel {
         return displayBoard;
     }
 
+    private _replaceImagePathsForDisplay(text: string, pathMappings: { [key: string]: string }): string {
+        const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        
+        return text.replace(imagePattern, (match, alt, imagePath) => {
+            const displayPath = pathMappings[imagePath];
+            if (displayPath) {
+                // Return display version with webview URI
+                return `![${alt}](${displayPath})`;
+            }
+            // Keep original if no mapping
+            return match;
+        });
+    }
 
     // Helper to replace image paths in text
     private _replaceImagePaths(text: string, pathMappings: { [key: string]: string }): string {
@@ -1061,7 +1087,8 @@ export class KanbanWebviewPanel {
             kanbanFooter: null 
         };
         
-        // Create a display version of the board with converted image paths
+        // Create a DISPLAY-ONLY version with resolved image paths
+        // Original board data remains unchanged
         const displayBoard = await this._createDisplayBoard(board);
         
         setTimeout(() => {
