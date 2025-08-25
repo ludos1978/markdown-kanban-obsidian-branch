@@ -94,6 +94,11 @@ export class MessageHandler {
                 break;
 
             // Task operations
+            case 'editTask':
+                await this.performBoardAction(() => 
+                    this._boardOperations.editTask(this._getCurrentBoard()!, message.taskId, message.columnId, message.taskData)
+                );
+                break;
             case 'moveTask':
                 await this.performBoardAction(() => 
                     this._boardOperations.moveTask(this._getCurrentBoard()!, message.taskId, message.fromColumnId, message.toColumnId, message.newIndex)
