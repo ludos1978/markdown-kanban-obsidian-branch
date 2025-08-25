@@ -93,17 +93,6 @@ export class MarkdownKanbanParser {
         continue;
       }
 
-      // Parse board title
-      // if (line.startsWith('# ') && !board.title) {
-      //   board.title = trimmedLine.substring(2).trim();
-      //   if (collectingDescription) {
-      //     this.finalizeCurrentTask(currentTask, currentColumn);
-      //     collectingDescription = false;
-      //   }
-      //   currentTask = null;
-      //   continue;
-      // }
-
       // Parse column with ID comment
       if (line.startsWith('## ')) {
         if (collectingDescription) {
@@ -141,26 +130,6 @@ export class MarkdownKanbanParser {
         continue;
       }
 
-      // if (trimmedLine === '') {
-      //   continue;
-      // }
-
-      // backup case for when a user opens a normal markdown file. 
-      // this should keep all data in the file, but some of it will be newly formatted.
-      // if (!currentTask) {
-      //   currentColumn = {
-      //     id: this.generateId(),
-      //     title: '',
-      //     tasks: []
-      //   };
-      //   currentTask = {
-      //     id: this.generateId(),
-      //     title: '',
-      //     description: ''
-      //   };
-      //   collectingDescription = true;
-      // }
-      
       // Collect description from any indented content
       if (currentTask && collectingDescription) {
         let descLine = line;
@@ -179,24 +148,6 @@ export class MarkdownKanbanParser {
       if (trimmedLine === '') {
         continue;
       }
-
-      // create an empty task for lines at the beginning of the file
-      // if (!currentTask) {
-      //   currentTask = {
-      //     id: this.generateId(),
-      //     title: 'undefined',
-      //     description: ''
-      //   };
-      //   collectingDescription = true;
-      // }
-      // if (currentTask) {
-      //   let descLine = line.trimStart();
-      //   if (currentTask.description) {
-      //     currentTask.description += '\n' + descLine;
-      //   } else {
-      //     currentTask.description = descLine;
-      //   }
-      // }
     }
 
     // Add the last task and column
