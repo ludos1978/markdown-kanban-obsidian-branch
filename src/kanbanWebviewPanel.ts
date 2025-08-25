@@ -694,66 +694,94 @@ export class KanbanWebviewPanel {
 
     private async _handleFileLink(href: string) {
         try {
-            // Always use the current document's path as the base for relative paths
             if (!this._document) {
                 vscode.window.showErrorMessage('No document is currently loaded');
                 return;
             }
 
-            let targetPath: string;
+            let targetPath: string | null = null;
             
-            if (href.startsWith('file://')) {
-                // Handle file:// URLs
-                targetPath = vscode.Uri.parse(href).fsPath;
-            } else if (path.isAbsolute(href)) {
-                // Absolute path
-                targetPath = href;
-            } else {
-                // Relative path - resolve relative to current document
-                const currentDir = path.dirname(this._document.uri.fsPath);
-                targetPath = path.resolve(currentDir, href);
-            }
+            // Rule 1: Check if path is absolute (starts with drive letter, / or \)
+            const isAbsolute = path.isAbsolute(href) || /^[a-zA-Z]:/.test(href);
             
-            // Check if file exists
-            if (!fs.existsSync(targetPath)) {
-                vscode.window.showWarningMessage(`File not found: ${targetPath}`);
-                return;
-            }
-            
-            // Get file stats to check if it's a file or directory
-            const stats = fs.statSync(targetPath);
-            
-            if (stats.isDirectory()) {
-                // Open folder in explorer
-                vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(targetPath));
-            } else {
-                // Get configuration for how to open files
-                const config = vscode.workspace.getConfiguration('markdownKanban');
-                const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
-                
-                // Open file in VS Code
-                const document = await vscode.workspace.openTextDocument(targetPath);
-                
-                if (openInNewTab) {
-                    // Open in a new tab (beside current)
-                    await vscode.window.showTextDocument(document, {
-                        preview: false,
-                        viewColumn: vscode.ViewColumn.Beside
-                    });
+            if (isAbsolute) {
+                // Handle as absolute path
+                if (href.startsWith('file://')) {
+                    targetPath = vscode.Uri.parse(href).fsPath;
                 } else {
-                    // Open in current tab (replace current editor)
-                    await vscode.window.showTextDocument(document, {
-                        preview: false,
-                        preserveFocus: false
-                    });
+                    targetPath = href;
+                }
+                
+                // Check if absolute file exists
+                if (fs.existsSync(targetPath)) {
+                    await this._openFile(targetPath);
+                    return;
+                } else {
+                    vscode.window.showWarningMessage(`File not found: ${targetPath}`);
+                    return;
                 }
             }
             
+            // Rule 2: Handle as relative path - first try relative to document
+            const currentDir = path.dirname(this._document.uri.fsPath);
+            const documentRelativePath = path.resolve(currentDir, href);
+            
+            if (fs.existsSync(documentRelativePath)) {
+                await this._openFile(documentRelativePath);
+                return;
+            }
+            
+            // Rule 3: Try relative to workspace folders
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                for (const workspaceFolder of workspaceFolders) {
+                    const workspaceRelativePath = path.join(workspaceFolder.uri.fsPath, href);
+                    if (fs.existsSync(workspaceRelativePath)) {
+                        await this._openFile(workspaceRelativePath);
+                        return;
+                    }
+                }
+            }
+            
+            // File not found anywhere
+            vscode.window.showWarningMessage(`File not found: ${href}`);
+            
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to open file: ${href}`);
+            vscode.window.showErrorMessage(`Failed to open file: ${href} - ${error}`);
         }
     }
-    
+
+    private async _openFile(targetPath: string) {
+        // Get file stats to check if it's a file or directory
+        const stats = fs.statSync(targetPath);
+        
+        if (stats.isDirectory()) {
+            // Open folder in explorer
+            vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(targetPath));
+        } else {
+            // Get configuration for how to open files
+            const config = vscode.workspace.getConfiguration('markdownKanban');
+            const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
+            
+            // Open file in VS Code
+            const document = await vscode.workspace.openTextDocument(targetPath);
+            
+            if (openInNewTab) {
+                // Open in a new tab (beside current)
+                await vscode.window.showTextDocument(document, {
+                    preview: false,
+                    viewColumn: vscode.ViewColumn.Beside
+                });
+            } else {
+                // Open in current tab (replace current editor)
+                await vscode.window.showTextDocument(document, {
+                    preview: false,
+                    preserveFocus: false
+                });
+            }
+        }
+    }
+
     private async _initializeFile() {
         if (!this._document) {
             vscode.window.showErrorMessage('No document loaded');

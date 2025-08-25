@@ -20,80 +20,62 @@ let isProcessingDrop = false; // Prevent multiple simultaneous drops
 
 let currentImageMappings = {};
 
-document.addEventListener('DOMContentLoaded', () => {
-
-    // Click handler for any link, image or document
-    document.addEventListener('click', (e) => {
-        // Check if clicked element is an image with a webview URI (for opening in editor)
-        const img = e.target.closest('img');
-        if (img && img.src && img.src.startsWith('vscode-webview://')) {
-            // Don't do anything for images - they should just display
-            return;
-        }
-        
-        // Check for wiki links first
-        const wikiLink = e.target.closest('.wiki-link');
-        if (wikiLink) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const document = wikiLink.getAttribute('data-document');
-            if (document) {
-                // Handle wiki link - open the markdown file
-                vscode.postMessage({
-                    type: 'openFileLink',
-                    href: document + '.md'
-                });
-            }
-            return;
-        }
-
-        // Existing link handling code...
-        const link = e.target.closest('a[data-original-href]');
-        if (!link) return;
-        
+document.addEventListener('click', (e) => {
+    // Check if clicked element is an image with a webview URI (for opening in editor)
+    const img = e.target.closest('img');
+    if (img && img.src && img.src.startsWith('vscode-webview://')) {
+        // Don't do anything for images - they should just display
+        return;
+    }
+    
+    // Check for wiki links first
+    const wikiLink = e.target.closest('.wiki-link');
+    if (wikiLink) {
         e.preventDefault();
         e.stopPropagation();
         
-        const href = link.getAttribute('data-original-href');
-        if (!href) return;
-        
-        // Skip webview URIs - they're for display only
-        if (href.startsWith('vscode-webview://')) {
-            return;
-        }
-
-        // Check if it's an external URL
-        if (href.startsWith('http://') || href.startsWith('https://')) {
-            vscode.postMessage({
-                type: 'openExternalLink',
-                href: href
-            });
-        } else {
-            // It's a file link
+        const document = wikiLink.getAttribute('data-document');
+        if (document) {
+            // Handle wiki link - open the markdown file
             vscode.postMessage({
                 type: 'openFileLink',
-                href: href
+                href: document + '.md'
             });
         }
+        return;
+    }
 
-        return false;
-    }, true);
-
-    // Request initial board data and file info
-    setTimeout(() => {
-        if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
-            vscode.postMessage({ type: 'requestBoardUpdate' });
-        }
-        if (!currentFileInfo) {
-            vscode.postMessage({ type: 'requestFileInfo' });
-        }
-    }, 100);
+    // Existing link handling code...
+    const link = e.target.closest('a[data-original-href]');
+    if (!link) return;
     
-    // Setup drag and drop
-    setupDragAndDrop();
-});
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const href = link.getAttribute('data-original-href');
+    if (!href) return;
+    
+    // Skip webview URIs - they're for display only
+    if (href.startsWith('vscode-webview://')) {
+        return;
+    }
 
+    // Check if it's an external URL
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+        vscode.postMessage({
+            type: 'openExternalLink',
+            href: href
+        });
+    } else {
+        // It's a file link - send to extension for resolution
+        vscode.postMessage({
+            type: 'openFileLink',
+            href: href
+        });
+    }
+
+    return false;
+}, true);
 
 // Listen for messages from the extension
 window.addEventListener('message', event => {
@@ -135,6 +117,29 @@ window.addEventListener('message', event => {
             break;
     }
 });
+
+function updateImageSources() {
+    // Update all images in the rendered content
+    document.querySelectorAll('img').forEach(img => {
+        const originalSrc = img.getAttribute('data-original-src') || img.src;
+        
+        // Extract path from src (remove any base URL)
+        let imagePath = originalSrc;
+        try {
+            const url = new URL(originalSrc);
+            imagePath = url.pathname;
+        } catch (e) {
+            // If it's not a full URL, use as-is
+        }
+        
+        // Try to find a mapping for this image
+        const mappedSrc = findImageMapping(imagePath);
+        if (mappedSrc && mappedSrc !== originalSrc) {
+            img.src = mappedSrc;
+            img.setAttribute('data-original-src', originalSrc);
+        }
+    });
+}
 
 function updateWhitespace(value) {
     document.documentElement.style.setProperty('--whitespace', value);
