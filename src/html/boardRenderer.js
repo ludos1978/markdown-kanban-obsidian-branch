@@ -1,0 +1,299 @@
+let scrollPositions = new Map();
+let collapsedColumns = new Set();
+let collapsedTasks = new Set();
+let currentBoard = null;
+let renderTimeout = null;
+
+// Debounced render function to prevent rapid re-renders
+function debouncedRenderBoard() {
+    if (renderTimeout) {
+        clearTimeout(renderTimeout);
+    }
+    
+    renderTimeout = setTimeout(() => {
+        renderBoard();
+        renderTimeout = null;
+    }, 50);
+}
+
+// Render Kanban board
+function renderBoard() {
+    console.log('Rendering board:', currentBoard);
+    
+    const boardElement = document.getElementById('kanban-board');
+    if (!boardElement) {
+        console.error('Board element not found');
+        return;
+    }
+
+    if (!currentBoard) {
+        console.log('No current board, showing empty state');
+        boardElement.innerHTML = `
+            <div class="empty-board" style="
+                text-align: center; 
+                padding: 40px; 
+                color: var(--vscode-descriptionForeground);
+                font-style: italic;
+            ">
+                No board data available. Please open a Markdown file.
+            </div>`;
+        return;
+    }
+
+    if (!currentBoard.columns) {
+        console.log('No columns in board, initializing empty array');
+        currentBoard.columns = [];
+    }
+    
+    // Save current scroll positions
+    document.querySelectorAll('.tasks-container').forEach(container => {
+        const columnId = container.id.replace('tasks-', '');
+        scrollPositions.set(columnId, container.scrollTop);
+    });
+
+    boardElement.innerHTML = '';
+
+    // Check if board is valid (has proper kanban header)
+    if (currentBoard.valid === false) {
+        // Show initialize button instead of columns
+        const initializeContainer = document.createElement('div');
+        initializeContainer.style.cssText = `
+            text-align: center; 
+            padding: 40px; 
+            color: var(--vscode-descriptionForeground);
+        `;
+        
+        initializeContainer.innerHTML = `
+            <div style="margin-bottom: 20px; font-size: 16px; text-align: left;">
+                This file is not initialized as a Kanban board.<br><br>
+                Click the button below to add the required header.<br><br>
+                This might overwrite content of the file if not structured correctly!
+            </div>
+        `;
+        
+        const initializeBtn = document.createElement('button');
+        initializeBtn.className = 'initialise-btn';
+        initializeBtn.textContent = 'Initialize File';
+        initializeBtn.onclick = () => initializeFile();
+        
+        initializeContainer.appendChild(initializeBtn);
+        boardElement.appendChild(initializeContainer);
+        return;
+    }
+
+    // Render columns
+    currentBoard.columns.forEach((column, index) => {
+        const columnElement = createColumnElement(column, index);
+        boardElement.appendChild(columnElement);
+    });
+
+    const addColumnBtn = document.createElement('button');
+    addColumnBtn.className = 'add-column-btn';
+    addColumnBtn.textContent = '+ Add Column';
+    addColumnBtn.onclick = () => addColumn();
+    boardElement.appendChild(addColumnBtn);
+
+    // Restore scroll positions
+    setTimeout(() => {
+        scrollPositions.forEach((scrollTop, columnId) => {
+            const container = document.getElementById(`tasks-${columnId}`);
+            if (container) {
+                container.scrollTop = scrollTop;
+            }
+        });
+    }, 0);
+
+    // Update image sources after rendering
+    setTimeout(() => {
+        updateImageSources();
+    }, 100);
+    
+    setupDragAndDrop();
+}
+
+function createColumnElement(column, columnIndex) {
+    if (!column) {
+        return document.createElement('div');
+    }
+
+    if (!column.tasks) {
+        column.tasks = [];
+    }
+
+    const columnDiv = document.createElement('div');
+    const isCollapsed = collapsedColumns.has(column.id);
+    columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''}`;
+    columnDiv.setAttribute('data-column-id', column.id);
+    columnDiv.setAttribute('data-column-index', columnIndex);
+
+    const renderedTitle = column.title ? renderMarkdown(column.title) : '<span class="task-title-placeholder">Add title...</span>';
+
+    columnDiv.innerHTML = `
+        <div class="column-header">
+            <div class="column-title-section">
+                <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
+                <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
+                <div style="display: inline-block;">
+                    <div class="column-title" onclick="editColumnTitle('${column.id}')">${renderedTitle}</div>
+                    <textarea class="column-title-edit" 
+                                data-column-id="${column.id}"
+                                style="display: none;">${escapeHtml(column.title || '')}</textarea>
+                </div>
+            </div>
+            <div class="column-controls">
+                <span class="task-count">${column.tasks.length}</span>
+                <div class="donut-menu">
+                    <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
+                    <div class="donut-menu-dropdown">
+                        <button class="donut-menu-item" onclick="insertColumnBefore('${column.id}')">Insert list before</button>
+                        <button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
+                        <div class="donut-menu-divider"></div>
+                        <button class="donut-menu-item" onclick="copyColumnAsMarkdown('${column.id}')">Copy as markdown</button>
+                        <div class="donut-menu-divider"></div>
+                        <button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
+                        <button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
+                        <div class="donut-menu-divider"></div>
+                        <div class="donut-menu-item has-submenu">
+                            Sort by
+                            <div class="donut-menu-submenu">
+                                <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'unsorted')">Unsorted</button>
+                                <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'title')">Sort by title</button>
+                            </div>
+                        </div>
+                        <div class="donut-menu-divider"></div>
+                        <button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tasks-container" id="tasks-${column.id}">
+            ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
+        </div>
+        <button class="add-task-btn" onclick="addTask('${column.id}')">
+            + Add Task
+        </button>
+    `;
+
+    return columnDiv;
+}
+
+function createTaskElement(task, columnId, taskIndex) {
+    if (!task) {
+        return '';
+    }
+
+    const renderedDescription = task.description ? renderMarkdown(task.description) : '';
+    const renderedTitle = task.title ? renderMarkdown(task.title) : '';
+    const isCollapsed = collapsedTasks.has(task.id);
+    
+    return `
+        <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}">
+            <div class="task-menu-container">
+                <div class="donut-menu">
+                    <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
+                    <div class="donut-menu-dropdown">
+                        <button class="donut-menu-item" onclick="insertTaskBefore('${task.id}', '${columnId}')">Insert card before</button>
+                        <button class="donut-menu-item" onclick="insertTaskAfter('${task.id}', '${columnId}')">Insert card after</button>
+                        <button class="donut-menu-item" onclick="duplicateTask('${task.id}', '${columnId}')">Duplicate card</button>
+                        <div class="donut-menu-divider"></div>
+                        <button class="donut-menu-item" onclick="copyTaskAsMarkdown('${task.id}', '${columnId}')">Copy as markdown</button>
+                        <div class="donut-menu-divider"></div>
+                        <div class="donut-menu-item has-submenu">
+                            Move
+                            <div class="donut-menu-submenu">
+                                <button class="donut-menu-item" onclick="moveTaskToTop('${task.id}', '${columnId}')">Top</button>
+                                <button class="donut-menu-item" onclick="moveTaskUp('${task.id}', '${columnId}')">Up</button>
+                                <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Down</button>
+                                <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Bottom</button>
+                            </div>
+                        </div>
+                        <div class="donut-menu-item has-submenu">
+                            Move to list
+                            <div class="donut-menu-submenu">
+                                ${currentBoard && currentBoard.columns ? currentBoard.columns.map(col => 
+                                    col.id !== columnId ? 
+                                    `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title || 'Untitled')}</button>` : ''
+                                ).join('') : ''}
+                            </div>
+                        </div>
+                        <div class="donut-menu-divider"></div>
+                        <button class="donut-menu-item danger" onclick="deleteTask('${task.id}', '${columnId}')">Delete card</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="task-header">
+                <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
+                <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}')">▶</span>
+                <div class="task-title-container" onclick="editTitle(this, '${task.id}', '${columnId}')">
+                    <div class="task-title-display markdown-content" 
+                            data-task-id="${task.id}" 
+                            data-column-id="${columnId}">${renderedTitle || '<span class="task-title-placeholder">Add title...</span>'}</div>
+                    <textarea class="task-title-edit" 
+                                data-task-id="${task.id}" 
+                                data-column-id="${columnId}"
+                                data-field="title"
+                                placeholder="Task title (Markdown supported)..."
+                                style="display: none;">${escapeHtml(task.title || '')}</textarea>
+                </div>
+            </div>
+
+            <div class="task-description-container">
+                <div class="task-description-display markdown-content" 
+                        data-task-id="${task.id}" 
+                        data-column-id="${columnId}"
+                        onclick="editDescription(this)"
+                        style="${task.description ? '' : 'display: none;'}">${renderedDescription}</div>
+                <textarea class="task-description-edit" 
+                            data-task-id="${task.id}" 
+                            data-column-id="${columnId}"
+                            data-field="description"
+                            placeholder="Add description (Markdown supported)..."
+                            style="display: none;">${escapeHtml(task.description || '')}</textarea>
+                ${!task.description ? `<div class="task-description-placeholder" onclick="editDescription(this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function initializeFile() {
+    vscode.postMessage({
+        type: 'initializeFile'
+    });
+}
+
+function updateImageSources() {
+    // This function would handle updating image sources if needed
+    // Currently handled by the backend processing
+}
+
+// Simplified toggle functions
+function toggleColumnCollapse(columnId) {
+    const column = document.querySelector(`[data-column-id="${columnId}"]`);
+    const toggle = column.querySelector('.collapse-toggle');
+    
+    column.classList.toggle('collapsed');
+    toggle.classList.toggle('rotated');
+    
+    // Store state if needed
+    if (column.classList.contains('collapsed')) {
+        collapsedColumns.add(columnId);
+    } else {
+        collapsedColumns.delete(columnId);
+    }
+}
+
+function toggleTaskCollapse(taskId) {
+    const task = document.querySelector(`[data-task-id="${taskId}"]`);
+    const toggle = task.querySelector('.task-collapse-toggle');
+    
+    task.classList.toggle('collapsed');
+    toggle.classList.toggle('rotated');
+    
+    // Store state if needed
+    if (task.classList.contains('collapsed')) {
+        collapsedTasks.add(taskId);
+    } else {
+        collapsedTasks.delete(taskId);
+    }
+}

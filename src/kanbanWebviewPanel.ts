@@ -2,13 +2,12 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-import { MarkdownKanbanParser, KanbanBoard, KanbanTask, KanbanColumn } from './markdownParser';
-
-// Deep clone helper for board state
-function deepCloneBoard(board: KanbanBoard): KanbanBoard {
-    // return structuredClone(board);
-    return JSON.parse(JSON.stringify(board));
-}
+import { MarkdownKanbanParser, KanbanBoard } from './markdownParser';
+import { FileManager } from './fileManager';
+import { UndoRedoManager } from './undoRedoManager';
+import { BoardOperations } from './boardOperations';
+import { LinkHandler } from './linkHandler';
+import { MessageHandler } from './messageHandler';
 
 export class KanbanWebviewPanel {
     public static currentPanel: KanbanWebviewPanel | undefined;
@@ -18,17 +17,18 @@ export class KanbanWebviewPanel {
     private readonly _extensionUri: vscode.Uri;
     private _context: vscode.ExtensionContext;
     private _disposables: vscode.Disposable[] = [];
+    
+    // Main components
+    private _fileManager: FileManager;
+    private _undoRedoManager: UndoRedoManager;
+    private _boardOperations: BoardOperations;
+    private _linkHandler: LinkHandler;
+    private _messageHandler: MessageHandler;
+    
+    // State
     private _board?: KanbanBoard;
-    private _document?: vscode.TextDocument;
-    private _originalTaskOrder: Map<string, string[]> = new Map(); // Store original task order for unsorted state
     private _isInitialized: boolean = false;
-    private _isUpdatingFromPanel: boolean = false; // Flag to prevent reload loops
-    private _isFileLocked: boolean = false; // Flag to prevent automatic file switching
-
-    // Undo/Redo stacks
-    private _undoStack: KanbanBoard[] = [];
-    private _redoStack: KanbanBoard[] = [];
-    private readonly _maxUndoStackSize = 50; // Limit stack size to prevent memory issues
+    private _isUpdatingFromPanel: boolean = false;
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -41,7 +41,6 @@ export class KanbanWebviewPanel {
             return;
         }
 
-        // Get workspace folders to include in localResourceRoots
         const workspaceFolders = vscode.workspace.workspaceFolders?.map(folder => folder.uri) || [];
         
         const panel = vscode.window.createWebviewPanel(
@@ -53,7 +52,6 @@ export class KanbanWebviewPanel {
                 localResourceRoots: [
                     extensionUri,
                     ...workspaceFolders,
-                    // Add the document's directory if available
                     ...(document ? [vscode.Uri.file(path.dirname(document.uri.fsPath))] : [])
                 ],
                 retainContextWhenHidden: true,
@@ -81,28 +79,48 @@ export class KanbanWebviewPanel {
         this._extensionUri = extensionUri;
         this._context = context;
 
+        // Initialize components
+        this._fileManager = new FileManager(this._panel.webview, extensionUri);
+        this._undoRedoManager = new UndoRedoManager(this._panel.webview);
+        this._boardOperations = new BoardOperations();
+        this._linkHandler = new LinkHandler(this._fileManager);
+        
+        // Initialize message handler with callbacks
+        this._messageHandler = new MessageHandler(
+            this._fileManager,
+            this._undoRedoManager,
+            this._boardOperations,
+            this._linkHandler,
+            {
+                onBoardUpdate: this.sendBoardUpdate.bind(this),
+                onSaveToMarkdown: this.saveToMarkdown.bind(this),
+                onInitializeFile: this.initializeFile.bind(this),
+                getCurrentBoard: () => this._board,
+                setBoard: (board: KanbanBoard) => {
+                    this._board = board;
+                }
+            }
+        );
+
         this._initialize();
         this._setupEventListeners();
         
-        if (this._document) {
-            this.loadMarkdownFile(this._document);
+        if (this._fileManager.getDocument()) {
+            this.loadMarkdownFile(this._fileManager.getDocument()!);
         }
     }
 
     // Public methods for external access
     public isFileLocked(): boolean {
-        return this._isFileLocked;
+        return this._fileManager.isFileLocked();
     }
 
     public toggleFileLock(): void {
-        this._isFileLocked = !this._isFileLocked;
-        this._sendFileInfo();
-        const status = this._isFileLocked ? 'locked' : 'unlocked';
-        vscode.window.showInformationMessage(`Kanban file ${status}`);
+        this._fileManager.toggleFileLock();
     }
 
     public getCurrentDocumentUri(): vscode.Uri | undefined {
-        return this._document?.uri;
+        return this._fileManager.getCurrentDocumentUri();
     }
 
     private _initialize() {
@@ -115,14 +133,11 @@ export class KanbanWebviewPanel {
     private _setupEventListeners() {
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-        // Fixed: Always ensure board is sent when panel becomes visible
         this._panel.onDidChangeViewState(
             e => {
                 if (e.webviewPanel.visible) {
-                    // Always try to send board update when panel becomes visible
-                    // This ensures the webview has the current board data
                     this._ensureBoardAndSendUpdate();
-                    this._sendFileInfo();
+                    this._fileManager.sendFileInfo();
                 }
             },
             null,
@@ -130,867 +145,73 @@ export class KanbanWebviewPanel {
         );
 
         this._panel.webview.onDidReceiveMessage(
-            message => this._handleMessage(message),
+            message => this._messageHandler.handleMessage(message),
             null,
             this._disposables
         );
     }
 
-    // New method to ensure we have board data and send update
     private async _ensureBoardAndSendUpdate() {
-        // If we don't have a board but we have a document, reload it
-        if (!this._board && this._document) {
+        if (!this._board && this._fileManager.getDocument()) {
             try {
-                this._board = MarkdownKanbanParser.parseMarkdown(this._document.getText());
-                // Store original task order for each column
-                this._board.columns.forEach(column => {
-                    this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
-                });
+                this._board = MarkdownKanbanParser.parseMarkdown(this._fileManager.getDocument()!.getText());
+                this._boardOperations.setOriginalTaskOrder(this._board);
             } catch (error) {
-                this._board = { valid:false, title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
-            }
-        }
-        
-        // Always send the update (now async)
-        await this._sendBoardUpdate();
-    }
-
-    // Undo/Redo methods
-    private _saveStateForUndo() {
-        if (!this._board || !this._board.valid) return;
-        
-        // Push current state to undo stack
-        this._undoStack.push(deepCloneBoard(this._board));
-        
-        // Limit stack size
-        if (this._undoStack.length > this._maxUndoStackSize) {
-            this._undoStack.shift();
-        }
-        
-        // Clear redo stack when new action is performed
-        this._redoStack = [];
-        
-        // Send undo/redo status to webview
-        this._sendUndoRedoStatus();
-    }
-
-    private async _undo() {
-        if (this._undoStack.length === 0) {
-            vscode.window.showInformationMessage('Nothing to undo');
-            return;
-        }
-        
-        // Save current state to redo stack
-        if (this._board && this._board.valid) {
-            this._redoStack.push(deepCloneBoard(this._board));
-        }
-        
-        // Restore previous state
-        this._board = this._undoStack.pop()!;
-        
-        // Restore original task order for sorting
-        this._board.columns.forEach(column => {
-            this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
-        });
-        
-        // Disable file listener when undoing to prevent conflicts
-        try {
-            const kanbanFileListener = (globalThis as any).kanbanFileListener;
-            if (kanbanFileListener && kanbanFileListener.getStatus) {
-                const wasEnabled = kanbanFileListener.getStatus();
-                if (wasEnabled) {
-                    // Disable file listener temporarily during undo
-                    kanbanFileListener.setStatus(false);
-                    
-                    // Re-enable after a short delay to avoid interference with other operations
-                    setTimeout(() => {
-                        if (kanbanFileListener) {
-                            kanbanFileListener.setStatus(true);
-                        }
-                    }, 2000);
-                }
-            }
-        } catch (error) {
-            console.warn('Failed to disable file listener during undo:', error);
-        }
-        
-        // Save and update
-        await this.saveToMarkdown();
-        this._sendBoardUpdate();
-        this._sendUndoRedoStatus();
-    }
-
-    private async _redo() {
-        if (this._redoStack.length === 0) {
-            vscode.window.showInformationMessage('Nothing to redo');
-            return;
-        }
-        
-        // Save current state to undo stack
-        if (this._board && this._board.valid) {
-            this._undoStack.push(deepCloneBoard(this._board));
-        }
-        
-        // Restore next state
-        this._board = this._redoStack.pop()!;
-        
-        // Restore original task order for sorting
-        this._board.columns.forEach(column => {
-            this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
-        });
-        
-        // Disable file listener when undoing to prevent conflicts
-        try {
-            const kanbanFileListener = (globalThis as any).kanbanFileListener;
-            if (kanbanFileListener && kanbanFileListener.getStatus) {
-                const wasEnabled = kanbanFileListener.getStatus();
-                if (wasEnabled) {
-                    // Disable file listener temporarily during undo
-                    kanbanFileListener.setStatus(false);
-                    
-                    // Re-enable after a short delay to avoid interference with other operations
-                    setTimeout(() => {
-                        if (kanbanFileListener) {
-                            kanbanFileListener.setStatus(true);
-                        }
-                    }, 2000);
-                }
-            }
-        } catch (error) {
-            console.warn('Failed to disable file listener during undo:', error);
-        }
-        
-        // Save and update
-        await this.saveToMarkdown();
-        this._sendBoardUpdate();
-        this._sendUndoRedoStatus();
-    }
-
-    private _sendUndoRedoStatus() {
-        if (!this._panel.webview) return;
-        
-        setTimeout(() => {
-            this._panel.webview.postMessage({
-                type: 'undoRedoStatus',
-                canUndo: this._undoStack.length > 0,
-                canRedo: this._redoStack.length > 0
-            });
-        }, 10);
-    }
-
-    // Helper methods for drag and drop
-    private _getRelativePath(filePath: string): string {
-        if (!this._document) {
-            return filePath;
-        }
-        
-        const documentDir = path.dirname(this._document.uri.fsPath);
-        const relativePath = path.relative(documentDir, filePath);
-        
-        // Convert backslashes to forward slashes for markdown compatibility
-        return relativePath.replace(/\\/g, '/');
-    }
-
-    private _isImageFile(fileName: string): boolean {
-        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.bmp', '.webp'];
-        const ext = path.extname(fileName).toLowerCase();
-        return imageExtensions.includes(ext);
-    }
-
-    private async _handleFileDrop(message: any) {
-        try {
-            const { fileName, dropPosition, activeEditor } = message;
-            const isImage = this._isImageFile(fileName);
-            const relativePath = `./${fileName}`;
-            
-            const fileInfo = {
-                fileName,
-                relativePath, // Keep original relative path
-                isImage,
-                activeEditor,
-                dropPosition
-            };
-
-            // For images, convert to webview URI immediately
-            // if (isImage && this._document) {
-            //     const documentDir = path.dirname(this._document.uri.fsPath);
-            //     const imagePath = path.resolve(documentDir, fileName);
-                
-            //     try {
-            //         const imageUri = vscode.Uri.file(imagePath);
-            //         // Convert to webview URI right away
-            //         const webviewUri = this._panel.webview.asWebviewUri(imageUri);
-            //         relativePath = webviewUri.toString();
-            //     } catch (error) {
-            //         // Keep relative path if conversion fails
-            //     }
-            // }
-            
-            this._panel.webview.postMessage({
-                type: 'insertFileLink',
-                fileInfo: fileInfo
-            });
-            
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to handle file drop: ${error}`);
-        }
-    }
-
-    private async _handleUriDrop(message: any) {
-        try {
-            const { uris, dropPosition, activeEditor } = message;
-            
-            for (const uriString of uris) {
-                let uri: vscode.Uri;
-                try {
-                    if (uriString.startsWith('file://')) {
-                        uri = vscode.Uri.parse(uriString);
-                    } else {
-                        uri = vscode.Uri.file(uriString);
-                    }
-                } catch (parseError) {
-                    continue;
-                }
-                
-                const fileName = path.basename(uri.fsPath);
-                const isImage = this._isImageFile(fileName);
-                
-                // ALWAYS get relative path for markdown storage
-                // DO NOT convert to webview URI here
-                const relativePath = this._getRelativePath(uri.fsPath);
-                
-                const fileInfo = {
-                    fileName,
-                    relativePath, // Keep original relative path
-                    isImage,
-                    activeEditor,
-                    dropPosition
+                this._board = { 
+                    valid: false, 
+                    title: 'Error Loading Board', 
+                    columns: [], 
+                    yamlHeader: null, 
+                    kanbanFooter: null 
                 };
-                
-                this._panel.webview.postMessage({
-                    type: 'insertFileLink',
-                    fileInfo: fileInfo
-                });
-                
-                break; // Only handle the first file for now
             }
-            
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to handle URI drop: ${error}`);
         }
+        
+        await this.sendBoardUpdate();
     }
 
-    private _handleImageConversionRequest(imageReferences: string[]) {
-        const pathMappings = this._convertImagePaths(imageReferences);
-        
-        this._panel.webview.postMessage({
-            type: 'imagePathsConverted',
-            pathMappings: pathMappings
-        });
-    }
-
-    private async _convertImageToBase64(imagePath: string): Promise<string | null> {
-        try {
-            const imageUri = vscode.Uri.file(imagePath);
-            const imageData = await vscode.workspace.fs.readFile(imageUri);
-            const base64 = Buffer.from(imageData).toString('base64');
-            const ext = path.extname(imagePath).toLowerCase().substring(1);
-            const mimeType = this._getImageMimeType(ext);
-            return `data:${mimeType};base64,${base64}`;
-        } catch (error) {
-            console.error('Failed to convert image to base64:', error);
-            return null;
-        }
-    }
-
-    private _getImageMimeType(ext: string): string {
-        const mimeTypes: { [key: string]: string } = {
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'gif': 'image/gif',
-            'svg': 'image/svg+xml',
-            'bmp': 'image/bmp',
-            'webp': 'image/webp'
-        };
-        return mimeTypes[ext] || 'image/png';
-    }
-
-    // Add this method to scan and convert existing images in the board
-    // private async _processExistingImages() {
-    //     if (!this._board || !this._document) return;
-        
-    //     const documentDir = path.dirname(this._document.uri.fsPath);
-    //     const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
-    //     const pathMappings: { [key: string]: string } = {};
-        
-    //     for (const column of this._board.columns) {
-    //         for (const task of column.tasks) {
-    //             // Process title and description for image links
-    //             const allText = `${task.title || ''}\n${task.description || ''}`;
-    //             let match;
-                
-    //             while ((match = imagePattern.exec(allText)) !== null) {
-    //                 const imagePath = match[2];
-                    
-    //                 // Skip if already a data URI or webview URI
-    //                 if (imagePath.startsWith('data:') || imagePath.startsWith('vscode-webview://')) {
-    //                     continue;
-    //                 }
-                    
-    //                 // Convert relative path to absolute, then to webview URI
-    //                 const absolutePath = path.isAbsolute(imagePath) 
-    //                     ? imagePath 
-    //                     : path.join(documentDir, imagePath);
-                    
-    //                 try {
-    //                     const imageUri = vscode.Uri.file(absolutePath);
-    //                     await vscode.workspace.fs.stat(imageUri);
-    //                     const webviewUri = this._panel.webview.asWebviewUri(imageUri);
-    //                     pathMappings[imagePath] = webviewUri.toString();
-    //                 } catch (error) {
-    //                     console.log(`Could not process image: ${imagePath}`);
-    //                 }
-    //             }
-    //         }
-    //     }
-        
-    //     // Send path mappings to webview if any were found
-    //     if (Object.keys(pathMappings).length > 0) {
-    //         this._panel.webview.postMessage({
-    //             type: 'updateImagePaths',
-    //             pathMappings: pathMappings
-    //         });
-    //     }
-    // }
-
-    private _handleMessage(message: any) {
-        console.log('KanbanWebviewPanel received message:', message.type, message);
-        
-        switch (message.type) {
-            // Undo/Redo operations
-            case 'undo':
-                this._undo();
-                break;
-            case 'redo':
-                this._redo();
-                break;
-                
-            // Special request for board update
-            case 'requestBoardUpdate':
-                this._ensureBoardAndSendUpdate();
-                this._sendFileInfo();
-                this._sendUndoRedoStatus();
-                break;
-
-            // Enhanced file and link handling
-            case 'openFileLink':
-                this._handleFileLink(message.href);
-                break;
-            case 'openWikiLink':
-                this._handleWikiLink(message.documentName);
-                break;
-            case 'openExternalLink':
-                vscode.env.openExternal(vscode.Uri.parse(message.href));
-                break;
-
-            // Drag and drop operations
-            case 'handleFileDrop':
-                this._handleFileDrop(message);
-                break;
-            case 'handleUriDrop':
-                this._handleUriDrop(message);
-                break;
-                            
-            // File management
-            case 'toggleFileLock':
-                this.toggleFileLock();
-                break;
-            case 'selectFile':
-                this._selectFile();
-                break;
-            case 'requestFileInfo':
-                this._sendFileInfo();
-                break;
-            case 'initializeFile':
-                this._initializeFile();
-                break;
-            case 'showMessage':
-                vscode.window.showInformationMessage(message.text);
-                break;
-
-            // Task operations
-            case 'moveTask':
-                this.moveTask(message.taskId, message.fromColumnId, message.toColumnId, message.newIndex);
-                break;
-            case 'addTask':
-                this.addTask(message.columnId, message.taskData);
-                break;
-            case 'addTaskAtPosition':
-                this.addTaskAtPosition(message.columnId, message.taskData, message.insertionIndex);
-                break;
-            case 'deleteTask':
-                this.deleteTask(message.taskId, message.columnId);
-                break;
-            // case 'editTask':
-            //     this.editTask(message.taskId, message.columnId, message.taskData);
-            //     break;
-            case 'duplicateTask':
-                this.duplicateTask(message.taskId, message.columnId);
-                break;
-            case 'insertTaskBefore':
-                this.insertTaskBefore(message.taskId, message.columnId);
-                break;
-            case 'insertTaskAfter':
-                this.insertTaskAfter(message.taskId, message.columnId);
-                break;
-            case 'moveTaskToTop':
-                this.moveTaskToTop(message.taskId, message.columnId);
-                break;
-            case 'moveTaskUp':
-                this.moveTaskUp(message.taskId, message.columnId);
-                break;
-            case 'moveTaskDown':
-                this.moveTaskDown(message.taskId, message.columnId);
-                break;
-            case 'moveTaskToBottom':
-                this.moveTaskToBottom(message.taskId, message.columnId);
-                break;
-            case 'moveTaskToColumn':
-                this.moveTaskToColumn(message.taskId, message.fromColumnId, message.toColumnId);
-                break;
-                
-            // Column operations
-            case 'addColumn':
-                this.addColumn(message.title);
-                break;
-            case 'moveColumn':
-                this.moveColumn(message.fromIndex, message.toIndex);
-                break;
-            case 'deleteColumn':
-                this.deleteColumn(message.columnId);
-                break;
-            case 'insertColumnBefore':
-                this.insertColumnBefore(message.columnId, message.title);
-                break;
-            case 'insertColumnAfter':
-                this.insertColumnAfter(message.columnId, message.title);
-                break;
-            case 'sortColumn':
-                this.sortColumn(message.columnId, message.sortType);
-                break;
-            case 'editColumnTitle':
-                this.editColumnTitle(message.columnId, message.title);
-                break;
-            default:
-                console.warn('Unknown message type:', message.type);
-                break;
-        }
-    }
-
-    /**
-     * Enhanced file path resolution with multiple fallback strategies
-     * 1. If absolute path, use as-is
-     * 2. If relative, try relative to current document first
-     * 3. Then try relative to workspace folders
-     */
-    private async _resolveFilePath(href: string): Promise<{ resolvedPath: string; exists: boolean; isAbsolute: boolean } | null> {
-        // Check if it's an absolute path
-        const isAbsolute = path.isAbsolute(href) || 
-                        href.match(/^[a-zA-Z]:/) || // Windows drive letter
-                        href.startsWith('/') ||     // Unix absolute path
-                        href.startsWith('\\');     // Windows UNC or absolute path
-
-        if (isAbsolute) {
-            try {
-                const exists = fs.existsSync(href);
-                return { resolvedPath: href, exists, isAbsolute: true };
-            } catch (error) {
-                return { resolvedPath: href, exists: false, isAbsolute: true };
-            }
-        }
-
-        // For relative paths, try multiple resolution strategies
-        const candidates: string[] = [];
-
-        // Strategy 1: Relative to current document
-        if (this._document) {
-            const currentDir = path.dirname(this._document.uri.fsPath);
-            candidates.push(path.resolve(currentDir, href));
-        }
-
-        // Strategy 2: Relative to workspace folders
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (workspaceFolders) {
-            for (const folder of workspaceFolders) {
-                candidates.push(path.resolve(folder.uri.fsPath, href));
-            }
-        }
-
-        // Try each candidate path
-        for (const candidatePath of candidates) {
-            try {
-                if (fs.existsSync(candidatePath)) {
-                    return { resolvedPath: candidatePath, exists: true, isAbsolute: false };
-                }
-            } catch (error) {
-                // Continue to next candidate
-            }
-        }
-
-        // If no existing file found, return the first candidate (relative to document) as fallback
-        return candidates.length > 0 
-            ? { resolvedPath: candidates[0], exists: false, isAbsolute: false }
-            : null;
-    }
-
-    /**
-     * Enhanced file link handler with better path resolution
-     */
-    private async _handleFileLink(href: string) {
-        try {
-            // Handle special protocols first
-            if (href.startsWith('file://')) {
-                href = vscode.Uri.parse(href).fsPath;
-            }
-
-            // Skip webview URIs - they're for display only
-            if (href.startsWith('vscode-webview://')) {
-                return;
-            }
-
-            // Resolve the file path using enhanced logic
-            const resolution = await this._resolveFilePath(href);
-            
-            if (!resolution) {
-                vscode.window.showErrorMessage(`Could not resolve file path: ${href}`);
-                return;
-            }
-
-            const { resolvedPath, exists } = resolution;
-
-            if (!exists) {
-                // Show different messages based on whether it's absolute or relative
-                if (resolution.isAbsolute) {
-                    vscode.window.showWarningMessage(`File not found: ${resolvedPath}`);
-                } else {
-                    vscode.window.showWarningMessage(
-                        `File not found: ${href}\n` +
-                        `Searched in document directory and workspace folders.\n` +
-                        `Last attempted: ${resolvedPath}`
-                    );
-                }
-                return;
-            }
-
-            // Check if it's a directory
-            try {
-                const stats = fs.statSync(resolvedPath);
-                
-                if (stats.isDirectory()) {
-                    // Open folder in explorer
-                    vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(resolvedPath));
-                    return;
-                }
-            } catch (error) {
-                vscode.window.showErrorMessage(`Error accessing file: ${resolvedPath}`);
-                return;
-            }
-
-            // Get configuration for how to open files
-            const config = vscode.workspace.getConfiguration('markdownKanban');
-            const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
-            
-            try {
-                // Open file in VS Code
-                const document = await vscode.workspace.openTextDocument(resolvedPath);
-                
-                if (openInNewTab) {
-                    // Open in a new tab (beside current)
-                    await vscode.window.showTextDocument(document, {
-                        preview: false,
-                        viewColumn: vscode.ViewColumn.Beside
-                    });
-                } else {
-                    // Open in current tab (replace current editor)
-                    await vscode.window.showTextDocument(document, {
-                        preview: false,
-                        preserveFocus: false
-                    });
-                }
-                
-                // Show success message with resolved path if it was relative
-                if (!resolution.isAbsolute) {
-                    vscode.window.showInformationMessage(
-                        `Opened: ${path.basename(resolvedPath)} (resolved from: ${href})`
-                    );
-                }
-                
-            } catch (error) {
-                vscode.window.showErrorMessage(`Failed to open file: ${resolvedPath}`);
-            }
-            
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to handle file link: ${href}`);
-        }
-    }
-
-    /**
-     * Enhanced method for handling wiki links with proper path resolution
-     */
-    private async _handleWikiLink(documentName: string) {
-        // Wiki links typically reference markdown files
-        const possibleExtensions = ['.md', '.markdown', '.txt', ''];
-        
-        for (const ext of possibleExtensions) {
-            const filename = documentName + ext;
-            const resolution = await this._resolveFilePath(filename);
-            
-            if (resolution && resolution.exists) {
-                try {
-                    const document = await vscode.workspace.openTextDocument(resolution.resolvedPath);
-                    await vscode.window.showTextDocument(document, {
-                        preview: false,
-                        preserveFocus: false
-                    });
-                    
-                    vscode.window.showInformationMessage(
-                        `Opened wiki link: ${documentName} → ${path.basename(resolution.resolvedPath)}`
-                    );
-                    return;
-                } catch (error) {
-                    // Continue to next extension
-                }
-            }
-        }
-        
-        // If no existing file found, show helpful message
-        vscode.window.showWarningMessage(
-            `Wiki link not found: [[${documentName}]]\n` +
-            `Searched for: ${possibleExtensions.map(ext => documentName + ext).join(', ')}\n` +
-            `In document directory and workspace folders.`
-        );
-    }
-
-    /**
-     * Enhanced image path resolution for display
-     * This doesn't change the markdown, only how images are displayed
-     */
-    private async _resolveImageForDisplay(imagePath: string): Promise<string> {
-        // Skip if already a webview URI, data URI, or external URL
-        if (imagePath.startsWith('vscode-webview://') || 
-            imagePath.startsWith('data:') ||
-            imagePath.startsWith('http://') || 
-            imagePath.startsWith('https://')) {
-            return imagePath;
-        }
-        
-        const resolution = await this._resolveFilePath(imagePath);
-        
-        if (resolution && resolution.exists) {
-            try {
-                // Check if it's actually an image file
-                const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.bmp', '.webp'];
-                const ext = path.extname(resolution.resolvedPath).toLowerCase();
-                
-                if (imageExtensions.includes(ext)) {
-                    const imageUri = vscode.Uri.file(resolution.resolvedPath);
-                    const webviewUri = this._panel.webview.asWebviewUri(imageUri);
-                    return webviewUri.toString();
-                }
-            } catch (error) {
-                console.warn('Failed to resolve image for display:', imagePath, error);
-            }
-        }
-        
-        // Return original path if resolution fails
-        return imagePath;
-    }
-
-    private async _selectFile() {
-        const fileUris = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
-            canSelectFolders: false,
-            canSelectMany: false,
-            filters: {
-                'Markdown files': ['md']
-            }
-        });
-
-        if (fileUris && fileUris.length > 0) {
-            const targetUri = fileUris[0];
-            try {
-                const document = await vscode.workspace.openTextDocument(targetUri);
-                this.loadMarkdownFile(document);
-                vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
-            } catch (error) {
-                vscode.window.showErrorMessage(`Failed to open file: ${error}`);
-            }
-        }
-    }
-
-    private _convertImagePaths(imageReferences: string[]): {[key: string]: string} {
-        const pathMappings: {[key: string]: string} = {};
-        
-        if (!this._document) {
-            return pathMappings;
-        }
-        
-        const documentDir = path.dirname(this._document.uri.fsPath);
-        
-        for (const imagePath of imageReferences) {
-            try {
-                let absolutePath: string;
-                
-                if (path.isAbsolute(imagePath)) {
-                    absolutePath = imagePath;
-                } else {
-                    // Resolve relative to document directory
-                    absolutePath = path.resolve(documentDir, imagePath);
-                }
-                
-                // Check if file exists
-                if (fs.existsSync(absolutePath)) {
-                    const fileUri = vscode.Uri.file(absolutePath);
-                    const webviewUri = this._panel.webview.asWebviewUri(fileUri);
-                    pathMappings[imagePath] = webviewUri.toString();
-                } else {
-                    console.warn('Image file not found:', absolutePath);
-                    pathMappings[imagePath] = imagePath; // Keep original as fallback
-                }
-            } catch (error) {
-                console.error('Failed to convert image path:', imagePath, error);
-                pathMappings[imagePath] = imagePath; // Keep original as fallback
-            }
-        }
-        
-        return pathMappings;
-    }
-
-    private _extractImageReferences(board: KanbanBoard): string[] {
-        const imageReferences = new Set<string>();
-        const imageRegex = /!\[.*?\]\(([^)]+)\)/g;
-        
-        // Extract from column titles
-        board.columns.forEach(column => {
-            if (column.title) {
-                let match;
-                while ((match = imageRegex.exec(column.title)) !== null) {
-                    imageReferences.add(match[1]);
-                }
-            }
-            
-            // Extract from task titles and descriptions
-            column.tasks.forEach(task => {
-                if (task.title) {
-                    let match;
-                    imageRegex.lastIndex = 0; // Reset regex
-                    while ((match = imageRegex.exec(task.title)) !== null) {
-                        imageReferences.add(match[1]);
-                    }
-                }
-                
-                if (task.description) {
-                    let match;
-                    imageRegex.lastIndex = 0; // Reset regex
-                    while ((match = imageRegex.exec(task.description)) !== null) {
-                        imageReferences.add(match[1]);
-                    }
-                }
-            });
-        });
-        
-        return Array.from(imageReferences);
-    }
-
-    private _convertImagePathsFromMessage(imageReferences: string[]) {
-        const pathMappings = this._convertImagePaths(imageReferences);
-        
-        this._panel.webview.postMessage({
-            type: 'imagePathsConverted',
-            pathMappings: pathMappings
-        });
-    }
-
-    private async _initializeFile() {
-        if (!this._document) {
-            vscode.window.showErrorMessage('No document loaded');
-            return;
-        }
-
-        this._isUpdatingFromPanel = true; // Set flag to prevent reload
-
-        const kanbanHeader = "---\n\nkanban-plugin: board\n\n---\n\n";
-        const currentContent = this._document.getText();
-        const newContent = kanbanHeader + currentContent;
-
-        const edit = new vscode.WorkspaceEdit();
-        edit.replace(
-            this._document.uri,
-            new vscode.Range(0, 0, this._document.lineCount, 0),
-            newContent
-        );
-        
-        try {
-            await vscode.workspace.applyEdit(edit);
-            await this._document.save();
-            
-            // Reload the file
-            setTimeout(() => {
-                this.loadMarkdownFile(this._document!);
-                this._isUpdatingFromPanel = false;
-            }, 100);
-            
-            vscode.window.showInformationMessage('Kanban board initialized successfully');
-        } catch (error) {
-            this._isUpdatingFromPanel = false;
-            vscode.window.showErrorMessage(`Failed to initialize file: ${error}`);
-        }
-    }
-    
     public async loadMarkdownFile(document: vscode.TextDocument) {
-        // Don't reload if we're the ones who just updated the document
         if (this._isUpdatingFromPanel) {
             return;
         }
         
-        const documentChanged = this._document?.uri.toString() !== document.uri.toString();
-        this._document = document;
+        const documentChanged = this._fileManager.getDocument()?.uri.toString() !== document.uri.toString();
+        this._fileManager.setDocument(document);
         
-        // If document changed, we need to refresh the HTML to update base href
         if (documentChanged) {
             this._panel.webview.html = this._getHtmlForWebview();
         }
         
         try {
-            // Parse the markdown - keep original paths in board data
             this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
-            
-            // Store original task order
-            this._board.columns.forEach(column => {
-                this._originalTaskOrder.set(column.id, column.tasks.map(t => t.id));
-            });
-            
-            this._undoStack = [];
-            this._redoStack = [];
-            
+            this._boardOperations.setOriginalTaskOrder(this._board);
+            this._undoRedoManager.clear();
         } catch (error) {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
-            this._board = { valid:false, title: 'Error Loading Board', columns: [], yamlHeader: null, kanbanFooter: null };
+            this._board = { 
+                valid: false, 
+                title: 'Error Loading Board', 
+                columns: [], 
+                yamlHeader: null, 
+                kanbanFooter: null 
+            };
         }
         
-        // Use async board update for enhanced image processing
-        await this._sendBoardUpdate();
-        this._sendFileInfo();
-        this._sendUndoRedoStatus();
+        await this.sendBoardUpdate();
+        this._fileManager.sendFileInfo();
     }
 
-    private async _sendBoardUpdate() {
+    private async sendBoardUpdate() {
         if (!this._panel.webview) return;
 
-        let board = this._board || { valid: false, title: 'Please open a Markdown Kanban file', columns: [], yamlHeader: null, kanbanFooter: null };
+        let board = this._board || { 
+            valid: false, 
+            title: 'Please open a Markdown Kanban file', 
+            columns: [], 
+            yamlHeader: null, 
+            kanbanFooter: null 
+        };
         
-        // Create a display version of the board with resolved image paths
         const displayBoard = await this._createDisplayBoard(board);
         
         setTimeout(() => {
@@ -1002,27 +223,23 @@ export class KanbanWebviewPanel {
     }
 
     private async _createDisplayBoard(board: KanbanBoard): Promise<KanbanBoard> {
-        if (!board.valid || !this._document) {
+        if (!board.valid || !this._fileManager.getDocument()) {
             return board;
         }
 
-        // Deep clone the board to avoid modifying original
         const displayBoard: KanbanBoard = JSON.parse(JSON.stringify(board));
         
-        // Process each column and task for enhanced image display
         for (const column of displayBoard.columns) {
-            // Process column title for images
             if (column.title) {
-                column.title = await this._processImagesInContent(column.title);
+                column.title = await this._fileManager.processImagesInContent(column.title);
             }
             
-            // Process each task
             for (const task of column.tasks) {
                 if (task.title) {
-                    task.title = await this._processImagesInContent(task.title);
+                    task.title = await this._fileManager.processImagesInContent(task.title);
                 }
                 if (task.description) {
-                    task.description = await this._processImagesInContent(task.description);
+                    task.description = await this._fileManager.processImagesInContent(task.description);
                 }
             }
         }
@@ -1030,529 +247,90 @@ export class KanbanWebviewPanel {
         return displayBoard;
     }
 
-    private async _processImagesInContent(content: string): Promise<string> {
-        if (!content) return content;
-
-        const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-        const matches: Array<{match: string, alt: string, path: string}> = [];
-        let match;
-        
-        // Collect all image matches
-        while ((match = imageRegex.exec(content)) !== null) {
-            matches.push({
-                match: match[0],
-                alt: match[1],
-                path: match[2]
-            });
-        }
-        
-        // Process each image path
-        let result = content;
-        for (const imageMatch of matches) {
-            const resolvedPath = await this._resolveImageForDisplay(imageMatch.path);
-            const newImageTag = `![${imageMatch.alt}](${resolvedPath})`;
-            result = result.replace(imageMatch.match, newImageTag);
-        }
-        
-        return result;
-    }
-    
-    
-    // private _convertImagePathsForDisplay(content: string, documentDir: string): string {
-    //     if (!content) return content;
-
-    //     const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-        
-    //     return content.replace(imageRegex, (match, alt, imagePath) => {
-    //         // Skip if already converted or external
-    //         if (imagePath.startsWith('vscode-webview://') || 
-    //             imagePath.startsWith('http://') || 
-    //             imagePath.startsWith('https://') ||
-    //             imagePath.startsWith('data:')) {
-    //             return match;
-    //         }
-            
-    //         try {
-    //             // Convert to absolute path
-    //             const absolutePath = path.isAbsolute(imagePath) 
-    //                 ? imagePath 
-    //                 : path.resolve(documentDir, imagePath);
-                
-    //             const imageUri = vscode.Uri.file(absolutePath);
-                
-    //             // Check if file exists synchronously for display
-    //             if (fs.existsSync(absolutePath)) {
-    //                 const webviewUri = this._panel.webview.asWebviewUri(imageUri);
-    //                 return `![${alt}](${webviewUri.toString()})`;
-    //             } else {
-    //                 // Return error placeholder for display
-    //                 return `![ERROR: ${imagePath}](data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Ctext%3EFile not found%3C/text%3E%3C/svg%3E)`;
-    //             }
-    //         } catch (error) {
-    //             return match; // Return original on error
-    //         }
-    //     });
-    // }
-
-    private async performAction(action: (() => void) | (() => Promise<void>), saveUndo: boolean = true) {
-        if (!this._board) return;
-        
-        if (saveUndo) {
-            this._saveStateForUndo();
-        }
-        
-        await action();
-        await this.saveToMarkdown();
-        await this._sendBoardUpdate(); // Now async
-    }
-
-    private _sendFileInfo() {
-        if (!this._panel.webview) return;
-
-        const fileInfo = {
-            fileName: this._document ? path.basename(this._document.fileName) : 'No file loaded',
-            filePath: this._document ? this._document.fileName : '',
-            documentPath: this._document ? this._document.uri.fsPath : '',
-            isLocked: this._isFileLocked
-        };
-
-        setTimeout(() => {
-            this._panel.webview.postMessage({
-                type: 'updateFileInfo',
-                fileInfo: fileInfo
-            });
-        }, 10);
-    }
-
-    private editColumnTitle(columnId: string, title: string) {
-        this.performAction(() => {
-            const column = this.findColumn(columnId);
-            if (!column) return;
-            
-            column.title = title;
-        });
-    }
-
     private async saveToMarkdown() {
-        if (!this._document || !this._board || !this._board.valid) return;
+        const document = this._fileManager.getDocument();
+        if (!document || !this._board || !this._board.valid) return;
 
-        this._isUpdatingFromPanel = true; // Set flag to prevent reload
+        this._isUpdatingFromPanel = true;
         
         const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
         const edit = new vscode.WorkspaceEdit();
         edit.replace(
-            this._document.uri,
-            new vscode.Range(0, 0, this._document.lineCount, 0),
+            document.uri,
+            new vscode.Range(0, 0, document.lineCount, 0),
             markdown
         );
         await vscode.workspace.applyEdit(edit);
-        await this._document.save();
+        await document.save();
         
-        // Reset flag after a delay (longer than the file watcher delay)
         setTimeout(() => {
             this._isUpdatingFromPanel = false;
         }, 1000);
     }
 
-    private findColumn(columnId: string): KanbanColumn | undefined {
-        return this._board?.columns.find(col => col.id === columnId);
-    }
-
-    private findTask(columnId: string, taskId: string): { column: KanbanColumn; task: KanbanTask; index: number } | undefined {
-        const column = this.findColumn(columnId);
-        if (!column) return undefined;
-
-        const taskIndex = column.tasks.findIndex(task => task.id === taskId);
-        if (taskIndex === -1) return undefined;
-
-        return {
-            column,
-            task: column.tasks[taskIndex],
-            index: taskIndex
-        };
-    }
-
-    // private async _fixAllImagePaths() {
-    //     if (!this._board || !this._board.valid) return;
-        
-    //     let hasChanges = false;
-        
-    //     // for (const column of this._board.columns) {
-    //     //     for (const task of column.tasks) {
-    //     //         // Process title
-    //     //         if (task.title) {
-    //     //             const processed = await this._preprocessImagePaths(task.title);
-    //     //             if (processed !== task.title) {
-    //     //                 task.title = processed;
-    //     //                 hasChanges = true;
-    //     //             }
-    //     //         }
-    //     //         // Process description
-    //     //         if (task.description) {
-    //     //             const processed = await this._preprocessImagePaths(task.description);
-    //     //             if (processed !== task.description) {
-    //     //                 task.description = processed;
-    //     //                 hasChanges = true;
-    //     //             }
-    //     //         }
-    //     //     }
-    //     // }
-        
-    //     if (hasChanges) {
-    //         await this.saveToMarkdown();
-    //         this._sendBoardUpdate();
-    //         vscode.window.showInformationMessage('Image paths have been updated');
-    //     }
-    // }
-
-    private generateId(type: 'column' | 'task', parentId?: string): string {
-        // Generate a unique but stable ID
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substr(2, 5);
-        
-        if (type === 'column') {
-            const index = this._board?.columns.length || 0;
-            return `col_${index}_${timestamp}_${random}`;
-        } else {
-            return `task_${parentId}_${timestamp}_${random}`;
+    private async initializeFile() {
+        const document = this._fileManager.getDocument();
+        if (!document) {
+            vscode.window.showErrorMessage('No document loaded');
+            return;
         }
-    }
 
-    // Task operations
-    private moveTask(taskId: string, fromColumnId: string, toColumnId: string, newIndex: number) {
-        this.performAction(() => {
-            const fromColumn = this.findColumn(fromColumnId);
-            const toColumn = this.findColumn(toColumnId);
+        this._isUpdatingFromPanel = true;
 
-            if (!fromColumn || !toColumn) return;
+        const kanbanHeader = "---\n\nkanban-plugin: board\n\n---\n\n";
+        const currentContent = document.getText();
+        const newContent = kanbanHeader + currentContent;
 
-            const taskIndex = fromColumn.tasks.findIndex(task => task.id === taskId);
-            if (taskIndex === -1) return;
-
-            const task = fromColumn.tasks.splice(taskIndex, 1)[0];
-            toColumn.tasks.splice(newIndex, 0, task);
-        });
-    }
-
-    private addTask(columnId: string, taskData: any) {
-        this.performAction(() => {
-            const column = this.findColumn(columnId);
-            if (!column) return;
-
-            const newTask: KanbanTask = {
-                id: this.generateId('task', columnId),
-                title: taskData.title || '',
-                description: taskData.description || ''
-            };
-
-            column.tasks.push(newTask);
-        });
-    }
-
-    private addTaskAtPosition(columnId: string, taskData: any, insertionIndex: number) {
-        this.performAction(() => {
-            const column = this.findColumn(columnId);
-            if (!column) {
-                return;
-            }
-
-            const newTask: KanbanTask = {
-                id: this.generateId('task', columnId),
-                title: taskData.title || '',
-                description: taskData.description || ''
-            };
-
-            // Insert at specific position or append to end
-            if (insertionIndex >= 0 && insertionIndex <= column.tasks.length) {
-                column.tasks.splice(insertionIndex, 0, newTask);
-            } else {
-                column.tasks.push(newTask);
-            }
-        });
-    }
-
-    private deleteTask(taskId: string, columnId: string) {
-        this.performAction(() => {
-            const column = this.findColumn(columnId);
-            if (!column) return;
-
-            const taskIndex = column.tasks.findIndex(task => task.id === taskId);
-            if (taskIndex === -1) return;
-
-            column.tasks.splice(taskIndex, 1);
-        });
-    }
-
-    private duplicateTask(taskId: string, columnId: string) {
-        this.performAction(() => {
-            const result = this.findTask(columnId, taskId);
-            if (!result) return;
-
-            const newTask: KanbanTask = {
-                id: this.generateId('task', columnId),
-                title: result.task.title,
-                description: result.task.description
-            };
-
-            result.column.tasks.splice(result.index + 1, 0, newTask);
-        });
-    }
-
-    private insertTaskBefore(taskId: string, columnId: string) {
-        this.performAction(() => {
-            const result = this.findTask(columnId, taskId);
-            if (!result) return;
-
-            const newTask: KanbanTask = {
-                id: this.generateId('task', columnId),
-                title: '',
-                description: ''
-            };
-
-            result.column.tasks.splice(result.index, 0, newTask);
-        });
-    }
-
-    private insertTaskAfter(taskId: string, columnId: string) {
-        this.performAction(() => {
-            const result = this.findTask(columnId, taskId);
-            if (!result) return;
-
-            const newTask: KanbanTask = {
-                id: this.generateId('task', columnId),
-                title: '',
-                description: ''
-            };
-
-            result.column.tasks.splice(result.index + 1, 0, newTask);
-        });
-    }
-
-    private moveTaskToTop(taskId: string, columnId: string) {
-        this.performAction(() => {
-            const result = this.findTask(columnId, taskId);
-            if (!result || result.index === 0) return;
-
-            const task = result.column.tasks.splice(result.index, 1)[0];
-            result.column.tasks.unshift(task);
-        });
-    }
-
-    private moveTaskUp(taskId: string, columnId: string) {
-        this.performAction(() => {
-            const result = this.findTask(columnId, taskId);
-            if (!result || result.index === 0) return;
-
-            const task = result.column.tasks[result.index];
-            result.column.tasks[result.index] = result.column.tasks[result.index - 1];
-            result.column.tasks[result.index - 1] = task;
-        });
-    }
-
-    private moveTaskDown(taskId: string, columnId: string) {
-        this.performAction(() => {
-            const result = this.findTask(columnId, taskId);
-            if (!result || result.index === result.column.tasks.length - 1) return;
-
-            const task = result.column.tasks[result.index];
-            result.column.tasks[result.index] = result.column.tasks[result.index + 1];
-            result.column.tasks[result.index + 1] = task;
-        });
-    }
-
-    private moveTaskToBottom(taskId: string, columnId: string) {
-        this.performAction(() => {
-            const result = this.findTask(columnId, taskId);
-            if (!result || result.index === result.column.tasks.length - 1) return;
-
-            const task = result.column.tasks.splice(result.index, 1)[0];
-            result.column.tasks.push(task);
-        });
-    }
-
-    private moveTaskToColumn(taskId: string, fromColumnId: string, toColumnId: string) {
-        this.performAction(() => {
-            const fromColumn = this.findColumn(fromColumnId);
-            const toColumn = this.findColumn(toColumnId);
-
-            if (!fromColumn || !toColumn) return;
-
-            const taskIndex = fromColumn.tasks.findIndex(task => task.id === taskId);
-            if (taskIndex === -1) return;
-
-            const task = fromColumn.tasks.splice(taskIndex, 1)[0];
-            toColumn.tasks.push(task);
-        });
-    }
-
-    // Column operations
-    private addColumn(title: string) {
-        this.performAction(() => {
-            if (!this._board) return;
-
-            const newColumn: KanbanColumn = {
-                id: this.generateId('column'),
-                title: title,
-                tasks: []
-            };
-
-            this._board.columns.push(newColumn);
-            this._originalTaskOrder.set(newColumn.id, []);
-        });
-    }
-
-    private moveColumn(fromIndex: number, toIndex: number) {
-        this.performAction(() => {
-            if (!this._board || fromIndex === toIndex) return;
-
-            const columns = this._board.columns;
-            const column = columns.splice(fromIndex, 1)[0];
-            columns.splice(toIndex, 0, column);
-        });
-    }
-
-    private deleteColumn(columnId: string) {
-        this.performAction(() => {
-            if (!this._board) return;
-
-            const index = this._board.columns.findIndex(col => col.id === columnId);
-            if (index === -1) return;
-
-            this._board.columns.splice(index, 1);
-            this._originalTaskOrder.delete(columnId);
-        });
-    }
-
-    private insertColumnBefore(columnId: string, title: string) {
-        this.performAction(() => {
-            if (!this._board) return;
-
-            const index = this._board.columns.findIndex(col => col.id === columnId);
-            if (index === -1) return;
-
-            const newColumn: KanbanColumn = {
-                id: this.generateId('column'),
-                title: title,
-                tasks: []
-            };
-
-            this._board.columns.splice(index, 0, newColumn);
-            this._originalTaskOrder.set(newColumn.id, []);
-        });
-    }
-
-    private insertColumnAfter(columnId: string, title: string) {
-        this.performAction(() => {
-            if (!this._board) return;
-
-            const index = this._board.columns.findIndex(col => col.id === columnId);
-            if (index === -1) return;
-
-            const newColumn: KanbanColumn = {
-                id: this.generateId('column'),
-                title: title,
-                tasks: []
-            };
-
-            this._board.columns.splice(index + 1, 0, newColumn);
-            this._originalTaskOrder.set(newColumn.id, []);
-        });
-    }
-
-    private sortColumn(columnId: string, sortType: 'unsorted' | 'title') {
-        this.performAction(() => {
-            const column = this.findColumn(columnId);
-            if (!column) return;
-
-            if (sortType === 'title') {
-                // Sort alphabetically by title
-                column.tasks.sort((a, b) => {
-                    const titleA = a.title || '';
-                    const titleB = b.title || '';
-                    return titleA.localeCompare(titleB);
-                });
-            } else if (sortType === 'unsorted') {
-                // Restore original order
-                const originalOrder = this._originalTaskOrder.get(columnId);
-                if (originalOrder) {
-                    const taskMap = new Map(column.tasks.map(t => [t.id, t]));
-                    column.tasks = [];
-                    
-                    // Add tasks in original order
-                    originalOrder.forEach(taskId => {
-                        const task = taskMap.get(taskId);
-                        if (task) {
-                            column.tasks.push(task);
-                            taskMap.delete(taskId);
-                        }
-                    });
-                    
-                    // Add any new tasks that weren't in original order
-                    taskMap.forEach(task => {
-                        column.tasks.push(task);
-                    });
-                }
-            }
-        });
-    }
-
-    private async _processImageForWebview(imagePath: string): Promise<string> {
-        if (!this._document) return imagePath;
-        
-        // Convert relative path to absolute
-        const documentDir = path.dirname(this._document.uri.fsPath);
-        const absolutePath = path.isAbsolute(imagePath) 
-            ? imagePath 
-            : path.join(documentDir, imagePath);
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(
+            document.uri,
+            new vscode.Range(0, 0, document.lineCount, 0),
+            newContent
+        );
         
         try {
-            const imageUri = vscode.Uri.file(absolutePath);
+            await vscode.workspace.applyEdit(edit);
+            await document.save();
             
-            // Check if file exists using workspace.fs
-            await vscode.workspace.fs.stat(imageUri);
+            setTimeout(() => {
+                this.loadMarkdownFile(document);
+                this._isUpdatingFromPanel = false;
+            }, 100);
             
-            // Convert to webview URI - this is the key!
-            const webviewUri = this._panel.webview.asWebviewUri(imageUri);
-            return webviewUri.toString();
+            vscode.window.showInformationMessage('Kanban board initialized successfully');
         } catch (error) {
-            // If file doesn't exist, return original path
-            return imagePath;
+            this._isUpdatingFromPanel = false;
+            vscode.window.showErrorMessage(`Failed to initialize file: ${error}`);
         }
     }
 
     private _getHtmlForWebview() {
-        // console.log('MDKB: !!! GENERATING HTML !!!');
-        
         const filePath = vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html', 'webview.html'));
         let html = fs.readFileSync(filePath.fsPath, 'utf8');
 
-        // CSP MUST be added
         const nonce = this._getNonce();
         const cspSource = this._panel.webview.cspSource;
         
-        // This MUST be in the HTML
         const cspMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${cspSource} https: data: blob:; script-src ${cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; style-src ${cspSource} 'unsafe-inline'; font-src ${cspSource};">`;
         
-        // Make sure it's added
         if (!html.includes('Content-Security-Policy')) {
             html = html.replace('<head>', `<head>\n    ${cspMeta}`);
         }
         
-        // Resource roots
         const localResourceRoots = [this._extensionUri];
-        if (this._document) {
-            const documentDir = vscode.Uri.file(path.dirname(this._document.uri.fsPath));
+        if (this._fileManager.getDocument()) {
+            const document = this._fileManager.getDocument()!;
+            const documentDir = vscode.Uri.file(path.dirname(document.uri.fsPath));
             const baseHref = this._panel.webview.asWebviewUri(documentDir).toString() + '/';
-            // define the source path for files relative path
             html = html.replace(/<head>/, `<head><base href="${baseHref}">`);
 
             const markdownItUri = this._panel.webview.asWebviewUri(
                 vscode.Uri.joinPath(this._extensionUri, 'node_modules', 'markdown-it', 'dist', 'markdown-it.min.js')
             );
-            html = html.replace(/<head>/, `<script src="${markdownItUri}"></script>`);
+            html = html.replace(/<script src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/markdown-it\/13\.0\.2\/markdown-it\.min\.js"><\/script>/, `<script src="${markdownItUri}"></script>`);
 
-            localResourceRoots.push(vscode.Uri.file(path.dirname(this._document.uri.fsPath)));
-            const workspaceFolder = vscode.workspace.getWorkspaceFolder(this._document.uri);
+            localResourceRoots.push(vscode.Uri.file(path.dirname(document.uri.fsPath)));
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
             if (workspaceFolder) {
                 localResourceRoots.push(workspaceFolder.uri);
             }
@@ -1563,18 +341,32 @@ export class KanbanWebviewPanel {
             localResourceRoots: localResourceRoots
         };
         
-        // Convert paths
         const webviewDir = this._panel.webview.asWebviewUri(
             vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html'))
         );
         
         html = html.replace(/href="webview\.css"/, `href="${webviewDir}/webview.css"`);
-        html = html.replace(/src="webview\.js"/, `src="${webviewDir}/webview.js"`);
+        
+        // Replace all JavaScript file references
+        const jsFiles = [
+            'markdownRenderer.js',
+            'taskEditor.js', 
+            'boardRenderer.js',
+            'dragDrop.js',
+            'menuOperations.js',
+            'webview.js'
+        ];
+        
+        jsFiles.forEach(jsFile => {
+            html = html.replace(
+                new RegExp(`src="${jsFile}"`, 'g'), 
+                `src="${webviewDir}/${jsFile}"`
+            );
+        });
 
         return html;
     }
 
-    // Helper to generate nonce for CSP
     private _getNonce() {
         let text = '';
         const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -1583,53 +375,6 @@ export class KanbanWebviewPanel {
         }
         return text;
     }
-
-    // private async _replaceAsyncImages(
-    //     str: string, 
-    //     regex: RegExp, 
-    //     asyncFn: (match: string, alt: string, imagePath: string) => Promise<string>
-    // ): Promise<string> {
-    //     const matches: Array<{match: string, alt: string, path: string, index: number}> = [];
-    //     let m;
-        
-    //     while ((m = regex.exec(str)) !== null) {
-    //         matches.push({
-    //             match: m[0],
-    //             alt: m[1],
-    //             path: m[2],
-    //             index: m.index
-    //         });
-    //     }
-        
-    //     // Process all matches
-    //     let result = str;
-    //     let offset = 0;
-        
-    //     for (const matchInfo of matches) {
-    //         const replacement = await asyncFn(matchInfo.match, matchInfo.alt, matchInfo.path);
-    //         const startIndex = matchInfo.index + offset;
-    //         const endIndex = startIndex + matchInfo.match.length;
-            
-    //         result = result.substring(0, startIndex) + replacement + result.substring(endIndex);
-    //         offset += replacement.length - matchInfo.match.length;
-    //     }
-        
-    //     return result;
-    // }
-
-    // private async _replaceAsync(
-    //     str: string, 
-    //     regex: RegExp, 
-    //     asyncFn: (match: string, ...args: string[]) => Promise<string>
-    // ): Promise<string> {
-    //     const promises: Promise<string>[] = [];
-    //     str.replace(regex, (match: string, ...args: any[]): string => {
-    //         promises.push(asyncFn(match, ...args));
-    //         return match;
-    //     });
-    //     const data = await Promise.all(promises);
-    //     return str.replace(regex, () => data.shift()!);
-    // }
 
     public dispose() {
         KanbanWebviewPanel.currentPanel = undefined;

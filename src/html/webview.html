@@ -103,13 +103,11 @@
         }
 
         .file-control-btn.locked {
-            /* background: var(--vscode-charts-orange); */
             color: var(--vscode-button-foreground);
             border: 1px dotted var(--vscode-contrastActiveBorder);
         }
 
         .file-control-btn.locked:hover {
-            /* background: var(--vscode-charts-yellow); */
             border: 1px solid var(--vscode-contrastActiveBorder);
         }
 
@@ -205,22 +203,12 @@
         </div>
     </div>
 
+    <!-- JavaScript modules in dependency order -->
+    <script src="markdownRenderer.js"></script>
+    <script src="taskEditor.js"></script>
+    <script src="boardRenderer.js"></script>
+    <script src="dragDrop.js"></script>
+    <script src="menuOperations.js"></script>
     <script src="webview.js"></script>
-    <!-- <script>
-        // Debug image loading
-        window.addEventListener('error', function(e) {
-            if (e.target.tagName === 'IMG') {
-                console.error('Image failed to load:', e.target.src);
-                console.error('Original markdown src:', e.target.getAttribute('data-original-src'));
-            }
-        }, true);
-        
-        // Log successful image loads for debugging
-        window.addEventListener('load', function(e) {
-            if (e.target.tagName === 'IMG') {
-                console.log('Image loaded successfully:', e.target.src);
-            }
-        }, true);
-    </script> -->
 </body>
 </html>
