@@ -65,11 +65,6 @@ class TaskEditor {
         // If transitioning, don't interfere
         if (this.isTransitioning) return;
         
-        // Save any current editor first
-        if (this.currentEditor && !this.isTransitioning) {
-            this.save();
-        }
-
         // Get the appropriate elements based on type
         let displayElement, editElement, containerElement;
         
@@ -91,6 +86,21 @@ class TaskEditor {
 
         if (!editElement) return;
 
+        // Check if we're already editing this exact element
+        const isAlreadyEditing = this.currentEditor && 
+                                this.currentEditor.element === editElement &&
+                                editElement.style.display !== 'none';
+
+        // If we're already editing this element, don't interfere - let the user continue
+        if (isAlreadyEditing) {
+            return;
+        }
+
+        // Save any current editor first (different element)
+        if (this.currentEditor && !this.isTransitioning) {
+            this.save();
+        }
+
         // Show edit element, hide display
         if (displayElement) displayElement.style.display = 'none';
         editElement.style.display = 'block';
@@ -98,7 +108,7 @@ class TaskEditor {
         // Auto-resize if textarea
         this.autoResize(editElement);
         
-        // Focus and position cursor at end
+        // Focus and position cursor at end (only for new edit sessions)
         editElement.focus();
         editElement.setSelectionRange(editElement.value.length, editElement.value.length);
 
@@ -303,16 +313,36 @@ window.taskEditor = taskEditor;
 
 // Simplified edit trigger functions
 function editTitle(element, taskId, columnId) {
+    // Don't start editing if we're already editing this field
+    if (taskEditor.currentEditor && 
+        taskEditor.currentEditor.type === 'task-title' &&
+        taskEditor.currentEditor.taskId === taskId &&
+        taskEditor.currentEditor.columnId === columnId) {
+        return; // Already editing this title
+    }
     taskEditor.startEdit(element, 'task-title', taskId, columnId);
 }
 
 function editDescription(element, taskId, columnId) {
+    // Don't start editing if we're already editing this field
+    if (taskEditor.currentEditor && 
+        taskEditor.currentEditor.type === 'task-description' &&
+        taskEditor.currentEditor.taskId === taskId &&
+        taskEditor.currentEditor.columnId === columnId) {
+        return; // Already editing this description
+    }
     // Find the actual container if needed
     const container = element.closest('.task-description-container') || element;
     taskEditor.startEdit(container, 'task-description', taskId, columnId);
 }
 
 function editColumnTitle(columnId) {
+    // Don't start editing if we're already editing this column
+    if (taskEditor.currentEditor && 
+        taskEditor.currentEditor.type === 'column-title' &&
+        taskEditor.currentEditor.columnId === columnId) {
+        return; // Already editing this column title
+    }
     const column = document.querySelector(`[data-column-id="${columnId}"]`);
     if (column && !column.classList.contains('collapsed')) {
         taskEditor.startEdit(column, 'column-title', null, columnId);
