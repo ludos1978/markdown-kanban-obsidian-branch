@@ -330,10 +330,22 @@ export class KanbanWebviewPanel {
             const baseHref = this._panel.webview.asWebviewUri(documentDir).toString() + '/';
             html = html.replace(/<head>/, `<head><base href="${baseHref}">`);
 
-            const markdownItUri = this._panel.webview.asWebviewUri(
-                vscode.Uri.joinPath(this._extensionUri, 'node_modules', 'markdown-it', 'dist', 'markdown-it.min.js')
-            );
-            html = html.replace(/<script src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/markdown-it\/13\.0\.2\/markdown-it\.min\.js"><\/script>/, `<script src="${markdownItUri}"></script>`);
+            try {
+                const markdownItPath = vscode.Uri.joinPath(this._extensionUri, 'node_modules', 'markdown-it', 'dist', 'markdown-it.min.js');
+                if (fs.existsSync(markdownItPath.fsPath)) {
+                    const markdownItUri = this._panel.webview.asWebviewUri(markdownItPath);
+                    html = html.replace(/<script src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/markdown-it\/13\.0\.2\/markdown-it\.min\.js"><\/script>/, `<script src="${markdownItUri}"></script>`);
+                }
+                // If local file doesn't exist, keep the CDN version in HTML
+            } catch (error) {
+                // If there's any error, keep the CDN version in HTML
+                console.warn('Failed to load local markdown-it, using CDN version:', error);
+            }
+
+            // const markdownItUri = this._panel.webview.asWebviewUri(
+            //     vscode.Uri.joinPath(this._extensionUri, 'node_modules', 'markdown-it', 'dist', 'markdown-it.min.js')
+            // );
+            // html = html.replace(/<script src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/markdown-it\/13\.0\.2\/markdown-it\.min\.js"><\/script>/, `<script src="${markdownItUri}"></script>`);
 
             localResourceRoots.push(vscode.Uri.file(path.dirname(document.uri.fsPath)));
             const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);

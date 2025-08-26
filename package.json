@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.9.44",
+  "version": "0.9.47",
   "engines": {
     "vscode": "^1.74.0"
   },
