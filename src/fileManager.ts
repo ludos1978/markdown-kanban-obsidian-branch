@@ -39,7 +39,7 @@ export class FileManager {
         this._extensionUri = extensionUri;
     }
 
-    public setDocument(document: vscode.TextDocument) {
+    public setDocument(document: vscode.TextDocument | undefined) {
         this._document = document;
     }
 
@@ -294,7 +294,7 @@ export class FileManager {
 
         // If not workspace-relative, use standard resolution strategy
         if (!isWorkspaceRelative) {
-            // First: Check relative to current document directory
+            // First: Check relative to current document directory (only if we have a document)
             if (this._document) {
                 const currentDir = path.dirname(this._document.uri.fsPath);
                 const candidate = path.resolve(currentDir, href);
@@ -386,6 +386,11 @@ export class FileManager {
     public async generateImagePathMappings(content: string): Promise<ImagePathMapping> {
         const mappings: ImagePathMapping = {};
         if (!content) return mappings;
+
+        // Only process if we have a document to work with
+        if (!this._document) {
+            return mappings;
+        }
 
         // Find all image references in the content
         const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;

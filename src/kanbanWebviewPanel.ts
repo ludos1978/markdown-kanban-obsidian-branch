@@ -140,9 +140,43 @@ export class KanbanWebviewPanel {
         // ENHANCED: Listen for workspace folder changes
         this._setupWorkspaceChangeListener();
         
+        // Listen for document close events
+        this._setupDocumentCloseListener();
+        
         if (this._fileManager.getDocument()) {
             this.loadMarkdownFile(this._fileManager.getDocument()!);
         }
+    }
+
+    /**
+     * Setup listener for document close events to handle graceful degradation
+     */
+    private _setupDocumentCloseListener() {
+        // Listen for document close events
+        const documentCloseListener = vscode.workspace.onDidCloseTextDocument(document => {
+            const currentDocument = this._fileManager.getDocument();
+            if (currentDocument && currentDocument.uri.toString() === document.uri.toString()) {
+                console.log('Current kanban document was closed:', document.fileName);
+                
+                // Clear the document reference
+                this._fileManager.setDocument(undefined as any);
+                
+                // Update the file info to show no file loaded
+                this._fileManager.sendFileInfo();
+                
+                // Optionally show a message to the user
+                vscode.window.showInformationMessage(
+                    `Kanban document "${path.basename(document.fileName)}" was closed. Changes will not be saved until you open a new document.`,
+                    'Open File'
+                ).then(selection => {
+                    if (selection === 'Open File') {
+                        vscode.commands.executeCommand('markdown-kanban.switchFile');
+                    }
+                });
+            }
+        });
+        
+        this._disposables.push(documentCloseListener);
     }
 
     /**
@@ -346,29 +380,106 @@ export class KanbanWebviewPanel {
 
     private async saveToMarkdown() {
         const document = this._fileManager.getDocument();
-        if (!document || !this._board || !this._board.valid) return;
+        if (!document || !this._board || !this._board.valid) {
+            console.warn('Cannot save: no document or invalid board');
+            return;
+        }
 
         this._isUpdatingFromPanel = true;
         
-        const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
-        const edit = new vscode.WorkspaceEdit();
-        edit.replace(
-            document.uri,
-            new vscode.Range(0, 0, document.lineCount, 0),
-            markdown
-        );
-        await vscode.workspace.applyEdit(edit);
-        await document.save();
-        
-        setTimeout(() => {
-            this._isUpdatingFromPanel = false;
-        }, 1000);
+        try {
+            // Check if document is still valid/open
+            const isDocumentOpen = vscode.workspace.textDocuments.some(doc => 
+                doc.uri.toString() === document.uri.toString()
+            );
+            
+            if (!isDocumentOpen) {
+                console.warn('Document is no longer open, cannot save changes');
+                vscode.window.showWarningMessage(
+                    `Cannot save changes: "${path.basename(document.fileName)}" has been closed. Please reopen the file to continue editing.`,
+                    'Open File'
+                ).then(selection => {
+                    if (selection === 'Open File') {
+                        // Try to reopen the file
+                        vscode.workspace.openTextDocument(document.uri).then(reopenedDoc => {
+                            this.loadMarkdownFile(reopenedDoc);
+                            vscode.window.showTextDocument(reopenedDoc);
+                        }).catch(error => {
+                            vscode.window.showErrorMessage(`Failed to reopen file: ${error}`);
+                        });
+                    }
+                });
+                return;
+            }
+            
+            const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
+            const edit = new vscode.WorkspaceEdit();
+            edit.replace(
+                document.uri,
+                new vscode.Range(0, 0, document.lineCount, 0),
+                markdown
+            );
+            
+            const success = await vscode.workspace.applyEdit(edit);
+            if (!success) {
+                throw new Error('Failed to apply workspace edit');
+            }
+            
+            // Try to save the document
+            try {
+                await document.save();
+            } catch (saveError) {
+                // If save fails, it might be because the document was closed
+                console.warn('Failed to save document:', saveError);
+                
+                // Check if the document is still open
+                const stillOpen = vscode.workspace.textDocuments.some(doc => 
+                    doc.uri.toString() === document.uri.toString()
+                );
+                
+                if (!stillOpen) {
+                    vscode.window.showWarningMessage(
+                        `Changes applied but could not save: "${path.basename(document.fileName)}" was closed during the save operation.`
+                    );
+                } else {
+                    throw saveError; // Re-throw if it's a different error
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error saving to markdown:', error);
+            vscode.window.showErrorMessage(`Failed to save kanban changes: ${error instanceof Error ? error.message : String(error)}`);
+        } finally {
+            setTimeout(() => {
+                this._isUpdatingFromPanel = false;
+            }, 1000);
+        }
     }
 
     private async initializeFile() {
         const document = this._fileManager.getDocument();
         if (!document) {
             vscode.window.showErrorMessage('No document loaded');
+            return;
+        }
+
+        // Check if document is still open
+        const isDocumentOpen = vscode.workspace.textDocuments.some(doc => 
+            doc.uri.toString() === document.uri.toString()
+        );
+        
+        if (!isDocumentOpen) {
+            vscode.window.showWarningMessage(
+                `Cannot initialize: "${path.basename(document.fileName)}" has been closed. Please reopen the file.`,
+                'Open File'
+            ).then(selection => {
+                if (selection === 'Open File') {
+                    vscode.workspace.openTextDocument(document.uri).then(reopenedDoc => {
+                        this.loadMarkdownFile(reopenedDoc);
+                        vscode.window.showTextDocument(reopenedDoc);
+                    });
+                }
+            });
             return;
         }
 
