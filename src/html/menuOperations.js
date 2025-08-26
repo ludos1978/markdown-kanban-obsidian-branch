@@ -229,6 +229,17 @@ function addTask(columnId) {
     });
 }
 
+function addTaskAndUnfold(columnId) {
+    // First, unfold the column if it's collapsed
+    const column = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (column && column.classList.contains('collapsed')) {
+        toggleColumnCollapse(columnId);
+    }
+    
+    // Then add the task
+    addTask(columnId);
+}
+
 function addColumn() {
     vscode.postMessage({
         type: 'addColumn',

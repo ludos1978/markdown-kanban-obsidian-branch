@@ -394,6 +394,7 @@ function createColumnElement(column, columnIndex) {
                 <button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
                     <span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
                 </button>
+                <button class="collapsed-add-task-btn" onclick="addTaskAndUnfold('${column.id}')" title="Add task and unfold column">+</button>
                 <div class="donut-menu">
                     <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
                     <div class="donut-menu-dropdown">

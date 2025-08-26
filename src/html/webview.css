@@ -46,7 +46,8 @@ body {
 }
 
 .kanban-column.collapsed .tasks-container,
-.kanban-column.collapsed .add-task-btn {
+.kanban-column.collapsed .add-task-btn,
+.kanban-column.collapsed .fold-all-btn {
     display: none;
 }
 
