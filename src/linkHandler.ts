@@ -11,7 +11,7 @@ export class LinkHandler {
     }
 
     /**
-     * Enhanced file link handler with better path resolution
+     * Enhanced file link handler with workspace-relative path support
      */
     public async handleFileLink(href: string) {
         try {
@@ -33,25 +33,46 @@ export class LinkHandler {
             const { resolvedPath, exists, isAbsolute, attemptedPaths } = resolution;
 
             if (!exists) {
-                // Show detailed error message with all attempted paths
+                // Enhanced error message with workspace context
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                let contextInfo = '';
+                
+                if (workspaceFolders && workspaceFolders.length > 0) {
+                    const folderNames = workspaceFolders.map(f => path.basename(f.uri.fsPath));
+                    
+                    // Check if this looks like a workspace-relative path
+                    const startsWithWorkspaceFolder = folderNames.some(name => 
+                        href.startsWith(name + '/') || href.startsWith(name + '\\')
+                    );
+                    
+                    if (startsWithWorkspaceFolder) {
+                        contextInfo = `\n\nNote: This appears to be a workspace-relative path. Available workspace folders: ${folderNames.join(', ')}`;
+                    } else {
+                        contextInfo = `\n\nTip: For files in workspace folders, use paths like: ${folderNames[0]}/path/to/file.ext`;
+                    }
+                }
+                
                 const pathsList = attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join('\n');
                 
                 if (isAbsolute) {
                     vscode.window.showWarningMessage(
-                        `File not found: ${resolvedPath}\n\nAttempted path:\n${pathsList}`,
+                        `File not found: ${resolvedPath}\n\nAttempted path:\n${pathsList}${contextInfo}`,
                         { modal: false }
                     );
                 } else {
                     vscode.window.showWarningMessage(
-                        `File not found: ${href}\n\nSearched in the following locations:\n${pathsList}`,
+                        `File not found: ${href}\n\nSearched in the following locations:\n${pathsList}${contextInfo}`,
                         { modal: false }
                     );
                 }
                 
-                // Also log to console for debugging
+                // Enhanced console logging with workspace info
                 console.warn(`File not found: ${href}`);
                 console.warn('Attempted paths:');
                 attemptedPaths.forEach((path, i) => console.warn(`  ${i + 1}. ${path}`));
+                if (workspaceFolders) {
+                    console.warn('Available workspace folders:', workspaceFolders.map(f => path.basename(f.uri.fsPath)).join(', '));
+                }
                 
                 return;
             }
@@ -86,9 +107,16 @@ export class LinkHandler {
                     });
                 }
                 
+                // Enhanced success message showing resolution method
                 if (!isAbsolute) {
+                    const workspaceFolders = vscode.workspace.workspaceFolders;
+                    const isWorkspaceRelative = workspaceFolders?.some(f => 
+                        href.startsWith(path.basename(f.uri.fsPath) + '/')
+                    );
+                    
+                    const resolutionMethod = isWorkspaceRelative ? 'workspace-relative' : 'document-relative';
                     vscode.window.showInformationMessage(
-                        `Opened: ${path.basename(resolvedPath)} (resolved from: ${href})`
+                        `Opened: ${path.basename(resolvedPath)} (${resolutionMethod} path: ${href})`
                     );
                 }
                 
@@ -102,7 +130,7 @@ export class LinkHandler {
     }
 
     /**
-     * Enhanced method for handling wiki links with proper path resolution
+     * Enhanced wiki link handler with workspace folder context
      */
     public async handleWikiLink(documentName: string) {
         const possibleExtensions = ['.md', '.markdown', '.txt', ''];
@@ -113,7 +141,6 @@ export class LinkHandler {
             const resolution = await this._fileManager.resolveFilePath(filename);
             
             if (resolution) {
-                // Add all attempted paths to our tracking list
                 allAttemptedPaths.push(...resolution.attemptedPaths);
                 
                 if (resolution.exists) {
@@ -135,19 +162,30 @@ export class LinkHandler {
             }
         }
         
-        // No file found with any extension - show comprehensive error
+        // Enhanced error message with workspace context
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        let contextInfo = '';
+        
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            const folderNames = workspaceFolders.map(f => path.basename(f.uri.fsPath));
+            contextInfo = `\n\nTip: For files in specific workspace folders, try: [[${folderNames[0]}/${documentName}]]`;
+        }
+        
         const pathsList = allAttemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join('\n');
         const extensionsList = possibleExtensions.map(ext => documentName + ext).join(', ');
         
         vscode.window.showWarningMessage(
-            `Wiki link not found: [[${documentName}]]\n\nTried extensions: ${extensionsList}\n\nSearched in the following locations:\n${pathsList}`,
+            `Wiki link not found: [[${documentName}]]\n\nTried extensions: ${extensionsList}\n\nSearched in the following locations:\n${pathsList}${contextInfo}`,
             { modal: false }
         );
         
-        // Also log to console for debugging
+        // Enhanced console logging
         console.warn(`Wiki link not found: [[${documentName}]]`);
         console.warn('All attempted paths:');
         allAttemptedPaths.forEach((path, i) => console.warn(`  ${i + 1}. ${path}`));
+        if (workspaceFolders) {
+            console.warn('Available workspace folders:', workspaceFolders.map(f => path.basename(f.uri.fsPath)).join(', '));
+        }
     }
 
     public async handleExternalLink(href: string) {

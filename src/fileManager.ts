@@ -101,15 +101,67 @@ export class FileManager {
         return null;
     }
 
+    /**
+     * Enhanced relative path generation that uses workspace folder names when appropriate
+     */
     private getRelativePath(filePath: string): string {
         if (!this._document) {
             return filePath;
         }
         
         const documentDir = path.dirname(this._document.uri.fsPath);
-        const relativePath = path.relative(documentDir, filePath);
+        const workspaceFolders = vscode.workspace.workspaceFolders;
         
-        // Convert backslashes to forward slashes for markdown compatibility
+        // First, try to find if file is in a workspace folder
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            for (const folder of workspaceFolders) {
+                const folderPath = folder.uri.fsPath;
+                const folderName = path.basename(folderPath);
+                
+                // Check if file is within this workspace folder
+                if (filePath.startsWith(folderPath + path.sep) || filePath.startsWith(folderPath + '/')) {
+                    // Check if document is also in the same workspace folder
+                    const documentInSameWorkspace = documentDir.startsWith(folderPath + path.sep) || 
+                                                  documentDir.startsWith(folderPath + '/');
+                    
+                    if (documentInSameWorkspace) {
+                        // Both in same workspace - use traditional relative path
+                        const relativePath = path.relative(documentDir, filePath);
+                        return relativePath.replace(/\\/g, '/');
+                    } else {
+                        // File in workspace, document elsewhere - use workspace-relative path
+                        const relativeToWorkspace = path.relative(folderPath, filePath);
+                        return (folderName + '/' + relativeToWorkspace).replace(/\\/g, '/');
+                    }
+                }
+            }
+            
+            // Check if document is in a workspace folder and file is in a different workspace
+            for (const docFolder of workspaceFolders) {
+                const docFolderPath = docFolder.uri.fsPath;
+                if (documentDir.startsWith(docFolderPath + path.sep) || 
+                    documentDir.startsWith(docFolderPath + '/')) {
+                    
+                    // Document is in a workspace, check if file is in a different workspace
+                    for (const fileFolder of workspaceFolders) {
+                        const fileFolderPath = fileFolder.uri.fsPath;
+                        const fileFolderName = path.basename(fileFolderPath);
+                        
+                        if (fileFolder !== docFolder && 
+                            (filePath.startsWith(fileFolderPath + path.sep) || 
+                             filePath.startsWith(fileFolderPath + '/'))) {
+                            // File in different workspace - use workspace-relative path
+                            const relativeToWorkspace = path.relative(fileFolderPath, filePath);
+                            return (fileFolderName + '/' + relativeToWorkspace).replace(/\\/g, '/');
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        
+        // Fall back to traditional relative path
+        const relativePath = path.relative(documentDir, filePath);
         return relativePath.replace(/\\/g, '/');
     }
 
@@ -143,6 +195,9 @@ export class FileManager {
         }
     }
 
+    /**
+     * Enhanced drag & drop handling with workspace-relative paths
+     */
     public async handleUriDrop(message: any) {
         try {
             const { uris, dropPosition, activeEditor } = message;
@@ -161,6 +216,8 @@ export class FileManager {
                 
                 const fileName = path.basename(uri.fsPath);
                 const isImage = this.isImageFile(fileName);
+                
+                // Use enhanced relative path generation
                 const relativePath = this.getRelativePath(uri.fsPath);
                 
                 const fileInfo: FileDropInfo = {
@@ -185,9 +242,9 @@ export class FileManager {
     }
 
     /**
-     * Enhanced file path resolution with multiple fallback strategies
+     * Enhanced file path resolution that handles workspace-relative paths
      */
-public async resolveFilePath(href: string): Promise<FileResolutionResult | null> {
+    public async resolveFilePath(href: string): Promise<FileResolutionResult | null> {
         const attemptedPaths: string[] = [];
         
         const isAbsolute = path.isAbsolute(href) || 
@@ -216,22 +273,42 @@ public async resolveFilePath(href: string): Promise<FileResolutionResult | null>
         }
 
         const candidates: string[] = [];
+        const workspaceFolders = vscode.workspace.workspaceFolders;
 
-        // Add current document directory candidate
-        if (this._document) {
-            const currentDir = path.dirname(this._document.uri.fsPath);
-            const candidate = path.resolve(currentDir, href);
-            candidates.push(candidate);
-            attemptedPaths.push(candidate);
+        // Check if path starts with a workspace folder name
+        let isWorkspaceRelative = false;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            for (const folder of workspaceFolders) {
+                const folderName = path.basename(folder.uri.fsPath);
+                if (href.startsWith(folderName + '/') || href.startsWith(folderName + '\\')) {
+                    // This is a workspace-relative path
+                    isWorkspaceRelative = true;
+                    const relativePath = href.substring(folderName.length + 1);
+                    const candidate = path.resolve(folder.uri.fsPath, relativePath);
+                    candidates.push(candidate);
+                    attemptedPaths.push(candidate);
+                    break;
+                }
+            }
         }
 
-        // Add workspace folder candidates
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (workspaceFolders) {
-            for (const folder of workspaceFolders) {
-                const candidate = path.resolve(folder.uri.fsPath, href);
+        // If not workspace-relative, use standard resolution strategy
+        if (!isWorkspaceRelative) {
+            // First: Check relative to current document directory
+            if (this._document) {
+                const currentDir = path.dirname(this._document.uri.fsPath);
+                const candidate = path.resolve(currentDir, href);
                 candidates.push(candidate);
                 attemptedPaths.push(candidate);
+            }
+
+            // Second: Check in all workspace folders
+            if (workspaceFolders) {
+                for (const folder of workspaceFolders) {
+                    const candidate = path.resolve(folder.uri.fsPath, href);
+                    candidates.push(candidate);
+                    attemptedPaths.push(candidate);
+                }
             }
         }
 
@@ -247,12 +324,11 @@ public async resolveFilePath(href: string): Promise<FileResolutionResult | null>
                     };
                 }
             } catch (error) {
-                // Continue to next candidate
                 continue;
             }
         }
 
-        // No file found - return first candidate as fallback with all attempted paths
+        // No file found
         return candidates.length > 0 
             ? { 
                 resolvedPath: candidates[0], 

@@ -68,12 +68,33 @@ export function activate(context: vscode.ExtensionContext) {
 			// Open document
 			const document = await vscode.workspace.openTextDocument(targetUri);
 
+			// ENHANCED: Log workspace information for debugging
+			const workspaceFolders = vscode.workspace.workspaceFolders;
+			console.log('Opening Kanban with workspace folders:', 
+				workspaceFolders?.map(f => `${f.name}: ${f.uri.fsPath}`) || 'None'
+			);
+			
+			const documentWorkspace = vscode.workspace.getWorkspaceFolder(targetUri);
+			console.log('Document workspace folder:', 
+				documentWorkspace ? `${documentWorkspace.name}: ${documentWorkspace.uri.fsPath}` : 'None'
+			);
+
 			// Create or show kanban panel in center area
 			KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
 
 			vscode.window.showInformationMessage(`Kanban loaded from: ${document.fileName}`);
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to open kanban: ${error}`);
+		}
+	});
+
+	// Optional: Add debug command to troubleshoot webview permissions
+	const debugPermissionsCommand = vscode.commands.registerCommand('markdown-kanban.debugPermissions', () => {
+		if (KanbanWebviewPanel.currentPanel) {
+			(KanbanWebviewPanel.currentPanel as any).debugWebviewPermissions();
+			vscode.window.showInformationMessage('Check the console for debug output');
+		} else {
+			vscode.window.showWarningMessage('No kanban panel is open');
 		}
 	});
 
@@ -190,7 +211,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// Add to subscriptions list
+	// Add to subscriptions
 	context.subscriptions.push(
 		openKanbanCommand,
 		disableFileListenerCommand,
@@ -198,6 +219,7 @@ export function activate(context: vscode.ExtensionContext) {
 		toggleFileLockCommand,
 		openKanbanFromPanelCommand,
 		switchFileCommand,
+		debugPermissionsCommand,  // Add this line
 		documentChangeListener,
 		activeEditorChangeListener,
 	);

@@ -41,7 +41,30 @@ export class KanbanWebviewPanel {
             return;
         }
 
-        const workspaceFolders = vscode.workspace.workspaceFolders?.map(folder => folder.uri) || [];
+        // ENHANCED: Include ALL workspace folders in localResourceRoots from creation
+        const localResourceRoots = [extensionUri];
+        
+        // Add all workspace folders
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders) {
+            workspaceFolders.forEach(folder => {
+                localResourceRoots.push(folder.uri);
+            });
+        }
+        
+        // Add document directory if it's outside workspace folders
+        if (document) {
+            const documentDir = vscode.Uri.file(path.dirname(document.uri.fsPath));
+            const isInWorkspace = workspaceFolders?.some(folder => 
+                documentDir.fsPath.startsWith(folder.uri.fsPath)
+            );
+            
+            if (!isInWorkspace) {
+                localResourceRoots.push(documentDir);
+            }
+        }
+        
+        console.log('Creating webview with localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
         
         const panel = vscode.window.createWebviewPanel(
             KanbanWebviewPanel.viewType,
@@ -49,11 +72,7 @@ export class KanbanWebviewPanel {
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
-                localResourceRoots: [
-                    extensionUri,
-                    ...workspaceFolders,
-                    ...(document ? [vscode.Uri.file(path.dirname(document.uri.fsPath))] : [])
-                ],
+                localResourceRoots: localResourceRoots,
                 retainContextWhenHidden: true,
                 enableCommandUris: true
             }
@@ -67,10 +86,23 @@ export class KanbanWebviewPanel {
     }
 
     public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
+        // ENHANCED: Set comprehensive permissions on revive
+        const localResourceRoots = [extensionUri];
+        
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders) {
+            workspaceFolders.forEach(folder => {
+                localResourceRoots.push(folder.uri);
+            });
+        }
+        
         panel.webview.options = {
             enableScripts: true,
-            localResourceRoots: [extensionUri],
+            localResourceRoots: localResourceRoots,
         };
+        
+        console.log('Reviving webview with localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
+        
         KanbanWebviewPanel.currentPanel = new KanbanWebviewPanel(panel, extensionUri, context);
     }
 
@@ -105,8 +137,66 @@ export class KanbanWebviewPanel {
         this._initialize();
         this._setupEventListeners();
         
+        // ENHANCED: Listen for workspace folder changes
+        this._setupWorkspaceChangeListener();
+        
         if (this._fileManager.getDocument()) {
             this.loadMarkdownFile(this._fileManager.getDocument()!);
+        }
+    }
+
+    /**
+     * Setup listener for workspace folder changes to update webview permissions
+     */
+    private _setupWorkspaceChangeListener() {
+        // Listen for workspace folder changes
+        const workspaceChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(event => {
+            console.log('Workspace folders changed, updating webview permissions');
+            this._updateWebviewPermissions();
+        });
+        
+        this._disposables.push(workspaceChangeListener);
+    }
+
+    /**
+     * Update webview permissions to include all current workspace folders
+     */
+    private _updateWebviewPermissions() {
+        const localResourceRoots = [this._extensionUri];
+        
+        // Add all current workspace folders
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders) {
+            workspaceFolders.forEach(folder => {
+                localResourceRoots.push(folder.uri);
+            });
+        }
+        
+        // Add document directory if it's outside workspace folders
+        if (this._fileManager.getDocument()) {
+            const document = this._fileManager.getDocument()!;
+            const documentDir = vscode.Uri.file(path.dirname(document.uri.fsPath));
+            const isInWorkspace = workspaceFolders?.some(folder => 
+                documentDir.fsPath.startsWith(folder.uri.fsPath)
+            );
+            
+            if (!isInWorkspace) {
+                localResourceRoots.push(documentDir);
+            }
+        }
+        
+        // Update webview options
+        this._panel.webview.options = {
+            enableScripts: true,
+            localResourceRoots: localResourceRoots,
+            enableCommandUris: true
+        };
+        
+        console.log('Updated webview localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
+        
+        // Refresh the webview HTML to apply new permissions
+        if (this._isInitialized) {
+            this._panel.webview.html = this._getHtmlForWebview();
         }
     }
 
@@ -178,8 +268,9 @@ export class KanbanWebviewPanel {
         const documentChanged = this._fileManager.getDocument()?.uri.toString() !== document.uri.toString();
         this._fileManager.setDocument(document);
         
+        // ENHANCED: Update permissions when document changes to ensure access to new workspace
         if (documentChanged) {
-            this._panel.webview.html = this._getHtmlForWebview();
+            this._updateWebviewPermissions();
         }
         
         try {
@@ -323,13 +414,35 @@ export class KanbanWebviewPanel {
             html = html.replace('<head>', `<head>\n    ${cspMeta}`);
         }
         
+        // ENHANCED: Build comprehensive localResourceRoots for cross-workspace access
         const localResourceRoots = [this._extensionUri];
+        
+        // Add ALL workspace folders (not just the one containing current document)
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders) {
+            workspaceFolders.forEach(folder => {
+                localResourceRoots.push(folder.uri);
+            });
+        }
+        
+        // Add document-specific paths if available
         if (this._fileManager.getDocument()) {
             const document = this._fileManager.getDocument()!;
             const documentDir = vscode.Uri.file(path.dirname(document.uri.fsPath));
+            
+            // Only add document dir if it's not already covered by workspace folders
+            const isInWorkspace = workspaceFolders?.some(folder => 
+                documentDir.fsPath.startsWith(folder.uri.fsPath)
+            );
+            
+            if (!isInWorkspace) {
+                localResourceRoots.push(documentDir);
+            }
+
             const baseHref = this._panel.webview.asWebviewUri(documentDir).toString() + '/';
             html = html.replace(/<head>/, `<head><base href="${baseHref}">`);
 
+            // Try to use local markdown-it, but keep CDN as fallback
             try {
                 const markdownItPath = vscode.Uri.joinPath(this._extensionUri, 'node_modules', 'markdown-it', 'dist', 'markdown-it.min.js');
                 if (fs.existsSync(markdownItPath.fsPath)) {
@@ -341,23 +454,15 @@ export class KanbanWebviewPanel {
                 // If there's any error, keep the CDN version in HTML
                 console.warn('Failed to load local markdown-it, using CDN version:', error);
             }
-
-            // const markdownItUri = this._panel.webview.asWebviewUri(
-            //     vscode.Uri.joinPath(this._extensionUri, 'node_modules', 'markdown-it', 'dist', 'markdown-it.min.js')
-            // );
-            // html = html.replace(/<script src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/markdown-it\/13\.0\.2\/markdown-it\.min\.js"><\/script>/, `<script src="${markdownItUri}"></script>`);
-
-            localResourceRoots.push(vscode.Uri.file(path.dirname(document.uri.fsPath)));
-            const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-            if (workspaceFolder) {
-                localResourceRoots.push(workspaceFolder.uri);
-            }
         }
         
+        // Apply the enhanced localResourceRoots
         this._panel.webview.options = {
             enableScripts: true,
             localResourceRoots: localResourceRoots
         };
+        
+        console.log('Webview localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
         
         const webviewDir = this._panel.webview.asWebviewUri(
             vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html'))
@@ -402,5 +507,73 @@ export class KanbanWebviewPanel {
             const disposable = this._disposables.pop();
             disposable?.dispose();
         }
+    }
+
+    /**
+     * Debug method to check webview permissions and image resolution
+     * ---
+     * You can call this method from the VS Code command palette or after loading a document
+     * Add to your extension.ts if you want a debug command:
+     *  const debugCommand = vscode.commands.registerCommand('markdown-kanban.debugPermissions', () => {
+     *      if (KanbanWebviewPanel.currentPanel) {
+     *          KanbanWebviewPanel.currentPanel.debugWebviewPermissions();
+     *      } else {
+     *          vscode.window.showWarningMessage('No kanban panel is open');
+     *      }
+     *  });
+     *  context.subscriptions.push(debugCommand);
+     */
+    public debugWebviewPermissions() {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const currentDocument = this._fileManager.getDocument();
+        
+        console.log('=== WEBVIEW PERMISSIONS DEBUG ===');
+        
+        console.log('Workspace folders:');
+        workspaceFolders?.forEach((folder, i) => {
+            console.log(`  ${i + 1}. ${folder.name}: ${folder.uri.fsPath}`);
+        });
+        
+        console.log('Current document:', currentDocument?.uri.fsPath || 'None');
+        
+        console.log('Webview localResourceRoots:');
+        const options = this._panel.webview.options as any;
+        options?.localResourceRoots?.forEach((root: vscode.Uri, i: number) => {
+            console.log(`  ${i + 1}. ${root.fsPath}`);
+        });
+        
+        console.log('Current board images:');
+        if (this._board?.valid) {
+            this._board.columns.forEach(column => {
+                column.tasks.forEach(task => {
+                    const imageMatches = [
+                        ...(task.title?.match(/!\[([^\]]*)\]\(([^)]+)\)/g) || []),
+                        ...(task.description?.match(/!\[([^\]]*)\]\(([^)]+)\)/g) || [])
+                    ];
+                    
+                    imageMatches.forEach(match => {
+                        const src = match.match(/\(([^)]+)\)/)?.[1];
+                        if (src) {
+                            console.log(`  Image: ${src}`);
+                            
+                            // Test if this image would be accessible
+                            this._fileManager.resolveFilePath(src).then(resolution => {
+                                if (resolution?.exists) {
+                                    const webviewUri = this._panel.webview.asWebviewUri(
+                                        vscode.Uri.file(resolution.resolvedPath)
+                                    );
+                                    console.log(`    Resolved: ${resolution.resolvedPath}`);
+                                    console.log(`    Webview URI: ${webviewUri.toString()}`);
+                                } else {
+                                    console.log(`    NOT FOUND - attempted paths:`, resolution?.attemptedPaths);
+                                }
+                            });
+                        }
+                    });
+                });
+            });
+        }
+        
+        console.log('=== END DEBUG ===');
     }
 }
