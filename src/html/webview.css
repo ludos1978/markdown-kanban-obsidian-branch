@@ -472,7 +472,8 @@ button.donut-menu-item {
 }
 
 .task-description-display {
-    color: var(--vscode-descriptionForeground);
+    /* color: var(--vscode-descriptionForeground); */
+    color: var(--vscode-foreground);
     font-size: 13px;
     line-height: 1.5;
     padding: 4px;
