@@ -184,7 +184,7 @@ body {
     min-width: 0;
     word-break: break-word;
     margin: 0;
-    width: 230px;
+    width: 200px;
 }
 
 .column-title:hover {
@@ -213,7 +213,7 @@ body {
 
 .column-controls {
     display: flex;
-    gap: 8px;
+    gap: 4px;
     align-items: center;
     flex-shrink: 0;
 }
