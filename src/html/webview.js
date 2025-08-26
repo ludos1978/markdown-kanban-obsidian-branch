@@ -9,6 +9,11 @@ window.currentImageMappings = {}; // Make it available globally for the renderer
 document.addEventListener('DOMContentLoaded', () => {
     // Enhanced click handler for links, images, and wiki links
     document.addEventListener('click', (e) => {
+        // Don't interfere with clicks during editing mode
+        if (isCurrentlyEditing()) {
+            return;
+        }
+
         // Handle wiki links first (highest priority)
         const wikiLink = e.target.closest('.wiki-link');
         if (wikiLink) {
@@ -26,9 +31,40 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Handle images - determine if they should be opened as files
+        // Handle images - check if we should edit or open
         const img = e.target.closest('img');
         if (img && img.src) {
+            // Check if image is inside an editable field
+            const editableContainer = img.closest('.task-title-display, .task-description-display, .column-title');
+            
+            if (editableContainer) {
+                // Start editing the field containing the image
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (editableContainer.classList.contains('task-title-display')) {
+                    const taskId = editableContainer.getAttribute('data-task-id');
+                    const columnId = editableContainer.getAttribute('data-column-id');
+                    if (taskId && columnId) {
+                        editTitle(editableContainer, taskId, columnId);
+                    }
+                } else if (editableContainer.classList.contains('task-description-display')) {
+                    const taskId = editableContainer.getAttribute('data-task-id');
+                    const columnId = editableContainer.getAttribute('data-column-id');
+                    if (taskId && columnId) {
+                        editDescription(editableContainer, taskId, columnId);
+                    }
+                } else if (editableContainer.classList.contains('column-title')) {
+                    const column = editableContainer.closest('.kanban-column');
+                    const columnId = column?.getAttribute('data-column-id');
+                    if (columnId) {
+                        editColumnTitle(columnId);
+                    }
+                }
+                return;
+            }
+            
+            // If not in an editable field, handle as file link
             if (img.src.startsWith('vscode-webview://')) {
                 // Get original source from data attribute for opening
                 const originalSrc = img.getAttribute('data-original-src');
@@ -115,9 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, true);
 
-    // Close menus when clicking outside
+    // Close menus when clicking outside (but don't interfere with editing)
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.donut-menu') || e.target.matches('button.donut-menu-item')) {
+        // Only close menus if we're not in editing mode and not clicking on a menu
+        if (!isCurrentlyEditing() && !e.target.closest('.donut-menu')) {
             document.querySelectorAll('.donut-menu').forEach(menu => {
                 menu.classList.remove('active');
             });
@@ -144,6 +181,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup drag and drop
     setupDragAndDrop();
 });
+
+// Helper function to check if we're currently in editing mode
+function isCurrentlyEditing() {
+    return window.taskEditor && window.taskEditor.currentEditor && 
+           window.taskEditor.currentEditor.element && 
+           window.taskEditor.currentEditor.element.style.display !== 'none';
+}
 
 // Listen for messages from the extension
 window.addEventListener('message', event => {

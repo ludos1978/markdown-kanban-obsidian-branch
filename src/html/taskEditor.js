@@ -27,12 +27,36 @@ class TaskEditor {
             }
         });
 
-        // Single global click handler for closing menus
+        // Improved global click handler that doesn't interfere with text selection
         document.addEventListener('click', (e) => {
+            // Don't close menus or interfere if we're clicking inside an editor
+            if (this.currentEditor && this.currentEditor.element && 
+                this.currentEditor.element.contains(e.target)) {
+                return; // Allow normal text selection and editing behavior
+            }
+            
+            // Only close menus if clicking outside both menu and editor
             if (!e.target.closest('.donut-menu')) {
                 document.querySelectorAll('.donut-menu.active').forEach(menu => {
                     menu.classList.remove('active');
                 });
+            }
+        });
+
+        // Prevent interference with text selection during editing
+        document.addEventListener('mousedown', (e) => {
+            // If we're in editing mode and clicking within the editor, don't interfere
+            if (this.currentEditor && this.currentEditor.element && 
+                this.currentEditor.element.contains(e.target)) {
+                return; // Allow normal text selection behavior
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            // If we're in editing mode and within the editor, don't interfere
+            if (this.currentEditor && this.currentEditor.element && 
+                this.currentEditor.element.contains(e.target)) {
+                return; // Allow normal text selection behavior
             }
         });
     }
@@ -92,11 +116,27 @@ class TaskEditor {
         editElement.oninput = () => this.autoResize(editElement);
         
         // Set up blur handler (but it won't fire during transitions)
-        editElement.onblur = () => {
+        editElement.onblur = (e) => {
+            // Don't save on blur if the user is just selecting text or if we're transitioning
             if (!this.isTransitioning) {
-                this.save();
+                // Give a small delay to allow for double-clicks and text selection
+                setTimeout(() => {
+                    // Only save if we're still not focused and not transitioning
+                    if (document.activeElement !== editElement && !this.isTransitioning) {
+                        this.save();
+                    }
+                }, 50);
             }
         };
+
+        // Improved selection handling for better text editing experience
+        editElement.addEventListener('mousedown', (e) => {
+            e.stopPropagation(); // Prevent other handlers from interfering
+        });
+
+        editElement.addEventListener('dblclick', (e) => {
+            e.stopPropagation(); // Prevent other handlers from interfering with double-click selection
+        });
     }
 
     transitionToDescription() {
@@ -227,10 +267,14 @@ class TaskEditor {
         
         const { element, displayElement, type } = this.currentEditor;
         
-        // Hide edit element
-        element.style.display = 'none';
+        // Clean up event listeners
         element.onblur = null;
         element.oninput = null;
+        element.removeEventListener('mousedown', this._handleMouseDown);
+        element.removeEventListener('dblclick', this._handleDblClick);
+        
+        // Hide edit element
+        element.style.display = 'none';
         
         // Show display element
         if (displayElement) {

@@ -5,7 +5,7 @@ kanban-plugin: board
 ---
 
 ## Column A
-- [ ] red.png
+- [ ] ![red.png](red.png)
   ![red.png](red.png)
 - [ ] root/mid/low/red.png
   ![root/mid/low/red.png](root/mid/low/red.png)
