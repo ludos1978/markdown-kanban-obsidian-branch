@@ -65,6 +65,53 @@
             color: var(--vscode-charts-orange);
         }
 
+        /* Global fold button styles */
+        .global-fold-btn {
+            background: none;
+            border: none;
+            color: var(--vscode-titleBar-activeForeground);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            line-height: 1;
+            opacity: 0.7;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+
+        .global-fold-btn:hover {
+            opacity: 1;
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        .global-fold-btn .global-fold-icon {
+            display: block;
+            line-height: 1;
+            transform-origin: center;
+            transition: transform 0.2s;
+            font-size: 10px;
+        }
+
+        /* Different states for global fold button */
+        .global-fold-btn.fold-expanded .global-fold-icon {
+            color: var(--vscode-titleBar-activeForeground);
+        }
+
+        .global-fold-btn.fold-collapsed .global-fold-icon {
+            color: var(--vscode-charts-blue);
+            transform: rotate(0deg);
+        }
+
+        .global-fold-btn.fold-mixed .global-fold-icon {
+            color: var(--vscode-charts-orange);
+            opacity: 0.8;
+        }
+
         .file-info-right {
             display: flex;
             gap: 8px;
@@ -154,6 +201,10 @@
             <div class="file-info-left">
                 <span class="file-icon">📄</span>
                 <span id="file-name" class="file-name">No file loaded</span>
+                <button id="global-fold-btn" class="global-fold-btn fold-mixed" onclick="toggleAllColumns()" title="Fold/unfold all columns">
+                    <span id="global-fold-icon" class="global-fold-icon">▽</span>
+                    <span class="global-fold-text">Columns</span>
+                </button>
             </div>
             <div class="file-info-right">
                 <button id="undo-btn" class="file-control-btn" onclick="undo()" title="Undo (Ctrl+Z)">

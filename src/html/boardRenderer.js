@@ -2,6 +2,7 @@ let scrollPositions = new Map();
 let collapsedColumns = new Set();
 let collapsedTasks = new Set();
 let columnFoldStates = new Map(); // Track last manual fold state for each column
+let globalColumnFoldState = 'fold-mixed'; // Track global column fold state
 let currentBoard = null;
 let renderTimeout = null;
 
@@ -15,6 +16,98 @@ function debouncedRenderBoard() {
         renderBoard();
         renderTimeout = null;
     }, 50);
+}
+
+// Global column folding functions
+function getGlobalColumnFoldState() {
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
+        return 'fold-mixed';
+    }
+    
+    const collapsedCount = currentBoard.columns.filter(column => collapsedColumns.has(column.id)).length;
+    const totalColumns = currentBoard.columns.length;
+    
+    if (collapsedCount === totalColumns) {
+        return 'fold-collapsed'; // All folded
+    } else if (collapsedCount === 0) {
+        return 'fold-expanded'; // All expanded
+    } else {
+        // Mixed state - return last manual state or default
+        return globalColumnFoldState || 'fold-mixed';
+    }
+}
+
+function toggleAllColumns() {
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
+    
+    const currentState = getGlobalColumnFoldState();
+    const collapsedCount = currentBoard.columns.filter(column => collapsedColumns.has(column.id)).length;
+    const totalColumns = currentBoard.columns.length;
+    
+    // Determine action based on current state
+    let shouldCollapse;
+    if (collapsedCount === totalColumns) {
+        // All folded -> expand all
+        shouldCollapse = false;
+    } else if (collapsedCount === 0) {
+        // All expanded -> collapse all
+        shouldCollapse = true;
+    } else {
+        // Mixed state -> use opposite of last manual state, or default to collapse
+        if (globalColumnFoldState === 'fold-collapsed') {
+            shouldCollapse = false; // Was manually set to collapsed, so expand
+        } else {
+            shouldCollapse = true; // Default or was expanded, so collapse
+        }
+    }
+    
+    // Apply the action to all columns
+    currentBoard.columns.forEach(column => {
+        const columnElement = document.querySelector(`[data-column-id="${column.id}"]`);
+        const toggle = columnElement?.querySelector('.collapse-toggle');
+        
+        if (shouldCollapse) {
+            collapsedColumns.add(column.id);
+            columnElement?.classList.add('collapsed');
+            toggle?.classList.add('rotated');
+        } else {
+            collapsedColumns.delete(column.id);
+            columnElement?.classList.remove('collapsed');
+            toggle?.classList.remove('rotated');
+        }
+    });
+    
+    // Remember this manual state
+    globalColumnFoldState = shouldCollapse ? 'fold-collapsed' : 'fold-expanded';
+    
+    // Update the global fold button appearance
+    updateGlobalColumnFoldButton();
+}
+
+function updateGlobalColumnFoldButton() {
+    const globalFoldButton = document.getElementById('global-fold-btn');
+    const globalFoldIcon = document.getElementById('global-fold-icon');
+    
+    if (!globalFoldButton || !globalFoldIcon) return;
+    
+    // Remove all state classes
+    globalFoldButton.classList.remove('fold-collapsed', 'fold-expanded', 'fold-mixed');
+    
+    // Get current state
+    const currentState = getGlobalColumnFoldState();
+    globalFoldButton.classList.add(currentState);
+    
+    // Update icon and title
+    if (currentState === 'fold-collapsed') {
+        globalFoldIcon.textContent = '▶';
+        globalFoldButton.title = 'Expand all columns';
+    } else if (currentState === 'fold-expanded') {
+        globalFoldIcon.textContent = '▼';
+        globalFoldButton.title = 'Collapse all columns';
+    } else {
+        globalFoldIcon.textContent = '▽';
+        globalFoldButton.title = 'Fold/unfold all columns';
+    }
 }
 
 // Render Kanban board
@@ -108,6 +201,11 @@ function renderBoard() {
     setTimeout(() => {
         updateImageSources();
     }, 100);
+    
+    // Update global column fold button after rendering
+    setTimeout(() => {
+        updateGlobalColumnFoldButton();
+    }, 10);
     
     setupDragAndDrop();
 }
@@ -369,6 +467,9 @@ function updateImageSources() {
     // Currently handled by the backend processing
 }
 
+// Make toggle functions globally accessible
+window.toggleAllColumns = toggleAllColumns;
+
 // Simplified toggle functions
 function toggleColumnCollapse(columnId) {
     const column = document.querySelector(`[data-column-id="${columnId}"]`);
@@ -383,6 +484,11 @@ function toggleColumnCollapse(columnId) {
     } else {
         collapsedColumns.delete(columnId);
     }
+    
+    // Update global fold button after individual column toggle
+    setTimeout(() => {
+        updateGlobalColumnFoldButton();
+    }, 10);
 }
 
 function toggleTaskCollapse(taskId) {
