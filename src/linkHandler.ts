@@ -130,14 +130,29 @@ export class LinkHandler {
     }
 
     /**
-     * Enhanced wiki link handler with workspace folder context
+     * Enhanced wiki link handler with smart extension handling and workspace folder context
      */
     public async handleWikiLink(documentName: string) {
-        const possibleExtensions = ['.md', '.markdown', '.txt', ''];
         const allAttemptedPaths: string[] = [];
+        let triedFilenames: string[] = [];
         
-        for (const ext of possibleExtensions) {
-            const filename = documentName + ext;
+        // Check if the document name already has a file extension
+        const hasExtension = /\.[a-zA-Z0-9]+$/.test(documentName);
+        
+        let filesToTry: string[] = [];
+        
+        if (hasExtension) {
+            // If it already has an extension, try it as-is first
+            filesToTry = [documentName];
+            // Then try with markdown extensions as fallback (in case it's something like "document.v1" that should be "document.v1.md")
+            filesToTry.push(documentName + '.md', documentName + '.markdown', documentName + '.txt');
+        } else {
+            // If no extension, try markdown extensions and then no extension
+            filesToTry = [documentName + '.md', documentName + '.markdown', documentName + '.txt', documentName];
+        }
+        
+        for (const filename of filesToTry) {
+            triedFilenames.push(filename);
             const resolution = await this._fileManager.resolveFilePath(filename);
             
             if (resolution) {
@@ -145,17 +160,39 @@ export class LinkHandler {
                 
                 if (resolution.exists) {
                     try {
-                        const document = await vscode.workspace.openTextDocument(resolution.resolvedPath);
-                        await vscode.window.showTextDocument(document, {
-                            preview: false,
-                            preserveFocus: false
-                        });
+                        // For text files, try to open in VS Code
+                        const textExtensions = ['.md', '.markdown', '.txt', '.rtf', '.json', '.xml', '.html', '.css', '.js', '.ts', '.py', '.java', '.c', '.cpp', '.h', '.hpp', '.php', '.rb', '.go', '.rs', '.sh', '.bat', '.yml', '.yaml', '.toml', '.ini', '.cfg', '.conf'];
+                        const ext = path.extname(filename).toLowerCase();
                         
-                        vscode.window.showInformationMessage(
-                            `Opened wiki link: ${documentName} → ${path.basename(resolution.resolvedPath)}`
-                        );
+                        if (!ext || textExtensions.includes(ext)) {
+                            // Try to open as text document
+                            const document = await vscode.workspace.openTextDocument(resolution.resolvedPath);
+                            await vscode.window.showTextDocument(document, {
+                                preview: false,
+                                preserveFocus: false
+                            });
+                            
+                            vscode.window.showInformationMessage(
+                                `Opened wiki link: ${documentName} → ${path.basename(resolution.resolvedPath)}`
+                            );
+                        } else {
+                            // For binary files (images, videos, etc.), reveal in file explorer or open with default application
+                            try {
+                                await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(resolution.resolvedPath));
+                                vscode.window.showInformationMessage(
+                                    `Opened wiki link: ${documentName} → ${path.basename(resolution.resolvedPath)} (in default application)`
+                                );
+                            } catch (osError) {
+                                // Fallback: try to open with VS Code anyway
+                                await vscode.env.openExternal(vscode.Uri.file(resolution.resolvedPath));
+                                vscode.window.showInformationMessage(
+                                    `Opened wiki link: ${documentName} → ${path.basename(resolution.resolvedPath)}`
+                                );
+                            }
+                        }
                         return;
                     } catch (error) {
+                        console.warn(`Failed to open ${filename}:`, error);
                         continue;
                     }
                 }
@@ -168,19 +205,28 @@ export class LinkHandler {
         
         if (workspaceFolders && workspaceFolders.length > 0) {
             const folderNames = workspaceFolders.map(f => path.basename(f.uri.fsPath));
-            contextInfo = `\n\nTip: For files in specific workspace folders, try: [[${folderNames[0]}/${documentName}]]`;
+            if (hasExtension) {
+                contextInfo = `\n\nTip: For files in specific workspace folders, try: [[${folderNames[0]}/${documentName}]]`;
+            } else {
+                contextInfo = `\n\nTip: For files in specific workspace folders, try: [[${folderNames[0]}/${documentName}]] or [[${folderNames[0]}/${documentName}.ext]]`;
+            }
         }
         
         const pathsList = allAttemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join('\n');
-        const extensionsList = possibleExtensions.map(ext => documentName + ext).join(', ');
+        const extensionsList = triedFilenames.join(', ');
+        
+        const hasExtensionNote = hasExtension 
+            ? `\n\nNote: "${documentName}" already has an extension, so it was tried as-is first.`
+            : `\n\nNote: "${documentName}" has no extension, so markdown extensions (.md, .markdown, .txt) were tried first.`;
         
         vscode.window.showWarningMessage(
-            `Wiki link not found: [[${documentName}]]\n\nTried extensions: ${extensionsList}\n\nSearched in the following locations:\n${pathsList}${contextInfo}`,
+            `Wiki link not found: [[${documentName}]]\n\nTried filenames: ${extensionsList}\n\nSearched in the following locations:\n${pathsList}${hasExtensionNote}${contextInfo}`,
             { modal: false }
         );
         
         // Enhanced console logging
         console.warn(`Wiki link not found: [[${documentName}]]`);
+        console.warn('Tried filenames:', triedFilenames);
         console.warn('All attempted paths:');
         allAttemptedPaths.forEach((path, i) => console.warn(`  ${i + 1}. ${path}`));
         if (workspaceFolders) {
