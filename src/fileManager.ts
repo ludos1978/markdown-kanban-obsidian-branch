@@ -21,6 +21,13 @@ export interface ImagePathMapping {
     [originalPath: string]: string;
 }
 
+export interface FileResolutionResult {
+    resolvedPath: string;
+    exists: boolean;
+    isAbsolute: boolean;
+    attemptedPaths: string[]; // Track all attempted paths for debugging
+}
+
 export class FileManager {
     private _document?: vscode.TextDocument;
     private _isFileLocked: boolean = false;
@@ -180,47 +187,79 @@ export class FileManager {
     /**
      * Enhanced file path resolution with multiple fallback strategies
      */
-    public async resolveFilePath(href: string): Promise<{ resolvedPath: string; exists: boolean; isAbsolute: boolean } | null> {
+public async resolveFilePath(href: string): Promise<FileResolutionResult | null> {
+        const attemptedPaths: string[] = [];
+        
         const isAbsolute = path.isAbsolute(href) || 
                         href.match(/^[a-zA-Z]:/) || 
                         href.startsWith('/') ||     
                         href.startsWith('\\');     
 
         if (isAbsolute) {
+            attemptedPaths.push(href);
             try {
                 const exists = fs.existsSync(href);
-                return { resolvedPath: href, exists, isAbsolute: true };
+                return { 
+                    resolvedPath: href, 
+                    exists, 
+                    isAbsolute: true,
+                    attemptedPaths 
+                };
             } catch (error) {
-                return { resolvedPath: href, exists: false, isAbsolute: true };
+                return { 
+                    resolvedPath: href, 
+                    exists: false, 
+                    isAbsolute: true,
+                    attemptedPaths 
+                };
             }
         }
 
         const candidates: string[] = [];
 
+        // Add current document directory candidate
         if (this._document) {
             const currentDir = path.dirname(this._document.uri.fsPath);
-            candidates.push(path.resolve(currentDir, href));
+            const candidate = path.resolve(currentDir, href);
+            candidates.push(candidate);
+            attemptedPaths.push(candidate);
         }
 
+        // Add workspace folder candidates
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (workspaceFolders) {
             for (const folder of workspaceFolders) {
-                candidates.push(path.resolve(folder.uri.fsPath, href));
+                const candidate = path.resolve(folder.uri.fsPath, href);
+                candidates.push(candidate);
+                attemptedPaths.push(candidate);
             }
         }
 
+        // Test each candidate
         for (const candidatePath of candidates) {
             try {
                 if (fs.existsSync(candidatePath)) {
-                    return { resolvedPath: candidatePath, exists: true, isAbsolute: false };
+                    return { 
+                        resolvedPath: candidatePath, 
+                        exists: true, 
+                        isAbsolute: false,
+                        attemptedPaths 
+                    };
                 }
             } catch (error) {
+                // Continue to next candidate
                 continue;
             }
         }
 
+        // No file found - return first candidate as fallback with all attempted paths
         return candidates.length > 0 
-            ? { resolvedPath: candidates[0], exists: false, isAbsolute: false }
+            ? { 
+                resolvedPath: candidates[0], 
+                exists: false, 
+                isAbsolute: false,
+                attemptedPaths 
+            }
             : null;
     }
 
@@ -250,7 +289,15 @@ export class FileManager {
                 }
             } catch (error) {
                 console.warn('Failed to resolve image for display:', imagePath, error);
+                // Log attempted paths for debugging
+                if (resolution.attemptedPaths) {
+                    console.warn('Attempted paths:', resolution.attemptedPaths);
+                }
             }
+        } else if (resolution && !resolution.exists) {
+            // Log failed image resolution attempts
+            console.warn(`Image not found: ${imagePath}`);
+            console.warn('Attempted paths:', resolution.attemptedPaths);
         }
         
         return imagePath;

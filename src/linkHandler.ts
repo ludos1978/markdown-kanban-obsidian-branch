@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { FileManager } from './fileManager';
+import { FileManager, FileResolutionResult } from './fileManager';
 
 export class LinkHandler {
     private _fileManager: FileManager;
@@ -30,18 +30,29 @@ export class LinkHandler {
                 return;
             }
 
-            const { resolvedPath, exists } = resolution;
+            const { resolvedPath, exists, isAbsolute, attemptedPaths } = resolution;
 
             if (!exists) {
-                if (resolution.isAbsolute) {
-                    vscode.window.showWarningMessage(`File not found: ${resolvedPath}`);
+                // Show detailed error message with all attempted paths
+                const pathsList = attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join('\n');
+                
+                if (isAbsolute) {
+                    vscode.window.showWarningMessage(
+                        `File not found: ${resolvedPath}\n\nAttempted path:\n${pathsList}`,
+                        { modal: false }
+                    );
                 } else {
                     vscode.window.showWarningMessage(
-                        `File not found: ${href}\n` +
-                        `Searched in document directory and workspace folders.\n` +
-                        `Last attempted: ${resolvedPath}`
+                        `File not found: ${href}\n\nSearched in the following locations:\n${pathsList}`,
+                        { modal: false }
                     );
                 }
+                
+                // Also log to console for debugging
+                console.warn(`File not found: ${href}`);
+                console.warn('Attempted paths:');
+                attemptedPaths.forEach((path, i) => console.warn(`  ${i + 1}. ${path}`));
+                
                 return;
             }
 
@@ -75,7 +86,7 @@ export class LinkHandler {
                     });
                 }
                 
-                if (!resolution.isAbsolute) {
+                if (!isAbsolute) {
                     vscode.window.showInformationMessage(
                         `Opened: ${path.basename(resolvedPath)} (resolved from: ${href})`
                     );
@@ -95,34 +106,48 @@ export class LinkHandler {
      */
     public async handleWikiLink(documentName: string) {
         const possibleExtensions = ['.md', '.markdown', '.txt', ''];
+        const allAttemptedPaths: string[] = [];
         
         for (const ext of possibleExtensions) {
             const filename = documentName + ext;
             const resolution = await this._fileManager.resolveFilePath(filename);
             
-            if (resolution && resolution.exists) {
-                try {
-                    const document = await vscode.workspace.openTextDocument(resolution.resolvedPath);
-                    await vscode.window.showTextDocument(document, {
-                        preview: false,
-                        preserveFocus: false
-                    });
-                    
-                    vscode.window.showInformationMessage(
-                        `Opened wiki link: ${documentName} → ${path.basename(resolution.resolvedPath)}`
-                    );
-                    return;
-                } catch (error) {
-                    continue;
+            if (resolution) {
+                // Add all attempted paths to our tracking list
+                allAttemptedPaths.push(...resolution.attemptedPaths);
+                
+                if (resolution.exists) {
+                    try {
+                        const document = await vscode.workspace.openTextDocument(resolution.resolvedPath);
+                        await vscode.window.showTextDocument(document, {
+                            preview: false,
+                            preserveFocus: false
+                        });
+                        
+                        vscode.window.showInformationMessage(
+                            `Opened wiki link: ${documentName} → ${path.basename(resolution.resolvedPath)}`
+                        );
+                        return;
+                    } catch (error) {
+                        continue;
+                    }
                 }
             }
         }
         
+        // No file found with any extension - show comprehensive error
+        const pathsList = allAttemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join('\n');
+        const extensionsList = possibleExtensions.map(ext => documentName + ext).join(', ');
+        
         vscode.window.showWarningMessage(
-            `Wiki link not found: [[${documentName}]]\n` +
-            `Searched for: ${possibleExtensions.map(ext => documentName + ext).join(', ')}\n` +
-            `In document directory and workspace folders.`
+            `Wiki link not found: [[${documentName}]]\n\nTried extensions: ${extensionsList}\n\nSearched in the following locations:\n${pathsList}`,
+            { modal: false }
         );
+        
+        // Also log to console for debugging
+        console.warn(`Wiki link not found: [[${documentName}]]`);
+        console.warn('All attempted paths:');
+        allAttemptedPaths.forEach((path, i) => console.warn(`  ${i + 1}. ${path}`));
     }
 
     public async handleExternalLink(href: string) {
