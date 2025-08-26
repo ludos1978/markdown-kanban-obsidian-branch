@@ -106,6 +106,10 @@ body {
     writing-mode: horizontal-tb;
 }
 
+.kanban-column.collapsed .fold-all-btn {
+    writing-mode: horizontal-tb;
+}
+
 .kanban-column.collapsed .donut-menu-dropdown {
     left: 100%;
     right: auto;
@@ -217,9 +221,55 @@ body {
     background-color: var(--vscode-badge-background);
     color: var(--vscode-badge-foreground);
     border-radius: 12px;
-    padding: 2px 8px;
+    padding: 2px 2px;
     font-size: 12px;
     font-weight: 500;
+}
+
+/* Fold All Button Styles */
+.fold-all-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 10px;
+    line-height: 1;
+    opacity: 0.6;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+}
+
+.fold-all-btn:hover {
+    opacity: 1;
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.fold-all-btn .fold-icon {
+    display: block;
+    line-height: 1;
+    transform-origin: center;
+    transition: transform 0.2s;
+}
+
+/* Different states for fold button */
+.fold-all-btn.fold-expanded .fold-icon {
+    color: var(--vscode-foreground);
+}
+
+.fold-all-btn.fold-collapsed .fold-icon {
+    color: var(--vscode-charts-blue);
+    transform: rotate(0deg);
+}
+
+.fold-all-btn.fold-mixed .fold-icon {
+    color: var(--vscode-charts-orange);
+    opacity: 0.8;
 }
 
 /* Donut Menu Styles */
@@ -233,7 +283,7 @@ body {
     border: none;
     color: var(--vscode-foreground);
     cursor: pointer;
-    padding: 4px;
+    padding: 2px 8px 2px 2px;
     font-size: 18px;
     line-height: 1;
     opacity: 0.6;
@@ -472,7 +522,6 @@ button.donut-menu-item {
 }
 
 .task-description-display {
-    /* color: var(--vscode-descriptionForeground); */
     color: var(--vscode-foreground);
     font-size: 13px;
     line-height: 1.5;
@@ -487,7 +536,7 @@ button.donut-menu-item {
 }
 
 .task-description-edit {
-    color: var(--vscode-descriptionForeground);
+    color: var(--vscode-foreground);
     font-size: 13px;
     line-height: 1.5;
     border: 1px solid var(--vscode-focusBorder);

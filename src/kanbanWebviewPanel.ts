@@ -404,9 +404,7 @@ export class KanbanWebviewPanel {
                         vscode.workspace.openTextDocument(document.uri).then(reopenedDoc => {
                             this.loadMarkdownFile(reopenedDoc);
                             vscode.window.showTextDocument(reopenedDoc);
-                        }).catch(error => {
-                            vscode.window.showErrorMessage(`Failed to reopen file: ${error}`);
-                        });
+                        })
                     }
                 });
                 return;

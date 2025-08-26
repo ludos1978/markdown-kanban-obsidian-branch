@@ -1,6 +1,7 @@
 let scrollPositions = new Map();
 let collapsedColumns = new Set();
 let collapsedTasks = new Set();
+let columnFoldStates = new Map(); // Track last manual fold state for each column
 let currentBoard = null;
 let renderTimeout = null;
 
@@ -111,6 +112,103 @@ function renderBoard() {
     setupDragAndDrop();
 }
 
+function getFoldAllButtonState(columnId) {
+    if (!currentBoard || !currentBoard.columns) return 'fold-mixed';
+    
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column || column.tasks.length === 0) return 'fold-mixed';
+    
+    const collapsedCount = column.tasks.filter(task => collapsedTasks.has(task.id)).length;
+    const totalTasks = column.tasks.length;
+    
+    if (collapsedCount === totalTasks) {
+        return 'fold-collapsed'; // All folded
+    } else if (collapsedCount === 0) {
+        return 'fold-expanded'; // All expanded
+    } else {
+        // Mixed state - use last manual state or default
+        const lastState = columnFoldStates.get(columnId);
+        return lastState || 'fold-mixed';
+    }
+}
+
+function toggleAllTasksInColumn(columnId) {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column || column.tasks.length === 0) return;
+    
+    const collapsedCount = column.tasks.filter(task => collapsedTasks.has(task.id)).length;
+    const totalTasks = column.tasks.length;
+    
+    // Determine action based on current state
+    let shouldCollapse;
+    if (collapsedCount === totalTasks) {
+        // All folded -> expand all
+        shouldCollapse = false;
+    } else if (collapsedCount === 0) {
+        // All expanded -> collapse all
+        shouldCollapse = true;
+    } else {
+        // Mixed state -> use opposite of last manual state, or default to collapse
+        const lastState = columnFoldStates.get(columnId);
+        if (lastState === 'fold-collapsed') {
+            shouldCollapse = false; // Was manually set to collapsed, so expand
+        } else {
+            shouldCollapse = true; // Default or was expanded, so collapse
+        }
+    }
+    
+    // Apply the action to all tasks
+    column.tasks.forEach(task => {
+        const taskElement = document.querySelector(`[data-task-id="${task.id}"]`);
+        const toggle = taskElement?.querySelector('.task-collapse-toggle');
+        
+        if (shouldCollapse) {
+            collapsedTasks.add(task.id);
+            taskElement?.classList.add('collapsed');
+            toggle?.classList.add('rotated');
+        } else {
+            collapsedTasks.delete(task.id);
+            taskElement?.classList.remove('collapsed');
+            toggle?.classList.remove('rotated');
+        }
+    });
+    
+    // Remember this manual state
+    columnFoldStates.set(columnId, shouldCollapse ? 'fold-collapsed' : 'fold-expanded');
+    
+    // Update the fold button appearance
+    updateFoldAllButton(columnId);
+}
+
+function updateFoldAllButton(columnId) {
+    const foldButton = document.querySelector(`[data-column-id="${columnId}"] .fold-all-btn`);
+    if (!foldButton) return;
+    
+    // Remove all state classes
+    foldButton.classList.remove('fold-collapsed', 'fold-expanded', 'fold-mixed');
+    
+    // Add current state class
+    const currentState = getFoldAllButtonState(columnId);
+    foldButton.classList.add(currentState);
+    
+    // Update icon and title
+    const icon = foldButton.querySelector('.fold-icon');
+    if (icon) {
+        if (currentState === 'fold-collapsed') {
+            icon.textContent = '▶';
+            foldButton.title = 'Expand all cards';
+        } else if (currentState === 'fold-expanded') {
+            icon.textContent = '▼';
+            foldButton.title = 'Collapse all cards';
+        } else {
+            icon.textContent = '▽';
+            foldButton.title = 'Fold/unfold all cards';
+        }
+    }
+}
+
 function createColumnElement(column, columnIndex) {
     if (!column) {
         return document.createElement('div');
@@ -127,6 +225,7 @@ function createColumnElement(column, columnIndex) {
     columnDiv.setAttribute('data-column-index', columnIndex);
 
     const renderedTitle = column.title ? renderMarkdown(column.title) : '<span class="task-title-placeholder">Add title...</span>';
+    const foldButtonState = getFoldAllButtonState(column.id);
 
     columnDiv.innerHTML = `
         <div class="column-header">
@@ -142,6 +241,9 @@ function createColumnElement(column, columnIndex) {
             </div>
             <div class="column-controls">
                 <span class="task-count">${column.tasks.length}</span>
+                <button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
+                    <span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
+                </button>
                 <div class="donut-menu">
                     <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
                     <div class="donut-menu-dropdown">
@@ -224,7 +326,7 @@ function createTaskElement(task, columnId, taskIndex) {
             
             <div class="task-header">
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
-                <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}')">▶</span>
+                <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}'); updateFoldAllButton('${columnId}')">▶</span>
                 <div class="task-title-container" onclick="editTitle(this, '${task.id}', '${columnId}')">
                     <div class="task-title-display markdown-content" 
                             data-task-id="${task.id}" 
