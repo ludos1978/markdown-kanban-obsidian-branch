@@ -51,3 +51,7 @@ Press the "Kanban" button on the top right.
 ### Open Issues
 
 Drag & Dropping Files from outside the editor doesnt create a correct path. Caused by https://github.com/microsoft/vscode-discussions/discussions/1663 
+
+### Screenshot
+
+![](./imgs/screenshot-20250826.png)
