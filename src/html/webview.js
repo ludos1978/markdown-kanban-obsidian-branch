@@ -6,6 +6,111 @@ let canUndo = false;
 let canRedo = false;
 window.currentImageMappings = {}; // Make it available globally for the renderer
 
+// Document-specific folding state storage
+let documentFoldingStates = new Map(); // Map<documentUri, {collapsedColumns: Set, collapsedTasks: Set, columnFoldStates: Map}>
+let currentDocumentUri = null;
+
+// Function to get current document folding state
+function getCurrentDocumentFoldingState() {
+    if (!currentDocumentUri) return null;
+    
+    if (!documentFoldingStates.has(currentDocumentUri)) {
+        // Initialize empty state for new document
+        documentFoldingStates.set(currentDocumentUri, {
+            collapsedColumns: new Set(),
+            collapsedTasks: new Set(),
+            columnFoldStates: new Map(),
+            globalColumnFoldState: 'fold-mixed',
+            isInitialized: false
+        });
+    }
+    
+    return documentFoldingStates.get(currentDocumentUri);
+}
+
+// Function to save current folding state to document storage
+function saveCurrentFoldingState() {
+    if (!currentDocumentUri || !window.collapsedColumns) return;
+    
+    const state = getCurrentDocumentFoldingState();
+    if (!state) return;
+    
+    // Copy current state
+    state.collapsedColumns = new Set(window.collapsedColumns);
+    state.collapsedTasks = new Set(window.collapsedTasks);
+    state.columnFoldStates = new Map(window.columnFoldStates);
+    state.globalColumnFoldState = window.globalColumnFoldState;
+    state.isInitialized = true;
+    
+    console.log(`Saved folding state for document: ${currentDocumentUri}`, state);
+}
+
+// Function to restore folding state from document storage
+function restoreFoldingState() {
+    if (!currentDocumentUri) return false;
+    
+    const state = getCurrentDocumentFoldingState();
+    if (!state) return false;
+    
+    // Initialize global folding variables if they don't exist
+    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedTasks) window.collapsedTasks = new Set();
+    if (!window.columnFoldStates) window.columnFoldStates = new Map();
+    if (!window.globalColumnFoldState) window.globalColumnFoldState = 'fold-mixed';
+    
+    if (state.isInitialized) {
+        // Restore saved state
+        window.collapsedColumns = new Set(state.collapsedColumns);
+        window.collapsedTasks = new Set(state.collapsedTasks);
+        window.columnFoldStates = new Map(state.columnFoldStates);
+        window.globalColumnFoldState = state.globalColumnFoldState;
+        
+        console.log(`Restored folding state for document: ${currentDocumentUri}`, state);
+        return true;
+    }
+    
+    return false; // Don't apply default folding here
+}
+
+// Function to apply default folding (empty columns folded) - only for truly new documents
+function applyDefaultFoldingToNewDocument() {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    console.log('Applying default folding for new document - empty columns will be collapsed');
+    
+    // Don't reset existing state, just add empty columns to collapsed set
+    currentBoard.columns.forEach(column => {
+        if (!column.tasks || column.tasks.length === 0) {
+            window.collapsedColumns.add(column.id);
+            console.log(`Auto-folding empty column: ${column.title} (${column.id})`);
+        }
+    });
+    
+    // Mark this document as initialized so we don't apply defaults again
+    const state = getCurrentDocumentFoldingState();
+    if (state) {
+        state.isInitialized = true;
+    }
+}
+
+// Function to update document URI and manage state
+function updateDocumentUri(newUri) {
+    if (currentDocumentUri !== newUri) {
+        // Save current state before switching
+        if (currentDocumentUri) {
+            saveCurrentFoldingState();
+        }
+        
+        currentDocumentUri = newUri;
+        console.log(`Switched to document: ${currentDocumentUri}`);
+        
+        // Try to restore state, if no state exists, apply defaults for new document
+        if (!restoreFoldingState()) {
+            applyDefaultFoldingToNewDocument();
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Enhanced click handler for links, images, and wiki links
     document.addEventListener('click', (e) => {
@@ -206,7 +311,15 @@ window.addEventListener('message', event => {
             break;
         case 'updateFileInfo':
             console.log('Updating file info with:', message.fileInfo);
+            const previousDocumentPath = currentFileInfo?.documentPath;
             currentFileInfo = message.fileInfo;
+            
+            // Only update document URI if it actually changed
+            if (currentFileInfo && currentFileInfo.documentPath && 
+                currentFileInfo.documentPath !== previousDocumentPath) {
+                updateDocumentUri(currentFileInfo.documentPath);
+            }
+            
             updateFileInfoBar();
             break;
         case 'undoRedoStatus':
@@ -393,9 +506,15 @@ function toggleFileLock() {
 }
 
 function selectFile() {
+    // Save current state before potentially switching files
+    saveCurrentFoldingState();
     vscode.postMessage({ type: 'selectFile' });
 }
 
 function updateWhitespace(value) {
     document.documentElement.style.setProperty('--whitespace', value);
 }
+
+// Export functions for use by other modules
+window.saveCurrentFoldingState = saveCurrentFoldingState;
+window.restoreFoldingState = restoreFoldingState;

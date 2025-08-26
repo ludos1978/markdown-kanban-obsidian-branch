@@ -1,8 +1,11 @@
 let scrollPositions = new Map();
-let collapsedColumns = new Set();
-let collapsedTasks = new Set();
-let columnFoldStates = new Map(); // Track last manual fold state for each column
-let globalColumnFoldState = 'fold-mixed'; // Track global column fold state
+
+// Make folding state variables global for persistence
+window.collapsedColumns = window.collapsedColumns || new Set();
+window.collapsedTasks = window.collapsedTasks || new Set();
+window.columnFoldStates = window.columnFoldStates || new Map(); // Track last manual fold state for each column
+window.globalColumnFoldState = window.globalColumnFoldState || 'fold-mixed'; // Track global column fold state
+
 let currentBoard = null;
 let renderTimeout = null;
 
@@ -24,7 +27,7 @@ function getGlobalColumnFoldState() {
         return 'fold-mixed';
     }
     
-    const collapsedCount = currentBoard.columns.filter(column => collapsedColumns.has(column.id)).length;
+    const collapsedCount = currentBoard.columns.filter(column => window.collapsedColumns.has(column.id)).length;
     const totalColumns = currentBoard.columns.length;
     
     if (collapsedCount === totalColumns) {
@@ -33,7 +36,7 @@ function getGlobalColumnFoldState() {
         return 'fold-expanded'; // All expanded
     } else {
         // Mixed state - return last manual state or default
-        return globalColumnFoldState || 'fold-mixed';
+        return window.globalColumnFoldState || 'fold-mixed';
     }
 }
 
@@ -41,7 +44,7 @@ function toggleAllColumns() {
     if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
     
     const currentState = getGlobalColumnFoldState();
-    const collapsedCount = currentBoard.columns.filter(column => collapsedColumns.has(column.id)).length;
+    const collapsedCount = currentBoard.columns.filter(column => window.collapsedColumns.has(column.id)).length;
     const totalColumns = currentBoard.columns.length;
     
     // Determine action based on current state
@@ -54,7 +57,7 @@ function toggleAllColumns() {
         shouldCollapse = true;
     } else {
         // Mixed state -> use opposite of last manual state, or default to collapse
-        if (globalColumnFoldState === 'fold-collapsed') {
+        if (window.globalColumnFoldState === 'fold-collapsed') {
             shouldCollapse = false; // Was manually set to collapsed, so expand
         } else {
             shouldCollapse = true; // Default or was expanded, so collapse
@@ -67,21 +70,28 @@ function toggleAllColumns() {
         const toggle = columnElement?.querySelector('.collapse-toggle');
         
         if (shouldCollapse) {
-            collapsedColumns.add(column.id);
+            window.collapsedColumns.add(column.id);
             columnElement?.classList.add('collapsed');
             toggle?.classList.add('rotated');
         } else {
-            collapsedColumns.delete(column.id);
+            window.collapsedColumns.delete(column.id);
             columnElement?.classList.remove('collapsed');
             toggle?.classList.remove('rotated');
         }
     });
     
     // Remember this manual state
-    globalColumnFoldState = shouldCollapse ? 'fold-collapsed' : 'fold-expanded';
+    window.globalColumnFoldState = shouldCollapse ? 'fold-collapsed' : 'fold-expanded';
     
     // Update the global fold button appearance
     updateGlobalColumnFoldButton();
+    
+    // Save state with delay to avoid conflicts during rendering
+    setTimeout(() => {
+        if (window.saveCurrentFoldingState) {
+            window.saveCurrentFoldingState();
+        }
+    }, 100);
 }
 
 function updateGlobalColumnFoldButton() {
@@ -108,6 +118,45 @@ function updateGlobalColumnFoldButton() {
         globalFoldIcon.textContent = '▽';
         globalFoldButton.title = 'Fold/unfold all columns';
     }
+}
+
+// Apply saved or default folding states to rendered elements
+function applyFoldingStates() {
+    console.log('Applying folding states to rendered elements');
+    
+    // Apply column folding states
+    window.collapsedColumns.forEach(columnId => {
+        const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+        const toggle = columnElement?.querySelector('.collapse-toggle');
+        
+        if (columnElement) {
+            columnElement.classList.add('collapsed');
+            if (toggle) toggle.classList.add('rotated');
+            console.log(`Applied collapsed state to column: ${columnId}`);
+        }
+    });
+    
+    // Apply task folding states
+    window.collapsedTasks.forEach(taskId => {
+        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+        const toggle = taskElement?.querySelector('.task-collapse-toggle');
+        
+        if (taskElement) {
+            taskElement.classList.add('collapsed');
+            if (toggle) toggle.classList.add('rotated');
+            console.log(`Applied collapsed state to task: ${taskId}`);
+        }
+    });
+    
+    // Update fold all buttons for each column
+    if (currentBoard && currentBoard.columns) {
+        currentBoard.columns.forEach(column => {
+            updateFoldAllButton(column.id);
+        });
+    }
+    
+    // Update global fold button
+    updateGlobalColumnFoldButton();
 }
 
 // Render Kanban board
@@ -175,7 +224,7 @@ function renderBoard() {
         return;
     }
 
-    // Render columns
+    // Render columns (no state restoration here - that happens in webview.js)
     currentBoard.columns.forEach((column, index) => {
         const columnElement = createColumnElement(column, index);
         boardElement.appendChild(columnElement);
@@ -187,24 +236,20 @@ function renderBoard() {
     addColumnBtn.onclick = () => addColumn();
     boardElement.appendChild(addColumnBtn);
 
-    // Restore scroll positions
+    // Apply folding states after rendering
     setTimeout(() => {
+        applyFoldingStates();
+        
+        // Restore scroll positions
         scrollPositions.forEach((scrollTop, columnId) => {
             const container = document.getElementById(`tasks-${columnId}`);
             if (container) {
                 container.scrollTop = scrollTop;
             }
         });
-    }, 0);
-
-    // Update image sources after rendering
-    setTimeout(() => {
+        
+        // Update image sources after rendering
         updateImageSources();
-    }, 100);
-    
-    // Update global column fold button after rendering
-    setTimeout(() => {
-        updateGlobalColumnFoldButton();
     }, 10);
     
     setupDragAndDrop();
@@ -216,7 +261,7 @@ function getFoldAllButtonState(columnId) {
     const column = currentBoard.columns.find(c => c.id === columnId);
     if (!column || column.tasks.length === 0) return 'fold-mixed';
     
-    const collapsedCount = column.tasks.filter(task => collapsedTasks.has(task.id)).length;
+    const collapsedCount = column.tasks.filter(task => window.collapsedTasks.has(task.id)).length;
     const totalTasks = column.tasks.length;
     
     if (collapsedCount === totalTasks) {
@@ -225,7 +270,7 @@ function getFoldAllButtonState(columnId) {
         return 'fold-expanded'; // All expanded
     } else {
         // Mixed state - use last manual state or default
-        const lastState = columnFoldStates.get(columnId);
+        const lastState = window.columnFoldStates.get(columnId);
         return lastState || 'fold-mixed';
     }
 }
@@ -236,7 +281,7 @@ function toggleAllTasksInColumn(columnId) {
     const column = currentBoard.columns.find(c => c.id === columnId);
     if (!column || column.tasks.length === 0) return;
     
-    const collapsedCount = column.tasks.filter(task => collapsedTasks.has(task.id)).length;
+    const collapsedCount = column.tasks.filter(task => window.collapsedTasks.has(task.id)).length;
     const totalTasks = column.tasks.length;
     
     // Determine action based on current state
@@ -249,7 +294,7 @@ function toggleAllTasksInColumn(columnId) {
         shouldCollapse = true;
     } else {
         // Mixed state -> use opposite of last manual state, or default to collapse
-        const lastState = columnFoldStates.get(columnId);
+        const lastState = window.columnFoldStates.get(columnId);
         if (lastState === 'fold-collapsed') {
             shouldCollapse = false; // Was manually set to collapsed, so expand
         } else {
@@ -263,21 +308,28 @@ function toggleAllTasksInColumn(columnId) {
         const toggle = taskElement?.querySelector('.task-collapse-toggle');
         
         if (shouldCollapse) {
-            collapsedTasks.add(task.id);
+            window.collapsedTasks.add(task.id);
             taskElement?.classList.add('collapsed');
             toggle?.classList.add('rotated');
         } else {
-            collapsedTasks.delete(task.id);
+            window.collapsedTasks.delete(task.id);
             taskElement?.classList.remove('collapsed');
             toggle?.classList.remove('rotated');
         }
     });
     
     // Remember this manual state
-    columnFoldStates.set(columnId, shouldCollapse ? 'fold-collapsed' : 'fold-expanded');
+    window.columnFoldStates.set(columnId, shouldCollapse ? 'fold-collapsed' : 'fold-expanded');
     
     // Update the fold button appearance
     updateFoldAllButton(columnId);
+    
+    // Save state only when user manually changes folding
+    setTimeout(() => {
+        if (window.saveCurrentFoldingState) {
+            window.saveCurrentFoldingState();
+        }
+    }, 100);
 }
 
 function updateFoldAllButton(columnId) {
@@ -317,7 +369,7 @@ function createColumnElement(column, columnIndex) {
     }
 
     const columnDiv = document.createElement('div');
-    const isCollapsed = collapsedColumns.has(column.id);
+    const isCollapsed = window.collapsedColumns.has(column.id);
     columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''}`;
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
@@ -384,7 +436,7 @@ function createTaskElement(task, columnId, taskIndex) {
 
     const renderedDescription = task.description ? renderMarkdown(task.description) : '';
     const renderedTitle = task.title ? renderMarkdown(task.title) : '';
-    const isCollapsed = collapsedTasks.has(task.id);
+    const isCollapsed = window.collapsedTasks.has(task.id);
     
     return `
         <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}">
@@ -478,17 +530,21 @@ function toggleColumnCollapse(columnId) {
     column.classList.toggle('collapsed');
     toggle.classList.toggle('rotated');
     
-    // Store state if needed
+    // Store state
     if (column.classList.contains('collapsed')) {
-        collapsedColumns.add(columnId);
+        window.collapsedColumns.add(columnId);
     } else {
-        collapsedColumns.delete(columnId);
+        window.collapsedColumns.delete(columnId);
     }
     
     // Update global fold button after individual column toggle
     setTimeout(() => {
         updateGlobalColumnFoldButton();
-    }, 10);
+        // Save state with delay
+        if (window.saveCurrentFoldingState) {
+            window.saveCurrentFoldingState();
+        }
+    }, 100);
 }
 
 function toggleTaskCollapse(taskId) {
@@ -498,10 +554,17 @@ function toggleTaskCollapse(taskId) {
     task.classList.toggle('collapsed');
     toggle.classList.toggle('rotated');
     
-    // Store state if needed
+    // Store state
     if (task.classList.contains('collapsed')) {
-        collapsedTasks.add(taskId);
+        window.collapsedTasks.add(taskId);
     } else {
-        collapsedTasks.delete(taskId);
+        window.collapsedTasks.delete(taskId);
     }
+    
+    // Save state with delay
+    setTimeout(() => {
+        if (window.saveCurrentFoldingState) {
+            window.saveCurrentFoldingState();
+        }
+    }, 100);
 }
