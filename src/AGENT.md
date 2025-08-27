@@ -30,11 +30,14 @@ add a search function where i can enter a search term, similar to the vscode sea
 
 ---
 
-add a button to apply coloring to the cards, the colors 
+add the functionality to add check for tags in different parts of the markdown. tags are #words_without_spaces . if a tags is in the column header, it influences the column coloring (but not the cards). if a tag is in the card header, it influences the card color. if a tag is within the description it only sets the color of the tag-word. the tag itself should allways be enclosed in a rounded border.
 
-#red
+also add a configuration which allows adding tags with a corresponding color for text and background, as well as the same colors (text & background) for dark mode (in total 4 colors).
 
-#blue
+explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
 
+-
+
+please write the corresponding code. Always write out full functions and where they should be added to. dont change the way the markdown is saved, except for what the user enters manually. 
 
 

@@ -90,18 +90,94 @@ function wikiLinksPlugin(md, options = {}) {
     };
 }
 
+// Tag detection and rendering plugin for markdown-it
+function tagPlugin(md, options = {}) {
+    const tagColors = options.tagColors || {};
+    
+    function parseTag(state, silent) {
+        let pos = state.pos;
+        
+        // Check for # at word boundary
+        if (state.src.charCodeAt(pos) !== 0x23 /* # */) return false;
+        if (pos > 0 && state.src.charCodeAt(pos - 1) !== 0x20 /* space */ && 
+            state.src.charCodeAt(pos - 1) !== 0x0A /* newline */ &&
+            pos !== 0) return false;
+        
+        pos++;
+        if (pos >= state.posMax) return false;
+        
+        // Parse tag content (word characters and underscores)
+        let tagStart = pos;
+        while (pos < state.posMax) {
+            const char = state.src.charCodeAt(pos);
+            // Allow alphanumeric, underscore, and hyphen
+            if ((char >= 0x30 && char <= 0x39) || // 0-9
+                (char >= 0x41 && char <= 0x5A) || // A-Z
+                (char >= 0x61 && char <= 0x7A) || // a-z
+                char === 0x5F || // _
+                char === 0x2D) { // -
+                pos++;
+            } else {
+                break;
+            }
+        }
+        
+        if (pos === tagStart) return false; // No tag content
+        
+        const tagContent = state.src.slice(tagStart, pos);
+        
+        if (silent) return true;
+        
+        // Create token
+        const token = state.push('tag', 'span', 0);
+        token.content = tagContent;
+        token.markup = '#';
+        
+        state.pos = pos;
+        return true;
+    }
+    
+    md.inline.ruler.before('emphasis', 'tag', parseTag);
+    
+    md.renderer.rules.tag = function(tokens, idx) {
+        const token = tokens[idx];
+        const tagName = token.content.toLowerCase();
+        const fullTag = '#' + token.content;
+        
+        return `<span class="kanban-tag" data-tag="${escapeHtml(tagName)}">${escapeHtml(fullTag)}</span>`;
+    };
+}
+
+// Helper function to extract first tag from text
+function extractFirstTag(text) {
+    if (!text) return null;
+    const tagMatch = text.match(/#([a-zA-Z0-9_-]+)/);
+    return tagMatch ? tagMatch[1].toLowerCase() : null;
+}
+
+// Helper function to extract all tags from text
+function extractAllTags(text) {
+    if (!text) return [];
+    const tagMatches = text.match(/#([a-zA-Z0-9_-]+)/g);
+    return tagMatches ? tagMatches.map(tag => tag.substring(1).toLowerCase()) : [];
+}
+
 function renderMarkdown(text) {
     if (!text) return '';
     
     try {
-        // Initialize markdown-it with enhanced wiki links plugin
+        // Initialize markdown-it with enhanced wiki links and tags plugins
         const md = window.markdownit({
             html: true,
             linkify: false,
             typographer: true,
             breaks: true
-        }).use(wikiLinksPlugin, {
+        })
+        .use(wikiLinksPlugin, {
             className: 'wiki-link'
+        })
+        .use(tagPlugin, {
+            tagColors: window.tagColors || {}
         });
 
         // Enhanced image renderer - uses mappings for display but preserves original paths

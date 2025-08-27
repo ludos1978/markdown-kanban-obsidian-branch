@@ -9,6 +9,71 @@ window.globalColumnFoldState = window.globalColumnFoldState || 'fold-mixed'; // 
 let currentBoard = null;
 let renderTimeout = null;
 
+// Generate dynamic CSS for tag colors
+function generateTagStyles() {
+    if (!window.tagColors) return '';
+    
+    const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                        document.body.classList.contains('vscode-high-contrast');
+    const themeKey = isDarkTheme ? 'dark' : 'light';
+    
+    let styles = '<style id="dynamic-tag-styles">\n';
+    
+    for (const [tagName, colors] of Object.entries(window.tagColors)) {
+        const themeColors = colors[themeKey] || colors.light || {};
+        if (themeColors.text && themeColors.background) {
+            // Tag pill styles
+            styles += `.kanban-tag[data-tag="${tagName}"] {
+                color: ${themeColors.text} !important;
+                background-color: ${themeColors.background} !important;
+                padding: 2px 8px;
+                border-radius: 12px;
+                display: inline-block;
+                font-size: 0.85em;
+                font-weight: 500;
+                margin: 0 2px;
+                border: 1px solid ${themeColors.background};
+            }\n`;
+            
+            // Column background styles - subtle tint
+            styles += `.kanban-column[data-column-tag="${tagName}"] {
+                background-color: ${themeColors.background}15 !important;
+                border: 1px solid ${themeColors.background}40 !important;
+            }\n`;
+            
+            // Card background styles - more prominent
+            styles += `.task-item[data-task-tag="${tagName}"] {
+                background-color: ${themeColors.background}25 !important;
+                border: 1px solid ${themeColors.background}60 !important;
+            }\n`;
+            
+            // Ensure text remains readable in tagged cards
+            styles += `.task-item[data-task-tag="${tagName}"] .task-title-display,
+                      .task-item[data-task-tag="${tagName}"] .task-description-display {
+                color: var(--vscode-foreground) !important;
+            }\n`;
+        }
+    }
+    
+    styles += '</style>';
+    return styles;
+}
+
+// Apply tag styles to the document
+function applyTagStyles() {
+    // Remove existing dynamic styles
+    const existingStyles = document.getElementById('dynamic-tag-styles');
+    if (existingStyles) {
+        existingStyles.remove();
+    }
+    
+    // Add new styles
+    const styleElement = generateTagStyles();
+    if (styleElement) {
+        document.head.insertAdjacentHTML('beforeend', styleElement);
+    }
+}
+
 // Debounced render function to prevent rapid re-renders
 function debouncedRenderBoard() {
     if (renderTimeout) {
@@ -168,6 +233,9 @@ function applyFoldingStates() {
 // Render Kanban board
 function renderBoard() {
     console.log('Rendering board:', currentBoard);
+    
+    // Apply tag styles first
+    applyTagStyles();
     
     // Check if we're currently editing - if so, skip the render
     if (window.taskEditor && window.taskEditor.currentEditor) {
@@ -384,9 +452,16 @@ function createColumnElement(column, columnIndex) {
 
     const columnDiv = document.createElement('div');
     const isCollapsed = window.collapsedColumns.has(column.id);
+
+    // Extract tag from column title
+    const columnTag = extractFirstTag(column.title);
+
     columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''}`;
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
+    if (columnTag) {
+        columnDiv.setAttribute('data-column-tag', columnTag);
+    }
 
     const renderedTitle = column.title ? renderMarkdown(column.title) : '<span class="task-title-placeholder">Add title...</span>';
     const foldButtonState = getFoldAllButtonState(column.id);
@@ -453,8 +528,12 @@ function createTaskElement(task, columnId, taskIndex) {
     const renderedTitle = task.title ? renderMarkdown(task.title) : '';
     const isCollapsed = window.collapsedTasks.has(task.id);
     
+    // Extract tag from task title
+    const taskTag = extractFirstTag(task.title);
+    const tagAttribute = taskTag ? ` data-task-tag="${taskTag}"` : '';
+    
     return `
-        <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}">
+        <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}"${tagAttribute}>
             <div class="task-menu-container">
                 <div class="donut-menu">
                     <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>

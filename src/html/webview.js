@@ -114,7 +114,24 @@ function updateDocumentUri(newUri) {
     }
 }
 
+// Add theme change observer
+const themeObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            // Theme changed, reapply tag styles
+            if (typeof applyTagStyles === 'function') {
+                applyTagStyles();
+            }
+        }
+    });
+});
+
 document.addEventListener('DOMContentLoaded', () => {
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class']
+    });
+ 
     // Enhanced click handler for links, images, and wiki links
     document.addEventListener('click', (e) => {
         // Don't interfere with clicks during editing mode
@@ -319,6 +336,12 @@ window.addEventListener('message', event => {
             if (message.imageMappings) {
                 window.currentImageMappings = message.imageMappings;
                 console.log('Received image mappings:', window.currentImageMappings);
+            }
+            
+            // Store tag colors globally
+            if (message.tagColors) {
+                window.tagColors = message.tagColors;
+                console.log('Received tag colors:', window.tagColors);
             }
             
             // Check if we should preserve editing state

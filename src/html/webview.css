@@ -1008,3 +1008,44 @@ blockquote {
     padding-left: 10px;
     border-left: 2px solid #1371b8;
 }
+
+/* Tag styles */
+.kanban-tag {
+    color: var(--vscode-badge-foreground);
+    background-color: var(--vscode-badge-background);
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    font-size: 0.85em;
+    font-weight: 500;
+    margin: 0 2px;
+    white-space: nowrap;
+    user-select: none;
+    border: 1px solid var(--vscode-badge-background);
+    transition: all 0.2s ease;
+}
+
+.kanban-tag:hover {
+    opacity: 0.8;
+}
+
+/* Tagged column styles - will be overridden by dynamic styles */
+.kanban-column[data-column-tag] {
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Tagged task styles - will be overridden by dynamic styles */
+.task-item[data-task-tag] {
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Ensure tags in titles are visible */
+.column-title .kanban-tag,
+.task-title-display .kanban-tag {
+    vertical-align: middle;
+}
+
+/* Collapsed column with tag should maintain some visual indication */
+.kanban-column.collapsed[data-column-tag] {
+    border-width: 2px;
+}

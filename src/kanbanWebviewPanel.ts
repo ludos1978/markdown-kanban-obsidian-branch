@@ -235,6 +235,12 @@ export class KanbanWebviewPanel {
         }
     }
 
+    private async _getTagConfiguration(): Promise<any> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const tagColors = config.get<any>('tagColors', {});
+        return tagColors;
+    }
+
     // Public methods for external access
     public isFileLocked(): boolean {
         return this._fileManager.isFileLocked();
@@ -357,11 +363,15 @@ export class KanbanWebviewPanel {
         // Generate image path mappings without modifying the board content
         const imageMappings = await this._generateImageMappings(board);
         
+        // Get tag configuration
+        const tagColors = await this._getTagConfiguration();
+        
         setTimeout(() => {
             this._panel.webview.postMessage({
                 type: 'updateBoard',
                 board: board, // Send original board without modifications
-                imageMappings: imageMappings
+                imageMappings: imageMappings,
+                tagColors: tagColors
             });
         }, 10);
     }
