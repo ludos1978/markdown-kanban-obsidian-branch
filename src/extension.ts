@@ -183,18 +183,30 @@ export function activate(context: vscode.ExtensionContext) {
 	// Listen for document changes to automatically update kanban (real-time sync)
 	const documentChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {
 		if (event.document.languageId === 'markdown' && fileListenerEnabled) {
-			// Delay update to avoid frequent refresh
-			setTimeout(() => {
-				if (KanbanWebviewPanel.currentPanel) {
-					const currentUri = KanbanWebviewPanel.currentPanel.getCurrentDocumentUri()?.toString();
-					const changedUri = event.document.uri.toString();
-					
-					// Always update if the changed file is the current kanban file
-					if (currentUri === changedUri) {
-						KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
-					}
+			// Check if the Kanban panel exists and if it's currently updating
+			if (KanbanWebviewPanel.currentPanel) {
+				// Check if the change is from the Kanban panel itself
+				const isUpdatingFromPanel = (KanbanWebviewPanel.currentPanel as any)._isUpdatingFromPanel;
+				if (isUpdatingFromPanel) {
+					console.log('Skipping auto-reload - change is from Kanban panel');
+					return;
 				}
-			}, 500);
+				
+				const currentUri = KanbanWebviewPanel.currentPanel.getCurrentDocumentUri()?.toString();
+				const changedUri = event.document.uri.toString();
+				
+				// Only update if the changed file is the current kanban file
+				if (currentUri === changedUri) {
+					// Delay update to avoid frequent refresh
+					setTimeout(() => {
+						// Double-check the panel isn't updating now
+						const isStillUpdating = (KanbanWebviewPanel.currentPanel as any)?._isUpdatingFromPanel;
+						if (!isStillUpdating && KanbanWebviewPanel.currentPanel) {
+							KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
+						}
+					}, 500);
+				}
+			}
 		}
 	});
 

@@ -43,6 +43,9 @@ function getGlobalColumnFoldState() {
 function toggleAllColumns() {
     if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
     
+    // Ensure state variables are initialized
+    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    
     const currentState = getGlobalColumnFoldState();
     const collapsedCount = currentBoard.columns.filter(column => window.collapsedColumns.has(column.id)).length;
     const totalColumns = currentBoard.columns.length;
@@ -86,12 +89,10 @@ function toggleAllColumns() {
     // Update the global fold button appearance
     updateGlobalColumnFoldButton();
     
-    // Save state with delay to avoid conflicts during rendering
-    setTimeout(() => {
-        if (window.saveCurrentFoldingState) {
-            window.saveCurrentFoldingState();
-        }
-    }, 100);
+    // Save state immediately
+    if (window.saveCurrentFoldingState) {
+        window.saveCurrentFoldingState();
+    }
 }
 
 function updateGlobalColumnFoldButton() {
@@ -123,6 +124,11 @@ function updateGlobalColumnFoldButton() {
 // Apply saved or default folding states to rendered elements
 function applyFoldingStates() {
     console.log('Applying folding states to rendered elements');
+    
+    // Ensure folding state variables are initialized
+    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedTasks) window.collapsedTasks = new Set();
+    if (!window.columnFoldStates) window.columnFoldStates = new Map();
     
     // Apply column folding states
     window.collapsedColumns.forEach(columnId => {
@@ -162,6 +168,12 @@ function applyFoldingStates() {
 // Render Kanban board
 function renderBoard() {
     console.log('Rendering board:', currentBoard);
+    
+    // Check if we're currently editing - if so, skip the render
+    if (window.taskEditor && window.taskEditor.currentEditor) {
+        console.log('Skipping render - currently editing');
+        return;
+    }
     
     const boardElement = document.getElementById('kanban-board');
     if (!boardElement) {
@@ -278,6 +290,10 @@ function getFoldAllButtonState(columnId) {
 function toggleAllTasksInColumn(columnId) {
     if (!currentBoard || !currentBoard.columns) return;
     
+    // Ensure state variables are initialized
+    if (!window.collapsedTasks) window.collapsedTasks = new Set();
+    if (!window.columnFoldStates) window.columnFoldStates = new Map();
+    
     const column = currentBoard.columns.find(c => c.id === columnId);
     if (!column || column.tasks.length === 0) return;
     
@@ -324,12 +340,10 @@ function toggleAllTasksInColumn(columnId) {
     // Update the fold button appearance
     updateFoldAllButton(columnId);
     
-    // Save state only when user manually changes folding
-    setTimeout(() => {
-        if (window.saveCurrentFoldingState) {
-            window.saveCurrentFoldingState();
-        }
-    }, 100);
+    // Save state immediately
+    if (window.saveCurrentFoldingState) {
+        window.saveCurrentFoldingState();
+    }
 }
 
 function updateFoldAllButton(columnId) {
@@ -531,6 +545,9 @@ function toggleColumnCollapse(columnId) {
     column.classList.toggle('collapsed');
     toggle.classList.toggle('rotated');
     
+    // Ensure state variables are initialized
+    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    
     // Store state
     if (column.classList.contains('collapsed')) {
         window.collapsedColumns.add(columnId);
@@ -538,14 +555,15 @@ function toggleColumnCollapse(columnId) {
         window.collapsedColumns.delete(columnId);
     }
     
+    // Save state immediately
+    if (window.saveCurrentFoldingState) {
+        window.saveCurrentFoldingState();
+    }
+    
     // Update global fold button after individual column toggle
     setTimeout(() => {
         updateGlobalColumnFoldButton();
-        // Save state with delay
-        if (window.saveCurrentFoldingState) {
-            window.saveCurrentFoldingState();
-        }
-    }, 100);
+    }, 10);
 }
 
 function toggleTaskCollapse(taskId) {
@@ -555,6 +573,9 @@ function toggleTaskCollapse(taskId) {
     task.classList.toggle('collapsed');
     toggle.classList.toggle('rotated');
     
+    // Ensure state variables are initialized
+    if (!window.collapsedTasks) window.collapsedTasks = new Set();
+    
     // Store state
     if (task.classList.contains('collapsed')) {
         window.collapsedTasks.add(taskId);
@@ -562,10 +583,8 @@ function toggleTaskCollapse(taskId) {
         window.collapsedTasks.delete(taskId);
     }
     
-    // Save state with delay
-    setTimeout(() => {
-        if (window.saveCurrentFoldingState) {
-            window.saveCurrentFoldingState();
-        }
-    }, 100);
+    // Save state immediately
+    if (window.saveCurrentFoldingState) {
+        window.saveCurrentFoldingState();
+    }
 }

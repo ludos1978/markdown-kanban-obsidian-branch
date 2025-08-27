@@ -28,7 +28,8 @@ export class KanbanWebviewPanel {
     // State
     private _board?: KanbanBoard;
     private _isInitialized: boolean = false;
-    private _isUpdatingFromPanel: boolean = false;
+    public _isUpdatingFromPanel: boolean = false;  // Made public for external access
+    private _lastDocumentVersion: number = -1;  // Track document version
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -296,8 +297,20 @@ export class KanbanWebviewPanel {
 
     public async loadMarkdownFile(document: vscode.TextDocument) {
         if (this._isUpdatingFromPanel) {
+            console.log('Skipping load - currently updating from panel');
             return;
         }
+        
+        // Check if this is a genuine external change
+        const currentVersion = document.version;
+        const isExternalChange = this._lastDocumentVersion !== -1 && 
+                                 this._lastDocumentVersion !== currentVersion - 1;
+        
+        if (isExternalChange) {
+            console.log('External change detected - reloading board');
+        }
+        
+        this._lastDocumentVersion = currentVersion;
         
         const documentChanged = this._fileManager.getDocument()?.uri.toString() !== document.uri.toString();
         this._fileManager.setDocument(document);
@@ -310,7 +323,11 @@ export class KanbanWebviewPanel {
         try {
             this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
             this._boardOperations.setOriginalTaskOrder(this._board);
-            this._undoRedoManager.clear();
+            
+            // Only clear undo history on document change or external edit
+            if (documentChanged || isExternalChange) {
+                this._undoRedoManager.clear();
+            }
         } catch (error) {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
             this._board = { 
@@ -422,6 +439,9 @@ export class KanbanWebviewPanel {
             if (!success) {
                 throw new Error('Failed to apply workspace edit');
             }
+            
+            // Update document version after successful edit
+            this._lastDocumentVersion = document.version + 1;
             
             // Try to save the document
             try {

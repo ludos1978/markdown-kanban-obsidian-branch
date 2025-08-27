@@ -104,8 +104,11 @@ function updateDocumentUri(newUri) {
         currentDocumentUri = newUri;
         console.log(`Switched to document: ${currentDocumentUri}`);
         
-        // Try to restore state, if no state exists, apply defaults for new document
-        if (!restoreFoldingState()) {
+        // Try to restore state for the new document
+        const hadSavedState = restoreFoldingState();
+        
+        // If no saved state exists and board is ready, apply defaults for new document
+        if (!hadSavedState && currentBoard && currentBoard.columns) {
             applyDefaultFoldingToNewDocument();
         }
     }
@@ -294,6 +297,14 @@ function isCurrentlyEditing() {
            window.taskEditor.currentEditor.element.style.display !== 'none';
 }
 
+// Also request update when window becomes visible again
+window.addEventListener('focus', () => {
+    // Only request update if not currently editing
+    if (!isCurrentlyEditing() && (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0)) {
+        vscode.postMessage({ type: 'requestBoardUpdate' });
+    }
+});
+
 // Listen for messages from the extension
 window.addEventListener('message', event => {
     const message = event.data;
@@ -302,12 +313,22 @@ window.addEventListener('message', event => {
     switch (message.type) {
         case 'updateBoard':
             console.log('Updating board with:', message.board);
+            const previousBoard = currentBoard;
             currentBoard = message.board;
+            
             if (message.imageMappings) {
                 window.currentImageMappings = message.imageMappings;
                 console.log('Received image mappings:', window.currentImageMappings);
             }
-            debouncedRenderBoard();
+            
+            // Check if we should preserve editing state
+            const isEditing = window.taskEditor && window.taskEditor.currentEditor;
+            if (!isEditing) {
+                // Only render if not editing
+                debouncedRenderBoard();
+            } else {
+                console.log('Skipping render update - currently editing');
+            }
             break;
         case 'updateFileInfo':
             console.log('Updating file info with:', message.fileInfo);
