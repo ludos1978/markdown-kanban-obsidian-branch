@@ -326,6 +326,8 @@ window.addEventListener('message', event => {
                 console.log('Received image mappings:', window.currentImageMappings);
             }
             
+            updateWhitespace();
+
             // Store tag colors globally - THIS IS CRITICAL
             if (message.tagColors) {
                 window.tagColors = message.tagColors;
