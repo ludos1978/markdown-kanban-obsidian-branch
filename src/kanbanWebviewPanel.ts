@@ -616,6 +616,7 @@ export class KanbanWebviewPanel {
             'boardRenderer.js',
             'dragDrop.js',
             'menuOperations.js',
+            'search.js',
             'webview.js'
         ];
         

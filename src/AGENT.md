@@ -48,3 +48,12 @@ the functionality to modify the css appears to be missing. the cards and columns
   color: #900;
 }
 """ is missing.
+
+---
+
+add a search function where i can enter a search term, similar to the vscode search. add a text field, 3 toggle buttons: "case sensitive", "only complete words", "regular expression search", an index of the currently found entry (1 of X), the number of found results, a arrow up (previous result) arrow down (next result). a button to close the search. by searching the screen should jump to the card with the found result. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
+
+
+---
+
+the updateWhitespace function is setup in webview.js, but it's never called with the right parameters. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible. never modify the markdown.

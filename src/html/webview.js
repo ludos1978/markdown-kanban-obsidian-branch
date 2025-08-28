@@ -400,7 +400,7 @@ window.addEventListener('focus', () => {
     }
 });
 
-// Keyboard shortcuts for undo/redo
+// Keyboard shortcuts for search
 document.addEventListener('keydown', (e) => {
     const activeElement = document.activeElement;
     const isEditing = activeElement && (
@@ -411,7 +411,56 @@ document.addEventListener('keydown', (e) => {
         activeElement.classList.contains('task-description-edit')
     );
     
-    if (!isEditing) {
+    // Don't trigger search shortcuts when editing (except when in search input)
+    const isInSearchInput = activeElement && activeElement.id === 'search-input';
+    
+    // Ctrl+F or Cmd+F to open search
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f' && !isEditing) {
+        e.preventDefault();
+        kanbanSearch.openSearch();
+        return;
+    }
+    
+    // Handle search-specific shortcuts when search panel is open
+    if (kanbanSearch && kanbanSearch.isSearching) {
+        // Escape to close search
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            kanbanSearch.closeSearch();
+            return;
+        }
+        
+        // Enter for next result (when in search input)
+        if (e.key === 'Enter' && isInSearchInput && !e.shiftKey) {
+            e.preventDefault();
+            kanbanSearch.nextResult();
+            return;
+        }
+        
+        // Shift+Enter for previous result (when in search input)
+        if (e.key === 'Enter' && isInSearchInput && e.shiftKey) {
+            e.preventDefault();
+            kanbanSearch.previousResult();
+            return;
+        }
+        
+        // F3 for next result
+        if (e.key === 'F3' && !e.shiftKey) {
+            e.preventDefault();
+            kanbanSearch.nextResult();
+            return;
+        }
+        
+        // Shift+F3 for previous result
+        if (e.key === 'F3' && e.shiftKey) {
+            e.preventDefault();
+            kanbanSearch.previousResult();
+            return;
+        }
+    }
+    
+    // Original undo/redo shortcuts (keep these)
+    if (!isEditing && !isInSearchInput) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
             e.preventDefault();
             undo();
