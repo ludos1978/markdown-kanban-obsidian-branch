@@ -1015,7 +1015,7 @@ blockquote {
     background-color: var(--vscode-badge-background);
     padding: 2px 8px;
     border-radius: 12px;
-    display: inline-block;
+    /* display: inline-block; */
     font-size: 0.85em;
     font-weight: 500;
     margin: 0 2px;
@@ -1048,4 +1048,10 @@ blockquote {
 /* Collapsed column with tag should maintain some visual indication */
 .kanban-column.collapsed[data-column-tag] {
     border-width: 2px;
+}
+
+.task-item[data-task-tag="bug"] {
+  font-family: "Arial", sans-serif;
+  background-color: #440000;
+  color: #900;
 }

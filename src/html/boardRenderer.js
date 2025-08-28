@@ -9,21 +9,55 @@ window.globalColumnFoldState = window.globalColumnFoldState || 'fold-mixed'; // 
 let currentBoard = null;
 let renderTimeout = null;
 
+
+
+
+// Helper function to extract first tag from text
+function extractFirstTag(text) {
+    if (!text) return null;
+    const tagMatch = text.match(/#([a-zA-Z0-9_-]+)/);
+    const tag = tagMatch ? tagMatch[1].toLowerCase() : null;
+    console.log(`Extracting tag from "${text}": ${tag}`);
+    return tag;
+}
+
+// Helper function to convert hex to rgba
+function hexToRgba(hex, alpha) {
+    // Remove the # if present
+    hex = hex.replace('#', '');
+    
+    // Parse the hex values
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 // Generate dynamic CSS for tag colors
 function generateTagStyles() {
-    if (!window.tagColors) return '';
+    if (!window.tagColors) {
+        console.log('No tag colors configuration found');
+        return '';
+    }
+    
+    console.log('Generating tag styles with colors:', window.tagColors);
     
     const isDarkTheme = document.body.classList.contains('vscode-dark') || 
                         document.body.classList.contains('vscode-high-contrast');
     const themeKey = isDarkTheme ? 'dark' : 'light';
+    console.log(`Using theme: ${themeKey}`);
     
-    let styles = '<style id="dynamic-tag-styles">\n';
+    let styles = '';
     
     for (const [tagName, colors] of Object.entries(window.tagColors)) {
         const themeColors = colors[themeKey] || colors.light || {};
         if (themeColors.text && themeColors.background) {
-            // Tag pill styles
-            styles += `.kanban-tag[data-tag="${tagName}"] {
+            const lowerTagName = tagName.toLowerCase();
+            console.log(`Generating styles for tag "${lowerTagName}" with colors:`, themeColors);
+            
+            // Tag pill styles (the tag text itself)
+            styles += `.kanban-tag[data-tag="${lowerTagName}"] {
                 color: ${themeColors.text} !important;
                 background-color: ${themeColors.background} !important;
                 padding: 2px 8px;
@@ -36,43 +70,67 @@ function generateTagStyles() {
             }\n`;
             
             // Column background styles - subtle tint
-            styles += `.kanban-column[data-column-tag="${tagName}"] {
-                background-color: ${themeColors.background}15 !important;
-                border: 1px solid ${themeColors.background}40 !important;
+            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                background-color: ${hexToRgba(themeColors.background, 0.15)} !important;
+                border: 1px solid ${hexToRgba(themeColors.background, 0.4)} !important;
             }\n`;
             
-            // Card background styles - more prominent
-            styles += `.task-item[data-task-tag="${tagName}"] {
-                background-color: ${themeColors.background}25 !important;
-                border: 1px solid ${themeColors.background}60 !important;
+            // Column collapsed state
+            styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] {
+                background-color: ${hexToRgba(themeColors.background, 0.2)} !important;
+                border: 2px solid ${hexToRgba(themeColors.background, 0.6)} !important;
             }\n`;
             
-            // Ensure text remains readable in tagged cards
-            styles += `.task-item[data-task-tag="${tagName}"] .task-title-display,
-                      .task-item[data-task-tag="${tagName}"] .task-description-display {
-                color: var(--vscode-foreground) !important;
+            // Card background styles
+            styles += `.task-item[data-task-tag="${lowerTagName}"] {
+                background-color: ${hexToRgba(themeColors.background, 0.25)} !important;
+                border: 1px solid ${hexToRgba(themeColors.background, 0.6)} !important;
+            }\n`;
+            
+            // Card hover state
+            styles += `.task-item[data-task-tag="${lowerTagName}"]:hover {
+                background-color: ${hexToRgba(themeColors.background, 0.35)} !important;
+                border: 1px solid ${hexToRgba(themeColors.background, 0.8)} !important;
             }\n`;
         }
     }
     
-    styles += '</style>';
+    console.log('Generated CSS length:', styles.length);
     return styles;
 }
 
 // Apply tag styles to the document
 function applyTagStyles() {
+    console.log('Applying tag styles...');
+    
     // Remove existing dynamic styles
     const existingStyles = document.getElementById('dynamic-tag-styles');
     if (existingStyles) {
         existingStyles.remove();
+        console.log('Removed existing styles');
     }
     
-    // Add new styles
-    const styleElement = generateTagStyles();
-    if (styleElement) {
-        document.head.insertAdjacentHTML('beforeend', styleElement);
+    // Generate new styles
+    const styles = generateTagStyles();
+    
+    if (styles) {
+        // Create and inject style element
+        const styleElement = document.createElement('style');
+        styleElement.id = 'dynamic-tag-styles';
+        styleElement.textContent = styles;
+        document.head.appendChild(styleElement);
+        console.log('Tag styles applied successfully');
+        
+        // Debug: Check what columns have tags
+        document.querySelectorAll('.kanban-column[data-column-tag]').forEach(col => {
+            console.log('Column with tag:', col.getAttribute('data-column-tag'));
+        });
+    } else {
+        console.log('No tag styles to apply');
     }
 }
+
+
 
 // Debounced render function to prevent rapid re-renders
 function debouncedRenderBoard() {
@@ -450,17 +508,21 @@ function createColumnElement(column, columnIndex) {
         column.tasks = [];
     }
 
+    // Extract tag from column title BEFORE rendering markdown
+    const columnTag = extractFirstTag(column.title);
+    console.log(`Creating column "${column.title}", detected tag: "${columnTag}"`);
+
     const columnDiv = document.createElement('div');
     const isCollapsed = window.collapsedColumns.has(column.id);
-
-    // Extract tag from column title
-    const columnTag = extractFirstTag(column.title);
-
+    
     columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''}`;
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
+    
+    // Add tag attribute if tag exists
     if (columnTag) {
         columnDiv.setAttribute('data-column-tag', columnTag);
+        console.log(`Set data-column-tag="${columnTag}" on column element`);
     }
 
     const renderedTitle = column.title ? renderMarkdown(column.title) : '<span class="task-title-placeholder">Add title...</span>';
@@ -602,6 +664,12 @@ function createTaskElement(task, columnId, taskIndex) {
     `;
 }
 
+// Update tag styles when theme changes
+function updateTagStylesForTheme() {
+    console.log('Theme changed, updating tag styles');
+    applyTagStyles();
+}
+
 function initializeFile() {
     vscode.postMessage({
         type: 'initializeFile'
@@ -667,3 +735,4 @@ function toggleTaskCollapse(taskId) {
         window.saveCurrentFoldingState();
     }
 }
+

@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.9.72",
+  "version": "0.9.73",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -31,7 +31,7 @@
   },
   "contributes": {
     "configuration": {
-      "title": "Markdown Kanban",
+      "title": "Ludos Markdown Kanban",
       "properties": {
         "markdownKanban.openLinksInNewTab": {
           "type": "boolean",
@@ -49,133 +49,116 @@
             "0.5rem",
             "2px"
           ]
-        }
-      },
-      "markdown-kanban.tagColors": {
-        "type": "object",
-        "default": {
-          "priority": {
-            "light": {
-              "text": "#ffffff",
-              "background": "#dc3545"
-            },
-            "dark": {
-              "text": "#ffffff",
-              "background": "#dc3545"
-            }
-          },
-          "progress": {
-            "light": {
-              "text": "#ffffff",
-              "background": "#28a745"
-            },
-            "dark": {
-              "text": "#ffffff",
-              "background": "#28a745"
-            }
-          },
-          "blocked": {
-            "light": {
-              "text": "#ffffff",
-              "background": "#ffc107"
-            },
-            "dark": {
-              "text": "#212529",
-              "background": "#ffc107"
-            }
-          },
-          "review": {
-            "light": {
-              "text": "#ffffff",
-              "background": "#6610f2"
-            },
-            "dark": {
-              "text": "#ffffff",
-              "background": "#6610f2"
-            }
-          },
-          "bug": {
-            "light": {
-              "text": "#ffffff",
-              "background": "#fd7e14"
-            },
-            "dark": {
-              "text": "#ffffff",
-              "background": "#fd7e14"
-            }
-          },
-          "feature": {
-            "light": {
-              "text": "#ffffff",
-              "background": "#007bff"
-            },
-            "dark": {
-              "text": "#ffffff",
-              "background": "#007bff"
-            }
-          },
-          "red": {
-            "light": {
-              "text": "#ff8888",
-              "background": "#ffffff"
-            },
-            "dark": {
-              "text": "#440000",
-              "background": "#000000"
-            }
-          },
-          "green": {
-            "light": {
-              "text": "#88ff88",
-              "background": "#ffffff"
-            },
-            "dark": {
-              "text": "#004400",
-              "background": "#000000"
-            }
-          },
-          "blue": {
-            "light": {
-              "text": "#8888ff",
-              "background": "#ffffff"
-            },
-            "dark": {
-              "text": "#000044",
-              "background": "#000000"
-            }
-          }
         },
-        "description": "Color configuration for tags in kanban boards. Each tag can have different colors for light and dark themes.",
-        "additionalProperties": {
+        "markdown-kanban.tagColors": {
           "type": "object",
-          "properties": {
-            "light": {
-              "type": "object",
-              "properties": {
-                "text": {
-                  "type": "string",
-                  "description": "Text color in light theme (hex format)"
-                },
-                "background": {
-                  "type": "string",
-                  "description": "Background color in light theme (hex format)"
-                }
+          "default": {
+            "priority": {
+              "light": {
+                "text": "#ffffff",
+                "background": "#dc3545"
+              },
+              "dark": {
+                "text": "#ffffff",
+                "background": "#dc3545"
               }
             },
-            "dark": {
-              "type": "object",
-              "properties": {
-                "text": {
-                  "type": "string",
-                  "description": "Text color in dark theme (hex format)"
-                },
-                "background": {
-                  "type": "string",
-                  "description": "Background color in dark theme (hex format)"
-                }
+            "progress": {
+              "light": {
+                "text": "#ffffff",
+                "background": "#28a745"
+              },
+              "dark": {
+                "text": "#ffffff",
+                "background": "#28a745"
+              }
+            },
+            "blocked": {
+              "light": {
+                "text": "#ffffff",
+                "background": "#ffc107"
+              },
+              "dark": {
+                "text": "#212529",
+                "background": "#ffc107"
+              }
+            },
+            "review": {
+              "light": {
+                "text": "#ffffff",
+                "background": "#6610f2"
+              },
+              "dark": {
+                "text": "#ffffff",
+                "background": "#6610f2"
+              }
+            },
+            "bug": {
+              "light": {
+                "text": "#ffffff",
+                "background": "#fd7e14"
+              },
+              "dark": {
+                "text": "#ffffff",
+                "background": "#fd7e14"
+              }
+            },
+            "feature": {
+              "light": {
+                "text": "#ffffff",
+                "background": "#007bff"
+              },
+              "dark": {
+                "text": "#ffffff",
+                "background": "#007bff"
               }
             }
-          }
+          },
+          "description": "Color configuration for tags in kanban boards. Add any tag name as a key with light/dark theme colors.",
+          "patternProperties": {
+            "^[a-zA-Z0-9_-]+$": {
+              "type": "object",
+              "properties": {
+                "light": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$",
+                      "description": "Text color in light theme (hex format #RRGGBB)"
+                    },
+                    "background": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$",
+                      "description": "Background color in light theme (hex format #RRGGBB)"
+                    }
+                  },
+                  "required": ["text", "background"],
+                  "additionalProperties": false
+                },
+                "dark": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$",
+                      "description": "Text color in dark theme (hex format #RRGGBB)"
+                    },
+                    "background": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$",
+                      "description": "Background color in dark theme (hex format #RRGGBB)"
+                    }
+                  },
+                  "required": ["text", "background"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["light", "dark"],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       }
     },

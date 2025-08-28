@@ -6,27 +6,23 @@ kanban-plugin: board
 
 ## ## Title
 
-## Column A #priority
-- [ ] ![red.png](red.png) #red
-  ![red.png](red.png) 
-  
-  #review
-- [ ] root/mid/low/red.png
+## Column A #bug
+- [ ] ![red.png](red.png) #blocked
+  ![red.png](red.png)
+- [ ] root/mid/low/red.png #red #important
   ![root/mid/low/red.png](root/mid/low/red.png)
 
-## Column B #blocked #important #red
-- [ ] ../../../image.png #bug
+## Column B #bug #important
+- [ ] ![../../../image.png](../../../image.png) #green
   ![../../../image.png](../../../image.png)
-  
-  #bug #important
-- [ ] image.png
+- [ ] image.png #bug
   ![image.png](image.png)
 - [ ] 
 
-## #important
+## #blocked
 - [ ] [some-markdown.md](../../../some-markdown.md)
 - [ ] [empty-kanban.md](../../../empty-kanban.md)
-- [ ] Title
+- [ ] Title #red #important
   ## H2
   - list
   

@@ -114,18 +114,6 @@ function updateDocumentUri(newUri) {
     }
 }
 
-// Add theme change observer
-const themeObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-            // Theme changed, reapply tag styles
-            if (typeof applyTagStyles === 'function') {
-                applyTagStyles();
-            }
-        }
-    });
-});
-
 document.addEventListener('DOMContentLoaded', () => {
     themeObserver.observe(document.body, {
         attributes: true,
@@ -338,10 +326,14 @@ window.addEventListener('message', event => {
                 console.log('Received image mappings:', window.currentImageMappings);
             }
             
-            // Store tag colors globally
+            // Store tag colors globally - THIS IS CRITICAL
             if (message.tagColors) {
                 window.tagColors = message.tagColors;
                 console.log('Received tag colors:', window.tagColors);
+                // Apply styles immediately when we receive new colors
+                if (typeof applyTagStyles === 'function') {
+                    applyTagStyles();
+                }
             }
             
             // Check if we should preserve editing state
@@ -378,6 +370,26 @@ window.addEventListener('message', event => {
             break;
     }
 });
+
+// Watch for theme changes and update styles
+if (typeof MutationObserver !== 'undefined') {
+    const themeObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                // Check if the body class actually changed (theme change)
+                updateTagStylesForTheme();
+            }
+        });
+    });
+    
+    // Start observing when DOM is ready
+    if (document.body) {
+        themeObserver.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+}
 
 // Also request update when window becomes visible again
 window.addEventListener('focus', () => {

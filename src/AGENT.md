@@ -40,4 +40,11 @@ explain your planned changes first without editing the sourcecode. keep the chan
 
 please write the corresponding code. Always write out full functions and where they should be added to. dont change the way the markdown is saved, except for what the user enters manually. 
 
+-
 
+the functionality to modify the css appears to be missing. the cards and columns get the tags. but something that writes a css similar to """
+.task-item[data-task-tag="bug"] {
+  background-color: #440000;
+  color: #900;
+}
+""" is missing.
