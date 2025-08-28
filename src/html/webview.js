@@ -326,7 +326,12 @@ window.addEventListener('message', event => {
                 console.log('Received image mappings:', window.currentImageMappings);
             }
             
-            updateWhitespace();
+            // Update whitespace with the value from configuration
+            if (message.whitespace) {
+                updateWhitespace(message.whitespace);
+            } else {
+                updateWhitespace('4px'); // Default fallback
+            }
 
             // Store tag colors globally - THIS IS CRITICAL
             if (message.tagColors) {
@@ -619,6 +624,16 @@ function selectFile() {
 }
 
 function updateWhitespace(value) {
+    // Ensure we have a valid value with 'px' suffix
+    if (!value) {
+        value = '4px';
+    }
+    // If the value is just a number, add 'px'
+    if (!isNaN(value)) {
+        value = value + 'px';
+    }
+    
+    console.log('Updating whitespace to:', value);
     document.documentElement.style.setProperty('--whitespace', value);
 }
 

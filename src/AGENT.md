@@ -56,4 +56,6 @@ add a search function where i can enter a search term, similar to the vscode sea
 
 ---
 
-the updateWhitespace function is setup in webview.js, but it's never called with the right parameters. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible. never modify the markdown.
+the updateWhitespace function is defined in webview.js, but it's never called with the right parameters. the value is defined in the configuration of vscode. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible. never modify the markdown.
+
+

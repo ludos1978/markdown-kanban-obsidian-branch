@@ -20,7 +20,7 @@ body {
 
 .kanban-board {
     display: flex;
-    gap: var(--whitespace-mul2);
+    gap: var(--whitespace-div2);
     min-height: calc(100vh - 150px);
     padding-bottom: var(--whitespace);
 }
@@ -41,7 +41,7 @@ body {
 .kanban-column.collapsed {
     min-width: 40px;
     max-width: 40px;
-    padding: calc(0px - var(--whitespace-div2) + 14px)  var(--whitespace)  var(--whitespace-div2)  var(--whitespace);
+    padding: var(--whitespace-div2) var(--whitespace) var(--whitespace-div2) var(--whitespace);
     overflow: visible;
 }
 
@@ -403,7 +403,7 @@ button.donut-menu-item {
     background-color: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
     border-radius: 4px;
-    padding: var(--whitespace);
+    padding: var(--whitespace-div2);
     margin-bottom: var(--whitespace-div2);
     transition: all 0.2s ease;
     position: relative;
@@ -526,7 +526,7 @@ button.donut-menu-item {
     color: var(--vscode-foreground);
     font-size: 13px;
     line-height: 1.5;
-    padding: 4px;
+    /* padding: var(--whitespace-div2); */
     border-radius: 3px;
     cursor: pointer;
     min-height: 20px;
@@ -940,10 +940,11 @@ button.donut-menu-item {
 
 .task-description-container .markdown-content img {
     max-width: 100%;
-    width: 100%;
+    /* width: 100%; */
+    width: auto;
     max-height: 400px;
     height: auto;
-    margin: 8px 0;
+    margin: var(--whitespace-div2) 0;
     display: block;
     object-fit: contain;
 }

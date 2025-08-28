@@ -241,6 +241,12 @@ export class KanbanWebviewPanel {
         return tagColors;
     }
 
+    private async _getWhitespaceConfiguration(): Promise<string> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const whitespace = config.get<string>('whitespace', '4px');
+        return whitespace;
+    }
+
     // Public methods for external access
     public isFileLocked(): boolean {
         return this._fileManager.isFileLocked();
@@ -366,12 +372,15 @@ export class KanbanWebviewPanel {
         // Get tag configuration
         const tagColors = await this._getTagConfiguration();
         
+        const whitespace = await this._getWhitespaceConfiguration();
+            
         setTimeout(() => {
             this._panel.webview.postMessage({
                 type: 'updateBoard',
-                board: board, // Send original board without modifications
+                board: board,
                 imageMappings: imageMappings,
-                tagColors: tagColors
+                tagColors: tagColors,
+                whitespace: whitespace
             });
         }, 10);
     }

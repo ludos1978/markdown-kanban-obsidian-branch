@@ -62,7 +62,7 @@ function generateTagStyles() {
                 background-color: ${themeColors.background} !important;
                 padding: 2px 8px;
                 border-radius: 12px;
-                display: inline-block;
+                // display: inline-block;
                 font-size: 0.85em;
                 font-weight: 500;
                 margin: 0 2px;

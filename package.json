@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.9.75",
+  "version": "0.9.77",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -38,17 +38,12 @@
           "default": false,
           "description": "Open file links in new tabs instead of replacing the current editor"
         },
-        "markdownKanban.whitespace": {
-          "type": "string",
-          "default": "4px",
-          "description": "Spacing between elements in the Kanban board (CSS value like '4px', '8px', '0.5rem')",
-          "pattern": "^\\d+(\\.\\d+)?(px|em|rem|pt|%)$",
-          "examples": [
-            "4px",
-            "8px",
-            "0.5rem",
-            "2px"
-          ]
+        "markdown-kanban.whitespace": {
+            "type": "string",
+            "default": "4px",
+            "description": "The amount of whitespace/padding to use in the Kanban board (e.g., '4px', '8px', '2px')",
+            "pattern": "^\\d+(\\.\\d+)?(px|em|rem)$",
+            "patternErrorMessage": "Please enter a valid CSS size value (e.g., '4px', '0.5em', '1rem')"
         },
         "markdown-kanban.tagColors": {
           "type": "object",
@@ -112,7 +107,27 @@
                 "text": "#ffffff",
                 "background": "#007bff"
               }
-            }
+            },
+            "gray": {
+              "light": {
+                "text": "#ffffff",
+                "background": "#323537"
+              },
+              "dark": {
+                "text": "#ffffff",
+                "background": "#007bff"
+              }
+            },
+            "green": {
+              "light": {
+                "text": "#ffffff",
+                "background": "#007bff"
+              },
+              "dark": {
+                "text": "#ffffff",
+                "background": "#007bff"
+              }
+            },
           },
           "description": "Color configuration for tags in kanban boards. Add any tag name as a key with light/dark theme colors.",
           "patternProperties": {
