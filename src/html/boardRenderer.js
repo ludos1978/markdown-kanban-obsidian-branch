@@ -60,12 +60,6 @@ function generateTagStyles() {
             styles += `.kanban-tag[data-tag="${lowerTagName}"] {
                 color: ${themeColors.text} !important;
                 background-color: ${themeColors.background} !important;
-                padding: 2px 8px;
-                border-radius: 12px;
-                // display: inline-block;
-                font-size: 0.85em;
-                font-weight: 500;
-                margin: 0 2px;
                 border: 1px solid ${themeColors.background};
             }\n`;
             

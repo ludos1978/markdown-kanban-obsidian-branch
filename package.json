@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.9.77",
+  "version": "0.9.79",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -48,86 +48,146 @@
         "markdown-kanban.tagColors": {
           "type": "object",
           "default": {
-            "priority": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#dc3545"
-              },
-              "dark": {
-                "text": "#ffffff",
-                "background": "#dc3545"
-              }
-            },
-            "progress": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#28a745"
-              },
-              "dark": {
-                "text": "#ffffff",
-                "background": "#28a745"
-              }
-            },
-            "blocked": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#ffc107"
-              },
-              "dark": {
-                "text": "#212529",
-                "background": "#ffc107"
-              }
-            },
-            "review": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#6610f2"
-              },
-              "dark": {
-                "text": "#ffffff",
-                "background": "#6610f2"
-              }
-            },
-            "bug": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#fd7e14"
-              },
-              "dark": {
-                "text": "#ffffff",
-                "background": "#fd7e14"
-              }
-            },
-            "feature": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#007bff"
-              },
-              "dark": {
-                "text": "#ffffff",
-                "background": "#007bff"
-              }
-            },
-            "gray": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#323537"
-              },
-              "dark": {
-                "text": "#ffffff",
-                "background": "#007bff"
-              }
-            },
-            "green": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#007bff"
-              },
-              "dark": {
-                "text": "#ffffff",
-                "background": "#007bff"
-              }
-            },
+  "progress": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#28a745"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#71dd8a"
+    }
+  },
+  "blocked": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#6c757d"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#adb5bd"
+    }
+  },
+  "review": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#007bff"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#66b2ff"
+    }
+  },
+  "bug": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#dc3545"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#ff7b89"
+    }
+  },
+  "feature": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#17a2b8"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#6fd6e1"
+    }
+  },
+  "gray": {
+    "light": {
+      "text": "#212529",
+      "background": "#adb5bd"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#dee2e6"
+    }
+  },
+  "darkblue": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#004085"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#5a8dee"
+    }
+  },
+  "lightblue": {
+    "light": {
+      "text": "#212529",
+      "background": "#339af0"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#a5d8ff"
+    }
+  },
+  "cyan": {
+    "light": {
+      "text": "#212529",
+      "background": "#0dcaf0"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#99e9f2"
+    }
+  },
+  "green": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#198754"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#8ce99a"
+    }
+  },
+  "yellow": {
+    "light": {
+      "text": "#212529",
+      "background": "#ffc107"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#ffe066"
+    }
+  },
+  "orange": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#fd7e14"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#ffc078"
+    }
+  },
+  "red": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#dc3545"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#ff8787"
+    }
+  },
+  "violet": {
+    "light": {
+      "text": "#ffffff",
+      "background": "#6f42c1"
+    },
+    "dark": {
+      "text": "#000000",
+      "background": "#b197fc"
+    }
+  }
           },
           "description": "Color configuration for tags in kanban boards. Add any tag name as a key with light/dark theme colors.",
           "patternProperties": {
