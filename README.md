@@ -1,12 +1,6 @@
 # Kanban Markdown for Visual Studio Code & VSCodium
 
-Compatible with the Kanban Obsidian Markdown format from https://github.com/mgmeyers/obsidian-kanban.
-
-A VS Code extension that allows editing Markdown files as an interactive Kanban board.
-
-It's mostly coded using Claude Code, based on the previous version if found online.
-
-I use it myself and found no similar extension that fulfilled my needs. 
+A VS Code extension that allows editing Markdown files as an interactive Kanban board. Its made to mimic the functionality of a obsidian markdown editor which allows data handling and link management in kanban format. Using the tags it's more versatile. It should be data compatible with the Kanban Obsidian Markdown format from https://github.com/mgmeyers/obsidian-kanban .
 
 ## Features
 
@@ -18,8 +12,10 @@ I use it myself and found no similar extension that fulfilled my needs.
 - **Real-time Sync**: Ensures real-time, two-way synchronization between the Kanban board and the Markdown file.
 - **Undo & Redo**
 - **Image & File dropping** creates new cards
-- **Tab** from Card Title switches to Description. From Description it ends editing.
+- **Links** embeds images and allows links to other files. Path resolution is done relatively to file, secondly relatively to the opened workspace folders or absolute depending on the path.
 - **Locking the file** so switching the md doesnt change the kaban view.
+- **Tags** that color the columns and cards (if used in the title)
+- **Folding** of cards, columns.
 
 ### Required Format
 
@@ -47,6 +43,8 @@ kanban-plugin: board
 ### How to Use
 
 Press the "Kanban" button on the top right.
+Add columns using the buttons.
+Add cards using the buttons.
 
 ### Open Issues
 
