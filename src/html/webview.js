@@ -72,15 +72,9 @@ function setColumnWidth(size) {
 function setLayoutRows(rows) {
     currentLayoutRows = rows;
     
-    const boardElement = document.getElementById('kanban-board');
-    if (boardElement) {
-        // Remove all row classes
-        boardElement.classList.remove('rows-2', 'rows-3', 'rows-4');
-        
-        // Add appropriate class if more than 1 row
-        if (rows > 1) {
-            boardElement.classList.add(`rows-${rows}`);
-        }
+    // Re-render the board to apply row layout
+    if (currentBoard) {
+        renderBoard();
     }
     
     // Store preference

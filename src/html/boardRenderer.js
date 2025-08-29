@@ -356,17 +356,61 @@ function renderBoard() {
         return;
     }
 
-    // Render columns (no state restoration here - that happens in webview.js)
-    currentBoard.columns.forEach((column, index) => {
-        const columnElement = createColumnElement(column, index);
-        boardElement.appendChild(columnElement);
-    });
+    // Detect number of rows from the board
+    const detectedRows = detectRowsFromBoard(currentBoard);
+    const numRows = Math.max(currentLayoutRows, detectedRows);
+    
+    // Apply multi-row class if needed
+    if (numRows > 1) {
+        boardElement.classList.add('multi-row');
+        
+        // Create row containers
+        for (let row = 1; row <= numRows; row++) {
+            const rowContainer = document.createElement('div');
+            rowContainer.className = 'kanban-row';
+            rowContainer.setAttribute('data-row-number', row);
+            
+            // Add row header
+            const rowHeader = document.createElement('div');
+            rowHeader.className = 'kanban-row-header';
+            rowHeader.textContent = `Row ${row}`;
+            rowContainer.appendChild(rowHeader);
+            
+            // Add columns for this row
+            currentBoard.columns.forEach((column, index) => {
+                const columnRow = getColumnRow(column.title);
+                if (columnRow === row) {
+                    const columnElement = createColumnElement(column, index);
+                    rowContainer.appendChild(columnElement);
+                }
+            });
+            
+            // Add the "Add Column" button only to the first row
+            if (row === 1) {
+                const addColumnBtn = document.createElement('button');
+                addColumnBtn.className = 'add-column-btn';
+                addColumnBtn.textContent = '+ Add Column';
+                addColumnBtn.onclick = () => addColumn();
+                rowContainer.appendChild(addColumnBtn);
+            }
+            
+            boardElement.appendChild(rowContainer);
+        }
+    } else {
+        // Single row layout (existing behavior)
+        boardElement.classList.remove('multi-row');
+        
+        currentBoard.columns.forEach((column, index) => {
+            const columnElement = createColumnElement(column, index);
+            boardElement.appendChild(columnElement);
+        });
 
-    const addColumnBtn = document.createElement('button');
-    addColumnBtn.className = 'add-column-btn';
-    addColumnBtn.textContent = '+ Add Column';
-    addColumnBtn.onclick = () => addColumn();
-    boardElement.appendChild(addColumnBtn);
+        const addColumnBtn = document.createElement('button');
+        addColumnBtn.className = 'add-column-btn';
+        addColumnBtn.textContent = '+ Add Column';
+        addColumnBtn.onclick = () => addColumn();
+        boardElement.appendChild(addColumnBtn);
+    }
 
     // Apply folding states after rendering
     setTimeout(() => {
