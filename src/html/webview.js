@@ -116,9 +116,13 @@ function detectRowsFromBoard(board) {
 function getColumnRow(title) {
     if (!title) return 1;
     
-    const rowMatch = title.match(/#row(\d+)/i);
-    if (rowMatch) {
-        return Math.min(parseInt(rowMatch[1]), 4);
+    // More comprehensive regex to find row tags
+    const rowMatches = title.match(/#row(\d+)\b/gi);
+    if (rowMatches && rowMatches.length > 0) {
+        // Get the last match in case there are multiple (shouldn't happen, but just in case)
+        const lastMatch = rowMatches[rowMatches.length - 1];
+        const rowNum = parseInt(lastMatch.replace(/#row/i, ''));
+        return Math.min(Math.max(rowNum, 1), 4); // Ensure it's between 1 and 4
     }
     return 1;
 }
@@ -130,12 +134,44 @@ function updateColumnRowTag(columnId, newRow) {
     const column = currentBoard.columns.find(c => c.id === columnId);
     if (!column) return;
     
-    // Remove existing row tag
-    column.title = column.title.replace(/#row\d+/gi, '').trim();
+    // Remove ALL existing row tags - more comprehensive regex patterns
+    let cleanTitle = column.title
+        .replace(/#row\d+\b/gi, '')  // Remove #row followed by digits
+        .replace(/\s+#row\d+/gi, '')  // Remove with preceding space
+        .replace(/#row\d+\s+/gi, '')  // Remove with following space
+        .replace(/\s{2,}/g, ' ')       // Clean up multiple spaces
+        .trim();                       // Remove leading/trailing spaces
     
-    // Add new row tag if not row 1
+    // Update the column title
     if (newRow > 1) {
-        column.title = column.title + ` #row${newRow}`;
+        // Add row tag for rows 2, 3, 4
+        column.title = cleanTitle + ` #row${newRow}`;
+    } else {
+        // For row 1, just use the clean title without any row tag
+        column.title = cleanTitle;
+    }
+    
+    console.log(`Updated column "${columnId}" from "${column.title}" to row ${newRow}. New title: "${column.title}"`);
+    
+    // Update the visual element immediately
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (columnElement) {
+        columnElement.setAttribute('data-row', newRow);
+        
+        // Update the displayed title
+        const titleElement = columnElement.querySelector('.column-title');
+        if (titleElement) {
+            const displayTitle = column.title.replace(/#row\d+/gi, '').trim();
+            const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
+            const rowIndicator = newRow > 1 ? `<span class="column-row-tag">Row ${newRow}</span>` : '';
+            titleElement.innerHTML = renderedTitle + rowIndicator;
+        }
+        
+        // Update the edit textarea
+        const editElement = columnElement.querySelector('.column-title-edit');
+        if (editElement) {
+            editElement.value = column.title;
+        }
     }
     
     // Send update to backend
@@ -144,6 +180,46 @@ function updateColumnRowTag(columnId, newRow) {
         columnId: columnId,
         title: column.title
     });
+}
+
+// Function to clean up any duplicate or invalid row tags
+function cleanupRowTags() {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    let needsUpdate = false;
+    
+    currentBoard.columns.forEach(column => {
+        const originalTitle = column.title;
+        
+        // Find all row tags
+        const rowTags = column.title.match(/#row\d+\b/gi) || [];
+        
+        if (rowTags.length > 1) {
+            // Multiple row tags found - keep only the last one
+            console.log(`Cleaning up multiple row tags in column "${column.id}": ${rowTags.join(', ')}`);
+            
+            // Remove all row tags first
+            let cleanTitle = column.title;
+            rowTags.forEach(tag => {
+                cleanTitle = cleanTitle.replace(new RegExp(tag, 'gi'), '');
+            });
+            cleanTitle = cleanTitle.replace(/\s{2,}/g, ' ').trim();
+            
+            // Add back only the last tag
+            const lastTag = rowTags[rowTags.length - 1];
+            column.title = cleanTitle + ' ' + lastTag;
+            
+            if (column.title !== originalTitle) {
+                needsUpdate = true;
+                console.log(`Cleaned column title from "${originalTitle}" to "${column.title}"`);
+            }
+        }
+    });
+    
+    if (needsUpdate) {
+        // Trigger a board update if we made changes
+        renderBoard();
+    }
 }
 
 // Function to get current document folding state
@@ -463,6 +539,9 @@ window.addEventListener('message', event => {
             console.log('Updating board with:', message.board);
             const previousBoard = currentBoard;
             currentBoard = message.board;
+            
+            // Clean up any duplicate row tags
+            cleanupRowTags();
             
             // Detect rows from board
             const detectedRows = detectRowsFromBoard(currentBoard);

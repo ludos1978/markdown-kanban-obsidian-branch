@@ -9,13 +9,11 @@ window.globalColumnFoldState = window.globalColumnFoldState || 'fold-mixed'; // 
 let currentBoard = null;
 let renderTimeout = null;
 
-
-
-
-// Helper function to extract first tag from text
+// Helper function to extract first tag from text (excluding row tags)
 function extractFirstTag(text) {
     if (!text) return null;
-    const tagMatch = text.match(/#([a-zA-Z0-9_-]+)/);
+    // Match tags but exclude #rowN tags
+    const tagMatch = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+)/);
     const tag = tagMatch ? tagMatch[1].toLowerCase() : null;
     console.log(`Extracting tag from "${text}": ${tag}`);
     return tag;
@@ -550,7 +548,7 @@ function createColumnElement(column, columnIndex) {
     const columnTag = extractFirstTag(column.title);
     console.log(`Creating column "${column.title}", detected tag: "${columnTag}"`);
     
-    // Extract row from column title
+    // Extract row from column title (defaults to 1 if no row tag)
     const columnRow = getColumnRow(column.title);
 
     const columnDiv = document.createElement('div');
@@ -561,8 +559,8 @@ function createColumnElement(column, columnIndex) {
     columnDiv.setAttribute('data-column-index', columnIndex);
     columnDiv.setAttribute('data-row', columnRow);
     
-    // Add tag attribute if tag exists
-    if (columnTag) {
+    // Add tag attribute if tag exists (but not for row tags)
+    if (columnTag && !columnTag.startsWith('row')) {
         columnDiv.setAttribute('data-column-tag', columnTag);
         console.log(`Set data-column-tag="${columnTag}" on column element`);
     }
@@ -572,7 +570,7 @@ function createColumnElement(column, columnIndex) {
     const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
     const foldButtonState = getFoldAllButtonState(column.id);
 
-    // Add row indicator if not in row 1
+    // Only show row indicator for rows 2, 3, 4 (not row 1)
     const rowIndicator = columnRow > 1 ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
     columnDiv.innerHTML = `

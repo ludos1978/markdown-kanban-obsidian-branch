@@ -142,7 +142,13 @@ body {
 }
 
 .kanban-column.dragging {
-    opacity: 0.5;
+    opacity: 0.6;
+    z-index: 1000;
+    pointer-events: none; /* Prevent the dragged element from interfering */
+}
+
+.kanban-column.dragging .column-drag-handle {
+    pointer-events: auto;
 }
 
 .column-header {
@@ -1635,15 +1641,6 @@ button.file-bar-menu-item {
     overflow-x: auto;
 }
 
-.kanban-row {
-    display: flex;
-    gap: var(--whitespace-div2);
-    min-height: 200px;
-    padding: var(--whitespace-div2) 0;
-    flex-shrink: 0;
-    align-items: flex-start;
-}
-
 .kanban-board.multi-row {
     display: flex;
     flex-direction: column;
@@ -1675,6 +1672,7 @@ button.file-bar-menu-item {
     color: var(--vscode-descriptionForeground);
     align-self: flex-start;
     z-index: 10;
+    user-select: none;
 }
 
 .kanban-board.rows-2,
@@ -1741,4 +1739,66 @@ button.file-bar-menu-item {
 .add-column-btn {
     grid-column: -1;
     grid-row: 1;
+}
+
+/* Visual feedback for row drop zones */
+.kanban-row.drag-over {
+    background-color: rgba(var(--vscode-focusBorder), 0.1);
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 2px var(--vscode-focusBorder);
+}
+
+/* Highlight target row when dragging */
+.kanban-row:has(.kanban-column.dragging) {
+    opacity: 0.9;
+}
+
+/* Better visual separation between rows */
+.kanban-row {
+    position: relative;
+    min-height: 200px;
+    padding: var(--whitespace-div2);
+    transition: all 0.2s;
+    display: flex;
+    gap: var(--whitespace-div2);
+    align-items: flex-start;
+}
+
+/* Make empty rows more visible as drop targets */
+.kanban-row:not(:has(.kanban-column)) {
+    border: 2px dashed var(--vscode-panel-border);
+    background-color: var(--vscode-list-hoverBackground);
+    opacity: 0.5;
+    padding: 20px;
+    text-align: center;
+}
+
+.kanban-row:not(:has(.kanban-column))::after {
+    content: "Drop columns here";
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}
+
+.kanban-row:not(:has(.kanban-column:not(.dragging))) {
+    border: 2px dashed var(--vscode-panel-border);
+    background-color: var(--vscode-list-hoverBackground);
+    justify-content: center;
+    align-items: center;
+}
+
+.kanban-row:not(:has(.kanban-column:not(.dragging)))::after {
+    content: "Drop columns here for Row " attr(data-row-number);
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.kanban-row.drag-over:not(:has(.kanban-column:not(.dragging)))::after {
+    opacity: 1;
+    font-weight: bold;
+}
+
+.kanban-row.drag-over::after {
+    display: none;
 }
