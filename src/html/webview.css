@@ -6,6 +6,7 @@
   --whitespace-div2: calc(var(--whitespace)/2);
   --whitespace-div4: calc(var(--whitespace)/4);
   --column-title-width: 180px;
+  --task-title-width: 220px;
 }
 
 * {
@@ -400,9 +401,9 @@ button.donut-menu-item {
 
 /* Task Menu Overlay Position */
 .task-menu-container {
-    position: absolute;
+    /* position: absolute;
     top: 8px;
-    right: 8px;
+    right: 8px; */
     z-index: 50;
 }
 
@@ -481,7 +482,7 @@ button.donut-menu-item {
     flex: 1;
     min-width: 0;
     width: 100%;
-    max-width: 240px;
+    max-width: var(--task-title-width);
     cursor: pointer;
 }
 
@@ -516,7 +517,7 @@ button.donut-menu-item {
     resize: vertical;
     overflow: hidden;
     height: 20px;
-    width: 240px;
+    width: var(--task-title-width);
     font-family: inherit;
 }
 

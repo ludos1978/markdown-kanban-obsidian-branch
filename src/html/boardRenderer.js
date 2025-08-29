@@ -590,40 +590,6 @@ function createTaskElement(task, columnId, taskIndex) {
     
     return `
         <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}"${tagAttribute}>
-            <div class="task-menu-container">
-                <div class="donut-menu">
-                    <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
-                    <div class="donut-menu-dropdown">
-                        <button class="donut-menu-item" onclick="insertTaskBefore('${task.id}', '${columnId}')">Insert card before</button>
-                        <button class="donut-menu-item" onclick="insertTaskAfter('${task.id}', '${columnId}')">Insert card after</button>
-                        <button class="donut-menu-item" onclick="duplicateTask('${task.id}', '${columnId}')">Duplicate card</button>
-                        <div class="donut-menu-divider"></div>
-                        <button class="donut-menu-item" onclick="copyTaskAsMarkdown('${task.id}', '${columnId}')">Copy as markdown</button>
-                        <div class="donut-menu-divider"></div>
-                        <div class="donut-menu-item has-submenu">
-                            Move
-                            <div class="donut-menu-submenu">
-                                <button class="donut-menu-item" onclick="moveTaskToTop('${task.id}', '${columnId}')">Top</button>
-                                <button class="donut-menu-item" onclick="moveTaskUp('${task.id}', '${columnId}')">Up</button>
-                                <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Down</button>
-                                <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Bottom</button>
-                            </div>
-                        </div>
-                        <div class="donut-menu-item has-submenu">
-                            Move to list
-                            <div class="donut-menu-submenu">
-                                ${currentBoard && currentBoard.columns ? currentBoard.columns.map(col => 
-                                    col.id !== columnId ? 
-                                    `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title || 'Untitled')}</button>` : ''
-                                ).join('') : ''}
-                            </div>
-                        </div>
-                        <div class="donut-menu-divider"></div>
-                        <button class="donut-menu-item danger" onclick="deleteTask('${task.id}', '${columnId}')">Delete card</button>
-                    </div>
-                </div>
-            </div>
-            
             <div class="task-header">
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}'); updateFoldAllButton('${columnId}')">▶</span>
@@ -637,6 +603,39 @@ function createTaskElement(task, columnId, taskIndex) {
                                 data-field="title"
                                 placeholder="Task title (Markdown supported)..."
                                 style="display: none;">${escapeHtml(task.title || '')}</textarea>
+                </div>
+                <div class="task-menu-container">
+                    <div class="donut-menu">
+                        <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
+                        <div class="donut-menu-dropdown">
+                            <button class="donut-menu-item" onclick="insertTaskBefore('${task.id}', '${columnId}')">Insert card before</button>
+                            <button class="donut-menu-item" onclick="insertTaskAfter('${task.id}', '${columnId}')">Insert card after</button>
+                            <button class="donut-menu-item" onclick="duplicateTask('${task.id}', '${columnId}')">Duplicate card</button>
+                            <div class="donut-menu-divider"></div>
+                            <button class="donut-menu-item" onclick="copyTaskAsMarkdown('${task.id}', '${columnId}')">Copy as markdown</button>
+                            <div class="donut-menu-divider"></div>
+                            <div class="donut-menu-item has-submenu">
+                                Move
+                                <div class="donut-menu-submenu">
+                                    <button class="donut-menu-item" onclick="moveTaskToTop('${task.id}', '${columnId}')">Top</button>
+                                    <button class="donut-menu-item" onclick="moveTaskUp('${task.id}', '${columnId}')">Up</button>
+                                    <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Down</button>
+                                    <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Bottom</button>
+                                </div>
+                            </div>
+                            <div class="donut-menu-item has-submenu">
+                                Move to list
+                                <div class="donut-menu-submenu">
+                                    ${currentBoard && currentBoard.columns ? currentBoard.columns.map(col => 
+                                        col.id !== columnId ? 
+                                        `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title || 'Untitled')}</button>` : ''
+                                    ).join('') : ''}
+                                </div>
+                            </div>
+                            <div class="donut-menu-divider"></div>
+                            <button class="donut-menu-item danger" onclick="deleteTask('${task.id}', '${columnId}')">Delete card</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
