@@ -10,6 +10,148 @@ window.currentImageMappings = {}; // Make it available globally for the renderer
 let documentFoldingStates = new Map(); // Map<documentUri, {collapsedColumns: Set, collapsedTasks: Set, columnFoldStates: Map}>
 let currentDocumentUri = null;
 
+// Layout preferences
+let currentColumnWidth = 'medium';
+let currentLayoutRows = 1;
+
+// Function to toggle file bar menu
+function toggleFileBarMenu(event, button) {
+    event.stopPropagation();
+    const menu = button.parentElement;
+    const wasActive = menu.classList.contains('active');
+    
+    // Close all menus
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+    document.querySelectorAll('.donut-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+    
+    // Toggle this menu
+    if (!wasActive) {
+        menu.classList.add('active');
+    }
+}
+
+// Function to set column width
+function setColumnWidth(size) {
+    currentColumnWidth = size;
+    
+    let width = '350px'; // default medium
+    switch(size) {
+        case 'small':
+            width = '250px';
+            break;
+        case 'medium':
+            width = '350px';
+            break;
+        case 'wide':
+            width = '450px';
+            break;
+    }
+    
+    document.documentElement.style.setProperty('--column-width', width);
+    
+    // Store preference
+    vscode.postMessage({ 
+        type: 'setPreference', 
+        key: 'columnWidth', 
+        value: size 
+    });
+    
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+    
+    vscode.postMessage({ type: 'showMessage', text: `Column width set to ${size}` });
+}
+
+// Function to set layout rows
+function setLayoutRows(rows) {
+    currentLayoutRows = rows;
+    
+    const boardElement = document.getElementById('kanban-board');
+    if (boardElement) {
+        // Remove all row classes
+        boardElement.classList.remove('rows-2', 'rows-3', 'rows-4');
+        
+        // Add appropriate class if more than 1 row
+        if (rows > 1) {
+            boardElement.classList.add(`rows-${rows}`);
+        }
+    }
+    
+    // Store preference
+    vscode.postMessage({ 
+        type: 'setPreference', 
+        key: 'layoutRows', 
+        value: rows 
+    });
+    
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+    
+    vscode.postMessage({ type: 'showMessage', text: `Layout set to ${rows} row${rows > 1 ? 's' : ''}` });
+}
+
+// Function to detect row tags from board
+function detectRowsFromBoard(board) {
+    if (!board || !board.columns) return 1;
+    
+    let maxRow = 1;
+    board.columns.forEach(column => {
+        if (column.title) {
+            const rowMatch = column.title.match(/#row(\d+)/i);
+            if (rowMatch) {
+                const rowNum = parseInt(rowMatch[1]);
+                if (rowNum > maxRow) {
+                    maxRow = rowNum;
+                }
+            }
+        }
+    });
+    
+    return Math.min(maxRow, 4); // Cap at 4 rows
+}
+
+// Function to get column row from title
+function getColumnRow(title) {
+    if (!title) return 1;
+    
+    const rowMatch = title.match(/#row(\d+)/i);
+    if (rowMatch) {
+        return Math.min(parseInt(rowMatch[1]), 4);
+    }
+    return 1;
+}
+
+// Function to update column row tag
+function updateColumnRowTag(columnId, newRow) {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) return;
+    
+    // Remove existing row tag
+    column.title = column.title.replace(/#row\d+/gi, '').trim();
+    
+    // Add new row tag if not row 1
+    if (newRow > 1) {
+        column.title = column.title + ` #row${newRow}`;
+    }
+    
+    // Send update to backend
+    vscode.postMessage({
+        type: 'editColumnTitle',
+        columnId: columnId,
+        title: column.title
+    });
+}
+
 // Function to get current document folding state
 function getCurrentDocumentFoldingState() {
     if (!currentDocumentUri) return null;
@@ -266,6 +408,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Close menus when clicking outside (but don't interfere with editing)
     document.addEventListener('click', (e) => {
+        // Close file bar menu if clicking outside
+        if (!e.target.closest('.file-bar-menu')) {
+            document.querySelectorAll('.file-bar-menu').forEach(menu => {
+                menu.classList.remove('active');
+            });
+        }
+
         // Only close menus if we're not in editing mode and not clicking on a menu
         if (!isCurrentlyEditing() && !e.target.closest('.donut-menu')) {
             document.querySelectorAll('.donut-menu').forEach(menu => {
@@ -321,11 +470,17 @@ window.addEventListener('message', event => {
             const previousBoard = currentBoard;
             currentBoard = message.board;
             
+            // Detect rows from board
+            const detectedRows = detectRowsFromBoard(currentBoard);
+            if (detectedRows > currentLayoutRows) {
+                setLayoutRows(detectedRows);
+            }
+            
             if (message.imageMappings) {
                 window.currentImageMappings = message.imageMappings;
                 console.log('Received image mappings:', window.currentImageMappings);
-            }
-            
+            }            
+
             // Update whitespace with the value from configuration
             if (message.whitespace) {
                 updateWhitespace(message.whitespace);
@@ -640,3 +795,10 @@ function updateWhitespace(value) {
 // Export functions for use by other modules
 window.saveCurrentFoldingState = saveCurrentFoldingState;
 window.restoreFoldingState = restoreFoldingState;
+
+// Make functions globally available
+window.toggleFileBarMenu = toggleFileBarMenu;
+window.setColumnWidth = setColumnWidth;
+window.setLayoutRows = setLayoutRows;
+window.updateColumnRowTag = updateColumnRowTag;
+window.getColumnRow = getColumnRow;

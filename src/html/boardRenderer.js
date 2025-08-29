@@ -505,6 +505,9 @@ function createColumnElement(column, columnIndex) {
     // Extract tag from column title BEFORE rendering markdown
     const columnTag = extractFirstTag(column.title);
     console.log(`Creating column "${column.title}", detected tag: "${columnTag}"`);
+    
+    // Extract row from column title
+    const columnRow = getColumnRow(column.title);
 
     const columnDiv = document.createElement('div');
     const isCollapsed = window.collapsedColumns.has(column.id);
@@ -512,6 +515,7 @@ function createColumnElement(column, columnIndex) {
     columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''}`;
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
+    columnDiv.setAttribute('data-row', columnRow);
     
     // Add tag attribute if tag exists
     if (columnTag) {
@@ -519,8 +523,13 @@ function createColumnElement(column, columnIndex) {
         console.log(`Set data-column-tag="${columnTag}" on column element`);
     }
 
-    const renderedTitle = column.title ? renderMarkdown(column.title) : '<span class="task-title-placeholder">Add title...</span>';
+    // Filter out row tags from displayed title
+    const displayTitle = column.title ? column.title.replace(/#row\d+/gi, '').trim() : '';
+    const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
     const foldButtonState = getFoldAllButtonState(column.id);
+
+    // Add row indicator if not in row 1
+    const rowIndicator = columnRow > 1 ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
     columnDiv.innerHTML = `
         <div class="column-header">
@@ -528,7 +537,7 @@ function createColumnElement(column, columnIndex) {
                 <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
                 <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
                 <div style="display: inline-block;">
-                    <div class="column-title" onclick="editColumnTitle('${column.id}')">${renderedTitle}</div>
+                    <div class="column-title" onclick="editColumnTitle('${column.id}')">${renderedTitle}${rowIndicator}</div>
                     <textarea class="column-title-edit" 
                                 data-column-id="${column.id}"
                                 style="display: none;">${escapeHtml(column.title || '')}</textarea>

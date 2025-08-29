@@ -22,20 +22,46 @@
                 </button>
             </div>
             <div class="file-info-right">
-                <button id="undo-btn" class="file-control-btn" onclick="undo()" title="Undo (Ctrl+Z)">
-                    ↶ Undo
-                </button>
-                <button id="redo-btn" class="file-control-btn" onclick="redo()" title="Redo (Ctrl+Y)">
-                    ↷ Redo
-                </button>
-                <span style="width: 8px; display: inline-block;"></span>
-                <button id="lock-toggle-btn" class="file-control-btn" onclick="toggleFileLock()" title="Toggle file lock">
-                    <span id="lock-status" class="lock-status" title="File is unlocked - will auto-switch with active editor">🔓</span>
-                    <span id="lock-btn-text">Lock</span>
-                </button>
-                <button id="select-file-btn" class="file-control-btn" onclick="selectFile()" title="Select different file">
-                    📁 Open File
-                </button>
+                <span id="lock-status-icon" class="lock-status-icon" title="File lock status">🔓</span>
+                
+                <!-- File Bar Burger Menu -->
+                <div class="file-bar-menu">
+                    <button class="file-bar-menu-btn" onclick="toggleFileBarMenu(event, this)">☰</button>
+                    <div class="file-bar-menu-dropdown">
+                        <button class="file-bar-menu-item" onclick="undo()" title="Undo (Ctrl+Z)">
+                            <span class="menu-icon">↶</span> Undo
+                        </button>
+                        <button class="file-bar-menu-item" onclick="redo()" title="Redo (Ctrl+Y)">
+                            <span class="menu-icon">↷</span> Redo
+                        </button>
+                        <div class="file-bar-menu-divider"></div>
+                        <button id="lock-toggle-btn" class="file-bar-menu-item" onclick="toggleFileLock()" title="Toggle file lock">
+                            <span id="lock-menu-icon" class="menu-icon">🔓</span>
+                            <span id="lock-btn-text">Lock File</span>
+                        </button>
+                        <button class="file-bar-menu-item" onclick="selectFile()" title="Select different file">
+                            <span class="menu-icon">📁</span> Open File
+                        </button>
+                        <div class="file-bar-menu-divider"></div>
+                        <div class="file-bar-menu-item has-submenu">
+                            <span class="menu-icon">↔</span> Column Width
+                            <div class="file-bar-menu-submenu">
+                                <button class="file-bar-menu-item" onclick="setColumnWidth('small')">Small (250px)</button>
+                                <button class="file-bar-menu-item" onclick="setColumnWidth('medium')">Medium (350px)</button>
+                                <button class="file-bar-menu-item" onclick="setColumnWidth('wide')">Wide (450px)</button>
+                            </div>
+                        </div>
+                        <div class="file-bar-menu-item has-submenu">
+                            <span class="menu-icon">▦</span> Layout Rows
+                            <div class="file-bar-menu-submenu">
+                                <button class="file-bar-menu-item" onclick="setLayoutRows(1)">1 Row</button>
+                                <button class="file-bar-menu-item" onclick="setLayoutRows(2)">2 Rows</button>
+                                <button class="file-bar-menu-item" onclick="setLayoutRows(3)">3 Rows</button>
+                                <button class="file-bar-menu-item" onclick="setLayoutRows(4)">4 Rows</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

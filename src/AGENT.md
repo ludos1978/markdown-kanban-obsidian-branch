@@ -60,3 +60,11 @@ the updateWhitespace function is defined in webview.js, but it's never called wi
 ---
 
 when drag&dropping columns and rows it's currently displaying the drop location only. is it possible to move the whole object and interactively display the outcome in realtime? explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
+
+---
+
+add a burger menu in the file-info-bar. move the buttons undo, redo, lock and open file in there. leave the lock symbol (without the text) outside as well. the columns folding option and the title should stay outside. additionally add 2 items new burger menu: "column width" with an submenu with the options "small, medium, wide" as well as number of rows with the options 1, 2, 3, 4. the column width should modify an css variable named --column-width, which by with medium is 350px, small is 250px, wide is 450px. the rows are by default 1. if set to 2, 3, 4 it should add vertical rows that allow the columns to be ordered vertically. for columns that are moved to the second, 3th or 4th row, add a tag to the column header with #row2, #row3, #row4. when loading a file, detect the largest #rowNUMBER tag an set the number of rows to this value. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
+
+-
+
+please write the corresponding code. Always write out full functions and where they should be added to. dont change the way the markdown is saved, except for adding the tags for the columns.

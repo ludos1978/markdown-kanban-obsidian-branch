@@ -527,36 +527,53 @@ function setupColumnDragAndDrop() {
                 return;
             }
             
-            // Calculate where to insert the dragged column
-            const boardElement = column.parentNode;
-            const allColumns = Array.from(boardElement.querySelectorAll('.kanban-column'));
-            const draggedIndex = allColumns.indexOf(dragState.draggedColumn);
-            const targetIndex = allColumns.indexOf(column);
-            
-            if (draggedIndex < targetIndex) {
-                // Moving right - insert after target
-                if (column.nextSibling) {
-                    boardElement.insertBefore(dragState.draggedColumn, column.nextSibling);
-                } else {
-                    // Find the add column button and insert before it
-                    const addBtn = boardElement.querySelector('.add-column-btn');
-                    if (addBtn) {
-                        boardElement.insertBefore(dragState.draggedColumn, addBtn);
-                    } else {
-                        boardElement.appendChild(dragState.draggedColumn);
-                    }
-                }
-            } else {
-                // Moving left - insert before target
-                boardElement.insertBefore(dragState.draggedColumn, column);
-            }
+            // Use row-aware drop handling
+            handleColumnDropWithRows(dragState.draggedColumn, column, boardElement);
             
             // Add transition classes for smooth movement
+            const allColumns = Array.from(boardElement.querySelectorAll('.kanban-column'));
             allColumns.forEach(col => {
                 if (col !== dragState.draggedColumn) {
                     col.classList.add('drag-transitioning');
                 }
-            });
+            });           
+             
+            // e.preventDefault();
+            
+            // if (!dragState.draggedColumn || dragState.draggedColumn === column) {
+            //     return;
+            // }
+            
+            // // Calculate where to insert the dragged column
+            // const boardElement = column.parentNode;
+            // const allColumns = Array.from(boardElement.querySelectorAll('.kanban-column'));
+            // const draggedIndex = allColumns.indexOf(dragState.draggedColumn);
+            // const targetIndex = allColumns.indexOf(column);
+            
+            // if (draggedIndex < targetIndex) {
+            //     // Moving right - insert after target
+            //     if (column.nextSibling) {
+            //         boardElement.insertBefore(dragState.draggedColumn, column.nextSibling);
+            //     } else {
+            //         // Find the add column button and insert before it
+            //         const addBtn = boardElement.querySelector('.add-column-btn');
+            //         if (addBtn) {
+            //             boardElement.insertBefore(dragState.draggedColumn, addBtn);
+            //         } else {
+            //             boardElement.appendChild(dragState.draggedColumn);
+            //         }
+            //     }
+            // } else {
+            //     // Moving left - insert before target
+            //     boardElement.insertBefore(dragState.draggedColumn, column);
+            // }
+            
+            // // Add transition classes for smooth movement
+            // allColumns.forEach(col => {
+            //     if (col !== dragState.draggedColumn) {
+            //         col.classList.add('drag-transitioning');
+            //     }
+            // });
         });
 
         column.addEventListener('dragleave', e => {
@@ -814,4 +831,39 @@ function setupDragAndDrop() {
     // Always refresh column and task drag/drop since DOM changes
     setupColumnDragAndDrop();
     setupTaskDragAndDrop();
+}
+
+// Enhanced column drop handler for multi-row support
+function handleColumnDropWithRows(draggedColumn, targetColumn, boardElement) {
+    const draggedRow = parseInt(draggedColumn.getAttribute('data-row') || '1');
+    const targetRow = parseInt(targetColumn.getAttribute('data-row') || '1');
+    
+    // If dropping in a different row, update the row tag
+    if (draggedRow !== targetRow) {
+        const columnId = draggedColumn.getAttribute('data-column-id');
+        updateColumnRowTag(columnId, targetRow);
+        draggedColumn.setAttribute('data-row', targetRow);
+    }
+    
+    // Continue with normal column reordering within the row
+    const allColumns = Array.from(boardElement.querySelectorAll(`.kanban-column[data-row="${targetRow}"]`));
+    const draggedIndex = allColumns.indexOf(draggedColumn);
+    const targetIndex = allColumns.indexOf(targetColumn);
+    
+    if (draggedIndex < targetIndex) {
+        // Moving right - insert after target
+        if (targetColumn.nextSibling) {
+            boardElement.insertBefore(draggedColumn, targetColumn.nextSibling);
+        } else {
+            const addBtn = boardElement.querySelector('.add-column-btn');
+            if (addBtn) {
+                boardElement.insertBefore(draggedColumn, addBtn);
+            } else {
+                boardElement.appendChild(draggedColumn);
+            }
+        }
+    } else {
+        // Moving left - insert before target
+        boardElement.insertBefore(draggedColumn, targetColumn);
+    }
 }
