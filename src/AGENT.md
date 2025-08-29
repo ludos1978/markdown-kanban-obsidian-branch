@@ -53,9 +53,10 @@ the functionality to modify the css appears to be missing. the cards and columns
 
 add a search function where i can enter a search term, similar to the vscode search. add a text field, 3 toggle buttons: "case sensitive", "only complete words", "regular expression search", an index of the currently found entry (1 of X), the number of found results, a arrow up (previous result) arrow down (next result). a button to close the search. by searching the screen should jump to the card with the found result. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
 
-
 ---
 
 the updateWhitespace function is defined in webview.js, but it's never called with the right parameters. the value is defined in the configuration of vscode. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible. never modify the markdown.
 
+---
 
+when drag&dropping columns and rows it's currently displaying the drop location only. is it possible to move the whole object and interactively display the outcome in realtime? explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.

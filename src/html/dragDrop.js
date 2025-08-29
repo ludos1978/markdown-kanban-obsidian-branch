@@ -7,6 +7,24 @@ let externalDropIndicator = null;
 // Track recently created tasks to prevent duplicates
 let recentlyCreatedTasks = new Set();
 
+// Real-time drag preview tracking
+let dragState = {
+    // For columns
+    draggedColumn: null,
+    originalColumnIndex: -1,
+    originalColumnNextSibling: null,
+    
+    // For tasks
+    draggedTask: null,
+    originalTaskIndex: -1,
+    originalTaskParent: null,
+    originalTaskNextSibling: null,
+    
+    // Common
+    isDragging: false,
+    lastValidDropTarget: null
+};
+
 // External file drop location indicators
 function createExternalDropIndicator() {
     if (externalDropIndicator) {
@@ -382,36 +400,163 @@ function calculateInsertionIndex(column, clientY) {
     return -1;
 }
 
+// Helper function to restore original column position
+function restoreColumnPosition() {
+    if (dragState.draggedColumn && dragState.originalColumnIndex >= 0) {
+        const board = document.getElementById('kanban-board');
+        const columns = Array.from(board.querySelectorAll('.kanban-column'));
+        
+        // Remove from current position
+        if (dragState.draggedColumn.parentNode === board) {
+            board.removeChild(dragState.draggedColumn);
+        }
+        
+        // Insert back to original position
+        if (dragState.originalColumnNextSibling) {
+            board.insertBefore(dragState.draggedColumn, dragState.originalColumnNextSibling);
+        } else if (dragState.originalColumnIndex >= columns.length) {
+            // Was last item
+            const addColumnBtn = board.querySelector('.add-column-btn');
+            if (addColumnBtn) {
+                board.insertBefore(dragState.draggedColumn, addColumnBtn);
+            } else {
+                board.appendChild(dragState.draggedColumn);
+            }
+        } else {
+            // Insert at index
+            const targetColumn = columns[dragState.originalColumnIndex];
+            if (targetColumn && targetColumn !== dragState.draggedColumn) {
+                board.insertBefore(dragState.draggedColumn, targetColumn);
+            }
+        }
+        
+        dragState.draggedColumn.classList.remove('drag-source-hidden');
+    }
+}
+
+// Helper function to restore original task position
+function restoreTaskPosition() {
+    if (dragState.draggedTask && dragState.originalTaskParent) {
+        // Remove from current position
+        if (dragState.draggedTask.parentNode) {
+            dragState.draggedTask.parentNode.removeChild(dragState.draggedTask);
+        }
+        
+        // Insert back to original position
+        if (dragState.originalTaskNextSibling) {
+            dragState.originalTaskParent.insertBefore(dragState.draggedTask, dragState.originalTaskNextSibling);
+        } else {
+            dragState.originalTaskParent.appendChild(dragState.draggedTask);
+        }
+        
+        dragState.draggedTask.classList.remove('drag-source-hidden');
+    }
+}
+
 function setupColumnDragAndDrop() {
     const boardElement = document.getElementById('kanban-board');
     const columns = boardElement.querySelectorAll('.kanban-column');
-    let draggedColumn = null;
 
     columns.forEach(column => {
         const dragHandle = column.querySelector('.column-drag-handle');
         if (!dragHandle) return;
 
         dragHandle.addEventListener('dragstart', e => {
-            draggedColumn = column;
             const columnId = column.getAttribute('data-column-id');
+            
+            // Store original position
+            dragState.draggedColumn = column;
+            dragState.originalColumnIndex = Array.from(boardElement.children).indexOf(column);
+            dragState.originalColumnNextSibling = column.nextSibling;
+            dragState.isDragging = true;
             
             e.dataTransfer.setData('text/plain', columnId);
             e.dataTransfer.setData('application/column-id', columnId);
             e.dataTransfer.setData('application/kanban-column', columnId);
             e.dataTransfer.effectAllowed = 'move';
-            column.classList.add('column-dragging');
+            
+            // Make the column semi-transparent
+            column.classList.add('dragging', 'drag-preview');
         });
 
         dragHandle.addEventListener('dragend', e => {
-            column.classList.remove('column-dragging');
-            columns.forEach(col => col.classList.remove('drag-over'));
+            dragState.isDragging = false;
+            
+            // Remove all visual feedback
+            column.classList.remove('dragging', 'drag-preview');
+            columns.forEach(col => {
+                col.classList.remove('drag-over', 'drag-transitioning');
+            });
+            
+            // Get the current position in the DOM
+            const currentParent = column.parentNode;
+            const currentIndex = Array.from(currentParent.children).indexOf(column);
+            
+            // Check if position actually changed
+            const positionChanged = currentIndex !== dragState.originalColumnIndex;
+            
+            if (positionChanged && currentIndex >= 0) {
+                // Calculate the actual indices for the data model
+                const fromIndex = getOriginalColumnIndex(column.getAttribute('data-column-id'));
+                const toIndex = calculateColumnDropIndex(boardElement, column);
+                
+                if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
+                    // DON'T restore position - keep the preview position
+                    // The board will re-render after the message is processed
+                    vscode.postMessage({
+                        type: 'moveColumn',
+                        fromIndex: fromIndex,
+                        toIndex: toIndex
+                    });
+                } else {
+                    // Only restore if indices are invalid
+                    restoreColumnPosition();
+                }
+            }
+            
+            // Reset drag state
+            dragState.draggedColumn = null;
+            dragState.originalColumnIndex = -1;
+            dragState.originalColumnNextSibling = null;
         });
 
         column.addEventListener('dragover', e => {
             e.preventDefault();
-            if (draggedColumn && draggedColumn !== column) {
-                column.classList.add('drag-over');
+            
+            if (!dragState.draggedColumn || dragState.draggedColumn === column) {
+                return;
             }
+            
+            // Calculate where to insert the dragged column
+            const boardElement = column.parentNode;
+            const allColumns = Array.from(boardElement.querySelectorAll('.kanban-column'));
+            const draggedIndex = allColumns.indexOf(dragState.draggedColumn);
+            const targetIndex = allColumns.indexOf(column);
+            
+            if (draggedIndex < targetIndex) {
+                // Moving right - insert after target
+                if (column.nextSibling) {
+                    boardElement.insertBefore(dragState.draggedColumn, column.nextSibling);
+                } else {
+                    // Find the add column button and insert before it
+                    const addBtn = boardElement.querySelector('.add-column-btn');
+                    if (addBtn) {
+                        boardElement.insertBefore(dragState.draggedColumn, addBtn);
+                    } else {
+                        boardElement.appendChild(dragState.draggedColumn);
+                    }
+                }
+            } else {
+                // Moving left - insert before target
+                boardElement.insertBefore(dragState.draggedColumn, column);
+            }
+            
+            // Add transition classes for smooth movement
+            allColumns.forEach(col => {
+                if (col !== dragState.draggedColumn) {
+                    col.classList.add('drag-transitioning');
+                }
+            });
         });
 
         column.addEventListener('dragleave', e => {
@@ -423,24 +568,48 @@ function setupColumnDragAndDrop() {
         column.addEventListener('drop', e => {
             e.preventDefault();
             column.classList.remove('drag-over');
-
-            if (draggedColumn && draggedColumn !== column) {
-                const fromId = draggedColumn.getAttribute('data-column-id');
-                const toId = column.getAttribute('data-column-id');
-                const fromIndex = getOriginalColumnIndex(fromId);
-                const toIndex = getOriginalColumnIndex(toId);
-                
-                if (fromIndex !== -1 && toIndex !== -1) {
-                    vscode.postMessage({
-                        type: 'moveColumn',
-                        fromIndex: fromIndex,
-                        toIndex: toIndex
-                    });
-                }
-            }
-            draggedColumn = null;
+            
+            // The actual position change is handled in dragend
         });
     });
+    
+    // Add ESC key handler to cancel drag
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && dragState.isDragging) {
+            if (dragState.draggedColumn) {
+                restoreColumnPosition();
+                dragState.draggedColumn.classList.remove('dragging', 'drag-preview');
+                
+                // Reset drag state
+                dragState.draggedColumn = null;
+                dragState.originalColumnIndex = -1;
+                dragState.originalColumnNextSibling = null;
+                dragState.isDragging = false;
+            }
+        }
+    });
+}
+
+function calculateColumnDropIndex(boardElement, draggedColumn) {
+    const columns = Array.from(boardElement.querySelectorAll('.kanban-column'));
+    const currentIndex = columns.indexOf(draggedColumn);
+    
+    if (!currentBoard || !currentBoard.columns) return -1;
+    
+    // Map DOM position to data model position
+    const columnId = draggedColumn.getAttribute('data-column-id');
+    let targetIndex = 0;
+    
+    for (let i = 0; i < currentIndex; i++) {
+        const col = columns[i];
+        const colId = col.getAttribute('data-column-id');
+        const dataIndex = currentBoard.columns.findIndex(c => c.id === colId);
+        if (dataIndex !== -1) {
+            targetIndex++;
+        }
+    }
+    
+    return targetIndex;
 }
 
 function setupTaskDragAndDrop() {
@@ -452,33 +621,30 @@ function setupTaskDragAndDrop() {
 
         tasksContainer.addEventListener('dragover', e => {
             e.preventDefault();
-            columnElement.classList.add('drag-over');
             
-            const draggingElement = document.querySelector('.task-item.dragging');
-            if (draggingElement) {
-                const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY);
-                
-                tasksContainer.querySelectorAll('.task-item').forEach(task => {
-                    task.classList.remove('drag-insert-before', 'drag-insert-after');
-                });
-                
-                if (afterElement == null) {
-                    const lastTask = tasksContainer.querySelector('.task-item:last-child');
-                    if (lastTask && lastTask !== draggingElement) {
-                        lastTask.classList.add('drag-insert-after');
-                    }
-                } else if (afterElement !== draggingElement) {
-                    afterElement.classList.add('drag-insert-before');
-                }
+            if (!dragState.draggedTask) return;
+            
+            const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY);
+            
+            if (afterElement == null) {
+                // Insert at the end
+                tasksContainer.appendChild(dragState.draggedTask);
+            } else if (afterElement !== dragState.draggedTask) {
+                // Insert before the after element
+                tasksContainer.insertBefore(dragState.draggedTask, afterElement);
             }
+            
+            // Add transition classes for smooth movement
+            tasksContainer.querySelectorAll('.task-item').forEach(task => {
+                if (task !== dragState.draggedTask) {
+                    task.classList.add('drag-transitioning');
+                }
+            });
         });
 
         tasksContainer.addEventListener('dragleave', e => {
             if (!columnElement.contains(e.relatedTarget)) {
                 columnElement.classList.remove('drag-over');
-                tasksContainer.querySelectorAll('.task-item').forEach(task => {
-                    task.classList.remove('drag-insert-before', 'drag-insert-after');
-                });
             }
         });
 
@@ -486,24 +652,7 @@ function setupTaskDragAndDrop() {
             e.preventDefault();
             columnElement.classList.remove('drag-over');
             
-            tasksContainer.querySelectorAll('.task-item').forEach(task => {
-                task.classList.remove('drag-insert-before', 'drag-insert-after');
-            });
-
-            const taskId = e.dataTransfer.getData('text/plain');
-            const fromColumnId = e.dataTransfer.getData('application/column-id');
-
-            if (taskId && fromColumnId) {
-                const dropIndex = calculateDropIndex(tasksContainer, e.clientY);
-                
-                vscode.postMessage({
-                    type: 'moveTask',
-                    taskId: taskId,
-                    fromColumnId: fromColumnId,
-                    toColumnId: columnId,
-                    newIndex: dropIndex
-                });
-            }
+            // The actual position change is handled in dragend
         });
 
         columnElement.querySelectorAll('.task-drag-handle').forEach(handle => {
@@ -522,24 +671,94 @@ function setupTaskDragHandle(handle) {
             const taskId = taskItem.dataset.taskId;
             const columnId = taskItem.dataset.columnId;
             
+            // Store original position
+            dragState.draggedTask = taskItem;
+            dragState.originalTaskParent = taskItem.parentNode;
+            dragState.originalTaskNextSibling = taskItem.nextSibling;
+            dragState.originalTaskIndex = Array.from(dragState.originalTaskParent.children).indexOf(taskItem);
+            dragState.isDragging = true;
+            
             e.dataTransfer.setData('text/plain', taskId);
             e.dataTransfer.setData('application/column-id', columnId);
             e.dataTransfer.setData('application/kanban-task', taskId);
             e.dataTransfer.effectAllowed = 'move';
-            taskItem.classList.add('dragging');
+            
+            // Make the task semi-transparent
+            taskItem.classList.add('dragging', 'drag-preview');
         }
     });
 
     handle.addEventListener('dragend', e => {
         const taskItem = e.target.closest('.task-item');
         if (taskItem) {
-            taskItem.classList.remove('dragging');
+            dragState.isDragging = false;
+            
+            // Remove all visual feedback
+            taskItem.classList.remove('dragging', 'drag-preview');
+            document.querySelectorAll('.task-item').forEach(task => {
+                task.classList.remove('drag-transitioning');
+            });
+            
+            // Get the final position
+            const finalParent = taskItem.parentNode;
+            const finalColumnElement = finalParent?.closest('.kanban-column');
+            const finalColumnId = finalColumnElement?.dataset.columnId;
+            
+            if (finalParent && finalColumnId) {
+                const originalColumnElement = dragState.originalTaskParent?.closest('.kanban-column');
+                const originalColumnId = originalColumnElement?.dataset.columnId;
+                
+                const finalIndex = Array.from(finalParent.children).indexOf(taskItem);
+                
+                // Check if position actually changed
+                const positionChanged = finalParent !== dragState.originalTaskParent || 
+                                       finalIndex !== dragState.originalTaskIndex;
+                
+                if (positionChanged && originalColumnId) {
+                    // DON'T restore position - keep the preview position
+                    // Calculate the proper index for the data model
+                    const dropIndex = finalIndex >= 0 ? finalIndex : 0;
+                    
+                    // Send the command to update the model
+                    vscode.postMessage({
+                        type: 'moveTask',
+                        taskId: taskItem.dataset.taskId,
+                        fromColumnId: originalColumnId,
+                        toColumnId: finalColumnId,
+                        newIndex: dropIndex
+                    });
+                }
+            }
+            
+            // Reset drag state
+            dragState.draggedTask = null;
+            dragState.originalTaskParent = null;
+            dragState.originalTaskNextSibling = null;
+            dragState.originalTaskIndex = -1;
         }
     });
+    
+    // Add ESC key handler to cancel task drag
+    if (!handle.hasEscListener) {
+        handle.hasEscListener = true;
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && dragState.isDragging && dragState.draggedTask) {
+                restoreTaskPosition();
+                dragState.draggedTask.classList.remove('dragging', 'drag-preview');
+                
+                // Reset drag state
+                dragState.draggedTask = null;
+                dragState.originalTaskParent = null;
+                dragState.originalTaskNextSibling = null;
+                dragState.originalTaskIndex = -1;
+                dragState.isDragging = false;
+            }
+        });
+    }
 }
 
 function getDragAfterTaskElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')];
+    const draggableElements = [...container.querySelectorAll('.task-item')].filter(el => el !== dragState.draggedTask);
     
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
@@ -551,6 +770,14 @@ function getDragAfterTaskElement(container, y) {
             return closest;
         }
     }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function calculateTaskDropIndex(tasksContainer, draggedTask, event) {
+    const tasks = Array.from(tasksContainer.children);
+    const currentIndex = tasks.indexOf(draggedTask);
+    
+    // Return the current index in the DOM
+    return currentIndex >= 0 ? currentIndex : 0;
 }
 
 function calculateDropIndex(tasksContainer, clientY) {

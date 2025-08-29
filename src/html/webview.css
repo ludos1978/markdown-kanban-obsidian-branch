@@ -1392,3 +1392,20 @@ blockquote {
     outline: 2px solid var(--vscode-editor-findMatchHighlightBorder);
     outline-offset: -1px;
 }
+
+/* Smooth transitions for drag and drop preview */
+.kanban-column.drag-transitioning {
+    transition: transform 0.2s ease;
+}
+
+.task-item.drag-transitioning {
+    transition: transform 0.2s ease;
+}
+
+/* Ghost image for dragging */
+.drag-ghost {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0.8;
+    z-index: 1000;
+}
