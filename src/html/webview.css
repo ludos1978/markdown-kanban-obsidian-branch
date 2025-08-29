@@ -5,6 +5,7 @@
   --whitespace-div3-mul2: calc(var(--whitespace)/3*2);
   --whitespace-div2: calc(var(--whitespace)/2);
   --whitespace-div4: calc(var(--whitespace)/4);
+  --column-title-width: 180px;
 }
 
 * {
@@ -187,9 +188,9 @@ body {
     word-break: break-word;
     display: block;
     margin: 0;
-    width: 200px;
+    width: var(--column-title-width);
     /* required so that it's allways clickable */
-    min-width: 200px;
+    min-width: var(--column-title-width);
     min-height: 16px;
 }
 
@@ -1092,6 +1093,9 @@ blockquote {
     margin-bottom: var(--whitespace-div4);
     position: fixed; /* or sticky */
     z-index: 100;
+    top: 0px;
+    left: 0px;
+    width: 100%;
 }
 
 .file-info-content {
@@ -1235,10 +1239,10 @@ blockquote {
 
 /* Adjust kanban container to account for file bar */
 #kanban-container {
-    margin: var(--whitespace-div4) calc(var(--whitespace-div4) + 2px) var(--whitespace-div4) calc(var(--whitespace-div4) + 2px);
+    margin: var(--whitespace-div2) var(--whitespace-div2) var(--whitespace-div2) var(--whitespace-div2);
     min-height: calc(100vh - 120px);
     position: relative;
-    top: calc(var(--whitespace) + 16px);
+    top: calc(var(--whitespace-div2) + 22px); /* 20 => 32, 12 => 28, 6 => 24 */
 }
 
 /* Drop zone feedback */
