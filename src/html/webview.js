@@ -139,8 +139,7 @@ function updateColumnRowTag(columnId, newRow) {
         .replace(/#row\d+\b/gi, '')  // Remove #row followed by digits
         .replace(/\s+#row\d+/gi, '')  // Remove with preceding space
         .replace(/#row\d+\s+/gi, '')  // Remove with following space
-        .replace(/\s{2,}/g, ' ')       // Clean up multiple spaces
-        .trim();                       // Remove leading/trailing spaces
+        .replace(/\s+#row\d+\s+/gi, '');  // Remove with following and preceding space
     
     // Update the column title
     if (newRow > 1) {
@@ -178,7 +177,7 @@ function updateColumnRowTag(columnId, newRow) {
     vscode.postMessage({
         type: 'editColumnTitle',
         columnId: columnId,
-        title: column.title
+        title: cleanTitle
     });
 }
 

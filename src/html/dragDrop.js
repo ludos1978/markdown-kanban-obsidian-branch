@@ -454,62 +454,62 @@ function restoreTaskPosition() {
     }
 }
 
-dragHandle.addEventListener('dragend', e => {
-    dragState.isDragging = false;
+// dragHandle.addEventListener('dragend', e => {
+//     dragState.isDragging = false;
     
-    // Remove all visual feedback
-    column.classList.remove('dragging', 'drag-preview');
-    document.querySelectorAll('.kanban-column').forEach(col => {
-        col.classList.remove('drag-over', 'drag-transitioning');
-    });
-    document.querySelectorAll('.kanban-row').forEach(row => {
-        row.classList.remove('drag-over');
-    });
+//     // Remove all visual feedback
+//     column.classList.remove('dragging', 'drag-preview');
+//     document.querySelectorAll('.kanban-column').forEach(col => {
+//         col.classList.remove('drag-over', 'drag-transitioning');
+//     });
+//     document.querySelectorAll('.kanban-row').forEach(row => {
+//         row.classList.remove('drag-over');
+//     });
     
-    // Check if we moved to a different row
-    const newRowContainer = column.closest('.kanban-row');
+//     // Check if we moved to a different row
+//     const newRowContainer = column.closest('.kanban-row');
     
-    if (newRowContainer) {
-        const newRowNumber = parseInt(newRowContainer.getAttribute('data-row-number') || '1');
-        const columnId = column.getAttribute('data-column-id');
+//     if (newRowContainer) {
+//         const newRowNumber = parseInt(newRowContainer.getAttribute('data-row-number') || '1');
+//         const columnId = column.getAttribute('data-column-id');
         
-        // Find the column in the board data
-        if (currentBoard && currentBoard.columns) {
-            const boardColumn = currentBoard.columns.find(c => c.id === columnId);
-            if (boardColumn) {
-                const currentRowTag = getColumnRow(boardColumn.title);
+//         // Find the column in the board data
+//         if (currentBoard && currentBoard.columns) {
+//             const boardColumn = currentBoard.columns.find(c => c.id === columnId);
+//             if (boardColumn) {
+//                 const currentRowTag = getColumnRow(boardColumn.title);
                 
-                // Always update if moving to/from row 1, or if row changed
-                if (newRowNumber === 1 || currentRowTag !== newRowNumber) {
-                    console.log(`Moving column ${columnId} from row ${currentRowTag} to row ${newRowNumber}`);
-                    updateColumnRowTag(columnId, newRowNumber);
-                }
-            }
-        }
-    } else {
-        // Single row layout - ensure we're in row 1
-        const columnId = column.getAttribute('data-column-id');
-        updateColumnRowTag(columnId, 1);
-    }
+//                 // Always update if moving to/from row 1, or if row changed
+//                 if (newRowNumber === 1 || currentRowTag !== newRowNumber) {
+//                     console.log(`Moving column ${columnId} from row ${currentRowTag} to row ${newRowNumber}`);
+//                     updateColumnRowTag(columnId, newRowNumber);
+//                 }
+//             }
+//         }
+//     } else {
+//         // Single row layout - ensure we're in row 1
+//         const columnId = column.getAttribute('data-column-id');
+//         updateColumnRowTag(columnId, 1);
+//     }
     
-    // Calculate new position for reordering
-    const fromIndex = getOriginalColumnIndex(column.getAttribute('data-column-id'));
-    const toIndex = calculateColumnDropIndexInRow(column);
+//     // Calculate new position for reordering
+//     const fromIndex = getOriginalColumnIndex(column.getAttribute('data-column-id'));
+//     const toIndex = calculateColumnDropIndexInRow(column);
     
-    if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
-        vscode.postMessage({
-            type: 'moveColumn',
-            fromIndex: fromIndex,
-            toIndex: toIndex
-        });
-    }
+//     if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
+//         vscode.postMessage({
+//             type: 'moveColumn',
+//             fromIndex: fromIndex,
+//             toIndex: toIndex
+//         });
+//     }
     
-    // Reset drag state
-    dragState.draggedColumn = null;
-    dragState.originalColumnParent = null;
-    dragState.originalColumnIndex = -1;
-    dragState.originalColumnNextSibling = null;
-});
+//     // Reset drag state
+//     dragState.draggedColumn = null;
+//     dragState.originalColumnParent = null;
+//     dragState.originalColumnIndex = -1;
+//     dragState.originalColumnNextSibling = null;
+// });
 
 function setupRowDragAndDrop() {
     const boardElement = document.getElementById('kanban-board');
@@ -916,50 +916,91 @@ function setupColumnDragAndDrop() {
             column.classList.add('dragging', 'drag-preview');
         });
 
+        // dragHandle.addEventListener('dragend', e => {
+        //     dragState.isDragging = false;
+            
+        //     // Remove all visual feedback
+        //     column.classList.remove('dragging', 'drag-preview');
+        //     columns.forEach(col => {
+        //         col.classList.remove('drag-over', 'drag-transitioning');
+        //     });
+            
+        //     // Check if we need to update row tag
+        //     const newRow = column.closest('.kanban-row');
+        //     let newRowNumber = parseInt(newRow.getAttribute('data-row-number') || '1');
+        //     let currentRowNumber = newRowNumber;
+        //     if (newRow) {
+        //         currentRowNumber = getColumnRow(column.querySelector('.column-title')?.textContent || '1');
+        //     }
+            
+        //     // Get the current position in the DOM
+        //     const currentParent = column.parentNode;
+        //     const currentIndex = Array.from(currentParent.children).filter(el => el.classList.contains('kanban-column')).indexOf(column);
+            
+        //     // Check if position actually changed
+        //     const positionChanged = currentIndex !== dragState.originalColumnIndex 
+        //         || currentParent !== dragState.originalColumnParent 
+        //         || (newRowNumber !== currentRow);
+            
+        //     if (positionChanged && currentIndex >= 0) {
+        //         // Calculate the actual indices for the data model
+        //         const fromIndex = getOriginalColumnIndex(column.getAttribute('data-column-id'));
+        //         const toIndex = calculateColumnDropIndex(boardElement, column);
+
+                
+                
+        //         if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
+        //             vscode.postMessage({
+        //                 type: 'moveColumn',
+        //                 fromIndex: fromIndex,
+        //                 toIndex: toIndex,
+        //                 fromRow: currentRowNumber,
+        //                 toRow: newRowNumber
+        //             });
+        //         }
+        //     }
+            
+        //     // Reset drag state
+        //     dragState.draggedColumn = null;
+        //     dragState.originalColumnIndex = -1;
+        //     dragState.originalColumnNextSibling = null;
+        // });
+
         dragHandle.addEventListener('dragend', e => {
             dragState.isDragging = false;
             
             // Remove all visual feedback
             column.classList.remove('dragging', 'drag-preview');
-            columns.forEach(col => {
+            document.querySelectorAll('.kanban-column').forEach(col => {
                 col.classList.remove('drag-over', 'drag-transitioning');
             });
+            document.querySelectorAll('.kanban-row').forEach(row => {
+                row.classList.remove('drag-over');
+            });
             
-            // Check if we need to update row tag
-            const newRow = column.closest('.kanban-row');
-            if (newRow) {
-                const newRowNumber = parseInt(newRow.getAttribute('data-row-number') || '1');
-                const currentRow = getColumnRow(column.querySelector('.column-title')?.textContent || '');
-                
-                if (newRowNumber !== currentRow) {
-                    const columnId = column.getAttribute('data-column-id');
-                    updateColumnRowTag(columnId, newRowNumber);
-                }
+            // Determine the new row number
+            let newRowNumber = 1; // Default to row 1
+            const newRowContainer = column.closest('.kanban-row');
+            
+            if (newRowContainer) {
+                newRowNumber = parseInt(newRowContainer.getAttribute('data-row-number') || '1');
             }
             
-            // Get the current position in the DOM
-            const currentParent = column.parentNode;
-            const currentIndex = Array.from(currentParent.children).filter(el => el.classList.contains('kanban-column')).indexOf(column);
+            // Calculate the new position in the column array
+            const columnId = column.getAttribute('data-column-id');
+            const newPosition = calculateColumnNewPosition(column);
             
-            // Check if position actually changed
-            const positionChanged = currentIndex !== dragState.originalColumnIndex || currentParent !== dragState.originalColumnParent;
-            
-            if (positionChanged && currentIndex >= 0) {
-                // Calculate the actual indices for the data model
-                const fromIndex = getOriginalColumnIndex(column.getAttribute('data-column-id'));
-                const toIndex = calculateColumnDropIndex(boardElement, column);
-                
-                if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
-                    vscode.postMessage({
-                        type: 'moveColumn',
-                        fromIndex: fromIndex,
-                        toIndex: toIndex
-                    });
-                }
-            }
+            // Send combined move and row update to backend
+            vscode.postMessage({
+                type: 'moveColumnWithRowUpdate',
+                columnId: columnId,
+                newPosition: newPosition,
+                newRow: newRowNumber
+            });
             
             // Reset drag state
             dragState.draggedColumn = null;
+            dragState.originalColumnParent = null;
             dragState.originalColumnIndex = -1;
             dragState.originalColumnNextSibling = null;
         });
@@ -1019,37 +1060,77 @@ function setupColumnDragAndDrop() {
     });
 }
 
-// Enhanced column drop handler for multi-row support
-function handleColumnDropWithRows(draggedColumn, targetColumn, boardElement) {
-    const draggedRow = parseInt(draggedColumn.getAttribute('data-row') || '1');
-    const targetRow = parseInt(targetColumn.getAttribute('data-row') || '1');
+function calculateColumnNewPosition(draggedColumn) {
+    if (!currentBoard || !currentBoard.columns) return 0;
     
-    // If dropping in a different row, update the row tag
-    if (draggedRow !== targetRow) {
-        const columnId = draggedColumn.getAttribute('data-column-id');
-        updateColumnRowTag(columnId, targetRow);
-        draggedColumn.setAttribute('data-row', targetRow);
-    }
+    const boardElement = document.getElementById('kanban-board');
+    const columnId = draggedColumn.getAttribute('data-column-id');
     
-    // Continue with normal column reordering within the row
-    const allColumns = Array.from(boardElement.querySelectorAll(`.kanban-column[data-row="${targetRow}"]`));
-    const draggedIndex = allColumns.indexOf(draggedColumn);
-    const targetIndex = allColumns.indexOf(targetColumn);
+    // Get all columns in their visual order
+    let allColumnsInOrder = [];
     
-    if (draggedIndex < targetIndex) {
-        // Moving right - insert after target
-        if (targetColumn.nextSibling) {
-            boardElement.insertBefore(draggedColumn, targetColumn.nextSibling);
-        } else {
-            const addBtn = boardElement.querySelector('.add-column-btn');
-            if (addBtn) {
-                boardElement.insertBefore(draggedColumn, addBtn);
-            } else {
-                boardElement.appendChild(draggedColumn);
-            }
-        }
+    // Check if we have multi-row layout
+    const rows = boardElement.querySelectorAll('.kanban-row');
+    if (rows.length > 0) {
+        // Multi-row layout - collect columns from all rows in order
+        rows.forEach(row => {
+            const columnsInRow = row.querySelectorAll('.kanban-column');
+            columnsInRow.forEach(col => {
+                const colId = col.getAttribute('data-column-id');
+                if (colId) {
+                    allColumnsInOrder.push(colId);
+                }
+            });
+        });
     } else {
-        // Moving left - insert before target
-        boardElement.insertBefore(draggedColumn, targetColumn);
+        // Single row layout
+        const columns = boardElement.querySelectorAll('.kanban-column');
+        columns.forEach(col => {
+            const colId = col.getAttribute('data-column-id');
+            if (colId) {
+                allColumnsInOrder.push(colId);
+            }
+        });
     }
+    
+    // Find the position of our column in the visual order
+    const visualPosition = allColumnsInOrder.indexOf(columnId);
+    
+    // Return the position (or 0 if not found)
+    return visualPosition >= 0 ? visualPosition : 0;
 }
+
+// Enhanced column drop handler for multi-row support
+// function handleColumnDropWithRows(draggedColumn, targetColumn, boardElement) {
+//     const draggedRow = parseInt(draggedColumn.getAttribute('data-row') || '1');
+//     const targetRow = parseInt(targetColumn.getAttribute('data-row') || '1');
+    
+//     // If dropping in a different row, update the row tag
+//     if (draggedRow !== targetRow) {
+//         const columnId = draggedColumn.getAttribute('data-column-id');
+//         updateColumnRowTag(columnId, targetRow);
+//         draggedColumn.setAttribute('data-row', targetRow);
+//     }
+    
+//     // Continue with normal column reordering within the row
+//     const allColumns = Array.from(boardElement.querySelectorAll(`.kanban-column[data-row="${targetRow}"]`));
+//     const draggedIndex = allColumns.indexOf(draggedColumn);
+//     const targetIndex = allColumns.indexOf(targetColumn);
+    
+//     if (draggedIndex < targetIndex) {
+//         // Moving right - insert after target
+//         if (targetColumn.nextSibling) {
+//             boardElement.insertBefore(draggedColumn, targetColumn.nextSibling);
+//         } else {
+//             const addBtn = boardElement.querySelector('.add-column-btn');
+//             if (addBtn) {
+//                 boardElement.insertBefore(draggedColumn, addBtn);
+//             } else {
+//                 boardElement.appendChild(draggedColumn);
+//             }
+//         }
+//     } else {
+//         // Moving left - insert before target
+//         boardElement.insertBefore(draggedColumn, targetColumn);
+//     }
+// }

@@ -50,10 +50,15 @@ function moveColumnLeft(columnId) {
     if (!currentBoard || !currentBoard.columns) return;
     const index = currentBoard.columns.findIndex(c => c.id === columnId);
     if (index > 0) {
+        // Get current row
+        const column = currentBoard.columns[index];
+        const currentRow = getColumnRow(column.title);
+        
         vscode.postMessage({
-            type: 'moveColumn',
-            fromIndex: index,
-            toIndex: index - 1
+            type: 'moveColumnWithRowUpdate',
+            columnId: columnId,
+            newPosition: index - 1,
+            newRow: currentRow // Keep same row when using menu
         });
     }
 }
@@ -62,10 +67,15 @@ function moveColumnRight(columnId) {
     if (!currentBoard || !currentBoard.columns) return;
     const index = currentBoard.columns.findIndex(c => c.id === columnId);
     if (index < currentBoard.columns.length - 1) {
+        // Get current row
+        const column = currentBoard.columns[index];
+        const currentRow = getColumnRow(column.title);
+        
         vscode.postMessage({
-            type: 'moveColumn',
-            fromIndex: index,
-            toIndex: index + 1
+            type: 'moveColumnWithRowUpdate',
+            columnId: columnId,
+            newPosition: index + 1,
+            newRow: currentRow // Keep same row when using menu
         });
     }
 }

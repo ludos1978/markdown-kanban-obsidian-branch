@@ -222,7 +222,7 @@ export class BoardOperations {
         return true;
     }
 
-    public moveColumn(board: KanbanBoard, fromIndex: number, toIndex: number): boolean {
+    public moveColumn(board: KanbanBoard, fromIndex: number, toIndex: number, fromRow: number, toRow: number): boolean {
         if (fromIndex === toIndex) return false;
 
         const columns = board.columns;
@@ -308,5 +308,78 @@ export class BoardOperations {
             }
         }
         return true;
+    }
+
+    // Column operation that combines movement and row tag update
+    public moveColumnWithRowUpdate(board: KanbanBoard, columnId: string, newPosition: number, newRow: number): boolean {
+        const column = this.findColumn(board, columnId);
+        if (!column) return false;
+        
+        // First, update the row tag in the title
+        let cleanTitle = column.title
+            .replace(/#row\d+\b/gi, '')  // Remove existing row tags
+            .replace(/\s+#row\d+/gi, '') // Remove with preceding space
+            .replace(/#row\d+\s+/gi, '')  // Remove with following space
+            .replace(/\s{2,}/g, ' ')      // Clean up multiple spaces
+            .trim();                      // Remove leading/trailing spaces
+        
+        // Add new row tag if not row 1
+        if (newRow > 1) {
+            column.title = cleanTitle + ` #row${newRow}`;
+        } else {
+            column.title = cleanTitle;
+        }
+        
+        // Then, move the column to its new position if needed
+        const currentIndex = board.columns.findIndex(col => col.id === columnId);
+        if (currentIndex !== -1 && currentIndex !== newPosition) {
+            const [movedColumn] = board.columns.splice(currentIndex, 1);
+            board.columns.splice(newPosition, 0, movedColumn);
+        }
+        
+        return true;
+    }
+
+    // Helper method to extract row number from column title
+    public getColumnRow(column: KanbanColumn): number {
+        if (!column.title) return 1;
+        
+        const rowMatch = column.title.match(/#row(\d+)\b/i);
+        if (rowMatch) {
+            const rowNum = parseInt(rowMatch[1]);
+            return Math.min(Math.max(rowNum, 1), 4); // Clamp between 1 and 4
+        }
+        return 1;
+    }
+
+    // Helper method to clean duplicate row tags (for initialization)
+    public cleanupRowTags(board: KanbanBoard): boolean {
+        let modified = false;
+        
+        board.columns.forEach(column => {
+            const originalTitle = column.title;
+            
+            // Find all row tags
+            const rowTags = column.title.match(/#row\d+\b/gi) || [];
+            
+            if (rowTags.length > 1) {
+                // Multiple row tags found - keep only the last one
+                let cleanTitle = column.title;
+                rowTags.forEach(tag => {
+                    cleanTitle = cleanTitle.replace(new RegExp(tag, 'gi'), '');
+                });
+                cleanTitle = cleanTitle.replace(/\s{2,}/g, ' ').trim();
+                
+                // Add back only the last tag
+                const lastTag = rowTags[rowTags.length - 1];
+                column.title = cleanTitle + ' ' + lastTag;
+                
+                if (column.title !== originalTitle) {
+                    modified = true;
+                }
+            }
+        });
+        
+        return modified;
     }
 }

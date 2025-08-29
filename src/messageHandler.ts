@@ -168,7 +168,7 @@ export class MessageHandler {
                 break;
             case 'moveColumn':
                 await this.performBoardAction(() => 
-                    this._boardOperations.moveColumn(this._getCurrentBoard()!, message.fromIndex, message.toIndex)
+                    this._boardOperations.moveColumn(this._getCurrentBoard()!, message.fromIndex, message.toIndex, message.fromRow, message.toRow)
                 );
                 break;
             case 'deleteColumn':
@@ -194,6 +194,16 @@ export class MessageHandler {
             case 'editColumnTitle':
                 await this.performBoardAction(() => 
                     this._boardOperations.editColumnTitle(this._getCurrentBoard()!, message.columnId, message.title)
+                );
+                break;
+            case 'moveColumnWithRowUpdate':
+                await this.performBoardAction(() => 
+                    this._boardOperations.moveColumnWithRowUpdate(
+                        this._getCurrentBoard()!, 
+                        message.columnId, 
+                        message.newPosition, 
+                        message.newRow
+                    )
                 );
                 break;
             default:

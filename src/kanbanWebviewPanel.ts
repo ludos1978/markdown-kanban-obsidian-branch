@@ -334,6 +334,13 @@ export class KanbanWebviewPanel {
         
         try {
             this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
+            
+            // Clean up any duplicate row tags
+            const wasModified = this._boardOperations.cleanupRowTags(this._board);
+            if (wasModified) {
+                console.log('Cleaned up duplicate row tags in loaded board');
+            }
+            
             this._boardOperations.setOriginalTaskOrder(this._board);
             
             // Only clear undo history on document change or external edit
