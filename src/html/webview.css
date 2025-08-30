@@ -1318,6 +1318,13 @@ blockquote {
     margin-right: 8px;
 }
 
+#drop-zone-feedback,
+.drop-zone-feedback {
+    display: none !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+}
+
 /* Search Panel Styles */
 .search-panel {
     position: fixed;
