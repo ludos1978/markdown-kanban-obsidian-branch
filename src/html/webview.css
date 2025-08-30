@@ -143,13 +143,12 @@ body {
 }
 
 .kanban-column.dragging {
-    opacity: 0.6;
-    z-index: 1000;
-    pointer-events: none; /* Prevent the dragged element from interfering */
+    z-index: 1000 !important;
+    pointer-events: none;
 }
 
 .kanban-column.dragging .column-drag-handle {
-    pointer-events: auto;
+    pointer-events: auto !important;
 }
 
 .column-header {
@@ -1638,10 +1637,19 @@ button.file-bar-menu-item {
 }
 
 .kanban-board.multi-row .kanban-row {
-    border-bottom: 1px dashed var(--vscode-panel-border);
-    padding-bottom: var(--whitespace);
-    margin-bottom: var(--whitespace);
-    width: 100%;
+    min-height: 250px;
+    position: relative;
+}
+
+.kanban-board.multi-row .kanban-row.drag-over {
+    background-color: rgba(var(--vscode-focusBorder-rgb, 0, 122, 204), 0.1);
+    outline: 2px dashed var(--vscode-focusBorder);
+    outline-offset: -2px;
+}
+
+.kanban-board.multi-row .row-drop-zone-spacer {
+    position: relative;
+    z-index: 1;
 }
 
 .kanban-board.multi-row .kanban-row:last-child {

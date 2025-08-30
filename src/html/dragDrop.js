@@ -551,6 +551,12 @@ function setupRowDragAndDrop() {
             // Add visual feedback
             row.classList.add('drag-over');
             
+            // Get the row number for this row
+            const targetRowNumber = parseInt(row.getAttribute('data-row-number') || '1');
+            
+            // Update the dragged column's data-row attribute for preview
+            dragState.draggedColumn.setAttribute('data-row', targetRowNumber);
+            
             // Check if we're over the drop zone spacer (which means drop at end)
             const spacer = e.target.closest('.row-drop-zone-spacer');
             const isOverSpacer = spacer && row.contains(spacer);
@@ -559,34 +565,23 @@ function setupRowDragAndDrop() {
             const rect = row.getBoundingClientRect();
             const x = e.clientX - rect.left;
             
-            // Check if the dragged column is currently in this row
-            const draggedColumnCurrentlyInRow = row.contains(dragState.draggedColumn);
-            
             // Find all columns in this row (excluding the one being dragged)
             const columnsInRow = Array.from(row.querySelectorAll('.kanban-column:not(.dragging)'));
             
-            // If the dragged column is the only one in this row and we're still in the same row, don't manipulate DOM
-            if (draggedColumnCurrentlyInRow && columnsInRow.length === 0 && !isOverSpacer) {
-                // Column is alone in this row and still dragging within it - don't touch the DOM
-                return;
-            }
+            // Find insertion point based on mouse X position
+            let insertBefore = null;
+            let insertPosition = columnsInRow.length; // Default to end
             
-            // If we're over the spacer, always insert at the end of columns
+            // If we're over the spacer, always insert at the end
             if (isOverSpacer) {
-                // Find the last column in this row
-                const lastColumn = columnsInRow[columnsInRow.length - 1];
                 const spacerElement = row.querySelector('.row-drop-zone-spacer');
-                
                 if (spacerElement && dragState.draggedColumn.nextSibling !== spacerElement) {
                     row.insertBefore(dragState.draggedColumn, spacerElement);
                 }
                 return;
             }
             
-            // Find insertion point based on mouse X position
-            let insertBefore = null;
-            let shouldInsert = false;
-            
+            // Find the insertion point based on mouse position
             for (let i = 0; i < columnsInRow.length; i++) {
                 const col = columnsInRow[i];
                 const colRect = col.getBoundingClientRect();
@@ -594,41 +589,34 @@ function setupRowDragAndDrop() {
                 
                 if (x < colCenter) {
                     insertBefore = col;
-                    shouldInsert = true;
+                    insertPosition = i;
                     break;
                 }
             }
             
-            // Only manipulate DOM if we're actually changing position
-            if (!shouldInsert && columnsInRow.length > 0) {
-                // Insert at the end (after last column but before spacer)
-                const spacerElement = row.querySelector('.row-drop-zone-spacer');
-                if (spacerElement && dragState.draggedColumn.nextSibling !== spacerElement) {
-                    shouldInsert = true;
-                    insertBefore = spacerElement;
+            // Insert the dragged column at the appropriate position for preview
+            if (insertBefore) {
+                if (dragState.draggedColumn.nextSibling !== insertBefore) {
+                    row.insertBefore(dragState.draggedColumn, insertBefore);
                 }
-            } else if (!shouldInsert && columnsInRow.length === 0 && !draggedColumnCurrentlyInRow) {
-                // Moving to an empty row from another row
-                shouldInsert = true;
-            }
-            
-            // Only manipulate DOM if position actually changes
-            if (shouldInsert) {
-                if (insertBefore) {
-                    if (dragState.draggedColumn.nextSibling !== insertBefore) {
-                        row.insertBefore(dragState.draggedColumn, insertBefore);
+            } else {
+                // Insert at the end (before spacer or add button)
+                const spacerElement = row.querySelector('.row-drop-zone-spacer');
+                if (spacerElement) {
+                    if (dragState.draggedColumn.nextSibling !== spacerElement) {
+                        row.insertBefore(dragState.draggedColumn, spacerElement);
                     }
                 } else {
-                    // Find the spacer and insert before it
-                    const spacerElement = row.querySelector('.row-drop-zone-spacer');
-                    if (spacerElement) {
-                        row.insertBefore(dragState.draggedColumn, spacerElement);
-                    } else {
-                        // Fallback to appending
+                    // Fallback to appending
+                    if (dragState.draggedColumn.parentNode !== row) {
                         row.appendChild(dragState.draggedColumn);
                     }
                 }
             }
+            
+            // Store the target position for use in drop event
+            dragState.targetRowNumber = targetRowNumber;
+            dragState.targetPosition = insertPosition;
         });
         
         row.addEventListener('dragleave', e => {
@@ -643,15 +631,14 @@ function setupRowDragAndDrop() {
             e.stopPropagation();
             row.classList.remove('drag-over');
             
-            // Update the row tag for the dropped column
+            // The actual column movement is handled in the dragend event
+            // We just need to ensure the row information is stored
             if (dragState.draggedColumn) {
                 const newRowNumber = parseInt(row.getAttribute('data-row-number') || '1');
-                const columnId = dragState.draggedColumn.getAttribute('data-column-id');
+                dragState.finalRowNumber = newRowNumber;
                 
-                // Update the data-row attribute immediately
+                // Update the data-row attribute
                 dragState.draggedColumn.setAttribute('data-row', newRowNumber);
-                
-                console.log(`Column ${columnId} dropped in row ${newRowNumber}`);
             }
         });
     });
@@ -1043,7 +1030,7 @@ function setupColumnDragAndDrop() {
         // });
 
         dragHandle.addEventListener('dragend', e => {
-            console.log(`dragend ${e}`);
+            console.log(`dragend for column`);
 
             dragState.isDragging = false;
             
@@ -1056,19 +1043,23 @@ function setupColumnDragAndDrop() {
                 row.classList.remove('drag-over');
             });
             
-            // Determine the new row number
-            let newRowNumber = 1; // Default to row 1
-            const newRowContainer = column.closest('.kanban-row');
+            // Get the final position and row from the current DOM state
+            const columnId = column.getAttribute('data-column-id');
+            const parentRow = column.closest('.kanban-row');
             
-            if (newRowContainer) {
-                newRowNumber = parseInt(newRowContainer.getAttribute('data-row-number') || '1');
+            let newRowNumber = 1; // Default to row 1
+            if (parentRow) {
+                newRowNumber = parseInt(parentRow.getAttribute('data-row-number') || '1');
+            } else if (dragState.finalRowNumber) {
+                // Use the stored row number from drop event
+                newRowNumber = dragState.finalRowNumber;
             }
             
-            // Calculate the new position in the column array
-            const columnId = column.getAttribute('data-column-id');
+            // Calculate the new position based on the current DOM state
             const newPosition = calculateColumnNewPosition(column);
             
-            console.log(`dragend ${columnId} ${newPosition} ${newRowNumber}`);
+            console.log(`Final position for column ${columnId}: position ${newPosition}, row ${newRowNumber}`);
+            
             // Send combined move and row update to backend
             vscode.postMessage({
                 type: 'moveColumnWithRowUpdate',
@@ -1082,6 +1073,9 @@ function setupColumnDragAndDrop() {
             dragState.originalColumnParent = null;
             dragState.originalColumnIndex = -1;
             dragState.originalColumnNextSibling = null;
+            dragState.targetRowNumber = null;
+            dragState.targetPosition = null;
+            dragState.finalRowNumber = null;
         });
 
         column.addEventListener('dragover', e => {
@@ -1140,42 +1134,59 @@ function setupColumnDragAndDrop() {
 }
 
 function calculateColumnNewPosition(draggedColumn) {
-    console.log(`calculateColumnNewPosition`);
+    console.log(`calculateColumnNewPosition for column:`, draggedColumn);
 
     if (!currentBoard || !currentBoard.columns) return 0;
     
     const boardElement = document.getElementById('kanban-board');
     const columnId = draggedColumn.getAttribute('data-column-id');
     
-    // Get all columns in their visual order
+    // Get the parent row of the dragged column
+    const parentRow = draggedColumn.closest('.kanban-row');
+    const targetRowNumber = parentRow ? 
+        parseInt(parentRow.getAttribute('data-row-number') || '1') : 1;
+    
+    // Get all columns in visual order, accounting for rows
     let allColumnsInOrder = [];
     
     // Check if we have multi-row layout
     const rows = boardElement.querySelectorAll('.kanban-row');
     if (rows.length > 0) {
-        // Multi-row layout - collect columns from all rows in order
-        rows.forEach(row => {
-            const columnsInRow = row.querySelectorAll('.kanban-column');
-            columnsInRow.forEach(col => {
-                const colId = col.getAttribute('data-column-id');
-                if (colId) {
-                    allColumnsInOrder.push(colId);
-                }
-            });
-        });
+        // Multi-row layout - process each row in order
+        for (let rowNum = 1; rowNum <= rows.length; rowNum++) {
+            const row = boardElement.querySelector(`.kanban-row[data-row-number="${rowNum}"]`);
+            if (row) {
+                const columnsInRow = row.querySelectorAll('.kanban-column');
+                columnsInRow.forEach(col => {
+                    const colId = col.getAttribute('data-column-id');
+                    if (colId) {
+                        allColumnsInOrder.push({
+                            id: colId,
+                            row: rowNum
+                        });
+                    }
+                });
+            }
+        }
     } else {
         // Single row layout
         const columns = boardElement.querySelectorAll('.kanban-column');
         columns.forEach(col => {
             const colId = col.getAttribute('data-column-id');
             if (colId) {
-                allColumnsInOrder.push(colId);
+                allColumnsInOrder.push({
+                    id: colId,
+                    row: 1
+                });
             }
         });
     }
     
-    // Find the position of our column in the visual order
-    const visualPosition = allColumnsInOrder.indexOf(columnId);
+    // Find the position of our column in the overall order
+    const visualPosition = allColumnsInOrder.findIndex(item => item.id === columnId);
+    
+    console.log(`Column ${columnId} is at visual position ${visualPosition} in row ${targetRowNumber}`);
+    console.log('All columns in order:', allColumnsInOrder);
     
     // Return the position (or 0 if not found)
     return visualPosition >= 0 ? visualPosition : 0;
