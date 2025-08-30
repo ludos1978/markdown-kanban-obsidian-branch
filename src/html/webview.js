@@ -70,6 +70,8 @@ function setColumnWidth(size) {
 
 // Function to set layout rows
 function setLayoutRows(rows) {
+    console.log(`setLayoutRows ${rows}`);
+
     currentLayoutRows = rows;
     
     // Re-render the board to apply row layout

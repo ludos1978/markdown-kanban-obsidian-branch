@@ -47,6 +47,7 @@ function insertColumnAfter(columnId) {
 }
 
 function moveColumnLeft(columnId) {
+    
     if (!currentBoard || !currentBoard.columns) return;
     const index = currentBoard.columns.findIndex(c => c.id === columnId);
     if (index > 0) {
@@ -54,6 +55,7 @@ function moveColumnLeft(columnId) {
         const column = currentBoard.columns[index];
         const currentRow = getColumnRow(column.title);
         
+        console.log(`moveColumnLeft ${columnId}`);
         vscode.postMessage({
             type: 'moveColumnWithRowUpdate',
             columnId: columnId,
@@ -71,6 +73,7 @@ function moveColumnRight(columnId) {
         const column = currentBoard.columns[index];
         const currentRow = getColumnRow(column.title);
         
+        console.log(`moveColumnRight ${columnId}`);
         vscode.postMessage({
             type: 'moveColumnWithRowUpdate',
             columnId: columnId,

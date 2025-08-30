@@ -6,6 +6,8 @@ class TaskEditor {
     }
 
     setupGlobalHandlers() {
+        console.log(`TaskEditor.setupGlobalHandlers`);
+
         // Single global keydown handler
         document.addEventListener('keydown', (e) => {
             if (!this.currentEditor) return;
@@ -313,6 +315,8 @@ window.taskEditor = taskEditor;
 
 // Simplified edit trigger functions
 function editTitle(element, taskId, columnId) {
+    console.log(`editDescription ${element} ${taskId} ${columnId}`);
+
     // Don't start editing if we're already editing this field
     if (taskEditor.currentEditor && 
         taskEditor.currentEditor.type === 'task-title' &&
@@ -324,6 +328,8 @@ function editTitle(element, taskId, columnId) {
 }
 
 function editDescription(element, taskId, columnId) {
+    console.log(`editDescription ${element} ${taskId} ${columnId}`);
+
     // Don't start editing if we're already editing this field
     if (taskEditor.currentEditor && 
         taskEditor.currentEditor.type === 'task-description' &&
@@ -337,6 +343,8 @@ function editDescription(element, taskId, columnId) {
 }
 
 function editColumnTitle(columnId) {
+    console.log(`editColumnTitle ${columnId}`);
+
     // Don't start editing if we're already editing this column
     if (taskEditor.currentEditor && 
         taskEditor.currentEditor.type === 'column-title' &&

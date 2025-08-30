@@ -1779,6 +1779,15 @@ button.file-bar-menu-item {
     font-style: italic;
 }
 
+/* Only show the "Drop columns here" message if the row is TRULY empty (no columns at all, not even dragging ones) */
+.kanban-row:has(.kanban-column.dragging):not(:has(.kanban-column:not(.dragging))) {
+    /* Row with only dragging columns - keep normal layout */
+    border: none;
+    background-color: transparent;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
 .kanban-row:not(:has(.kanban-column:not(.dragging))) {
     border: 2px dashed var(--vscode-panel-border);
     background-color: var(--vscode-list-hoverBackground);
@@ -1799,6 +1808,12 @@ button.file-bar-menu-item {
     font-weight: bold;
 }
 
+.kanban-row:has(.kanban-column)::after {
+    display: none;
+}
+
 .kanban-row.drag-over::after {
     display: none;
 }
+
+
