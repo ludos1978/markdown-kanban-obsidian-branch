@@ -371,27 +371,52 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     recentlyCreatedTasks.add(content);
     setTimeout(() => recentlyCreatedTasks.delete(content), 2000);
     
-    // Find the nearest column
-    const columns = document.querySelectorAll('.kanban-column');
+    // Find the column at the drop position more accurately
     let targetColumnId = null;
     let insertionIndex = -1;
-    let minDistance = Infinity;
     
-    columns.forEach(column => {
-        const rect = column.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const distance = Math.abs(centerX - dropPosition.x);
+    // First, try to find the column directly under the drop position
+    const elementAtPoint = document.elementFromPoint(dropPosition.x, dropPosition.y);
+    const columnElement = elementAtPoint?.closest('.kanban-column');
+    
+    if (columnElement && !columnElement.classList.contains('collapsed')) {
+        targetColumnId = columnElement.dataset.columnId;
+        insertionIndex = calculateInsertionIndex(columnElement, dropPosition.y);
+        console.log(`Found column directly at drop point: ${targetColumnId}`);
+    } else {
+        // Fallback to finding nearest column (improved for multi-row layout)
+        const columns = document.querySelectorAll('.kanban-column:not(.collapsed)');
+        let minDistance = Infinity;
         
-        if (distance < minDistance) {
-            minDistance = distance;
-            targetColumnId = column.dataset.columnId;
-            insertionIndex = calculateInsertionIndex(column, dropPosition.y);
+        columns.forEach(column => {
+            const rect = column.getBoundingClientRect();
+            // Check both X and Y distance for multi-row layout
+            const distX = Math.abs((rect.left + rect.right) / 2 - dropPosition.x);
+            const distY = Math.abs((rect.top + rect.bottom) / 2 - dropPosition.y);
+            const distance = Math.sqrt(distX * distX + distY * distY);
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                targetColumnId = column.dataset.columnId;
+                insertionIndex = calculateInsertionIndex(column, dropPosition.y);
+            }
+        });
+        
+        if (targetColumnId) {
+            console.log(`Found nearest column: ${targetColumnId} at distance ${minDistance}`);
         }
-    });
+    }
     
+    // If still no target column found and board has columns, use first non-collapsed column
     if (!targetColumnId && currentBoard && currentBoard.columns.length > 0) {
-        targetColumnId = currentBoard.columns[0].id;
-        insertionIndex = -1;
+        const firstNonCollapsed = currentBoard.columns.find(col => 
+            !window.collapsedColumns || !window.collapsedColumns.has(col.id)
+        );
+        if (firstNonCollapsed) {
+            targetColumnId = firstNonCollapsed.id;
+            insertionIndex = -1;
+            console.log(`Using first non-collapsed column as fallback: ${targetColumnId}`);
+        }
     }
     
     if (targetColumnId) {
@@ -405,6 +430,12 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             columnId: targetColumnId,
             taskData: taskData,
             insertionIndex: insertionIndex
+        });
+    } else {
+        console.warn('Could not find a suitable column for the dropped file');
+        vscode.postMessage({ 
+            type: 'showMessage', 
+            text: 'Could not find a suitable column. Please ensure at least one column is not collapsed.' 
         });
     }
 }
@@ -500,15 +531,21 @@ function setupRowDragAndDrop() {
     rows.forEach(row => {
         // Make the entire row a drop zone
         row.addEventListener('dragover', e => {
-            e.preventDefault(); // Always prevent default
-            
-            // Only stop propagation for internal column drags
-            if (!isExternalFileDrag(e) && dragState.draggedColumn) {
-                e.stopPropagation();
+            // If it's not a column drag, don't handle it here at all
+            if (!dragState.draggedColumn) {
+                // Still need to preventDefault for drop zones to work
+                if (!isExternalFileDrag(e)) {
+                    e.preventDefault();
+                }
+                return; // Let other handlers deal with it
             }
             
+            // Now we know it's a column drag - handle it fully
+            e.preventDefault();
+            e.stopPropagation();      
+
             // Only handle column drags, not external files or tasks
-            if (!dragState.draggedColumn) return;
+            // if (!dragState.draggedColumn) return;
             
             // Add visual feedback
             row.classList.add('drag-over');
