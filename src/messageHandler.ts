@@ -196,6 +196,16 @@ export class MessageHandler {
                     this._boardOperations.editColumnTitle(this._getCurrentBoard()!, message.columnId, message.title)
                 );
                 break;
+            case 'moveColumnWithRowUpdate':
+                await this.performBoardAction(() => 
+                    this._boardOperations.moveColumnWithRowUpdate(
+                        this._getCurrentBoard()!, 
+                        message.columnId, 
+                        message.newPosition, 
+                        message.newRow
+                    )
+                );
+                break;
             default:
                 console.warn('Unknown message type:', message.type);
                 break;

@@ -356,17 +356,61 @@ function renderBoard() {
         return;
     }
 
-    // Render columns (no state restoration here - that happens in webview.js)
-    currentBoard.columns.forEach((column, index) => {
-        const columnElement = createColumnElement(column, index);
-        boardElement.appendChild(columnElement);
-    });
+    // Detect number of rows from the board
+    const detectedRows = detectRowsFromBoard(currentBoard);
+    const numRows = Math.max(currentLayoutRows, detectedRows);
+    
+    // Apply multi-row class if needed
+    if (numRows > 1) {
+        boardElement.classList.add('multi-row');
+        
+        // Create row containers
+        for (let row = 1; row <= numRows; row++) {
+            const rowContainer = document.createElement('div');
+            rowContainer.className = 'kanban-row';
+            rowContainer.setAttribute('data-row-number', row);
+            
+            // Add row header
+            const rowHeader = document.createElement('div');
+            rowHeader.className = 'kanban-row-header';
+            rowHeader.textContent = `Row ${row}`;
+            rowContainer.appendChild(rowHeader);
+            
+            // Add columns for this row
+            currentBoard.columns.forEach((column, index) => {
+                const columnRow = getColumnRow(column.title);
+                if (columnRow === row) {
+                    const columnElement = createColumnElement(column, index);
+                    rowContainer.appendChild(columnElement);
+                }
+            });
+            
+            // Add the "Add Column" button only to the first row
+            if (row === 1) {
+                const addColumnBtn = document.createElement('button');
+                addColumnBtn.className = 'add-column-btn';
+                addColumnBtn.textContent = '+ Add Column';
+                addColumnBtn.onclick = () => addColumn();
+                rowContainer.appendChild(addColumnBtn);
+            }
+            
+            boardElement.appendChild(rowContainer);
+        }
+    } else {
+        // Single row layout (existing behavior)
+        boardElement.classList.remove('multi-row');
+        
+        currentBoard.columns.forEach((column, index) => {
+            const columnElement = createColumnElement(column, index);
+            boardElement.appendChild(columnElement);
+        });
 
-    const addColumnBtn = document.createElement('button');
-    addColumnBtn.className = 'add-column-btn';
-    addColumnBtn.textContent = '+ Add Column';
-    addColumnBtn.onclick = () => addColumn();
-    boardElement.appendChild(addColumnBtn);
+        const addColumnBtn = document.createElement('button');
+        addColumnBtn.className = 'add-column-btn';
+        addColumnBtn.textContent = '+ Add Column';
+        addColumnBtn.onclick = () => addColumn();
+        boardElement.appendChild(addColumnBtn);
+    }
 
     // Apply folding states after rendering
     setTimeout(() => {
@@ -505,6 +549,9 @@ function createColumnElement(column, columnIndex) {
     // Extract tag from column title BEFORE rendering markdown
     const columnTag = extractFirstTag(column.title);
     console.log(`Creating column "${column.title}", detected tag: "${columnTag}"`);
+    
+    // Extract row from column title
+    const columnRow = getColumnRow(column.title);
 
     const columnDiv = document.createElement('div');
     const isCollapsed = window.collapsedColumns.has(column.id);
@@ -512,6 +559,7 @@ function createColumnElement(column, columnIndex) {
     columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''}`;
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
+    columnDiv.setAttribute('data-row', columnRow);
     
     // Add tag attribute if tag exists
     if (columnTag) {
@@ -519,8 +567,13 @@ function createColumnElement(column, columnIndex) {
         console.log(`Set data-column-tag="${columnTag}" on column element`);
     }
 
-    const renderedTitle = column.title ? renderMarkdown(column.title) : '<span class="task-title-placeholder">Add title...</span>';
+    // Filter out row tags from displayed title
+    const displayTitle = column.title ? column.title.replace(/#row\d+/gi, '').trim() : '';
+    const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
     const foldButtonState = getFoldAllButtonState(column.id);
+
+    // Add row indicator if not in row 1
+    const rowIndicator = columnRow > 1 ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
     columnDiv.innerHTML = `
         <div class="column-header">
@@ -528,7 +581,7 @@ function createColumnElement(column, columnIndex) {
                 <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
                 <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
                 <div style="display: inline-block;">
-                    <div class="column-title" onclick="editColumnTitle('${column.id}')">${renderedTitle}</div>
+                    <div class="column-title" onclick="editColumnTitle('${column.id}')">${renderedTitle}${rowIndicator}</div>
                     <textarea class="column-title-edit" 
                                 data-column-id="${column.id}"
                                 style="display: none;">${escapeHtml(column.title || '')}</textarea>

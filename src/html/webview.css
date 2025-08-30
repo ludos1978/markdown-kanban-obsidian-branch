@@ -27,6 +27,8 @@ body {
     gap: var(--whitespace-div2);
     min-height: calc(100vh - 150px);
     padding-bottom: var(--whitespace);
+    flex-wrap: nowrap;
+    overflow-x: auto;
 }
 
 .kanban-column {
@@ -43,8 +45,9 @@ body {
 }
 
 .kanban-column.collapsed {
-    min-width: 40px;
-    max-width: 40px;
+    width: var(--collapsed-column-width) !important; /* Force narrow width */
+    min-width: var(--collapsed-column-width) !important;
+    max-width: var(--collapsed-column-width) !important;
     padding: var(--whitespace-div2) var(--whitespace-div3-mul2) var(--whitespace-div2) var(--whitespace-div3-mul2);
     overflow: visible;
 }
@@ -1408,4 +1411,353 @@ blockquote {
     pointer-events: none;
     opacity: 0.8;
     z-index: 1000;
+}
+
+/* File Bar Burger Menu Styles */
+.file-bar-menu {
+    position: relative;
+    z-index: 200;
+}
+
+.file-bar-menu-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-titleBar-activeForeground);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 16px;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    border-radius: 3px;
+}
+
+.file-bar-menu-btn:hover {
+    opacity: 1;
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.file-bar-menu-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: var(--vscode-dropdown-background);
+    border: 1px solid var(--vscode-dropdown-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+    min-width: 180px;
+    margin-top: 4px;
+}
+
+.file-bar-menu.active .file-bar-menu-dropdown {
+    display: block;
+}
+
+.file-bar-menu-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--vscode-dropdown-foreground);
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.file-bar-menu-item .menu-icon {
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+}
+
+button.file-bar-menu-item {
+    width: 100%;
+    text-align: left;
+}
+
+.file-bar-menu-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.file-bar-menu-item.has-submenu {
+    padding-right: 24px;
+}
+
+.file-bar-menu-item.has-submenu::after {
+    content: '◀'; /* Changed from ▶ to ◀ */
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+.file-bar-menu-submenu {
+    display: none;
+    position: absolute;
+    right: calc(100% - 2px); /* Slight overlap to prevent gap */
+    top: 0;
+    background: var(--vscode-dropdown-background);
+    border: 1px solid var(--vscode-dropdown-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    min-width: 140px;
+    z-index: 1001;
+    /* Remove margin-right to eliminate gap */
+}
+
+.file-bar-menu-item.has-submenu::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 0;
+    width: 10px;
+    height: 100%;
+    z-index: 1000;
+}
+
+.file-bar-menu-item.has-submenu:hover .file-bar-menu-submenu {
+    display: block;
+}
+
+.file-bar-menu-submenu button.file-bar-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 8px 12px;
+    margin: 0;
+}
+
+.file-bar-menu-submenu button.file-bar-menu-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.file-bar-menu-divider {
+    height: 1px;
+    background: var(--vscode-panel-border);
+    margin: 4px 0;
+}
+
+/* Lock status icon (outside menu) */
+.lock-status-icon {
+    font-size: 14px;
+    cursor: help;
+    flex-shrink: 0;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    margin-right: 8px;
+}
+
+.lock-status-icon:hover {
+    opacity: 1;
+}
+
+.lock-status-icon.locked {
+    color: var(--vscode-charts-orange);
+}
+
+/* Column width variable */
+:root {
+    --column-width: 350px; /* default medium */
+    --collapsed-column-width: 40px; /* width for collapsed columns */
+}
+
+/* Multi-row layout styles */
+.kanban-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min-content, max-content));
+    grid-auto-rows: minmax(min-content, max-content);
+    gap: var(--whitespace-div2);
+    min-height: calc(100vh - 150px);
+    padding-bottom: var(--whitespace);
+    width: max-content; /* Allow board to expand horizontally */
+}
+
+.kanban-board.rows-2,
+.kanban-board.rows-3,
+.kanban-board.rows-4 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min-content, max-content));
+    grid-auto-flow: dense;
+    width: max-content;
+}
+
+.kanban-board.rows-2 {
+    grid-template-rows: repeat(2, minmax(min-content, max-content));
+}
+
+.kanban-board.rows-3 {
+    grid-template-rows: repeat(3, minmax(min-content, max-content));
+}
+
+.kanban-board.rows-4 {
+    grid-template-rows: repeat(4, minmax(min-content, max-content));
+}
+
+.kanban-column:not(.collapsed) {
+    width: var(--column-width);
+    min-width: var(--column-width);
+    max-width: var(--column-width);
+}
+
+/* Column positioning in grid */
+.kanban-column {
+    background-color: var(--vscode-sideBar-background);
+    border-radius: var(--whitespace-div4);
+    padding: var(--whitespace-div2);
+    width: var(--column-width); /* Use width instead of min/max-width */
+    flex-shrink: 0;
+    border: 1px solid var(--vscode-panel-border);
+    position: relative;
+    height: min-content;
+    transition: all 0.3s ease;
+}
+
+.kanban-column[data-row="1"] {
+    grid-row: 1;
+}
+
+.kanban-column[data-row="2"] {
+    grid-row: 2;
+}
+
+.kanban-column[data-row="3"] {
+    grid-row: 3;
+}
+
+.kanban-column[data-row="4"] {
+    grid-row: 4;
+}
+
+/* Row indicator tag */
+.column-row-tag {
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    margin-left: 4px;
+    opacity: 0.7;
+}
+
+/* Add column button positioning */
+.add-column-btn {
+    grid-column: -1;
+    grid-row: 1;
+}
+
+/* Update existing donut menu submenu for columns on the right side */
+.kanban-column .donut-menu-submenu {
+    display: none;
+    position: absolute;
+    right: calc(100% - 2px); /* Slight overlap */
+    top: 0;
+    background: var(--vscode-dropdown-background);
+    border: 1px solid var(--vscode-dropdown-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    min-width: 120px;
+    z-index: 1001;
+    /* Remove margin-right */
+}
+
+.kanban-column .donut-menu-item.has-submenu::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 0;
+    width: 10px;
+    height: 100%;
+    z-index: 1000;
+}
+
+/* Keep task donut menus opening to the right since they're on the left side of cards */
+.task-item .donut-menu-submenu {
+    display: none;
+    position: absolute;
+    left: 100%; /* Keep this as left for task menus */
+    top: 0;
+    background: var(--vscode-dropdown-background);
+    border: 1px solid var(--vscode-dropdown-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    min-width: 120px;
+    z-index: 1001;
+}
+
+/* Update arrows accordingly */
+.kanban-column .donut-menu-item.has-submenu::after {
+    content: '◀'; /* Point left for column menus */
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+.task-item .donut-menu-item.has-submenu::after {
+    content: '▶'; /* Keep pointing right for task menus */
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+/* Container for each row */
+.kanban-row {
+    display: flex;
+    gap: var(--whitespace-div2);
+    min-height: 200px;
+    padding: var(--whitespace-div2) 0;
+    flex-shrink: 0;
+    align-items: flex-start;
+}
+
+/* Multi-row container */
+.kanban-board.multi-row {
+    display: flex;
+    flex-direction: column;
+    overflow-x: visible;
+    overflow-y: auto;
+}
+
+.kanban-board.multi-row .kanban-row {
+    border-bottom: 1px dashed var(--vscode-panel-border);
+    padding-bottom: var(--whitespace);
+    margin-bottom: var(--whitespace);
+}
+
+.kanban-board.multi-row .kanban-row:last-child {
+    border-bottom: none;
+}
+
+/* Row header/label */
+.kanban-row-header {
+    position: sticky;
+    left: 0;
+    background: var(--vscode-editor-background);
+    padding: 8px;
+    margin-right: var(--whitespace);
+    min-width: 60px;
+    text-align: center;
+    border-radius: 4px;
+    border: 1px solid var(--vscode-panel-border);
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    align-self: flex-start;
+    z-index: 10;
 }
