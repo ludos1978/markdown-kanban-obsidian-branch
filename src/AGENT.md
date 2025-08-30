@@ -72,3 +72,7 @@ please write the corresponding code. Always write out full functions and where t
 ---
 
 the dropping of files from the explorer is broken. it shows the message "Drop files here to create links" and blocks then, it doesnt display a location to drop in multi-row layout. It does work in the single row layout. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
+
+---
+
+in multi row mode, show the "+ Add Column" on each row, add it to the respective row it's on (using the tags #row2, #row3, #row4). explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.

@@ -412,15 +412,13 @@ function renderBoard() {
             dropZoneSpacer.className = 'row-drop-zone-spacer';
             rowContainer.appendChild(dropZoneSpacer);
             
-            // Add the "Add Column" button only to the first row
-            if (row === 1) {
-                const addColumnBtn = document.createElement('button');
-                addColumnBtn.className = 'add-column-btn';
-                addColumnBtn.textContent = '+ Add Column';
-                addColumnBtn.onclick = () => addColumn();
-                rowContainer.appendChild(addColumnBtn);
-            }
-            
+            // Add the "Add Column" button to each row
+            const addColumnBtn = document.createElement('button');
+            addColumnBtn.className = 'add-column-btn';
+            addColumnBtn.textContent = '+ Add Column';
+            addColumnBtn.onclick = () => addColumn(row);
+            rowContainer.appendChild(addColumnBtn);
+                  
             boardElement.appendChild(rowContainer);
         }
     } else {
