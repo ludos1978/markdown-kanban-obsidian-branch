@@ -111,7 +111,7 @@ body {
     white-space: nowrap;
     transform: rotate(180deg);
     margin: 0;
-    gap: 6px;
+    gap: 4px;
 }
 
 .kanban-column.collapsed .column-title-edit {
@@ -1611,15 +1611,21 @@ button.file-bar-menu-item {
 /* Lock status icon (outside menu) */
 .lock-status-icon {
     font-size: 14px;
-    cursor: help;
+    cursor: pointer;
     flex-shrink: 0;
     opacity: 0.8;
     transition: opacity 0.2s;
     margin-right: 8px;
+    background: none;
+    border: none;
+    color: var(--vscode-titleBar-activeForeground);
+    padding: 2px 4px;
+    border-radius: 3px;
 }
 
 .lock-status-icon:hover {
     opacity: 1;
+    background-color: var(--vscode-list-hoverBackground);
 }
 
 .lock-status-icon.locked {

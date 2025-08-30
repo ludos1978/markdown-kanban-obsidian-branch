@@ -808,32 +808,54 @@ function insertFileLink(fileInfo) {
     }
 }
 
-// File management functions
 function updateFileInfoBar() {
     if (!currentFileInfo) return;
 
     const fileNameElement = document.getElementById('file-name');
-    const lockStatusElement = document.getElementById('lock-status');
+    const lockStatusIcon = document.getElementById('lock-status-icon');
     const lockToggleBtnElement = document.getElementById('lock-toggle-btn');
     const lockBtnTextElement = document.getElementById('lock-btn-text');
+    const lockMenuIcon = document.getElementById('lock-menu-icon');
 
     if (fileNameElement) {
         fileNameElement.textContent = currentFileInfo.fileName;
         fileNameElement.title = currentFileInfo.filePath || currentFileInfo.fileName;
     }
 
-    if (lockStatusElement && lockToggleBtnElement && lockBtnTextElement) {
-        if (currentFileInfo.isLocked) {
-            lockStatusElement.textContent = '🔒';
-            lockStatusElement.title = 'File is locked - will not auto-switch';
-            lockStatusElement.classList.add('locked');
-            lockBtnTextElement.textContent = 'Unlock';
+    if (currentFileInfo.isLocked) {
+        // Update lock icon button
+        if (lockStatusIcon) {
+            lockStatusIcon.textContent = '🔒';
+            lockStatusIcon.title = 'File is locked - click to unlock';
+            lockStatusIcon.classList.add('locked');
+        }
+        
+        // Update menu item
+        if (lockBtnTextElement) {
+            lockBtnTextElement.textContent = 'Unlock File';
+        }
+        if (lockMenuIcon) {
+            lockMenuIcon.textContent = '🔒';
+        }
+        if (lockToggleBtnElement) {
             lockToggleBtnElement.classList.add('locked');
-        } else {
-            lockStatusElement.textContent = '🔓';
-            lockStatusElement.title = 'File is unlocked - will auto-switch with active editor';
-            lockStatusElement.classList.remove('locked');
-            lockBtnTextElement.textContent = 'Lock';
+        }
+    } else {
+        // Update lock icon button
+        if (lockStatusIcon) {
+            lockStatusIcon.textContent = '🔓';
+            lockStatusIcon.title = 'File is unlocked - click to lock';
+            lockStatusIcon.classList.remove('locked');
+        }
+        
+        // Update menu item
+        if (lockBtnTextElement) {
+            lockBtnTextElement.textContent = 'Lock File';
+        }
+        if (lockMenuIcon) {
+            lockMenuIcon.textContent = '🔓';
+        }
+        if (lockToggleBtnElement) {
             lockToggleBtnElement.classList.remove('locked');
         }
     }
