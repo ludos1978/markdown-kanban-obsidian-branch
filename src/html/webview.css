@@ -111,6 +111,7 @@ body {
     white-space: nowrap;
     transform: rotate(180deg);
     margin: 0;
+    gap: 6px;
 }
 
 .kanban-column.collapsed .column-title-edit {
@@ -1725,14 +1726,14 @@ button.file-bar-menu-item {
 }
 
 /* Row indicator tag */
-.column-row-tag {
+.kanban-column.collapsed .column-title .column-row-tag {
     background: var(--vscode-badge-background);
     color: var(--vscode-badge-foreground);
-    padding: 2px 6px;
     border-radius: 3px;
+    /* padding: 2px 6px;
     font-size: 10px;
     margin-left: 4px;
-    opacity: 0.7;
+    opacity: 0.7; */
 }
 
 /* Add column button positioning */

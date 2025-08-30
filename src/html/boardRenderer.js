@@ -369,10 +369,10 @@ function renderBoard() {
             rowContainer.setAttribute('data-row-number', row);
             
             // Add row header
-            const rowHeader = document.createElement('div');
-            rowHeader.className = 'kanban-row-header';
-            rowHeader.textContent = `Row ${row}`;
-            rowContainer.appendChild(rowHeader);
+            // const rowHeader = document.createElement('div');
+            // rowHeader.className = 'kanban-row-header';
+            // rowHeader.textContent = `Row ${row}`; // no title for line 
+            // rowContainer.appendChild(rowHeader);
             
             // Add columns for this row
             currentBoard.columns.forEach((column, index) => {
