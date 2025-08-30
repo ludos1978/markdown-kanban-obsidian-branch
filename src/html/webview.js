@@ -493,12 +493,16 @@ window.addEventListener('message', event => {
             const previousBoard = currentBoard;
             currentBoard = message.board;
             
-            // Detect rows from board
+            // Only auto-expand rows if detected rows EXCEED current setting
+            // This preserves user's manual layout choice
             const detectedRows = detectRowsFromBoard(currentBoard);
-            if (detectedRows > currentLayoutRows) {
-                setLayoutRows(detectedRows);
+            if (detectedRows > window.currentLayoutRows) {
+                window.currentLayoutRows = detectedRows;
+                console.log(`Auto-expanded to ${detectedRows} row(s) based on board tags`);
+            } else {
+                console.log(`Keeping layout at ${window.currentLayoutRows} row(s) (detected: ${detectedRows})`);
             }
-            
+
             if (message.imageMappings) {
                 window.currentImageMappings = message.imageMappings;
                 console.log('Received image mappings:', window.currentImageMappings);

@@ -323,7 +323,7 @@ export class BoardOperations {
             .replace(/\s{2,}/g, ' ')      // Clean up multiple spaces
             .trim();                      // Remove leading/trailing spaces
         
-        // Add new row tag if not row 1
+        // Add new row tag only if not row 1 (row 1 is implicit, no tag needed)
         if (newRow > 1) {
             column.title = cleanTitle + ` #row${newRow}`;
         } else {

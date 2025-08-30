@@ -1746,6 +1746,7 @@ button.file-bar-menu-item {
 }
 
 /* Row header/label */
+/* Row header/label */
 .kanban-row-header {
     position: sticky;
     left: 0;
@@ -1760,4 +1761,25 @@ button.file-bar-menu-item {
     color: var(--vscode-descriptionForeground);
     align-self: flex-start;
     z-index: 10;
+}
+
+/* Empty row drop zone visual feedback */
+.kanban-row.drag-over-empty {
+    background-color: var(--vscode-list-hoverBackground);
+    border: 2px dashed var(--vscode-focusBorder);
+    border-radius: 8px;
+    min-height: 250px;
+    transition: all 0.2s ease;
+}
+
+.kanban-row.drag-over-empty::after {
+    content: 'Drop column here';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    opacity: 0.7;
+    pointer-events: none;
 }
