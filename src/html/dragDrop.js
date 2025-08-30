@@ -172,35 +172,53 @@ function setupGlobalDragAndDrop() {
     });
     
     // Check if this is an external file drag (not internal task/column drag)
+    // function isExternalFileDrag(e) {
+    //     const dt = e.dataTransfer;
+    //     if (!dt) return false;
+        
+    //     // First check if we have an active internal drag state
+    //     if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+    //         return false; // This is definitely an internal drag
+    //     }
+        
+    //     // Check the types array for our custom MIME types
+    //     // Note: Some browsers lowercase MIME types, so check both cases
+    //     const typesArray = Array.from(dt.types);
+    //     const typesString = typesArray.join(',').toLowerCase();
+        
+    //     // Check for our specific internal kanban drag identifiers
+    //     if (typesString.includes('application/kanban-task') || 
+    //         typesString.includes('application/kanban-column') ||
+    //         typesString.includes('application/column-id')) {
+    //         return false; // Internal kanban drag
+    //     }
+        
+    //     // If we only have text/plain and no Files, it's likely internal
+    //     // External file drags always have 'Files' type
+    //     const hasFiles = typesArray.some(t => t === 'Files' || t === 'files');
+    //     const hasUriList = typesArray.some(t => t.toLowerCase() === 'text/uri-list');
+        
+    //     // Only consider it external if it has Files or uri-list
+    //     // AND doesn't have our internal markers
+    //     return hasFiles || hasUriList;
+    // }
+
     function isExternalFileDrag(e) {
         const dt = e.dataTransfer;
         if (!dt) return false;
         
-        // First check if we have an active internal drag state
+        // Check for Files type FIRST (most reliable indicator)
+        const hasFiles = Array.from(dt.types).some(t => t === 'Files' || t === 'files');
+        if (hasFiles) return true;
+        
+        // Then check if we have an active internal drag
         if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
-            return false; // This is definitely an internal drag
+            return false;
         }
         
-        // Check the types array for our custom MIME types
-        // Note: Some browsers lowercase MIME types, so check both cases
-        const typesArray = Array.from(dt.types);
-        const typesString = typesArray.join(',').toLowerCase();
-        
-        // Check for our specific internal kanban drag identifiers
-        if (typesString.includes('application/kanban-task') || 
-            typesString.includes('application/kanban-column') ||
-            typesString.includes('application/column-id')) {
-            return false; // Internal kanban drag
-        }
-        
-        // If we only have text/plain and no Files, it's likely internal
-        // External file drags always have 'Files' type
-        const hasFiles = typesArray.some(t => t === 'Files' || t === 'files');
-        const hasUriList = typesArray.some(t => t.toLowerCase() === 'text/uri-list');
-        
-        // Only consider it external if it has Files or uri-list
-        // AND doesn't have our internal markers
-        return hasFiles || hasUriList;
+        // Check for uri-list (another indicator of external files)
+        const hasUriList = Array.from(dt.types).some(t => t.toLowerCase() === 'text/uri-list');
+        return hasUriList;
     }
     
     // Enhanced document-level handling
@@ -482,10 +500,14 @@ function setupRowDragAndDrop() {
     rows.forEach(row => {
         // Make the entire row a drop zone
         row.addEventListener('dragover', e => {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); // Always prevent default
             
-            // Only handle column drags, not tasks
+            // Only stop propagation for internal column drags
+            if (!isExternalFileDrag(e) && dragState.draggedColumn) {
+                e.stopPropagation();
+            }
+            
+            // Only handle column drags, not external files or tasks
             if (!dragState.draggedColumn) return;
             
             // Add visual feedback
@@ -568,7 +590,12 @@ function setupRowDragAndDrop() {
         
         row.addEventListener('drop', e => {
             e.preventDefault();
-            e.stopPropagation();
+            
+            // Only stop propagation for internal column drags
+            if (!isExternalFileDrag(e) && dragState.draggedColumn) {
+                e.stopPropagation();
+            }
+            
             row.classList.remove('drag-over');
             
             // The actual column movement is handled in the dragend event

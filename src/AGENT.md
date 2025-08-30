@@ -68,3 +68,7 @@ add a burger menu in the file-info-bar. move the buttons undo, redo, lock and op
 -
 
 please write the corresponding code. Always write out full functions and where they should be added to. dont change the way the markdown is saved, except for adding the tags for the columns.
+
+---
+
+the dropping of files from the explorer is broken. it shows the message "Drop files here to create links" and blocks then, it doesnt display a location to drop in multi-row layout. It does work in the single row layout. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
