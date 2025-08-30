@@ -5,8 +5,8 @@
   --whitespace-div3-mul2: calc(var(--whitespace)/3*2);
   --whitespace-div2: calc(var(--whitespace)/2);
   --whitespace-div4: calc(var(--whitespace)/4);
-  --column-title-width: 180px;
-  --task-title-width: 220px;
+  --column-title-width: calc(var(--column-width) - 150px);
+  --task-title-width: calc(var(--column-width) - 110px);
 }
 
 * {
@@ -216,7 +216,7 @@ body {
     word-break: break-word;
     display: block;
     margin: 0;
-    width: var(--column-title-width);
+    width: var(--column-title-width) ;
     /* required so that it's allways clickable */
     min-width: var(--column-title-width);
     min-height: 16px;
@@ -543,7 +543,7 @@ button.donut-menu-item {
 
 .task-title-container {
     flex: 1;
-    min-width: 0;
+    min-width: ;
     width: 100%;
     max-width: var(--task-title-width);
     cursor: pointer;
@@ -666,9 +666,9 @@ button.donut-menu-item {
 }
 
 .add-column-btn {
-    background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-    border: 1px solid var(--vscode-panel-border);
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: 1px dashed var(--vscode-panel-border);
     border-radius: 6px;
     padding: 16px;
     font-size: 14px;
@@ -677,6 +677,11 @@ button.donut-menu-item {
     align-self: flex-start;
     transform: rotate(180deg);
     writing-mode: vertical-rl;
+}
+
+.add-column-btn:hover {
+    background: var(--vscode-button-hoverBackground);
+    border-color: var(--vscode-focusBorder);
 }
 
 .initialise-btn {
@@ -690,10 +695,6 @@ button.donut-menu-item {
     transition: background-color 0.2s;
     align-self: flex-start;
     display: block;
-}
-
-.add-column-btn:hover {
-    background: var(--vscode-button-hoverBackground);
 }
 
 /* Modal styles */
@@ -1085,7 +1086,7 @@ blockquote {
 .kanban-tag {
     color: var(--vscode-badge-foreground);
     background-color: var(--vscode-badge-background);
-    padding: 2px 6px 2px 4px;
+    padding: 0px 2px; /* 2px 6px 2px 4px; */
     border-radius: 4px;
     font-size: 0.85em;
     font-weight: 500;
@@ -1120,25 +1121,6 @@ blockquote {
 /* Collapsed column with tag should maintain some visual indication */
 .kanban-column.collapsed[data-column-tag] {
     border-width: 2px;
-}
-
-.kanban-column.collapsed .column-title .kanban-tag {
-    padding: 4px 0px 4px 2px;
-    margin: 8px 0px 0px 0px;
-}
-
-.kanban-column.collapsed .column-title h1 .kanban-tag,
-.kanban-column.collapsed .column-title h2 .kanban-tag {
-    left: -4px;
-    position: relative;
-}
-
-.kanban-column.collapsed .column-title h3 .kanban-tag,
-.kanban-column.collapsed .column-title h4 .kanban-tag,
-.kanban-column.collapsed .column-title h5 .kanban-tag,
-.kanban-column.collapsed .column-title h6 .kanban-tag {
-    left: -2px;
-    position: relative;
 }
 
 .task-item[data-task-tag="bug"] {
@@ -1732,16 +1714,51 @@ button.file-bar-menu-item {
     grid-row: 4;
 }
 
+
 /* Row indicator tag */
 .kanban-column.collapsed .column-title .column-row-tag {
     background: var(--vscode-badge-background);
     color: var(--vscode-badge-foreground);
     border-radius: 3px;
-    /* padding: 2px 6px;
-    font-size: 10px;
-    margin-left: 4px;
-    opacity: 0.7; */
 }
+
+.kanban-column.collapsed .column-title .kanban-tag {
+    margin: 4px 0px; /* gap downwards */
+    padding: 2px 0px; /* border height increase */
+    min-height: unset;
+}
+
+
+/* tags in general position fix */
+
+h1 .kanban-tag,
+h2 .kanban-tag {
+    position: relative;
+    top: -4px;
+}
+
+h3 .kanban-tag,
+h4 .kanban-tag,
+h5 .kanban-tag,
+h6 .kanban-tag {
+    left: -2px;
+    position: relative;
+}
+
+.collapsed .column-title h1 .kanban-tag,
+.collapsed .column-title h2 .kanban-tag {
+    left: -4px;
+    position: relative;
+}
+
+.collapsed h3 .kanban-tag,
+.collapsed h4 .kanban-tag,
+.collapsed h5 .kanban-tag,
+.collapsed h6 .kanban-tag {
+    left: -2px;
+    position: relative;
+}
+
 
 /* Add column button positioning */
 .add-column-btn {
@@ -1869,17 +1886,6 @@ button.file-bar-menu-item {
     align-self: flex-start;
 }
 
-
-/* Row indicator tag - can be hidden via configuration */
-.column-row-tag {
-    background: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 10px;
-    margin-left: 4px;
-    opacity: 0.7;
-}
 
 /* When row tags are hidden, ensure proper spacing */
 .column-title:not(:has(.column-row-tag)) {
