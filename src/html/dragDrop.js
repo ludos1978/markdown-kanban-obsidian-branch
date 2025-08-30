@@ -585,6 +585,14 @@ function setupColumnDragAndDrop() {
     });
 }
 
+
+
+
+
+
+
+
+
 function calculateColumnNewPosition(draggedColumn) {
     if (!currentBoard || !currentBoard.columns) return 0;
     
