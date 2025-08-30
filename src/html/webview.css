@@ -1659,6 +1659,7 @@ button.file-bar-menu-item {
     border-bottom: 1px dashed var(--vscode-panel-border);
     padding-bottom: var(--whitespace);
     margin-bottom: var(--whitespace);
+    width: 100%;
 }
 
 .kanban-board.multi-row .kanban-row:last-child {
@@ -1753,6 +1754,22 @@ button.file-bar-menu-item {
     background-color: rgba(var(--vscode-focusBorder), 0.1);
     border-radius: 8px;
     box-shadow: inset 0 0 0 2px var(--vscode-focusBorder);
+    min-height: 200px;  /* Ensure minimum height for drop zone */
+}
+
+/* Make the drop zone more visible when dragging over */
+.kanban-row.drag-over::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(var(--vscode-focusBorder), 0.05) 50%, 
+        transparent 100%);
+    pointer-events: none;
 }
 
 /* Highlight target row when dragging */
@@ -1760,7 +1777,7 @@ button.file-bar-menu-item {
     opacity: 0.9;
 }
 
-/* Better visual separation between rows */
+/* Ensure the row uses full width and spacer fills remaining space */
 .kanban-row {
     position: relative;
     min-height: 200px;
@@ -1769,6 +1786,8 @@ button.file-bar-menu-item {
     display: flex;
     gap: var(--whitespace-div2);
     align-items: flex-start;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* Make empty rows more visible as drop targets */
@@ -1778,6 +1797,8 @@ button.file-bar-menu-item {
     opacity: 0.5;
     padding: 20px;
     text-align: center;
+    min-width: 100%;  /* Ensure empty rows are full width */
+    width: 100%;
 }
 
 .kanban-row:not(:has(.kanban-column))::after {
@@ -1793,6 +1814,7 @@ button.file-bar-menu-item {
     background-color: transparent;
     justify-content: flex-start;
     align-items: flex-start;
+    width: 100%;  /* Ensure full width even when only dragging columns */
 }
 
 .kanban-row:not(:has(.kanban-column:not(.dragging))) {
@@ -1823,4 +1845,44 @@ button.file-bar-menu-item {
     display: none;
 }
 
+/* Drop zone spacer to make entire row width droppable */
+.row-drop-zone-spacer {
+    flex: 1 1 auto;  /* Takes up all remaining space */
+    min-width: 100px;  /* Minimum width to ensure it's always present */
+    min-height: 200px;  /* Match the row min-height */
+    pointer-events: all;  /* Ensure it receives mouse events */
+    position: relative;
+}
 
+/* Visual feedback when dragging over the spacer */
+.kanban-row.drag-over .row-drop-zone-spacer {
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(var(--vscode-focusBorder), 0.05) 50%, 
+        transparent 100%);
+}
+
+
+/* Ensure add column button doesn't prevent drops */
+.add-column-btn {
+    flex-shrink: 0;  /* Don't shrink */
+    align-self: flex-start;
+}
+
+
+/* Row indicator tag - can be hidden via configuration */
+.column-row-tag {
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    margin-left: 4px;
+    opacity: 0.7;
+}
+
+/* When row tags are hidden, ensure proper spacing */
+.column-title:not(:has(.column-row-tag)) {
+    /* Maintains consistent height even without row tag */
+    min-height: inherit;
+}

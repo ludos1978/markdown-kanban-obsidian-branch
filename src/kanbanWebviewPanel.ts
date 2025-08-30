@@ -380,6 +380,8 @@ export class KanbanWebviewPanel {
         const tagColors = await this._getTagConfiguration();
         
         const whitespace = await this._getWhitespaceConfiguration();
+        
+        const showRowTags = await this._getShowRowTagsConfiguration();
             
         setTimeout(() => {
             this._panel.webview.postMessage({
@@ -387,7 +389,8 @@ export class KanbanWebviewPanel {
                 board: board,
                 imageMappings: imageMappings,
                 tagColors: tagColors,
-                whitespace: whitespace
+                whitespace: whitespace,
+                showRowTags: showRowTags
             });
         }, 10);
     }
@@ -731,5 +734,11 @@ export class KanbanWebviewPanel {
         }
         
         console.log('=== END DEBUG ===');
+    }
+
+    private async _getShowRowTagsConfiguration(): Promise<boolean> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const showRowTags = config.get<boolean>('showRowTags', false);
+        return showRowTags;
     }
 }

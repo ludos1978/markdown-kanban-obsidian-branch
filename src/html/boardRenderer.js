@@ -142,13 +142,24 @@ function getGlobalColumnFoldState() {
         return 'fold-mixed';
     }
     
-    const collapsedCount = currentBoard.columns.filter(column => window.collapsedColumns.has(column.id)).length;
-    const totalColumns = currentBoard.columns.length;
+    // Count columns with tasks that are collapsed
+    const columnsWithTasks = currentBoard.columns.filter(column => column.tasks && column.tasks.length > 0);
+    const emptyColumns = currentBoard.columns.filter(column => !column.tasks || column.tasks.length === 0);
     
-    if (collapsedCount === totalColumns) {
-        return 'fold-collapsed'; // All folded
-    } else if (collapsedCount === 0) {
-        return 'fold-expanded'; // All expanded
+    if (columnsWithTasks.length === 0) {
+        // All columns are empty - consider them as all folded
+        return 'fold-collapsed';
+    }
+    
+    const collapsedWithTasks = columnsWithTasks.filter(column => window.collapsedColumns.has(column.id)).length;
+    const collapsedEmpty = emptyColumns.filter(column => window.collapsedColumns.has(column.id)).length;
+    
+    // If all columns with tasks are expanded and all empty columns are collapsed
+    if (collapsedWithTasks === 0 && collapsedEmpty === emptyColumns.length) {
+        return 'fold-expanded'; // This is the "expanded" state
+    } else if (collapsedWithTasks === columnsWithTasks.length) {
+        // All columns with tasks are collapsed
+        return 'fold-collapsed';
     } else {
         // Mixed state - return last manual state or default
         return window.globalColumnFoldState || 'fold-mixed';
@@ -168,7 +179,7 @@ function toggleAllColumns() {
     // Determine action based on current state
     let shouldCollapse;
     if (collapsedCount === totalColumns) {
-        // All folded -> expand all
+        // All folded -> expand all (except empty ones)
         shouldCollapse = false;
     } else if (collapsedCount === 0) {
         // All expanded -> collapse all
@@ -187,14 +198,27 @@ function toggleAllColumns() {
         const columnElement = document.querySelector(`[data-column-id="${column.id}"]`);
         const toggle = columnElement?.querySelector('.collapse-toggle');
         
+        // Check if column has tasks
+        const hasNoTasks = !column.tasks || column.tasks.length === 0;
+        
         if (shouldCollapse) {
+            // When collapsing, collapse all columns
             window.collapsedColumns.add(column.id);
             columnElement?.classList.add('collapsed');
             toggle?.classList.add('rotated');
         } else {
-            window.collapsedColumns.delete(column.id);
-            columnElement?.classList.remove('collapsed');
-            toggle?.classList.remove('rotated');
+            // When expanding, only expand columns with tasks
+            if (hasNoTasks) {
+                // Keep empty columns collapsed
+                window.collapsedColumns.add(column.id);
+                columnElement?.classList.add('collapsed');
+                toggle?.classList.add('rotated');
+            } else {
+                // Expand columns with tasks
+                window.collapsedColumns.delete(column.id);
+                columnElement?.classList.remove('collapsed');
+                toggle?.classList.remove('rotated');
+            }
         }
     });
     
@@ -369,10 +393,10 @@ function renderBoard() {
             rowContainer.setAttribute('data-row-number', row);
             
             // Add row header
-            // const rowHeader = document.createElement('div');
-            // rowHeader.className = 'kanban-row-header';
-            // rowHeader.textContent = `Row ${row}`; // no title for line 
-            // rowContainer.appendChild(rowHeader);
+            const rowHeader = document.createElement('div');
+            rowHeader.className = 'kanban-row-header';
+            rowHeader.textContent = `Row ${row}`;
+            rowContainer.appendChild(rowHeader);
             
             // Add columns for this row
             currentBoard.columns.forEach((column, index) => {
@@ -382,6 +406,11 @@ function renderBoard() {
                     rowContainer.appendChild(columnElement);
                 }
             });
+            
+            // Add a drop zone spacer that fills remaining horizontal space
+            const dropZoneSpacer = document.createElement('div');
+            dropZoneSpacer.className = 'row-drop-zone-spacer';
+            rowContainer.appendChild(dropZoneSpacer);
             
             // Add the "Add Column" button only to the first row
             if (row === 1) {
@@ -570,8 +599,8 @@ function createColumnElement(column, columnIndex) {
     const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
     const foldButtonState = getFoldAllButtonState(column.id);
 
-    // Only show row indicator for rows 2, 3, 4 (not row 1)
-    const rowIndicator = columnRow > 1 ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
+    // Only show row indicator for rows 2, 3, 4 if configuration allows (not row 1)
+    const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
     columnDiv.innerHTML = `
         <div class="column-header">

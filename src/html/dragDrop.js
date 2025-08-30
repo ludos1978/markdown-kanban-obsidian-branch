@@ -551,6 +551,10 @@ function setupRowDragAndDrop() {
             // Add visual feedback
             row.classList.add('drag-over');
             
+            // Check if we're over the drop zone spacer (which means drop at end)
+            const spacer = e.target.closest('.row-drop-zone-spacer');
+            const isOverSpacer = spacer && row.contains(spacer);
+            
             // Get mouse position relative to row
             const rect = row.getBoundingClientRect();
             const x = e.clientX - rect.left;
@@ -562,8 +566,20 @@ function setupRowDragAndDrop() {
             const columnsInRow = Array.from(row.querySelectorAll('.kanban-column:not(.dragging)'));
             
             // If the dragged column is the only one in this row and we're still in the same row, don't manipulate DOM
-            if (draggedColumnCurrentlyInRow && columnsInRow.length === 0) {
+            if (draggedColumnCurrentlyInRow && columnsInRow.length === 0 && !isOverSpacer) {
                 // Column is alone in this row and still dragging within it - don't touch the DOM
+                return;
+            }
+            
+            // If we're over the spacer, always insert at the end of columns
+            if (isOverSpacer) {
+                // Find the last column in this row
+                const lastColumn = columnsInRow[columnsInRow.length - 1];
+                const spacerElement = row.querySelector('.row-drop-zone-spacer');
+                
+                if (spacerElement && dragState.draggedColumn.nextSibling !== spacerElement) {
+                    row.insertBefore(dragState.draggedColumn, spacerElement);
+                }
                 return;
             }
             
@@ -585,11 +601,11 @@ function setupRowDragAndDrop() {
             
             // Only manipulate DOM if we're actually changing position
             if (!shouldInsert && columnsInRow.length > 0) {
-                // Insert at the end (after last column)
-                const lastColumn = columnsInRow[columnsInRow.length - 1];
-                if (dragState.draggedColumn.nextSibling !== lastColumn.nextSibling) {
+                // Insert at the end (after last column but before spacer)
+                const spacerElement = row.querySelector('.row-drop-zone-spacer');
+                if (spacerElement && dragState.draggedColumn.nextSibling !== spacerElement) {
                     shouldInsert = true;
-                    insertBefore = lastColumn.nextSibling;
+                    insertBefore = spacerElement;
                 }
             } else if (!shouldInsert && columnsInRow.length === 0 && !draggedColumnCurrentlyInRow) {
                 // Moving to an empty row from another row
@@ -603,24 +619,12 @@ function setupRowDragAndDrop() {
                         row.insertBefore(dragState.draggedColumn, insertBefore);
                     }
                 } else {
-                    // Insert at the end (before add button if it exists)
-                    const addBtn = row.querySelector('.add-column-btn');
-                    const rowHeader = row.querySelector('.kanban-row-header');
-                    
-                    if (addBtn) {
-                        if (dragState.draggedColumn.nextSibling !== addBtn) {
-                            row.insertBefore(dragState.draggedColumn, addBtn);
-                        }
-                    } else if (columnsInRow.length > 0) {
-                        // Insert after last column
-                        const lastColumn = columnsInRow[columnsInRow.length - 1];
-                        if (dragState.draggedColumn !== lastColumn.nextSibling) {
-                            row.insertBefore(dragState.draggedColumn, lastColumn.nextSibling);
-                        }
-                    } else if (rowHeader && !draggedColumnCurrentlyInRow) {
-                        // Empty row - insert after header only if coming from another row
-                        row.insertBefore(dragState.draggedColumn, rowHeader.nextSibling);
-                    } else if (!draggedColumnCurrentlyInRow) {
+                    // Find the spacer and insert before it
+                    const spacerElement = row.querySelector('.row-drop-zone-spacer');
+                    if (spacerElement) {
+                        row.insertBefore(dragState.draggedColumn, spacerElement);
+                    } else {
+                        // Fallback to appending
                         row.appendChild(dragState.draggedColumn);
                     }
                 }
@@ -629,12 +633,7 @@ function setupRowDragAndDrop() {
         
         row.addEventListener('dragleave', e => {
             // Check if we're really leaving the row (not just moving to a child element)
-            const rect = row.getBoundingClientRect();
-            const x = e.clientX;
-            const y = e.clientY;
-            
-            // Only remove drag-over if cursor is outside row bounds
-            if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+            if (!row.contains(e.relatedTarget)) {
                 row.classList.remove('drag-over');
             }
         });

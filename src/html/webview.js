@@ -4,7 +4,8 @@ const vscode = acquireVsCodeApi();
 let currentFileInfo = null;
 let canUndo = false;
 let canRedo = false;
-window.currentImageMappings = {}; // Make it available globally for the renderer
+window.currentImageMappings = {};
+window.showRowTags = false;
 
 // Document-specific folding state storage
 let documentFoldingStates = new Map(); // Map<documentUri, {collapsedColumns: Set, collapsedTasks: Set, columnFoldStates: Map}>
@@ -570,6 +571,12 @@ window.addEventListener('message', event => {
                 if (typeof applyTagStyles === 'function') {
                     applyTagStyles();
                 }
+            }
+            
+            // Store showRowTags configuration
+            if (typeof message.showRowTags !== 'undefined') {
+                window.showRowTags = message.showRowTags;
+                console.log('Show row tags:', window.showRowTags);
             }
             
             // Check if we should preserve editing state
