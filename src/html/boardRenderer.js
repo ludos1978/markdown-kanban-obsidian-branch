@@ -356,14 +356,14 @@ function renderBoard() {
         return;
     }
 
-    // Detect number of rows from the board
+    // Detect number of rows from the board (use the greater of current setting or detected)
     const detectedRows = detectRowsFromBoard(currentBoard);
-    const numRows = Math.max(currentLayoutRows, detectedRows);
+    const numRows = Math.max(currentLayoutRows || 1, detectedRows || 1);
     
     // Apply multi-row class if needed
     if (numRows > 1) {
         boardElement.classList.add('multi-row');
-        
+                
         // Create row containers
         for (let row = 1; row <= numRows; row++) {
             const rowContainer = document.createElement('div');

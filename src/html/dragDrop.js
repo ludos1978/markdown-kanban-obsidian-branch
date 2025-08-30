@@ -605,38 +605,33 @@ function setupColumnDragAndDrop() {
                 col.classList.remove('drag-over', 'drag-transitioning');
             });
             
-            // Check if we need to update row tag
-            const newRow = column.closest('.kanban-row');
-            if (newRow) {
-                const newRowNumber = parseInt(newRow.getAttribute('data-row-number') || '1');
-                const currentRow = getColumnRow(column.querySelector('.column-title')?.textContent || '');
-                
-                if (newRowNumber !== currentRow) {
-                    const columnId = column.getAttribute('data-column-id');
-                    updateColumnRowTag(columnId, newRowNumber);
+            // Determine the new row based on visual position
+            const boardElement = document.getElementById('kanban-board');
+            const isMultiRow = boardElement.classList.contains('multi-row');
+            let newRowNumber = 1;
+            
+            if (isMultiRow) {
+                // Multi-row mode: check which row container we're in
+                const rowContainer = column.closest('.kanban-row');
+                if (rowContainer) {
+                    newRowNumber = parseInt(rowContainer.getAttribute('data-row-number') || '1');
                 }
             }
             
-            // Get the current position in the DOM
-            const currentParent = column.parentNode;
-            const currentIndex = Array.from(currentParent.children).filter(el => el.classList.contains('kanban-column')).indexOf(column);
+            // Get the current row from the column title
+            const currentRow = getColumnRow(column.querySelector('.column-title')?.textContent || '');
             
-            // Check if position actually changed
-            const positionChanged = currentIndex !== dragState.originalColumnIndex || currentParent !== dragState.originalColumnParent;
+            // Calculate the new position in the flat column array
+            const newPosition = calculateColumnNewPosition(column);
+            const columnId = column.getAttribute('data-column-id');
             
-            if (positionChanged && currentIndex >= 0) {
-                // Calculate the actual indices for the data model
-                const fromIndex = getOriginalColumnIndex(column.getAttribute('data-column-id'));
-                const toIndex = calculateColumnDropIndex(boardElement, column);
-                
-                if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
-                    vscode.postMessage({
-                        type: 'moveColumn',
-                        fromIndex: fromIndex,
-                        toIndex: toIndex
-                    });
-                }
-            }
+            // Send combined move and row update message
+            vscode.postMessage({
+                type: 'moveColumnWithRowUpdate',
+                columnId: columnId,
+                newPosition: newPosition,
+                newRow: newRowNumber
+            });
             
             // Reset drag state
             dragState.draggedColumn = null;
@@ -704,6 +699,14 @@ function setupColumnDragAndDrop() {
         });
     });
 }
+
+
+
+
+
+
+
+
 
 function calculateColumnNewPosition(draggedColumn) {
     if (!currentBoard || !currentBoard.columns) return 0;
