@@ -407,11 +407,6 @@ function renderBoard() {
                 }
             });
             
-            // Add a drop zone spacer that fills remaining horizontal space
-            const dropZoneSpacer = document.createElement('div');
-            dropZoneSpacer.className = 'row-drop-zone-spacer';
-            rowContainer.appendChild(dropZoneSpacer);
-            
             // Add the "Add Column" button to each row
             const addColumnBtn = document.createElement('button');
             addColumnBtn.className = 'add-column-btn multi-row-add-btn'; // Add the multi-row-add-btn class
@@ -419,6 +414,11 @@ function renderBoard() {
             addColumnBtn.onclick = () => addColumn(row);
             rowContainer.appendChild(addColumnBtn);    
 
+            // Add a drop zone spacer that fills remaining horizontal space
+            const dropZoneSpacer = document.createElement('div');
+            dropZoneSpacer.className = 'row-drop-zone-spacer';
+            rowContainer.appendChild(dropZoneSpacer);
+            
             boardElement.appendChild(rowContainer);
         }
     } else {
@@ -431,10 +431,10 @@ function renderBoard() {
         });
 
         const addColumnBtn = document.createElement('button');
-        addColumnBtn.className = 'add-column-btn';  // Just the standard class
+        addColumnBtn.className = 'add-column-btn';
         addColumnBtn.textContent = '+ Add Column';
-        addColumnBtn.onclick = () => addColumn(row);
-        rowContainer.appendChild(addColumnBtn);
+        addColumnBtn.onclick = () => addColumn(1); // Default to row 1 for single row layout
+        boardElement.appendChild(addColumnBtn);
     }
 
     // Apply folding states after rendering

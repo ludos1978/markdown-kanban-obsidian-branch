@@ -573,13 +573,13 @@ function setupRowDragAndDrop() {
             
             // If we're over the spacer, always insert at the end
             if (isOverSpacer) {
-                const spacerElement = row.querySelector('.row-drop-zone-spacer');
-                if (spacerElement && dragState.draggedColumn.nextSibling !== spacerElement) {
-                    row.insertBefore(dragState.draggedColumn, spacerElement);
+                const addButton = row.querySelector('.add-column-btn');
+                if (addButton && dragState.draggedColumn.nextSibling !== addButton) {
+                    row.insertBefore(dragState.draggedColumn, addButton);
                 }
                 return;
             }
-            
+
             // Find the insertion point based on mouse position
             for (let i = 0; i < columnsInRow.length; i++) {
                 const col = columnsInRow[i];
@@ -599,11 +599,11 @@ function setupRowDragAndDrop() {
                     row.insertBefore(dragState.draggedColumn, insertBefore);
                 }
             } else {
-                // Insert at the end (before spacer or add button)
-                const spacerElement = row.querySelector('.row-drop-zone-spacer');
-                if (spacerElement) {
-                    if (dragState.draggedColumn.nextSibling !== spacerElement) {
-                        row.insertBefore(dragState.draggedColumn, spacerElement);
+                // Insert at the end (before the add button)
+                const addButton = row.querySelector('.add-column-btn');
+                if (addButton) {
+                    if (dragState.draggedColumn.nextSibling !== addButton) {
+                        row.insertBefore(dragState.draggedColumn, addButton);
                     }
                 } else {
                     // Fallback to appending
