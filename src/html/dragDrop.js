@@ -176,35 +176,31 @@ function setupGlobalDragAndDrop() {
         const dt = e.dataTransfer;
         if (!dt) return false;
         
+        // First check if we have an active internal drag state
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            return false; // This is definitely an internal drag
+        }
+        
+        // Check the types array for our custom MIME types
+        // Note: Some browsers lowercase MIME types, so check both cases
+        const typesArray = Array.from(dt.types);
+        const typesString = typesArray.join(',').toLowerCase();
+        
         // Check for our specific internal kanban drag identifiers
-        const hasKanbanTask = dt.types.includes('application/kanban-task');
-        const hasKanbanColumn = dt.types.includes('application/kanban-column');
-        if (hasKanbanTask || hasKanbanColumn) {
-            return false;
+        if (typesString.includes('application/kanban-task') || 
+            typesString.includes('application/kanban-column') ||
+            typesString.includes('application/column-id')) {
+            return false; // Internal kanban drag
         }
         
-        // Check if it's an internal kanban drag by examining data
-        const hasInternalData = dt.types.includes('text/plain') || dt.types.includes('application/column-id');
-        if (hasInternalData) {
-            try {
-                const textData = dt.getData('text/plain');
-                const columnData = dt.getData('application/column-id');
-                if ((textData && (textData.includes('task_') || textData.includes('col_'))) || 
-                    (columnData && columnData.includes('col_'))) {
-                    return false;
-                }
-            } catch (e) {
-                // getData might fail during dragenter, that's ok
-            }
-        }
+        // If we only have text/plain and no Files, it's likely internal
+        // External file drags always have 'Files' type
+        const hasFiles = typesArray.some(t => t === 'Files' || t === 'files');
+        const hasUriList = typesArray.some(t => t.toLowerCase() === 'text/uri-list');
         
-        // Check for external file indicators
-        const hasFiles = dt.types.includes('Files');
-        const hasUriList = dt.types.includes('text/uri-list');
-        
-        const isExternal = hasFiles || hasUriList;
-        
-        return isExternal;
+        // Only consider it external if it has Files or uri-list
+        // AND doesn't have our internal markers
+        return hasFiles || hasUriList;
     }
     
     // Enhanced document-level handling
@@ -239,8 +235,15 @@ function setupGlobalDragAndDrop() {
     document.addEventListener('drop', handleFileDrop, false);
     
     function handleFileDrop(e) {
+        // Always hide feedback first
         hideDropFeedback(e);
         hideExternalDropIndicator();
+        
+        // Check if this is an internal drag - if so, ignore
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            console.log('Ignoring file drop - internal drag in progress');
+            return;
+        }
         
         if (isProcessingDrop) {
             return;
@@ -248,18 +251,10 @@ function setupGlobalDragAndDrop() {
         
         const dt = e.dataTransfer;
         
-        const hasKanbanTask = dt.types.includes('application/kanban-task');
-        const hasKanbanColumn = dt.types.includes('application/kanban-column');
-        
-        if (hasKanbanTask || hasKanbanColumn) {
-            return;
-        }
-        
-        const taskId = dt.getData('text/plain');
-        const columnId = dt.getData('application/column-id');
-        
-        if ((taskId && (taskId.includes('task_') || taskId.includes('col_'))) || 
-            (columnId && columnId.includes('col_'))) {
+        // Double-check this isn't an internal drag
+        const textData = dt.getData('text/plain');
+        if (textData && (textData.startsWith('kanban-task:') || textData.startsWith('kanban-column:'))) {
+            console.log('Ignoring file drop - detected internal kanban data');
             return;
         }
         
@@ -278,7 +273,8 @@ function setupGlobalDragAndDrop() {
             
             if (uriList) {
                 handleVSCodeUriDrop(e, uriList);
-            } else if (textPlain && (textPlain.startsWith('file://') || (textPlain.includes('/') && !textPlain.includes('task_') && !textPlain.includes('col_')))) {
+            } else if (textPlain && !textPlain.startsWith('kanban-') && 
+                    (textPlain.startsWith('file://') || textPlain.includes('/'))) {
                 handleVSCodeUriDrop(e, textPlain);
             } else {
                 isProcessingDrop = false;
@@ -478,62 +474,6 @@ function restoreTaskPosition() {
     }
 }
 
-// dragHandle.addEventListener('dragend', e => {
-//     dragState.isDragging = false;
-    
-//     // Remove all visual feedback
-//     column.classList.remove('dragging', 'drag-preview');
-//     document.querySelectorAll('.kanban-column').forEach(col => {
-//         col.classList.remove('drag-over', 'drag-transitioning');
-//     });
-//     document.querySelectorAll('.kanban-row').forEach(row => {
-//         row.classList.remove('drag-over');
-//     });
-    
-//     // Check if we moved to a different row
-//     const newRowContainer = column.closest('.kanban-row');
-    
-//     if (newRowContainer) {
-//         const newRowNumber = parseInt(newRowContainer.getAttribute('data-row-number') || '1');
-//         const columnId = column.getAttribute('data-column-id');
-        
-//         // Find the column in the board data
-//         if (currentBoard && currentBoard.columns) {
-//             const boardColumn = currentBoard.columns.find(c => c.id === columnId);
-//             if (boardColumn) {
-//                 const currentRowTag = getColumnRow(boardColumn.title);
-                
-//                 // Always update if moving to/from row 1, or if row changed
-//                 if (newRowNumber === 1 || currentRowTag !== newRowNumber) {
-//                     console.log(`Moving column ${columnId} from row ${currentRowTag} to row ${newRowNumber}`);
-//                     updateColumnRowTag(columnId, newRowNumber);
-//                 }
-//             }
-//         }
-//     } else {
-//         // Single row layout - ensure we're in row 1
-//         const columnId = column.getAttribute('data-column-id');
-//         updateColumnRowTag(columnId, 1);
-//     }
-    
-//     // Calculate new position for reordering
-//     const fromIndex = getOriginalColumnIndex(column.getAttribute('data-column-id'));
-//     const toIndex = calculateColumnDropIndexInRow(column);
-    
-//     if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
-//         vscode.postMessage({
-//             type: 'moveColumn',
-//             fromIndex: fromIndex,
-//             toIndex: toIndex
-//         });
-//     }
-    
-//     // Reset drag state
-//     dragState.draggedColumn = null;
-//     dragState.originalColumnParent = null;
-//     dragState.originalColumnIndex = -1;
-//     dragState.originalColumnNextSibling = null;
-// });
 
 function setupRowDragAndDrop() {
     const boardElement = document.getElementById('kanban-board');
@@ -551,6 +491,12 @@ function setupRowDragAndDrop() {
             // Add visual feedback
             row.classList.add('drag-over');
             
+            // Get the row number for this row
+            const targetRowNumber = parseInt(row.getAttribute('data-row-number') || '1');
+            
+            // Update the dragged column's data-row attribute for preview
+            dragState.draggedColumn.setAttribute('data-row', targetRowNumber);
+            
             // Check if we're over the drop zone spacer (which means drop at end)
             const spacer = e.target.closest('.row-drop-zone-spacer');
             const isOverSpacer = spacer && row.contains(spacer);
@@ -559,34 +505,23 @@ function setupRowDragAndDrop() {
             const rect = row.getBoundingClientRect();
             const x = e.clientX - rect.left;
             
-            // Check if the dragged column is currently in this row
-            const draggedColumnCurrentlyInRow = row.contains(dragState.draggedColumn);
-            
             // Find all columns in this row (excluding the one being dragged)
             const columnsInRow = Array.from(row.querySelectorAll('.kanban-column:not(.dragging)'));
             
-            // If the dragged column is the only one in this row and we're still in the same row, don't manipulate DOM
-            if (draggedColumnCurrentlyInRow && columnsInRow.length === 0 && !isOverSpacer) {
-                // Column is alone in this row and still dragging within it - don't touch the DOM
-                return;
-            }
+            // Find insertion point based on mouse X position
+            let insertBefore = null;
+            let insertPosition = columnsInRow.length; // Default to end
             
-            // If we're over the spacer, always insert at the end of columns
+            // If we're over the spacer, always insert at the end
             if (isOverSpacer) {
-                // Find the last column in this row
-                const lastColumn = columnsInRow[columnsInRow.length - 1];
                 const spacerElement = row.querySelector('.row-drop-zone-spacer');
-                
                 if (spacerElement && dragState.draggedColumn.nextSibling !== spacerElement) {
                     row.insertBefore(dragState.draggedColumn, spacerElement);
                 }
                 return;
             }
             
-            // Find insertion point based on mouse X position
-            let insertBefore = null;
-            let shouldInsert = false;
-            
+            // Find the insertion point based on mouse position
             for (let i = 0; i < columnsInRow.length; i++) {
                 const col = columnsInRow[i];
                 const colRect = col.getBoundingClientRect();
@@ -594,41 +529,34 @@ function setupRowDragAndDrop() {
                 
                 if (x < colCenter) {
                     insertBefore = col;
-                    shouldInsert = true;
+                    insertPosition = i;
                     break;
                 }
             }
             
-            // Only manipulate DOM if we're actually changing position
-            if (!shouldInsert && columnsInRow.length > 0) {
-                // Insert at the end (after last column but before spacer)
-                const spacerElement = row.querySelector('.row-drop-zone-spacer');
-                if (spacerElement && dragState.draggedColumn.nextSibling !== spacerElement) {
-                    shouldInsert = true;
-                    insertBefore = spacerElement;
+            // Insert the dragged column at the appropriate position for preview
+            if (insertBefore) {
+                if (dragState.draggedColumn.nextSibling !== insertBefore) {
+                    row.insertBefore(dragState.draggedColumn, insertBefore);
                 }
-            } else if (!shouldInsert && columnsInRow.length === 0 && !draggedColumnCurrentlyInRow) {
-                // Moving to an empty row from another row
-                shouldInsert = true;
-            }
-            
-            // Only manipulate DOM if position actually changes
-            if (shouldInsert) {
-                if (insertBefore) {
-                    if (dragState.draggedColumn.nextSibling !== insertBefore) {
-                        row.insertBefore(dragState.draggedColumn, insertBefore);
+            } else {
+                // Insert at the end (before spacer or add button)
+                const spacerElement = row.querySelector('.row-drop-zone-spacer');
+                if (spacerElement) {
+                    if (dragState.draggedColumn.nextSibling !== spacerElement) {
+                        row.insertBefore(dragState.draggedColumn, spacerElement);
                     }
                 } else {
-                    // Find the spacer and insert before it
-                    const spacerElement = row.querySelector('.row-drop-zone-spacer');
-                    if (spacerElement) {
-                        row.insertBefore(dragState.draggedColumn, spacerElement);
-                    } else {
-                        // Fallback to appending
+                    // Fallback to appending
+                    if (dragState.draggedColumn.parentNode !== row) {
                         row.appendChild(dragState.draggedColumn);
                     }
                 }
             }
+            
+            // Store the target position for use in drop event
+            dragState.targetRowNumber = targetRowNumber;
+            dragState.targetPosition = insertPosition;
         });
         
         row.addEventListener('dragleave', e => {
@@ -643,15 +571,14 @@ function setupRowDragAndDrop() {
             e.stopPropagation();
             row.classList.remove('drag-over');
             
-            // Update the row tag for the dropped column
+            // The actual column movement is handled in the dragend event
+            // We just need to ensure the row information is stored
             if (dragState.draggedColumn) {
                 const newRowNumber = parseInt(row.getAttribute('data-row-number') || '1');
-                const columnId = dragState.draggedColumn.getAttribute('data-column-id');
+                dragState.finalRowNumber = newRowNumber;
                 
-                // Update the data-row attribute immediately
+                // Update the data-row attribute
                 dragState.draggedColumn.setAttribute('data-row', newRowNumber);
-                
-                console.log(`Column ${columnId} dropped in row ${newRowNumber}`);
             }
         });
     });
@@ -797,21 +724,27 @@ function setupTaskDragHandle(handle) {
             dragState.originalTaskParent = taskItem.parentNode;
             dragState.originalTaskNextSibling = taskItem.nextSibling;
             dragState.originalTaskIndex = Array.from(dragState.originalTaskParent.children).indexOf(taskItem);
-            dragState.isDragging = true;
+            dragState.isDragging = true; // IMPORTANT: Set this BEFORE setting data
             
-            e.dataTransfer.setData('text/plain', taskId);
-            e.dataTransfer.setData('application/column-id', columnId);
-            e.dataTransfer.setData('application/kanban-task', taskId);
+            // Set multiple data formats
             e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', `kanban-task:${taskId}`); // Add prefix
+            e.dataTransfer.setData('application/kanban-task', taskId);
+            e.dataTransfer.setData('application/x-kanban-task', taskId); // Fallback
             
             // Make the task semi-transparent
             taskItem.classList.add('dragging', 'drag-preview');
+            
+            console.log(`dragstart task ${taskId}, dragState.isDragging = ${dragState.isDragging}`);
         }
     });
 
     handle.addEventListener('dragend', e => {
+        console.log(`dragend for task, clearing drag state`);
+
         const taskItem = e.target.closest('.task-item');
         if (taskItem) {
+            // Clean up drag state FIRST
             dragState.isDragging = false;
             
             // Remove all visual feedback
@@ -851,11 +784,12 @@ function setupTaskDragHandle(handle) {
                 }
             }
             
-            // Reset drag state
+            // At the very end:
             dragState.draggedTask = null;
             dragState.originalTaskParent = null;
             dragState.originalTaskNextSibling = null;
             dragState.originalTaskIndex = -1;
+            dragState.isDragging = false; // Extra safety
         }
     });
     
@@ -944,8 +878,11 @@ function setupDragAndDrop() {
         originalTaskIndex: -1,
         originalTaskParent: null,
         originalTaskNextSibling: null,
-        isDragging: false,
-        lastValidDropTarget: null
+        isDragging: false,  // This is the key flag
+        lastValidDropTarget: null,
+        targetRowNumber: null,
+        targetPosition: null,
+        finalRowNumber: null
     };
     
     // Only set up global drag/drop once to prevent multiple listeners
@@ -972,78 +909,30 @@ function setupColumnDragAndDrop() {
         const dragHandle = column.querySelector('.column-drag-handle');
         if (!dragHandle) return;
 
-        dragHandle.addEventListener('dragstart', e => {
-            const columnId = column.getAttribute('data-column-id');
-            
-            // Store original position
-            dragState.draggedColumn = column;
-            dragState.originalColumnIndex = Array.from(column.parentElement.children).indexOf(column);
-            dragState.originalColumnNextSibling = column.nextSibling;
-            dragState.isDragging = true;
-            
-            e.dataTransfer.setData('text/plain', columnId);
-            e.dataTransfer.setData('application/column-id', columnId);
-            e.dataTransfer.setData('application/kanban-column', columnId);
-            e.dataTransfer.effectAllowed = 'move';
-            
-            // Make the column semi-transparent
-            column.classList.add('dragging', 'drag-preview');
-
-            console.log(`dragstart ${e}`);
-        });
-
-        // dragHandle.addEventListener('dragend', e => {
-        //     dragState.isDragging = false;
-            
-        //     // Remove all visual feedback
-        //     column.classList.remove('dragging', 'drag-preview');
-        //     columns.forEach(col => {
-        //         col.classList.remove('drag-over', 'drag-transitioning');
-        //     });
-            
-        //     // Check if we need to update row tag
-        //     const newRow = column.closest('.kanban-row');
-        //     let newRowNumber = parseInt(newRow.getAttribute('data-row-number') || '1');
-        //     let currentRowNumber = newRowNumber;
-        //     if (newRow) {
-        //         currentRowNumber = getColumnRow(column.querySelector('.column-title')?.textContent || '1');
-        //     }
-            
-        //     // Get the current position in the DOM
-        //     const currentParent = column.parentNode;
-        //     const currentIndex = Array.from(currentParent.children).filter(el => el.classList.contains('kanban-column')).indexOf(column);
-            
-        //     // Check if position actually changed
-        //     const positionChanged = currentIndex !== dragState.originalColumnIndex 
-        //         || currentParent !== dragState.originalColumnParent 
-        //         || (newRowNumber !== currentRow);
-            
-        //     if (positionChanged && currentIndex >= 0) {
-        //         // Calculate the actual indices for the data model
-        //         const fromIndex = getOriginalColumnIndex(column.getAttribute('data-column-id'));
-        //         const toIndex = calculateColumnDropIndex(boardElement, column);
-
+            dragHandle.addEventListener('dragstart', e => {
+                const columnId = column.getAttribute('data-column-id');
                 
+                // Store original position
+                dragState.draggedColumn = column;
+                dragState.originalColumnIndex = Array.from(column.parentElement.children).indexOf(column);
+                dragState.originalColumnNextSibling = column.nextSibling;
+                dragState.originalColumnParent = column.parentNode;
+                dragState.isDragging = true; // IMPORTANT: Set this BEFORE setting data
                 
-        //         if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
-        //             vscode.postMessage({
-        //                 type: 'moveColumn',
-        //                 fromIndex: fromIndex,
-        //                 toIndex: toIndex,
-        //                 fromRow: currentRowNumber,
-        //                 toRow: newRowNumber
-        //             });
-        //         }
-        //     }
-            
-        //     // Reset drag state
-        //     dragState.draggedColumn = null;
-        //     dragState.originalColumnIndex = -1;
-        //     dragState.originalColumnNextSibling = null;
-        // });
+                // Set multiple data formats to ensure detection works
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', `kanban-column:${columnId}`); // Add prefix
+                e.dataTransfer.setData('application/kanban-column', columnId);
+                e.dataTransfer.setData('application/x-kanban-column', columnId); // Fallback
+                
+                // Make the column semi-transparent
+                column.classList.add('dragging', 'drag-preview');
+                
+                console.log(`dragstart column ${columnId}, dragState.isDragging = ${dragState.isDragging}`);
+            });
 
         dragHandle.addEventListener('dragend', e => {
-            console.log(`dragend ${e}`);
+            console.log(`dragend for column, clearing drag state`);
 
             dragState.isDragging = false;
             
@@ -1056,19 +945,23 @@ function setupColumnDragAndDrop() {
                 row.classList.remove('drag-over');
             });
             
-            // Determine the new row number
-            let newRowNumber = 1; // Default to row 1
-            const newRowContainer = column.closest('.kanban-row');
+            // Get the final position and row from the current DOM state
+            const columnId = column.getAttribute('data-column-id');
+            const parentRow = column.closest('.kanban-row');
             
-            if (newRowContainer) {
-                newRowNumber = parseInt(newRowContainer.getAttribute('data-row-number') || '1');
+            let newRowNumber = 1; // Default to row 1
+            if (parentRow) {
+                newRowNumber = parseInt(parentRow.getAttribute('data-row-number') || '1');
+            } else if (dragState.finalRowNumber) {
+                // Use the stored row number from drop event
+                newRowNumber = dragState.finalRowNumber;
             }
             
-            // Calculate the new position in the column array
-            const columnId = column.getAttribute('data-column-id');
+            // Calculate the new position based on the current DOM state
             const newPosition = calculateColumnNewPosition(column);
             
-            console.log(`dragend ${columnId} ${newPosition} ${newRowNumber}`);
+            console.log(`Final position for column ${columnId}: position ${newPosition}, row ${newRowNumber}`);
+            
             // Send combined move and row update to backend
             vscode.postMessage({
                 type: 'moveColumnWithRowUpdate',
@@ -1077,11 +970,15 @@ function setupColumnDragAndDrop() {
                 newRow: newRowNumber
             });
             
-            // Reset drag state
+            // At the very end, ensure complete reset:
             dragState.draggedColumn = null;
             dragState.originalColumnParent = null;
             dragState.originalColumnIndex = -1;
             dragState.originalColumnNextSibling = null;
+            dragState.targetRowNumber = null;
+            dragState.targetPosition = null;
+            dragState.finalRowNumber = null;
+            dragState.isDragging = false; // Extra safety
         });
 
         column.addEventListener('dragover', e => {
@@ -1140,78 +1037,61 @@ function setupColumnDragAndDrop() {
 }
 
 function calculateColumnNewPosition(draggedColumn) {
-    console.log(`calculateColumnNewPosition`);
+    console.log(`calculateColumnNewPosition for column:`, draggedColumn);
 
     if (!currentBoard || !currentBoard.columns) return 0;
     
     const boardElement = document.getElementById('kanban-board');
     const columnId = draggedColumn.getAttribute('data-column-id');
     
-    // Get all columns in their visual order
+    // Get the parent row of the dragged column
+    const parentRow = draggedColumn.closest('.kanban-row');
+    const targetRowNumber = parentRow ? 
+        parseInt(parentRow.getAttribute('data-row-number') || '1') : 1;
+    
+    // Get all columns in visual order, accounting for rows
     let allColumnsInOrder = [];
     
     // Check if we have multi-row layout
     const rows = boardElement.querySelectorAll('.kanban-row');
     if (rows.length > 0) {
-        // Multi-row layout - collect columns from all rows in order
-        rows.forEach(row => {
-            const columnsInRow = row.querySelectorAll('.kanban-column');
-            columnsInRow.forEach(col => {
-                const colId = col.getAttribute('data-column-id');
-                if (colId) {
-                    allColumnsInOrder.push(colId);
-                }
-            });
-        });
+        // Multi-row layout - process each row in order
+        for (let rowNum = 1; rowNum <= rows.length; rowNum++) {
+            const row = boardElement.querySelector(`.kanban-row[data-row-number="${rowNum}"]`);
+            if (row) {
+                const columnsInRow = row.querySelectorAll('.kanban-column');
+                columnsInRow.forEach(col => {
+                    const colId = col.getAttribute('data-column-id');
+                    if (colId) {
+                        allColumnsInOrder.push({
+                            id: colId,
+                            row: rowNum
+                        });
+                    }
+                });
+            }
+        }
     } else {
         // Single row layout
         const columns = boardElement.querySelectorAll('.kanban-column');
         columns.forEach(col => {
             const colId = col.getAttribute('data-column-id');
             if (colId) {
-                allColumnsInOrder.push(colId);
+                allColumnsInOrder.push({
+                    id: colId,
+                    row: 1
+                });
             }
         });
     }
     
-    // Find the position of our column in the visual order
-    const visualPosition = allColumnsInOrder.indexOf(columnId);
+    // Find the position of our column in the overall order
+    const visualPosition = allColumnsInOrder.findIndex(item => item.id === columnId);
+    
+    console.log(`Column ${columnId} is at visual position ${visualPosition} in row ${targetRowNumber}`);
+    console.log('All columns in order:', allColumnsInOrder);
     
     // Return the position (or 0 if not found)
     return visualPosition >= 0 ? visualPosition : 0;
 }
 
-// Enhanced column drop handler for multi-row support
-// function handleColumnDropWithRows(draggedColumn, targetColumn, boardElement) {
-//     const draggedRow = parseInt(draggedColumn.getAttribute('data-row') || '1');
-//     const targetRow = parseInt(targetColumn.getAttribute('data-row') || '1');
-    
-//     // If dropping in a different row, update the row tag
-//     if (draggedRow !== targetRow) {
-//         const columnId = draggedColumn.getAttribute('data-column-id');
-//         updateColumnRowTag(columnId, targetRow);
-//         draggedColumn.setAttribute('data-row', targetRow);
-//     }
-    
-//     // Continue with normal column reordering within the row
-//     const allColumns = Array.from(boardElement.querySelectorAll(`.kanban-column[data-row="${targetRow}"]`));
-//     const draggedIndex = allColumns.indexOf(draggedColumn);
-//     const targetIndex = allColumns.indexOf(targetColumn);
-    
-//     if (draggedIndex < targetIndex) {
-//         // Moving right - insert after target
-//         if (targetColumn.nextSibling) {
-//             boardElement.insertBefore(draggedColumn, targetColumn.nextSibling);
-//         } else {
-//             const addBtn = boardElement.querySelector('.add-column-btn');
-//             if (addBtn) {
-//                 boardElement.insertBefore(draggedColumn, addBtn);
-//             } else {
-//                 boardElement.appendChild(draggedColumn);
-//             }
-//         }
-//     } else {
-//         // Moving left - insert before target
-//         boardElement.insertBefore(draggedColumn, targetColumn);
-//     }
-// }
