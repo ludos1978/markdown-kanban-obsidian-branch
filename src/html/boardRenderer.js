@@ -414,11 +414,11 @@ function renderBoard() {
             
             // Add the "Add Column" button to each row
             const addColumnBtn = document.createElement('button');
-            addColumnBtn.className = 'add-column-btn';
+            addColumnBtn.className = 'add-column-btn multi-row-add-btn'; // Add the multi-row-add-btn class
             addColumnBtn.textContent = '+ Add Column';
             addColumnBtn.onclick = () => addColumn(row);
-            rowContainer.appendChild(addColumnBtn);
-                  
+            rowContainer.appendChild(addColumnBtn);    
+
             boardElement.appendChild(rowContainer);
         }
     } else {
@@ -431,10 +431,10 @@ function renderBoard() {
         });
 
         const addColumnBtn = document.createElement('button');
-        addColumnBtn.className = 'add-column-btn';
+        addColumnBtn.className = 'add-column-btn';  // Just the standard class
         addColumnBtn.textContent = '+ Add Column';
-        addColumnBtn.onclick = () => addColumn();
-        boardElement.appendChild(addColumnBtn);
+        addColumnBtn.onclick = () => addColumn(row);
+        rowContainer.appendChild(addColumnBtn);
     }
 
     // Apply folding states after rendering
