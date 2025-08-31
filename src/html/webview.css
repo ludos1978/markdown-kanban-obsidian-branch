@@ -1935,3 +1935,39 @@ h6 .kanban-tag {
 .task-item::after {
     pointer-events: none;
 }
+
+
+
+
+
+* Stacked corner badges */
+.corner-badge {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Ensure stacked badges don't overlap each other */
+.corner-badge[data-badge-index="1"] {
+    z-index: 9;
+}
+.corner-badge[data-badge-index="2"] {
+    z-index: 8;
+}
+.corner-badge[data-badge-index="3"] {
+    z-index: 7;
+}
+
+/* Header and footer bars */
+.header-bar, .footer-bar {
+    pointer-events: none;
+    transition: all 0.2s ease;
+}
+
+/* Multiple borders - last one wins but can combine styles */
+[data-all-tags] {
+    border-width: 0;
+}
+
+/* Combined border example - if element has both tags */
+.kanban-column[data-all-tags~="urgent"][data-all-tags~="blocked"] {
+    border: 3px double #ff0000 !important;
+}

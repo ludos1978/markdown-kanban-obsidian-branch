@@ -946,7 +946,7 @@ function updateFoldAllButton(columnId) {
 }
 
 function createColumnElement(column, columnIndex) {
-   if (!column) {
+    if (!column) {
         return document.createElement('div');
     }
 
@@ -954,13 +954,16 @@ function createColumnElement(column, columnIndex) {
         column.tasks = [];
     }
 
-    // Extract tag from column title BEFORE rendering markdown
-    const columnTag = extractFirstTag(column.title);
-    console.log(`Creating column "${column.title}", detected tag: "${columnTag}"`);
+    // Extract ALL tags from column title for stacking features
+    const allTags = getActiveTagsInTitle(column.title);
     
-    // Get corner badge HTML if tag has one configured
-    const cornerBadgeHtml = columnTag ? getCornerBadgeHtml(columnTag) : '';
-
+    // Use first tag for background color (never stack backgrounds)
+    const columnTag = extractFirstTag(column.title);
+    console.log(`Creating column "${column.title}", primary tag: "${columnTag}", all tags:`, allTags);
+    
+    // Get all corner badges HTML for all tags
+    const cornerBadgesHtml = getAllCornerBadgesHtml(allTags, 'column');
+    
     // Extract row from column title (defaults to 1 if no row tag)
     const columnRow = getColumnRow(column.title);
 
@@ -972,10 +975,15 @@ function createColumnElement(column, columnIndex) {
     columnDiv.setAttribute('data-column-index', columnIndex);
     columnDiv.setAttribute('data-row', columnRow);
     
-    // Add tag attribute if tag exists (but not for row tags)
+    // Add primary tag for background color only
     if (columnTag && !columnTag.startsWith('row')) {
         columnDiv.setAttribute('data-column-tag', columnTag);
         console.log(`Set data-column-tag="${columnTag}" on column element`);
+    }
+    
+    // Add all tags as a separate attribute for stacking features
+    if (allTags.length > 0) {
+        columnDiv.setAttribute('data-all-tags', allTags.join(' '));
     }
 
     // Filter out row tags from displayed title
@@ -987,7 +995,7 @@ function createColumnElement(column, columnIndex) {
     const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
     columnDiv.innerHTML = `
-        ${cornerBadgeHtml}
+        ${cornerBadgesHtml}
         <div class="column-header">
             <div class="column-title-section">
                 <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
@@ -1039,7 +1047,6 @@ function createColumnElement(column, columnIndex) {
         </button>
     `;
 
-
     return columnDiv;
 }
 
@@ -1052,16 +1059,22 @@ function createTaskElement(task, columnId, taskIndex) {
     const renderedTitle = task.title ? renderMarkdown(task.title) : '';
     const isCollapsed = window.collapsedTasks.has(task.id);
     
-    // Extract tag from task title
+    // Extract ALL tags for stacking features
+    const allTags = getActiveTagsInTitle(task.title);
+    
+    // Use first tag for background color
     const taskTag = extractFirstTag(task.title);
     const tagAttribute = taskTag ? ` data-task-tag="${taskTag}"` : '';
     
-    // Get corner badge HTML if tag has one configured
-    const cornerBadgeHtml = taskTag ? getCornerBadgeHtml(taskTag) : '';
-     
+    // Add all tags attribute for stacking features
+    const allTagsAttribute = allTags.length > 0 ? ` data-all-tags="${allTags.join(' ')}"` : '';
+    
+    // Get all corner badges HTML for all tags
+    const cornerBadgesHtml = getAllCornerBadgesHtml(allTags, 'task');
+    
     return `
-        <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}"${tagAttribute}>
-            ${cornerBadgeHtml}
+        <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}"${tagAttribute}${allTagsAttribute}>
+            ${cornerBadgesHtml}
             <div class="task-header">
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}'); updateFoldAllButton('${columnId}')">▶</span>
@@ -1412,6 +1425,336 @@ function handleDescriptionClick(event, element, taskId, columnId) {
     }
 }
 
+// Helper function to get all corner badges HTML for multiple tags (horizontal stacking)
+function getAllCornerBadgesHtml(tags, elementType) {
+    if (!window.tagColors || tags.length === 0) return '';
+    
+    const badges = [];
+    const positions = {
+        'top-left': [],
+        'top-right': [],
+        'bottom-left': [],
+        'bottom-right': []
+    };
+    
+    // Collect badges by position
+    tags.forEach(tag => {
+        const config = getTagConfig(tag);
+        if (config && config.cornerBadge) {
+            const position = config.cornerBadge.position || 'top-right';
+            positions[position].push({
+                tag: tag,
+                badge: config.cornerBadge
+            });
+        }
+    });
+    
+    // Generate HTML for each position with horizontal stacking
+    let html = '';
+    Object.entries(positions).forEach(([position, badgesAtPosition]) => {
+        badgesAtPosition.forEach((item, index) => {
+            const badge = item.badge;
+            const offsetMultiplier = 24; // Space between stacked badges
+            let positionStyle = '';
+            
+            switch (position) {
+                case 'top-left':
+                    // Stack horizontally to the right
+                    positionStyle = `top: -8px; left: ${-8 + (index * offsetMultiplier)}px;`;
+                    break;
+                case 'top-right':
+                    // Stack horizontally to the left
+                    positionStyle = `top: -8px; right: ${-8 + (index * offsetMultiplier)}px;`;
+                    break;
+                case 'bottom-left':
+                    // Stack horizontally to the right
+                    positionStyle = `bottom: -8px; left: ${-8 + (index * offsetMultiplier)}px;`;
+                    break;
+                case 'bottom-right':
+                    // Stack horizontally to the left
+                    positionStyle = `bottom: -8px; right: ${-8 + (index * offsetMultiplier)}px;`;
+                    break;
+            }
+            
+            html += `<div class="corner-badge corner-badge-${item.tag}" style="${positionStyle}" data-badge-position="${position}" data-badge-index="${index}">${badge.text || ''}</div>`;
+        });
+    });
+    
+    return html;
+}
+
+// Helper function to get tag configuration from grouped or flat structure
+function getTagConfig(tagName) {
+    if (!window.tagColors) return null;
+    
+    // Check grouped structure
+    const groups = ['status', 'type', 'priority', 'category', 'colors'];
+    for (const group of groups) {
+        if (window.tagColors[group] && window.tagColors[group][tagName]) {
+            return window.tagColors[group][tagName];
+        }
+    }
+    
+    // Check flat structure
+    if (window.tagColors[tagName]) {
+        return window.tagColors[tagName];
+    }
+    
+    return null;
+}
+
+// Enhanced generateTagStyles to handle stacking
+function generateTagStyles() {
+    if (!window.tagColors) {
+        console.log('No tag colors configuration found');
+        return '';
+    }
+    
+    console.log('Generating tag styles with colors:', window.tagColors);
+    
+    const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                        document.body.classList.contains('vscode-high-contrast');
+    const themeKey = isDarkTheme ? 'dark' : 'light';
+    console.log(`Using theme: ${themeKey}`);
+    
+    let styles = '';
+    
+    // Add base styles for corner badges
+    styles += `.corner-badge {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 11px;
+        z-index: 10;
+        pointer-events: none;
+        transition: all 0.2s ease;
+    }\n`;
+    
+    // Function to process tags from either grouped or flat structure
+    const processTags = (tags, groupName = null) => {
+        for (const [tagName, config] of Object.entries(tags)) {
+            // Skip if this is a group (has nested objects with light/dark themes)
+            if (config.light || config.dark) {
+                const themeColors = config[themeKey] || config.light || {};
+                if (themeColors.text && themeColors.background) {
+                    const lowerTagName = tagName.toLowerCase();
+                    console.log(`Generating styles for tag "${lowerTagName}" with colors:`, themeColors);
+                    
+                    // Tag pill styles (the tag text itself)
+                    styles += `.kanban-tag[data-tag="${lowerTagName}"] {
+                        color: ${themeColors.text} !important;
+                        background-color: ${themeColors.background} !important;
+                        border: 1px solid ${themeColors.background};
+                    }\n`;
+                    
+                    // Column background styles - only for primary tag
+                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                        background-color: ${hexToRgba(themeColors.background, 0.15)} !important;
+                        position: relative;
+                    }\n`;
+                    
+                    // Column collapsed state
+                    styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] {
+                        background-color: ${hexToRgba(themeColors.background, 0.2)} !important;
+                    }\n`;
+                    
+                    // Card background styles - only for primary tag
+                    styles += `.task-item[data-task-tag="${lowerTagName}"] {
+                        background-color: ${hexToRgba(themeColors.background, 0.25)} !important;
+                        position: relative;
+                    }\n`;
+                    
+                    // Card hover state
+                    styles += `.task-item[data-task-tag="${lowerTagName}"]:hover {
+                        background-color: ${hexToRgba(themeColors.background, 0.35)} !important;
+                    }\n`;
+                    
+                    // Stackable border styles using data-all-tags
+                    if (config.border) {
+                        const borderColor = config.border.color || themeColors.background;
+                        const borderWidth = config.border.width || '2px';
+                        const borderStyle = config.border.style || 'solid';
+                        
+                        if (config.border.position === 'left') {
+                            styles += `.kanban-column[data-all-tags~="${lowerTagName}"] {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                            styles += `.task-item[data-all-tags~="${lowerTagName}"] {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                        } else {
+                            // Full border - can combine multiple styles
+                            styles += `.kanban-column[data-all-tags~="${lowerTagName}"] {
+                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                            styles += `.task-item[data-all-tags~="${lowerTagName}"] {
+                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                        }
+                    }
+                    
+                    // Stackable header bar
+                    if (config.headerBar) {
+                        const headerColor = config.headerBar.color || themeColors.background;
+                        const headerHeight = config.headerBar.height || '4px';
+                        const headerStyle = config.headerBar.style || 'solid';
+                        
+                        const headerBg = headerStyle === 'gradient' 
+                            ? `linear-gradient(90deg, ${headerColor}, ${hexToRgba(headerColor, 0.3)})`
+                            : headerColor;
+                        
+                        // Create a unique class for this header bar
+                        styles += `.header-bar-${lowerTagName} {
+                            position: absolute;
+                            left: 0;
+                            right: 0;
+                            height: ${headerHeight};
+                            background: ${headerBg};
+                            z-index: 1;
+                        }\n`;
+                    }
+                    
+                    // Stackable footer bar
+                    if (config.footerBar) {
+                        const footerColor = config.footerBar.color || themeColors.background;
+                        const footerHeight = config.footerBar.height || '3px';
+                        const footerText = config.footerBar.text || '';
+                        const footerTextColor = config.footerBar.textColor || themeColors.text;
+                        
+                        // Create a unique class for this footer bar
+                        const actualFooterHeight = footerText ? '20px' : footerHeight;
+                        
+                        styles += `.footer-bar-${lowerTagName} {
+                            position: absolute;
+                            left: 0;
+                            right: 0;
+                            height: ${actualFooterHeight};
+                            background: ${footerColor};
+                            z-index: 1;
+                            ${footerText ? `
+                                color: ${footerTextColor};
+                                font-size: 10px;
+                                font-weight: bold;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ` : ''}
+                        }\n`;
+                        
+                        if (footerText) {
+                            styles += `.footer-bar-${lowerTagName}::after {
+                                content: '${footerText}';
+                            }\n`;
+                        }
+                    }
+                    
+                    // Corner badge styles
+                    if (config.cornerBadge) {
+                        const badgeColor = config.cornerBadge.color || themeColors.background;
+                        const badgeTextColor = config.cornerBadge.textColor || themeColors.text;
+                        const badgeStyle = config.cornerBadge.style || 'circle';
+                        
+                        let shapeStyles = '';
+                        switch (badgeStyle) {
+                            case 'circle':
+                                shapeStyles = 'width: 20px; height: 20px; border-radius: 50%;';
+                                break;
+                            case 'square':
+                                shapeStyles = 'width: 20px; height: 20px; border-radius: 3px;';
+                                break;
+                            case 'ribbon':
+                                shapeStyles = 'padding: 2px 8px; border-radius: 3px;';
+                                break;
+                        }
+                        
+                        styles += `.corner-badge-${lowerTagName} {
+                            ${shapeStyles}
+                            background: ${badgeColor} !important;
+                            color: ${badgeTextColor} !important;
+                        }\n`;
+                    }
+                }
+            }
+        }
+    };
+    
+    // Check if we have grouped structure
+    const isGrouped = window.tagColors.status || window.tagColors.type || 
+                     window.tagColors.priority || window.tagColors.category || 
+                     window.tagColors.colors;
+    
+    if (isGrouped) {
+        // Process each group
+        const groups = ['status', 'type', 'priority', 'category', 'colors'];
+        groups.forEach(groupName => {
+            if (window.tagColors[groupName]) {
+                processTags(window.tagColors[groupName], groupName);
+            }
+        });
+    } else {
+        // Process flat structure
+        processTags(window.tagColors);
+    }
+    
+    console.log('Generated CSS length:', styles.length);
+    return styles;
+}
+
+// Function to inject header and footer bars after render
+function injectStackableBars() {
+    // Process all elements with data-all-tags
+    document.querySelectorAll('[data-all-tags]').forEach(element => {
+        const tags = element.getAttribute('data-all-tags').split(' ');
+        const existingHeaders = element.querySelectorAll('.header-bar');
+        const existingFooters = element.querySelectorAll('.footer-bar');
+        
+        // Remove existing bars to prevent duplicates
+        existingHeaders.forEach(bar => bar.remove());
+        existingFooters.forEach(bar => bar.remove());
+        
+        let headerOffset = 0;
+        let footerOffset = 0;
+        
+        // Add header bars
+        tags.forEach(tag => {
+            const config = getTagConfig(tag);
+            if (config && config.headerBar) {
+                const headerBar = document.createElement('div');
+                headerBar.className = `header-bar header-bar-${tag}`;
+                headerBar.style.top = `${headerOffset}px`;
+                element.appendChild(headerBar);
+                
+                const height = parseInt(config.headerBar.height || '4px');
+                headerOffset += height;
+            }
+        });
+        
+        // Add footer bars
+        tags.forEach(tag => {
+            const config = getTagConfig(tag);
+            if (config && config.footerBar) {
+                const footerBar = document.createElement('div');
+                footerBar.className = `footer-bar footer-bar-${tag}`;
+                footerBar.style.bottom = `${footerOffset}px`;
+                element.appendChild(footerBar);
+                
+                const height = config.footerBar.text ? 20 : parseInt(config.footerBar.height || '3px');
+                footerOffset += height;
+            }
+        });
+        
+        // Adjust padding based on total bar heights
+        if (headerOffset > 0) {
+            element.style.paddingTop = `calc(var(--whitespace-div2) + ${headerOffset}px)`;
+        }
+        if (footerOffset > 0) {
+            element.style.paddingBottom = `calc(var(--whitespace-div2) + ${footerOffset}px)`;
+        }
+    });
+}
+
 // Make functions globally available
 window.handleColumnTitleClick = handleColumnTitleClick;
 window.handleTaskTitleClick = handleTaskTitleClick;
@@ -1422,3 +1765,7 @@ window.generateTagMenuItems = generateTagMenuItems;
 window.generateGroupTagItems = generateGroupTagItems;
 window.generateFlatTagItems = generateFlatTagItems;
 window.getCornerBadgeHtml = getCornerBadgeHtml;
+
+window.getAllCornerBadgesHtml = getAllCornerBadgesHtml;
+window.getTagConfig = getTagConfig;
+window.injectStackableBars = injectStackableBars;
