@@ -66,6 +66,7 @@ body {
     min-width: var(--collapsed-column-width) !important;
     max-width: var(--collapsed-column-width) !important;
     padding: var(--whitespace-div2) var(--whitespace-div3-mul2) var(--whitespace-div2) var(--whitespace-div3-mul2);
+    padding-top: var(--whitespace-div2);
     overflow: visible;
 }
 
@@ -2072,9 +2073,9 @@ h6 .kanban-tag {
     border-color: #ccc;
 }
 
-/* Ensure collapsed columns properly space content when there are header/footer bars */
-.kanban-column.collapsed.has-header-bar .column-title-section {
-    margin-top: 4px;  /* Add space below header bars */
+.kanban-column.collapsed.has-header-bar {
+    /* The padding-top is already set dynamically by injectStackableBars() */
+    /* We just need to ensure it's not overridden for collapsed columns */
 }
 
 .kanban-column.collapsed.has-footer-bar .column-controls {

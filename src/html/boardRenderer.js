@@ -1465,8 +1465,8 @@ function injectStackableBars() {
         
         let headerOffset = 0;
         let footerOffset = 0;
-        let hasHeaderBar = false;  // Changed from hasHeaderLabel
-        let hasFooterBar = false;  // Changed from hasFooterLabel
+        let hasHeaderBar = false;
+        let hasFooterBar = false;
         let hasHeaderLabel = false;
         let hasFooterLabel = false;
 
@@ -1482,7 +1482,7 @@ function injectStackableBars() {
                 const height = config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px');
                 headerOffset += height;
                 
-                hasHeaderBar = true;  // Set for ANY header bar
+                hasHeaderBar = true;
                 if (config.headerBar.label) {
                     hasHeaderLabel = true;
                 }
@@ -1501,14 +1501,14 @@ function injectStackableBars() {
                 const height = config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px');
                 footerOffset += height;
                 
-                hasFooterBar = true;  // Set for ANY footer bar
+                hasFooterBar = true;
                 if (config.footerBar.label) {
                     hasFooterLabel = true;
                 }
             }
         });
         
-        // Add classes for columns with labels
+        // Add classes for columns
         if (element.classList.contains('kanban-column')) {
             // Add classes for any header/footer bars
             if (hasHeaderBar) {
@@ -1539,10 +1539,34 @@ function injectStackableBars() {
         
         // Adjust padding based on total bar heights
         if (headerOffset > 0) {
-            element.style.paddingTop = `calc(var(--whitespace-div2) + ${headerOffset}px)`;
+            // Special handling for collapsed columns
+            if (element.classList.contains('kanban-column') && element.classList.contains('collapsed')) {
+                // For collapsed columns, ensure the content is pushed down properly
+                element.style.paddingTop = `calc(var(--whitespace-div2) + ${headerOffset}px)`;
+                
+                // Find and adjust the column-title-section to account for header bars
+                const titleSection = element.querySelector('.column-title-section');
+                if (titleSection) {
+                    // Add top margin to push the title section down below header bars
+                    titleSection.style.marginTop = `${Math.max(0, headerOffset - 4)}px`;
+                }
+            } else {
+                // Normal (non-collapsed) elements
+                element.style.paddingTop = `calc(var(--whitespace-div2) + ${headerOffset}px)`;
+            }
+        } else {
+            // Reset padding if no header bars
+            element.style.paddingTop = '';
+            const titleSection = element.querySelector('.column-title-section');
+            if (titleSection) {
+                titleSection.style.marginTop = '';
+            }
         }
+        
         if (footerOffset > 0) {
             element.style.paddingBottom = `calc(var(--whitespace-div2) + ${footerOffset}px)`;
+        } else {
+            element.style.paddingBottom = '';
         }
     });
 }
