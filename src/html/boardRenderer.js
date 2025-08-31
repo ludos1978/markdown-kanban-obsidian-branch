@@ -33,6 +33,7 @@ function hexToRgba(hex, alpha) {
 }
 
 // Generate dynamic CSS for tag colors
+// Generate dynamic CSS for tag colors and additional styles
 function generateTagStyles() {
     if (!window.tagColors) {
         console.log('No tag colors configuration found');
@@ -48,43 +49,259 @@ function generateTagStyles() {
     
     let styles = '';
     
-    for (const [tagName, colors] of Object.entries(window.tagColors)) {
-        const themeColors = colors[themeKey] || colors.light || {};
-        if (themeColors.text && themeColors.background) {
-            const lowerTagName = tagName.toLowerCase();
-            console.log(`Generating styles for tag "${lowerTagName}" with colors:`, themeColors);
-            
-            // Tag pill styles (the tag text itself)
-            styles += `.kanban-tag[data-tag="${lowerTagName}"] {
-                color: ${themeColors.text} !important;
-                background-color: ${themeColors.background} !important;
-                border: 1px solid ${themeColors.background};
-            }\n`;
-            
-            // Column background styles - subtle tint
-            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
-                background-color: ${hexToRgba(themeColors.background, 0.15)} !important;
-                border: 1px solid ${hexToRgba(themeColors.background, 0.4)} !important;
-            }\n`;
-            
-            // Column collapsed state
-            styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] {
-                background-color: ${hexToRgba(themeColors.background, 0.2)} !important;
-                border: 2px solid ${hexToRgba(themeColors.background, 0.6)} !important;
-            }\n`;
-            
-            // Card background styles
-            styles += `.task-item[data-task-tag="${lowerTagName}"] {
-                background-color: ${hexToRgba(themeColors.background, 0.25)} !important;
-                border: 1px solid ${hexToRgba(themeColors.background, 0.6)} !important;
-            }\n`;
-            
-            // Card hover state
-            styles += `.task-item[data-task-tag="${lowerTagName}"]:hover {
-                background-color: ${hexToRgba(themeColors.background, 0.35)} !important;
-                border: 1px solid ${hexToRgba(themeColors.background, 0.8)} !important;
-            }\n`;
+    // Function to process tags from either grouped or flat structure
+    const processTags = (tags, groupName = null) => {
+        for (const [tagName, config] of Object.entries(tags)) {
+            // Skip if this is a group (has nested objects with light/dark themes)
+            if (config.light || config.dark) {
+                const themeColors = config[themeKey] || config.light || {};
+                if (themeColors.text && themeColors.background) {
+                    const lowerTagName = tagName.toLowerCase();
+                    console.log(`Generating styles for tag "${lowerTagName}" with colors:`, themeColors);
+                    
+                    // Tag pill styles (the tag text itself)
+                    styles += `.kanban-tag[data-tag="${lowerTagName}"] {
+                        color: ${themeColors.text} !important;
+                        background-color: ${themeColors.background} !important;
+                        border: 1px solid ${themeColors.background};
+                    }\n`;
+                    
+                    // Column background styles - subtle tint
+                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                        background-color: ${hexToRgba(themeColors.background, 0.15)} !important;
+                        position: relative;
+                    }\n`;
+                    
+                    // Column collapsed state
+                    styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] {
+                        background-color: ${hexToRgba(themeColors.background, 0.2)} !important;
+                    }\n`;
+                    
+                    // Card background styles
+                    styles += `.task-item[data-task-tag="${lowerTagName}"] {
+                        background-color: ${hexToRgba(themeColors.background, 0.25)} !important;
+                        position: relative;
+                    }\n`;
+                    
+                    // Card hover state
+                    styles += `.task-item[data-task-tag="${lowerTagName}"]:hover {
+                        background-color: ${hexToRgba(themeColors.background, 0.35)} !important;
+                    }\n`;
+                    
+                    // Border styles
+                    if (config.border) {
+                        const borderColor = config.border.color || themeColors.background;
+                        const borderWidth = config.border.width || '2px';
+                        const borderStyle = config.border.style || 'solid';
+                        
+                        if (config.border.position === 'left') {
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                            styles += `.task-item[data-task-tag="${lowerTagName}"] {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                        } else {
+                            // Full border
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                            styles += `.task-item[data-task-tag="${lowerTagName}"] {
+                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                        }
+                    }
+                    
+                    // Header bar
+                    if (config.headerBar) {
+                        const headerColor = config.headerBar.color || themeColors.background;
+                        const headerHeight = config.headerBar.height || '4px';
+                        const headerStyle = config.headerBar.style || 'solid';
+                        
+                        const headerBg = headerStyle === 'gradient' 
+                            ? `linear-gradient(90deg, ${headerColor}, ${hexToRgba(headerColor, 0.3)})`
+                            : headerColor;
+                        
+                        styles += `.kanban-column[data-column-tag="${lowerTagName}"]::before {
+                            content: '';
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            height: ${headerHeight};
+                            background: ${headerBg};
+                            z-index: 1;
+                        }\n`;
+                        
+                        styles += `.task-item[data-task-tag="${lowerTagName}"]::before {
+                            content: '';
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            height: ${headerHeight};
+                            background: ${headerBg};
+                            border-radius: 4px 4px 0 0;
+                            z-index: 1;
+                        }\n`;
+                    }
+                    
+                    // Footer bar
+                    if (config.footerBar) {
+                        const footerColor = config.footerBar.color || themeColors.background;
+                        const footerHeight = config.footerBar.height || '3px';
+                        const footerText = config.footerBar.text || '';
+                        const footerTextColor = config.footerBar.textColor || themeColors.text;
+                        
+                        if (footerText) {
+                            // Footer with text
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"]::after {
+                                content: '${footerText}';
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                right: 0;
+                                height: 20px;
+                                background: ${footerColor};
+                                color: ${footerTextColor};
+                                font-size: 10px;
+                                font-weight: bold;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                z-index: 1;
+                            }\n`;
+                            
+                            styles += `.task-item[data-task-tag="${lowerTagName}"]::after {
+                                content: '${footerText}';
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                right: 0;
+                                height: 20px;
+                                background: ${footerColor};
+                                color: ${footerTextColor};
+                                font-size: 10px;
+                                font-weight: bold;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                border-radius: 0 0 4px 4px;
+                                z-index: 1;
+                            }\n`;
+                        } else {
+                            // Simple footer bar
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"]::after {
+                                content: '';
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                right: 0;
+                                height: ${footerHeight};
+                                background: ${footerColor};
+                                z-index: 1;
+                            }\n`;
+                            
+                            styles += `.task-item[data-task-tag="${lowerTagName}"]::after {
+                                content: '';
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                right: 0;
+                                height: ${footerHeight};
+                                background: ${footerColor};
+                                border-radius: 0 0 4px 4px;
+                                z-index: 1;
+                            }\n`;
+                        }
+                    }
+                    
+                    // Corner badge
+                    if (config.cornerBadge) {
+                        const badgeColor = config.cornerBadge.color || themeColors.background;
+                        const badgeTextColor = config.cornerBadge.textColor || themeColors.text;
+                        const badgeText = config.cornerBadge.text || '';
+                        const badgePosition = config.cornerBadge.position || 'top-right';
+                        const badgeStyle = config.cornerBadge.style || 'circle';
+                        
+                        let positionStyles = '';
+                        switch (badgePosition) {
+                            case 'top-left':
+                                positionStyles = 'top: -8px; left: -8px;';
+                                break;
+                            case 'top-right':
+                                positionStyles = 'top: -8px; right: -8px;';
+                                break;
+                            case 'bottom-left':
+                                positionStyles = 'bottom: -8px; left: -8px;';
+                                break;
+                            case 'bottom-right':
+                                positionStyles = 'bottom: -8px; right: -8px;';
+                                break;
+                        }
+                        
+                        let shapeStyles = '';
+                        switch (badgeStyle) {
+                            case 'circle':
+                                shapeStyles = 'width: 20px; height: 20px; border-radius: 50%;';
+                                break;
+                            case 'square':
+                                shapeStyles = 'width: 20px; height: 20px; border-radius: 3px;';
+                                break;
+                            case 'ribbon':
+                                shapeStyles = 'padding: 2px 8px; border-radius: 3px;';
+                                break;
+                        }
+                        
+                        styles += `.kanban-column[data-column-tag="${lowerTagName}"] .corner-badge-${lowerTagName} {
+                            position: absolute;
+                            ${positionStyles}
+                            ${shapeStyles}
+                            background: ${badgeColor};
+                            color: ${badgeTextColor};
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-weight: bold;
+                            font-size: 11px;
+                            z-index: 10;
+                        }\n`;
+                        
+                        styles += `.task-item[data-task-tag="${lowerTagName}"] .corner-badge-${lowerTagName} {
+                            position: absolute;
+                            ${positionStyles}
+                            ${shapeStyles}
+                            background: ${badgeColor};
+                            color: ${badgeTextColor};
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-weight: bold;
+                            font-size: 11px;
+                            z-index: 10;
+                        }\n`;
+                    }
+                }
+            }
         }
+    };
+    
+    // Check if we have grouped structure
+    const isGrouped = window.tagColors.status || window.tagColors.type || 
+                     window.tagColors.priority || window.tagColors.category || 
+                     window.tagColors.colors;
+    
+    if (isGrouped) {
+        // Process each group
+        const groups = ['status', 'type', 'priority', 'category', 'colors'];
+        groups.forEach(groupName => {
+            if (window.tagColors[groupName]) {
+                processTags(window.tagColors[groupName], groupName);
+            }
+        });
+    } else {
+        // Process flat structure
+        processTags(window.tagColors);
     }
     
     console.log('Generated CSS length:', styles.length);
@@ -314,10 +531,76 @@ function getActiveTagsInTitle(text) {
 
 // Helper function to generate tag menu items from configuration
 function generateTagMenuItems(id, type, columnId = null) {
-    // Get configured tags from VSCode settings
-    const configuredTags = Object.keys(window.tagColors || {});
+    const tagConfig = window.tagColors || {};
     
-    if (configuredTags.length === 0) {
+    // Check if we have grouped structure
+    const isGrouped = tagConfig.status || tagConfig.type || 
+                     tagConfig.priority || tagConfig.category || 
+                     tagConfig.colors;
+    
+    if (isGrouped) {
+        // Generate grouped menu
+        let menuHtml = '';
+        const groups = [
+            { key: 'status', label: 'Status' },
+            { key: 'type', label: 'Type' },
+            { key: 'priority', label: 'Priority' },
+            { key: 'category', label: 'Category' },
+            { key: 'colors', label: 'Colors' }
+        ];
+        
+        groups.forEach(group => {
+            if (tagConfig[group.key]) {
+                const tags = Object.keys(tagConfig[group.key]);
+                if (tags.length > 0) {
+                    menuHtml += `
+                        <div class="donut-menu-item has-submenu">
+                            ${group.label}
+                            <div class="donut-menu-submenu">
+                                ${generateGroupTagItems(tags, id, type, columnId)}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        });
+        
+        return menuHtml || '<button class="donut-menu-item" disabled>No tags configured</button>';
+    } else {
+        // Fallback to flat structure
+        return generateFlatTagItems(Object.keys(tagConfig), id, type, columnId);
+    }
+}
+
+function generateGroupTagItems(tags, id, type, columnId = null) {
+    // Get current title to check which tags are active
+    let currentTitle = '';
+    if (type === 'column') {
+        const column = currentBoard?.columns?.find(c => c.id === id);
+        currentTitle = column?.title || '';
+    } else if (type === 'task' && columnId) {
+        const column = currentBoard?.columns?.find(c => c.id === columnId);
+        const task = column?.tasks?.find(t => t.id === id);
+        currentTitle = task?.title || '';
+    }
+    
+    // Check which tags are currently in the title
+    const activeTags = getActiveTagsInTitle(currentTitle);
+    
+    return tags.map(tagName => {
+        const isActive = activeTags.includes(tagName.toLowerCase());
+        const checkbox = isActive ? '✓' : '☐';
+        const onclick = type === 'column' 
+            ? `toggleColumnTag('${id}', '${tagName}')`
+            : `toggleTaskTag('${id}', '${columnId}', '${tagName}')`;
+        
+        return `<button class="donut-menu-item" onclick="${onclick}">${checkbox} ${tagName}</button>`;
+    }).join('');
+}
+
+// Helper function for flat structure (backward compatibility)
+function generateFlatTagItems(tags, id, type, columnId = null) {
+    if (tags.length === 0) {
         return '<button class="donut-menu-item" disabled>No tags configured</button>';
     }
     
@@ -332,11 +615,10 @@ function generateTagMenuItems(id, type, columnId = null) {
         currentTitle = task?.title || '';
     }
     
-    // Check which configured tags are currently in the title
+    // Check which tags are currently in the title
     const activeTags = getActiveTagsInTitle(currentTitle);
     
-    // Generate menu items for all configured tags
-    return configuredTags.map(tagName => {
+    return tags.map(tagName => {
         const isActive = activeTags.includes(tagName.toLowerCase());
         const checkbox = isActive ? '✓' : '☐';
         const onclick = type === 'column' 
@@ -345,6 +627,35 @@ function generateTagMenuItems(id, type, columnId = null) {
         
         return `<button class="donut-menu-item" onclick="${onclick}">${checkbox} ${tagName}</button>`;
     }).join('');
+}
+
+// Helper function to get corner badge HTML
+function getCornerBadgeHtml(tag) {
+    if (!window.tagColors) return '';
+    
+    // Check both grouped and flat structure
+    let config = null;
+    
+    // Check grouped structure
+    const groups = ['status', 'type', 'priority', 'category', 'colors'];
+    for (const group of groups) {
+        if (window.tagColors[group] && window.tagColors[group][tag]) {
+            config = window.tagColors[group][tag];
+            break;
+        }
+    }
+    
+    // Check flat structure
+    if (!config && window.tagColors[tag]) {
+        config = window.tagColors[tag];
+    }
+    
+    if (config && config.cornerBadge) {
+        const badgeText = config.cornerBadge.text || '';
+        return `<div class="corner-badge-${tag}">${badgeText}</div>`;
+    }
+    
+    return '';
 }
 
 // Render Kanban board
@@ -606,7 +917,7 @@ function updateFoldAllButton(columnId) {
 }
 
 function createColumnElement(column, columnIndex) {
-    if (!column) {
+   if (!column) {
         return document.createElement('div');
     }
 
@@ -618,6 +929,9 @@ function createColumnElement(column, columnIndex) {
     const columnTag = extractFirstTag(column.title);
     console.log(`Creating column "${column.title}", detected tag: "${columnTag}"`);
     
+    // Get corner badge HTML if tag has one configured
+    const cornerBadgeHtml = columnTag ? getCornerBadgeHtml(columnTag) : '';
+
     // Extract row from column title (defaults to 1 if no row tag)
     const columnRow = getColumnRow(column.title);
 
@@ -644,6 +958,7 @@ function createColumnElement(column, columnIndex) {
     const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
     columnDiv.innerHTML = `
+        ${cornerBadgeHtml}
         <div class="column-header">
             <div class="column-title-section">
                 <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
@@ -716,8 +1031,12 @@ function createTaskElement(task, columnId, taskIndex) {
     const taskTag = extractFirstTag(task.title);
     const tagAttribute = taskTag ? ` data-task-tag="${taskTag}"` : '';
     
+    // Get corner badge HTML if tag has one configured
+    const cornerBadgeHtml = taskTag ? getCornerBadgeHtml(taskTag) : '';
+     
     return `
         <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}"${tagAttribute}>
+            ${cornerBadgeHtml}
             <div class="task-header">
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}'); updateFoldAllButton('${columnId}')">▶</span>
@@ -773,7 +1092,6 @@ function createTaskElement(task, columnId, taskIndex) {
                     </div>
                 </div>
             </div>
-
             <div class="task-description-container">
                 <div class="task-description-display markdown-content" 
                         data-task-id="${task.id}" 
@@ -1077,5 +1395,9 @@ function handleDescriptionClick(event, element, taskId, columnId) {
 window.handleColumnTitleClick = handleColumnTitleClick;
 window.handleTaskTitleClick = handleTaskTitleClick;
 window.handleDescriptionClick = handleDescriptionClick;
+
 window.getActiveTagsInTitle = getActiveTagsInTitle;
 window.generateTagMenuItems = generateTagMenuItems;
+window.generateGroupTagItems = generateGroupTagItems;
+window.generateFlatTagItems = generateFlatTagItems;
+window.getCornerBadgeHtml = getCornerBadgeHtml;

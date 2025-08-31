@@ -96,3 +96,254 @@ please write the corresponding code. Always write out full functions and where t
 ---
 
 Add all available tags to both buger menus (column & cards) as a submenu point "Tags". A submenu should show the name of the tag and a checkbox next to it wether the tag is currently active. Show the same function in the column and the cards burger menu. When editing the cards tags, only add them to the title. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions. only describe your solution, dont implement it yet!!!
+
+---
+
+we will use the "Grouped Configuration Structure". also add border styles with the option to only have a left border or full borders around the card/column. add header & footer bars option as well as corner badges (without patterns). each tag should can have optionally have any of these styles. for the styling use the first occurrence from the tags in order of appearance on the column or card. summarize the change and give me an example configuration of one item. keep the changes as minimal as possible. reuse existing functions if possible. dont add failsaves or backup solutions. only describe your solution, dont implement it yet!!!
+
+- solution proposed -
+
+## Summary of Changes
+
+### Configuration Structure Enhancement
+
+Extend the grouped tag configuration in `package.json` to support additional optional styling properties for each tag:
+
+-   **border**: Style borders (left-only or full)
+-   **headerBar**: Top accent bar
+-   **footerBar**: Bottom accent bar
+-   **cornerBadge**: Corner badge with text
+
+### Styling Priority
+
+-   Use the **first tag** found in the title (order of appearance) for styling
+-   The existing `extractFirstTag()` function already handles this
+-   Columns and cards will get styled based on their first tag only
+
+### CSS Generation Update
+
+Enhance `generateTagStyles()` in `boardRenderer.js` to generate CSS for:
+
+-   Border variants (left vs full)
+-   Header/footer bars (absolutely positioned elements)
+-   Corner badges (::before/::after pseudo-elements)
+
+## Example Configuration
+
+## Summary of Changes
+
+### Configuration Structure Enhancement
+
+Extend the grouped tag configuration in `package.json` to support additional optional styling properties for each tag:
+
+-   **border**: Style borders (left-only or full)
+-   **headerBar**: Top accent bar
+-   **footerBar**: Bottom accent bar
+-   **cornerBadge**: Corner badge with text
+
+### Styling Priority
+
+-   Use the **first tag** found in the title (order of appearance) for styling
+-   The existing `extractFirstTag()` function already handles this
+-   Columns and cards will get styled based on their first tag only
+
+### CSS Generation Update
+
+Enhance `generateTagStyles()` in `boardRenderer.js` to generate CSS for:
+
+-   Border variants (left vs full)
+-   Header/footer bars (absolutely positioned elements)
+-   Corner badges (::before/::after pseudo-elements)
+
+## Example Configuration
+
+## Summary of Changes
+
+### Configuration Structure Enhancement
+
+Extend the grouped tag configuration in `package.json` to support additional optional styling properties for each tag:
+
+-   **border**: Style borders (left-only or full)
+-   **headerBar**: Top accent bar
+-   **footerBar**: Bottom accent bar
+-   **cornerBadge**: Corner badge with text
+
+### Styling Priority
+
+-   Use the **first tag** found in the title (order of appearance) for styling
+-   The existing `extractFirstTag()` function already handles this
+-   Columns and cards will get styled based on their first tag only
+
+### CSS Generation Update
+
+Enhance `generateTagStyles()` in `boardRenderer.js` to generate CSS for:
+
+-   Border variants (left vs full)
+-   Header/footer bars (absolutely positioned elements)
+-   Corner badges (::before/::after pseudo-elements)
+
+## Example Configuration
+
+## Summary of Changes
+
+### Configuration Structure Enhancement
+
+Extend the grouped tag configuration in `package.json` to support additional optional styling properties for each tag:
+
+-   **border**: Style borders (left-only or full)
+-   **headerBar**: Top accent bar
+-   **footerBar**: Bottom accent bar
+-   **cornerBadge**: Corner badge with text
+
+### Styling Priority
+
+-   Use the **first tag** found in the title (order of appearance) for styling
+-   The existing `extractFirstTag()` function already handles this
+-   Columns and cards will get styled based on their first tag only
+
+### CSS Generation Update
+
+Enhance `generateTagStyles()` in `boardRenderer.js` to generate CSS for:
+
+-   Border variants (left vs full)
+-   Header/footer bars (absolutely positioned elements)
+-   Corner badges (::before/::after pseudo-elements)
+
+## Example Configuration
+
+```
+"markdown-kanban.tagColors": {
+  "type": "object",
+  "default": {
+    "status": {
+      "urgent": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#dc3545"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ff7b89"
+        },
+        "border": {
+          "style": "dashed",      // solid, dashed, dotted, double
+          "width": "3px",
+          "position": "left",      // left, full
+          "color": "#ff0000"       // optional, defaults to background color
+        },
+        "headerBar": {
+          "height": "4px",
+          "color": "#ff0000",      // optional, defaults to background color
+          "style": "solid"         // solid, gradient
+        },
+        "footerBar": {
+          "height": "3px",
+          "color": "#ff0000",
+          "text": "URGENT",         // optional text overlay
+          "textColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "text": "!",
+          "position": "top-right",  // top-left, top-right, bottom-left, bottom-right
+          "style": "circle",        // circle, square, ribbon
+          "color": "#ff0000",       // background color
+          "textColor": "#ffffff"
+        }
+      }
+    }
+  }
+}
+```
+
+## Implementation Approach
+
+### 1\. **Enhanced CSS Generation**
+
+Modify `generateTagStyles()` to check for additional properties and generate corresponding CSS:
+
+```
+// For each tag with additional styles:
+// - Generate border CSS based on position (left vs full)
+// - Add ::before pseudo-element for headerBar
+// - Add ::after pseudo-element for footerBar  
+// - Add positioned div for cornerBadge (using data attribute for text)
+```
+
+### 2\. **Menu Generation**
+
+Update `generateTagMenuItems()` to handle grouped structure:
+
+-   Iterate through groups (status, type, priority, etc.)
+-   Create nested submenus for each group
+-   Keep the same checkbox toggle functionality
+
+### 3\. **Tag Application**
+
+No changes needed - existing functions already:
+
+-   Apply `data-column-tag` and `data-task-tag` attributes
+-   Use `extractFirstTag()` to get the first tag for styling
+-   Toggle tags via `toggleColumnTag()` and `toggleTaskTag()`
+
+### 4\. **CSS Classes Generated**
+
+```
+/* Border - left only */
+.kanban-column[data-column-tag="urgent"] {
+  border-left: 3px dashed #ff0000 !important;
+}
+
+/* Border - full */
+.task-item[data-task-tag="urgent"] {
+  border: 3px dashed #ff0000 !important;
+}
+
+/* Header bar */
+.kanban-column[data-column-tag="urgent"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #ff0000;
+}
+
+/* Footer bar with text */
+.task-item[data-task-tag="urgent"]::after {
+  content: 'URGENT';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: #ff0000;
+  color: #ffffff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Corner badge */
+.task-item[data-task-tag="urgent"] .corner-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff0000;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+}
+```
+
+The implementation reuses existing tag detection and only extends the CSS generation to include these new style properties.
+
+
+---

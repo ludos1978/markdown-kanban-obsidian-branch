@@ -1912,3 +1912,24 @@ h6 .kanban-tag {
     /* Maintains consistent height even without row tag */
     min-height: inherit;
 }
+
+.kanban-column {
+    position: relative;
+}
+
+.task-item {
+    position: relative;
+}
+
+/* Ensure corner badges stay above other content */
+[class^="corner-badge-"] {
+    pointer-events: none; /* Don't interfere with interactions */
+}
+
+/* Ensure header/footer bars don't interfere with content */
+.kanban-column::before,
+.kanban-column::after,
+.task-item::before,
+.task-item::after {
+    pointer-events: none;
+}
