@@ -2123,3 +2123,170 @@ h6 .kanban-tag {
     font-size: 8px !important;
     letter-spacing: -0.5px !important;  /* Compress text slightly */
 }
+
+
+/* Ensure collapsed column titles maintain minimum height even when empty */
+.kanban-column.collapsed .column-title {
+    min-height: 100px; /* Minimum height for vertical text area */
+}
+
+/* When column has header bars, ensure proper spacing */
+.kanban-column.collapsed.has-header-bar .column-title {
+    min-height: 120px; /* Extra height to account for header bars */
+}
+
+/* Ensure title section maintains structure even with empty title */
+.kanban-column.collapsed .column-title:empty::before,
+.kanban-column.collapsed .column-title:has(.task-title-placeholder)::before {
+    content: '\200B'; /* Zero-width space to maintain height */
+    display: inline-block;
+    width: 1px;
+    height: 100px;
+}
+
+/* Fix for when header bars push content - ensure column has minimum height */
+.kanban-column.collapsed.has-header-bar {
+    min-height: 200px; /* Ensure minimum height for collapsed columns with header bars */
+}
+
+/* Ensure the column controls are always positioned below the title section */
+.kanban-column.collapsed .column-controls {
+    margin-top: auto; /* Push to bottom of flex container */
+}
+
+
+/* Collapsed column uses flex column layout */
+.kanban-column.collapsed {
+    display: flex;
+    flex-direction: column;
+    width: var(--collapsed-column-width) !important;
+    min-width: var(--collapsed-column-width) !important;
+    max-width: var(--collapsed-column-width) !important;
+    padding: 0; /* Remove padding to let bars use full width */
+    min-height: 200px;
+    overflow: visible;
+}
+
+/* Header container for collapsed columns - part of flex flow */
+.kanban-column.collapsed .header-bars-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+/* For collapsed columns, header bars are NOT absolute */
+.kanban-column.collapsed .header-bar {
+    position: relative !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    margin: 0;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+
+/* Column header in collapsed state */
+.kanban-column.collapsed .column-header {
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    padding: var(--whitespace-div2) var(--whitespace-div3-mul2); /* Padding only for content */
+    box-sizing: border-box;
+}
+
+/* Title section in collapsed column */
+.kanban-column.collapsed .column-title-section {
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    margin: 0; /* Remove any margins */
+}
+
+/* Collapsed column title maintains space even when empty */
+.kanban-column.collapsed .column-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px; /* Width after rotation */
+    flex: 1;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+/* Ensure empty titles maintain space */
+.kanban-column.collapsed .column-title:empty::before {
+    content: '\200B';
+    display: block;
+    min-height: 60px;
+}
+
+/* Column controls at bottom */
+.kanban-column.collapsed .column-controls {
+    flex-direction: column;
+    gap: 12px;
+    margin-top: auto;
+    flex-shrink: 0;
+    padding: var(--whitespace-div2) var(--whitespace-div3-mul2); /* Padding for controls */
+    box-sizing: border-box;
+}
+
+/* Footer bars container for collapsed columns */
+.kanban-column.collapsed .footer-bars-container {
+    display: flex;
+    flex-direction: column-reverse; /* Stack from bottom up */
+    width: 100%;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+/* Footer bars in collapsed columns */
+.kanban-column.collapsed .footer-bar {
+    position: relative !important;
+    bottom: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    margin: 0;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.kanban-column.collapsed.has-footer-bar .column-controls {
+    padding-bottom: calc(var(--whitespace-div2) * 2); /* Extra padding before bars */
+}
+
+/* Tasks container should never show in collapsed state */
+.kanban-column.collapsed .tasks-container,
+.kanban-column.collapsed .add-task-btn {
+    display: none !important;
+}
+
+/* Collapsed add task button positioning */
+.kanban-column.collapsed .collapsed-add-task-btn {
+    margin: var(--whitespace-div2) var(--whitespace-div3-mul2);
+}
+
+/* Ensure proper text rendering in bars */
+.kanban-column.collapsed .header-bar::after,
+.kanban-column.collapsed .footer-bar::after {
+    font-size: 8px !important;
+    letter-spacing: -0.5px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100%;
+    display: block;
+}

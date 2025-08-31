@@ -1452,121 +1452,128 @@ function generateTagStyles() {
 }
 
 // Function to inject header, footer bars, and border text after render
+// Modified injectStackableBars function
 function injectStackableBars() {
-    // Process all elements with data-all-tags
     document.querySelectorAll('[data-all-tags]').forEach(element => {
         const tags = element.getAttribute('data-all-tags').split(' ');
-        const existingHeaders = element.querySelectorAll('.header-bar');
-        const existingFooters = element.querySelectorAll('.footer-bar');
+        const isColumn = element.classList.contains('kanban-column');
+        const isCollapsed = isColumn && element.classList.contains('collapsed');
         
-        // Remove existing bars to prevent duplicates
-        existingHeaders.forEach(bar => bar.remove());
-        existingFooters.forEach(bar => bar.remove());
+        // Remove existing bars/containers
+        element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container').forEach(bar => bar.remove());
         
-        let headerOffset = 0;
-        let footerOffset = 0;
-        let hasHeaderBar = false;
-        let hasFooterBar = false;
+        // Also remove old classes
+        element.classList.remove('has-header-bar', 'has-footer-bar', 'has-header-label', 'has-footer-label');
+        
+        let headerBars = [];
+        let footerBars = [];
         let hasHeaderLabel = false;
         let hasFooterLabel = false;
-
-        // Add header bars
+        
+        // Collect header and footer bars
         tags.forEach(tag => {
             const config = getTagConfig(tag);
+            
             if (config && config.headerBar) {
                 const headerBar = document.createElement('div');
                 headerBar.className = `header-bar header-bar-${tag}`;
-                headerBar.style.top = `${headerOffset}px`;
-                element.appendChild(headerBar);
                 
-                const height = config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px');
-                headerOffset += height;
-                
-                hasHeaderBar = true;
-                if (config.headerBar.label) {
-                    hasHeaderLabel = true;
+                if (!isCollapsed) {
+                    // Only use absolute positioning for non-collapsed elements
+                    const height = config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px');
+                    headerBar.style.top = `${headerBars.reduce((sum, bar) => {
+                        const barTag = bar.className.match(/header-bar-(\S+)/)?.[1];
+                        const barConfig = getTagConfig(barTag);
+                        return sum + (barConfig?.headerBar?.label ? 20 : parseInt(barConfig?.headerBar?.height || '4px'));
+                    }, 0)}px`;
                 }
+                
+                headerBars.push(headerBar);
+                if (config.headerBar.label) hasHeaderLabel = true;
             }
-        });
-        
-        // Add footer bars
-        tags.forEach(tag => {
-            const config = getTagConfig(tag);
+            
             if (config && config.footerBar) {
                 const footerBar = document.createElement('div');
                 footerBar.className = `footer-bar footer-bar-${tag}`;
-                footerBar.style.bottom = `${footerOffset}px`;
-                element.appendChild(footerBar);
                 
-                const height = config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px');
-                footerOffset += height;
-                
-                hasFooterBar = true;
-                if (config.footerBar.label) {
-                    hasFooterLabel = true;
+                if (!isCollapsed) {
+                    // Only use absolute positioning for non-collapsed elements
+                    const height = config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px');
+                    footerBar.style.bottom = `${footerBars.reduce((sum, bar) => {
+                        const barTag = bar.className.match(/footer-bar-(\S+)/)?.[1];
+                        const barConfig = getTagConfig(barTag);
+                        return sum + (barConfig?.footerBar?.label ? 20 : parseInt(barConfig?.footerBar?.height || '3px'));
+                    }, 0)}px`;
                 }
+                
+                footerBars.push(footerBar);
+                if (config.footerBar.label) hasFooterLabel = true;
             }
         });
         
-        // Add classes for columns
-        if (element.classList.contains('kanban-column')) {
-            // Add classes for any header/footer bars
-            if (hasHeaderBar) {
+        // Handle collapsed columns with flex containers
+        if (isCollapsed) {
+            // Create and insert header container at the beginning
+            if (headerBars.length > 0) {
+                const headerContainer = document.createElement('div');
+                headerContainer.className = 'header-bars-container';
+                headerBars.forEach(bar => headerContainer.appendChild(bar));
+                element.insertBefore(headerContainer, element.firstChild);
                 element.classList.add('has-header-bar');
-            } else {
-                element.classList.remove('has-header-bar');
+                if (hasHeaderLabel) element.classList.add('has-header-label');
             }
             
-            if (hasFooterBar) {
+            // Create and append footer container at the end
+            if (footerBars.length > 0) {
+                const footerContainer = document.createElement('div');
+                footerContainer.className = 'footer-bars-container';
+                footerBars.forEach(bar => footerContainer.appendChild(bar));
+                element.appendChild(footerContainer);
                 element.classList.add('has-footer-bar');
-            } else {
-                element.classList.remove('has-footer-bar');
+                if (hasFooterLabel) element.classList.add('has-footer-label');
             }
             
-            // Add classes specifically for labels (for width adjustment)
-            if (hasHeaderLabel) {
-                element.classList.add('has-header-label');
-            } else {
-                element.classList.remove('has-header-label');
-            }
-            
-            if (hasFooterLabel) {
-                element.classList.add('has-footer-label');
-            } else {
-                element.classList.remove('has-footer-label');
-            }
-        }        
-        
-        // Adjust padding based on total bar heights
-        if (headerOffset > 0) {
-            // Special handling for collapsed columns
-            if (element.classList.contains('kanban-column') && element.classList.contains('collapsed')) {
-                // For collapsed columns, ensure the content is pushed down properly
-                element.style.paddingTop = `calc(var(--whitespace-div2) + ${headerOffset}px)`;
-                
-                // Find and adjust the column-title-section to account for header bars
-                const titleSection = element.querySelector('.column-title-section');
-                if (titleSection) {
-                    // Add top margin to push the title section down below header bars
-                    titleSection.style.marginTop = `${Math.max(0, headerOffset - 4)}px`;
-                }
-            } else {
-                // Normal (non-collapsed) elements
-                element.style.paddingTop = `calc(var(--whitespace-div2) + ${headerOffset}px)`;
-            }
-        } else {
-            // Reset padding if no header bars
+            // Clear any inline padding styles for collapsed columns
             element.style.paddingTop = '';
-            const titleSection = element.querySelector('.column-title-section');
-            if (titleSection) {
-                titleSection.style.marginTop = '';
-            }
-        }
-        
-        if (footerOffset > 0) {
-            element.style.paddingBottom = `calc(var(--whitespace-div2) + ${footerOffset}px)`;
-        } else {
             element.style.paddingBottom = '';
+            
+        } else {
+            // For non-collapsed elements, use absolute positioning
+            headerBars.forEach(bar => element.appendChild(bar));
+            footerBars.forEach(bar => element.appendChild(bar));
+            
+            // Calculate and apply padding for non-collapsed elements
+            if (headerBars.length > 0) {
+                const totalHeight = tags.reduce((sum, tag) => {
+                    const config = getTagConfig(tag);
+                    if (config?.headerBar) {
+                        return sum + (config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px'));
+                    }
+                    return sum;
+                }, 0);
+                
+                element.style.paddingTop = `calc(var(--whitespace-div2) + ${totalHeight}px)`;
+                element.classList.add('has-header-bar');
+                if (hasHeaderLabel) element.classList.add('has-header-label');
+            } else {
+                element.style.paddingTop = '';
+            }
+            
+            if (footerBars.length > 0) {
+                const totalHeight = tags.reduce((sum, tag) => {
+                    const config = getTagConfig(tag);
+                    if (config?.footerBar) {
+                        return sum + (config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px'));
+                    }
+                    return sum;
+                }, 0);
+                
+                element.style.paddingBottom = `calc(var(--whitespace-div2) + ${totalHeight}px)`;
+                element.classList.add('has-footer-bar');
+                if (hasFooterLabel) element.classList.add('has-footer-label');
+            } else {
+                element.style.paddingBottom = '';
+            }
         }
     });
 }
