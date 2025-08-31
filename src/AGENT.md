@@ -76,3 +76,11 @@ the dropping of files from the explorer is broken. it shows the message "Drop fi
 ---
 
 in multi row mode, show the "+ Add Column" on each row, add it to the respective row it's on (using the tags #row2, #row3, #row4). explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
+
+---
+
+when alt+clicking on a link in the kanban board it should open the file instead of starting to edit the text.  explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
+
+---
+
+it doesnt start editing now, but it also doesnt open the file. when it's a file extension known to vscode it should open in there, but if it's an unknown extension it should open in the externally (os) defined programm

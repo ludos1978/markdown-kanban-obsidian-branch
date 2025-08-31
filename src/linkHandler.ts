@@ -81,6 +81,7 @@ export class LinkHandler {
                 const stats = fs.statSync(resolvedPath);
                 
                 if (stats.isDirectory()) {
+                    // Open directory in OS file explorer
                     vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(resolvedPath));
                     return;
                 }
@@ -89,39 +90,109 @@ export class LinkHandler {
                 return;
             }
 
-            const config = vscode.workspace.getConfiguration('markdownKanban');
-            const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
+            // Determine if this is a text/code file that VS Code can open
+            const textExtensions = [
+                // Markdown and text
+                '.md', '.markdown', '.txt', '.rtf', '.log', '.csv', '.tsv',
+                // Web
+                '.html', '.htm', '.css', '.scss', '.sass', '.less', 
+                '.js', '.jsx', '.ts', '.tsx', '.json', '.xml', '.svg',
+                // Programming languages
+                '.py', '.java', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.cs',
+                '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.r',
+                '.m', '.mm', '.pl', '.pm', '.lua', '.dart', '.elm', '.clj',
+                '.ex', '.exs', '.erl', '.hrl', '.fs', '.fsx', '.ml', '.mli',
+                '.pas', '.pp', '.asm', '.s', '.bas', '.cob', '.for', '.f90',
+                '.jl', '.nim', '.cr', '.zig', '.v', '.vh', '.vhd', '.vhdl',
+                // Shell and scripts
+                '.sh', '.bash', '.zsh', '.fish', '.ps1', '.psm1', '.psd1', '.bat', '.cmd',
+                // Config files
+                '.yml', '.yaml', '.toml', '.ini', '.cfg', '.conf', '.config',
+                '.env', '.properties', '.gitignore', '.dockerignore', '.editorconfig',
+                '.prettierrc', '.eslintrc', '.babelrc', '.webpack', 
+                // Documentation
+                '.rst', '.tex', '.latex', '.bib',
+                // Data files
+                '.sql', '.graphql', '.proto',
+                // Make files
+                'makefile', 'Makefile', 'GNUmakefile', '.mk',
+                // Docker files
+                'dockerfile', 'Dockerfile', '.dockerfile',
+                // Other
+                '.diff', '.patch', '.vue', '.svelte'
+            ];
             
-            try {
-                const document = await vscode.workspace.openTextDocument(resolvedPath);
+            const ext = path.extname(resolvedPath).toLowerCase();
+            const basename = path.basename(resolvedPath).toLowerCase();
+            
+            // Check if it's a text file VS Code can handle
+            const isTextFile = textExtensions.includes(ext) || 
+                            basename === 'makefile' || 
+                            basename === 'dockerfile' ||
+                            basename.startsWith('.') && !ext; // Hidden files without extension (like .gitignore)
+
+            if (isTextFile) {
+                // Open in VS Code
+                const config = vscode.workspace.getConfiguration('markdownKanban');
+                const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
                 
-                if (openInNewTab) {
-                    await vscode.window.showTextDocument(document, {
-                        preview: false,
-                        viewColumn: vscode.ViewColumn.Beside
-                    });
-                } else {
-                    await vscode.window.showTextDocument(document, {
-                        preview: false,
-                        preserveFocus: false
-                    });
-                }
-                
-                // Enhanced success message showing resolution method
-                if (!isAbsolute) {
-                    const workspaceFolders = vscode.workspace.workspaceFolders;
-                    const isWorkspaceRelative = workspaceFolders?.some(f => 
-                        href.startsWith(path.basename(f.uri.fsPath) + '/')
-                    );
+                try {
+                    const document = await vscode.workspace.openTextDocument(resolvedPath);
                     
-                    const resolutionMethod = isWorkspaceRelative ? 'workspace-relative' : 'document-relative';
-                    vscode.window.showInformationMessage(
-                        `Opened: ${path.basename(resolvedPath)} (${resolutionMethod} path: ${href})`
-                    );
+                    if (openInNewTab) {
+                        await vscode.window.showTextDocument(document, {
+                            preview: false,
+                            viewColumn: vscode.ViewColumn.Beside
+                        });
+                    } else {
+                        await vscode.window.showTextDocument(document, {
+                            preview: false,
+                            preserveFocus: false
+                        });
+                    }
+                    
+                    // Enhanced success message showing resolution method
+                    if (!isAbsolute) {
+                        const workspaceFolders = vscode.workspace.workspaceFolders;
+                        const isWorkspaceRelative = workspaceFolders?.some(f => 
+                            href.startsWith(path.basename(f.uri.fsPath) + '/')
+                        );
+                        
+                        const resolutionMethod = isWorkspaceRelative ? 'workspace-relative' : 'document-relative';
+                        vscode.window.showInformationMessage(
+                            `Opened in VS Code: ${path.basename(resolvedPath)} (${resolutionMethod} path: ${href})`
+                        );
+                    }
+                } catch (error) {
+                    // If VS Code can't open it, fall back to OS default
+                    console.warn(`VS Code couldn't open file, trying OS default: ${resolvedPath}`, error);
+                    try {
+                        await vscode.env.openExternal(vscode.Uri.file(resolvedPath));
+                        vscode.window.showInformationMessage(
+                            `Opened externally: ${path.basename(resolvedPath)}`
+                        );
+                    } catch (externalError) {
+                        vscode.window.showErrorMessage(`Failed to open file: ${resolvedPath}`);
+                    }
                 }
-                
-            } catch (error) {
-                vscode.window.showErrorMessage(`Failed to open file: ${resolvedPath}`);
+            } else {
+                // For non-text files (images, PDFs, executables, etc.), open with OS default application
+                try {
+                    await vscode.env.openExternal(vscode.Uri.file(resolvedPath));
+                    vscode.window.showInformationMessage(
+                        `Opened externally: ${path.basename(resolvedPath)}`
+                    );
+                } catch (error) {
+                    // Try revealing in file explorer as fallback
+                    try {
+                        await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(resolvedPath));
+                        vscode.window.showInformationMessage(
+                            `Revealed in file explorer: ${path.basename(resolvedPath)}`
+                        );
+                    } catch (revealError) {
+                        vscode.window.showErrorMessage(`Failed to open file: ${resolvedPath}`);
+                    }
+                }
             }
             
         } catch (error) {
