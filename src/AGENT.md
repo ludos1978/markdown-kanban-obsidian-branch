@@ -95,4 +95,4 @@ please write the corresponding code. Always write out full functions and where t
 
 ---
 
-Add all available tags to the dropdown menus as a submenu point "Tags". A submenu should show the name of the tag and a checkbox next to it wether the tag is currently active. Show the same function in the column and the cards burger menu. When editing the cards tags, only add them to the title. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions. only describe your solution, dont implement it yet!!!
+Add all available tags to both buger menus (column & cards) as a submenu point "Tags". A submenu should show the name of the tag and a checkbox next to it wether the tag is currently active. Show the same function in the column and the cards burger menu. When editing the cards tags, only add them to the title. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions. only describe your solution, dont implement it yet!!!
