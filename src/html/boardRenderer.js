@@ -122,6 +122,15 @@ function generateTagStyles() {
                             ? `linear-gradient(90deg, ${headerColor}, ${hexToRgba(headerColor, 0.3)})`
                             : headerColor;
                         
+                        // Add padding-top to make room for the header bar
+                        styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                            padding-top: calc(var(--whitespace-div2) + ${headerHeight}) !important;
+                        }\n`;
+                        
+                        styles += `.task-item[data-task-tag="${lowerTagName}"] {
+                            padding-top: calc(var(--whitespace-div2) + ${headerHeight}) !important;
+                        }\n`;
+                        
                         styles += `.kanban-column[data-column-tag="${lowerTagName}"]::before {
                             content: '';
                             position: absolute;
@@ -131,6 +140,7 @@ function generateTagStyles() {
                             height: ${headerHeight};
                             background: ${headerBg};
                             z-index: 1;
+                            border-radius: var(--whitespace-div4) var(--whitespace-div4) 0 0;
                         }\n`;
                         
                         styles += `.task-item[data-task-tag="${lowerTagName}"]::before {
@@ -153,6 +163,18 @@ function generateTagStyles() {
                         const footerText = config.footerBar.text || '';
                         const footerTextColor = config.footerBar.textColor || themeColors.text;
                         
+                        // Calculate actual footer height (text requires more space)
+                        const actualFooterHeight = footerText ? '20px' : footerHeight;
+                        
+                        // Add padding to the container to make room for the footer
+                        styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                            padding-bottom: calc(var(--whitespace-div2) + ${actualFooterHeight}) !important;
+                        }\n`;
+                        
+                        styles += `.task-item[data-task-tag="${lowerTagName}"] {
+                            padding-bottom: calc(var(--whitespace-div2) + ${actualFooterHeight}) !important;
+                        }\n`;
+                        
                         if (footerText) {
                             // Footer with text
                             styles += `.kanban-column[data-column-tag="${lowerTagName}"]::after {
@@ -161,7 +183,7 @@ function generateTagStyles() {
                                 bottom: 0;
                                 left: 0;
                                 right: 0;
-                                height: 20px;
+                                height: ${actualFooterHeight};
                                 background: ${footerColor};
                                 color: ${footerTextColor};
                                 font-size: 10px;
@@ -170,6 +192,7 @@ function generateTagStyles() {
                                 align-items: center;
                                 justify-content: center;
                                 z-index: 1;
+                                border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4);
                             }\n`;
                             
                             styles += `.task-item[data-task-tag="${lowerTagName}"]::after {
@@ -178,7 +201,7 @@ function generateTagStyles() {
                                 bottom: 0;
                                 left: 0;
                                 right: 0;
-                                height: 20px;
+                                height: ${actualFooterHeight};
                                 background: ${footerColor};
                                 color: ${footerTextColor};
                                 font-size: 10px;
@@ -197,9 +220,10 @@ function generateTagStyles() {
                                 bottom: 0;
                                 left: 0;
                                 right: 0;
-                                height: ${footerHeight};
+                                height: ${actualFooterHeight};
                                 background: ${footerColor};
                                 z-index: 1;
+                                border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4);
                             }\n`;
                             
                             styles += `.task-item[data-task-tag="${lowerTagName}"]::after {
@@ -208,12 +232,17 @@ function generateTagStyles() {
                                 bottom: 0;
                                 left: 0;
                                 right: 0;
-                                height: ${footerHeight};
+                                height: ${actualFooterHeight};
                                 background: ${footerColor};
                                 border-radius: 0 0 4px 4px;
                                 z-index: 1;
                             }\n`;
                         }
+                        
+                        // Adjust the add-task button position for columns with footer bars
+                        styles += `.kanban-column[data-column-tag="${lowerTagName}"] .add-task-btn {
+                            margin-bottom: ${actualFooterHeight};
+                        }\n`;
                     }
                     
                     // Corner badge

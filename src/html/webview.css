@@ -1104,12 +1104,14 @@ blockquote {
 
 /* Tagged column styles - will be overridden by dynamic styles */
 .kanban-column[data-column-tag] {
-    transition: background-color 0.3s ease, border-color 0.3s ease;
+    box-sizing: border-box;
+    transition: padding 0.2s ease;
 }
 
 /* Tagged task styles - will be overridden by dynamic styles */
 .task-item[data-task-tag] {
-    transition: background-color 0.3s ease, border-color 0.3s ease;
+    box-sizing: border-box;
+    transition: padding 0.2s ease;
 }
 
 /* Ensure tags in titles are visible */
@@ -1119,9 +1121,9 @@ blockquote {
     display: unset;
 }
 
-/* Collapsed column with tag should maintain some visual indication */
-.kanban-column.collapsed[data-column-tag] {
-    border-width: 2px;
+.tasks-container {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
 }
 
 .task-item[data-task-tag="bug"] {
