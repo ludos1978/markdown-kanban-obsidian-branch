@@ -2072,3 +2072,45 @@ h6 .kanban-tag {
 .vscode-light .donut-menu-tag-chip:not(.active) {
     border-color: #ccc;
 }
+
+/* Dynamically adjust collapsed column width when it has labels */
+.kanban-column.collapsed.has-header-label {
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+}
+
+.kanban-column.collapsed.has-footer-label {
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+}
+
+.kanban-column.collapsed.has-header-label.has-footer-label {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 80px !important;
+}
+
+/* Keep header/footer bars horizontal but adjust size for collapsed columns */
+.kanban-column.collapsed .header-bar,
+.kanban-column.collapsed .footer-bar {
+    writing-mode: horizontal-tb !important;
+    transform: none !important;
+    height: 20px !important; 
+    font-size: 9px !important;
+    padding: 0 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* Make the text in bars responsive to column width */
+.kanban-column.collapsed .header-bar::after,
+.kanban-column.collapsed .footer-bar::after {
+    font-size: 8px !important;
+    letter-spacing: -0.5px !important;  /* Compress text slightly */
+}

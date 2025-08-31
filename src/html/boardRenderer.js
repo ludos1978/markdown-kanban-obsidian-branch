@@ -1512,6 +1512,8 @@ function injectStackableBars() {
         let headerOffset = 0;
         let footerOffset = 0;
         let leftBorderOffset = 0;
+        let hasHeaderLabel = false;
+        let hasFooterLabel = false;
         
         // Add header bars
         tags.forEach(tag => {
@@ -1524,6 +1526,10 @@ function injectStackableBars() {
                 
                 const height = config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px');
                 headerOffset += height;
+                
+                if (config.headerBar.label) {
+                    hasHeaderLabel = true;
+                }
             }
         });
         
@@ -1538,8 +1544,27 @@ function injectStackableBars() {
                 
                 const height = config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px');
                 footerOffset += height;
+                
+                if (config.footerBar.label) {
+                    hasFooterLabel = true;
+                }
             }
         });
+        
+        // Add classes for columns with labels
+        if (element.classList.contains('kanban-column')) {
+            if (hasHeaderLabel) {
+                element.classList.add('has-header-label');
+            } else {
+                element.classList.remove('has-header-label');
+            }
+            
+            if (hasFooterLabel) {
+                element.classList.add('has-footer-label');
+            } else {
+                element.classList.remove('has-footer-label');
+            }
+        }
         
         // Add border text for left borders
         tags.forEach(tag => {
@@ -1562,7 +1587,7 @@ function injectStackableBars() {
         if (footerOffset > 0) {
             element.style.paddingBottom = `calc(var(--whitespace-div2) + ${footerOffset}px)`;
         }
-        // Add extra padding for border text labels (20px per label)
+        // Add extra padding for border text labels
         const borderTextCount = element.querySelectorAll('.border-text').length;
         if (borderTextCount > 0) {
             element.style.paddingLeft = `calc(var(--whitespace-div2) + 15px)`;
