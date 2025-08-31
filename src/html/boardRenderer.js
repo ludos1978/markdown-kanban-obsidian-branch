@@ -609,7 +609,7 @@ function createColumnElement(column, columnIndex) {
                     <div class="column-title" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
                     <textarea class="column-title-edit" 
                                 data-column-id="${column.id}"
-                                style="display: none;">${escapeHtml(column.title || '')}</textarea>
+                                style="display: none;">${escapeHtml(displayTitle)}</textarea>
                 </div>
             </div>
             <div class="column-controls">
