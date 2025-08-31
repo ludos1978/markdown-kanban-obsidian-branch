@@ -1108,54 +1108,39 @@ function calculateColumnNewPosition(draggedColumn) {
     const boardElement = document.getElementById('kanban-board');
     const columnId = draggedColumn.getAttribute('data-column-id');
     
-    // Get the parent row of the dragged column
-    const parentRow = draggedColumn.closest('.kanban-row');
-    const targetRowNumber = parentRow ? 
-        parseInt(parentRow.getAttribute('data-row-number') || '1') : 1;
-    
-    // Get all columns in visual order, accounting for rows
-    let allColumnsInOrder = [];
+    // Build the desired final order of ALL columns based on current DOM state
+    let desiredOrder = [];
     
     // Check if we have multi-row layout
     const rows = boardElement.querySelectorAll('.kanban-row');
     if (rows.length > 0) {
-        // Multi-row layout - process each row in order
-        for (let rowNum = 1; rowNum <= rows.length; rowNum++) {
-            const row = boardElement.querySelector(`.kanban-row[data-row-number="${rowNum}"]`);
-            if (row) {
-                const columnsInRow = row.querySelectorAll('.kanban-column');
-                columnsInRow.forEach(col => {
-                    const colId = col.getAttribute('data-column-id');
-                    if (colId) {
-                        allColumnsInOrder.push({
-                            id: colId,
-                            row: rowNum
-                        });
-                    }
-                });
-            }
-        }
+        // Multi-row layout - collect columns row by row, left to right
+        rows.forEach(row => {
+            const columnsInRow = row.querySelectorAll('.kanban-column');
+            columnsInRow.forEach(col => {
+                const colId = col.getAttribute('data-column-id');
+                if (colId) {
+                    desiredOrder.push(colId);
+                }
+            });
+        });
     } else {
         // Single row layout
         const columns = boardElement.querySelectorAll('.kanban-column');
         columns.forEach(col => {
             const colId = col.getAttribute('data-column-id');
             if (colId) {
-                allColumnsInOrder.push({
-                    id: colId,
-                    row: 1
-                });
+                desiredOrder.push(colId);
             }
         });
     }
     
-    // Find the position of our column in the overall order
-    const visualPosition = allColumnsInOrder.findIndex(item => item.id === columnId);
+    // Find where our dragged column should be in the final order
+    const targetPosition = desiredOrder.indexOf(columnId);
     
-    console.log(`Column ${columnId} is at visual position ${visualPosition} in row ${targetRowNumber}`);
-    console.log('All columns in order:', allColumnsInOrder);
+    console.log(`Column ${columnId} should be at position ${targetPosition}`);
+    console.log('Desired final order:', desiredOrder);
+    console.log('Current data model order:', currentBoard.columns.map(c => c.id));
     
-    // Return the position (or 0 if not found)
-    return visualPosition >= 0 ? visualPosition : 0;
+    return targetPosition >= 0 ? targetPosition : 0;
 }
-

@@ -327,7 +327,6 @@ export class BoardOperations {
         return true;
     }
 
-    // Column operation that combines movement and row tag update
     public moveColumnWithRowUpdate(board: KanbanBoard, columnId: string, newPosition: number, newRow: number): boolean {
         const column = this.findColumn(board, columnId);
         if (!column) return false;
@@ -347,11 +346,24 @@ export class BoardOperations {
             column.title = cleanTitle;
         }
         
-        // Then, move the column to its new position if needed
+        // Find current index of the column
         const currentIndex = board.columns.findIndex(col => col.id === columnId);
-        if (currentIndex !== -1 && currentIndex !== newPosition) {
+        if (currentIndex === -1) return false;
+        
+        // Only move if the position actually changed
+        if (currentIndex !== newPosition) {
+            // Remove from current position
             const [movedColumn] = board.columns.splice(currentIndex, 1);
-            board.columns.splice(newPosition, 0, movedColumn);
+            
+            // Adjust target position because we just removed an element
+            // If we removed from before the target position, the target shifts down by 1
+            let insertPosition = newPosition;
+            if (currentIndex < newPosition) {
+                insertPosition = newPosition - 1;
+            }
+            
+            // Insert at adjusted position
+            board.columns.splice(insertPosition, 0, movedColumn);
         }
         
         return true;
