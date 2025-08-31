@@ -53,3 +53,8 @@ Drag & Dropping Files from outside the editor doesnt create a correct path. Caus
 ### Screenshot
 
 ![](./imgs/screenshot-20250826.png)
+
+---
+
+we seem to have lost the footerbar texts, also add text to the headerbar and left borders text option. allow badges to show small images.  separate the configuration label of text (color) and text (written) with different labels.
+

@@ -50,719 +50,916 @@
           "default": false,
           "description": "Show row tags (#row2, #row3, #row4) in column headers"
         },
-        "markdown-kanban.tagColors": {
-          "type": "object",
-          "default": {
-            "status": {
-              "todo": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#6c757d"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#adb5bd"
-                },
-                "border": {
-                  "style": "dotted",
-                  "width": "2px",
-                  "position": "left"
-                }
-              },
-              "inprogress": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#0dcaf0"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#3dd5f3"
-                },
-                "headerBar": {
-                  "height": "3px",
-                  "style": "gradient"
-                },
-                "cornerBadge": {
-                  "text": "▶",
-                  "position": "top-right",
-                  "style": "circle"
-                }
-              },
-              "done": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#198754"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#25ce7b"
-                },
-                "border": {
-                  "style": "solid",
-                  "width": "2px",
-                  "position": "full"
-                },
-                "cornerBadge": {
-                  "text": "✓",
-                  "position": "top-right",
-                  "style": "square",
-                  "color": "#00ff00",
-                  "textColor": "#ffffff"
-                }
-              },
-              "blocked": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#6c757d"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#adb5bd"
-                },
-                "border": {
-                  "style": "dashed",
-                  "width": "2px",
-                  "position": "full"
-                },
-                "cornerBadge": {
-                  "text": "⚠",
-                  "position": "top-right",
-                  "style": "circle"
-                }
-              },
-              "review": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#007bff"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#66b2ff"
-                },
-                "border": {
-                  "style": "solid",
-                  "width": "3px",
-                  "position": "left"
-                }
-              },
-              "testing": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#9c27b0"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ba68c8"
-                },
-                "headerBar": {
-                  "height": "2px",
-                  "style": "solid"
-                },
-                "cornerBadge": {
-                  "text": "🧪",
-                  "position": "top-left",
-                  "style": "circle"
-                }
-              },
-              "wip": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#ffc107"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffca2c"
-                },
-                "border": {
-                  "style": "dashed",
-                  "width": "2px",
-                  "position": "left",
-                  "color": "#ff9800"
-                },
-                "footerBar": {
-                  "text": "WIP",
-                  "height": "18px"
-                }
-              }
-            },
-            "priority": {
-              "urgent": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#dc3545"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ff7b89"
-                },
-                "border": {
-                  "style": "solid",
-                  "width": "3px",
-                  "position": "full",
-                  "color": "#ff0000"
-                },
-                "cornerBadge": {
-                  "text": "!",
-                  "position": "top-right",
-                  "style": "square",
-                  "color": "#ff0000",
-                  "textColor": "#ffffff"
-                }
-              },
-              "high": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#fd7e14"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffc078"
-                },
-                "headerBar": {
-                  "height": "2px",
-                  "style": "solid"
-                }
-              },
-              "medium": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#ffc107"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffe066"
-                }
-              },
-              "low": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#28a745"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#8ce99a"
-                }
-              }
-            },
-            "type": {
-              "bug": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#dc3545"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ff7b89"
-                },
-                "cornerBadge": {
-                  "text": "🐛",
-                  "position": "top-left",
-                  "style": "circle"
-                }
-              },
-              "feature": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#17a2b8"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#6fd6e1"
-                },
-                "headerBar": {
-                  "height": "4px",
-                  "style": "solid"
-                },
-                "footerBar": {
-                  "height": "3px",
-                  "text": "FEATURE"
-                }
-              },
-              "enhancement": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#20c997"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#4dd4ac"
-                },
-                "border": {
-                  "style": "solid",
-                  "width": "2px",
-                  "position": "left"
-                },
-                "cornerBadge": {
-                  "text": "✨",
-                  "position": "top-right",
-                  "style": "circle"
-                }
-              },
-              "documentation": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#6f42c1"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#9775fa"
-                },
-                "cornerBadge": {
-                  "text": "📚",
-                  "position": "bottom-left",
-                  "style": "square"
-                }
-              },
-              "research": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#795548"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#a1887f"
-                },
-                "headerBar": {
-                  "height": "3px",
-                  "style": "gradient"
-                },
-                "cornerBadge": {
-                  "text": "🔬",
-                  "position": "top-left",
-                  "style": "circle"
-                }
-              },
-              "refactor": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#ff6b6b"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ff8787"
-                },
-                "border": {
-                  "style": "dashed",
-                  "width": "2px",
-                  "position": "full"
-                },
-                "cornerBadge": {
-                  "text": "♻",
-                  "position": "top-right",
-                  "style": "square"
-                }
-              },
-              "hotfix": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#ff4757"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ff6348"
-                },
-                "border": {
-                  "style": "solid",
-                  "width": "3px",
-                  "position": "full",
-                  "color": "#ff0000"
-                },
-                "cornerBadge": {
-                  "text": "🔥",
-                  "position": "top-right",
-                  "style": "circle"
-                }
-              },
-              "release": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#00b894"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#00d2a5"
-                },
-                "headerBar": {
-                  "height": "4px",
-                  "style": "solid"
-                },
-                "footerBar": {
-                  "text": "RELEASE",
-                  "height": "20px"
-                },
-                "cornerBadge": {
-                  "text": "🚀",
-                  "position": "top-right",
-                  "style": "ribbon"
-                }
-              },
-              "epic": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#6c5ce7"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#a29bfe"
-                },
-                "border": {
-                  "style": "double",
-                  "width": "3px",
-                  "position": "full"
-                },
-                "headerBar": {
-                  "height": "4px",
-                  "style": "gradient"
-                },
-                "cornerBadge": {
-                  "text": "⚡",
-                  "position": "top-left",
-                  "style": "square"
-                }
-              },
-              "spike": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#e17055"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#fab1a0"
-                },
-                "border": {
-                  "style": "dotted",
-                  "width": "2px",
-                  "position": "left"
-                }
-              },
-              "help": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#ff9ff3"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffc0f9"
-                },
-                "cornerBadge": {
-                  "text": "?",
-                  "position": "top-right",
-                  "style": "circle",
-                  "color": "#ff00ff",
-                  "textColor": "#ffffff"
-                }
-              },
-              "idea": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#fff200"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#fff94c"
-                },
-                "cornerBadge": {
-                  "text": "💡",
-                  "position": "top-left",
-                  "style": "circle"
-                }
-              }
-            },
-            "category": {
-              "backend": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#20c997"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#63e6be"
-                },
-                "cornerBadge": {
-                  "text": "⚙",
-                  "position": "bottom-right",
-                  "style": "circle"
-                }
-              },
-              "frontend": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#007bff"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#4dabf7"
-                },
-                "border": {
-                  "style": "solid",
-                  "width": "2px",
-                  "position": "left"
-                },
-                "cornerBadge": {
-                  "text": "🎨",
-                  "position": "top-left",
-                  "style": "square"
-                }
-              },
-              "database": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#fd7e14"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffc078"
-                },
-                "border": {
-                  "style": "double",
-                  "width": "3px",
-                  "position": "full"
-                }
-              },
-              "api": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#00cec9"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#81ecec"
-                },
-                "headerBar": {
-                  "height": "3px",
-                  "style": "solid"
-                },
-                "cornerBadge": {
-                  "text": "🔌",
-                  "position": "bottom-left",
-                  "style": "square"
-                }
-              },
-              "security": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#d63031"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ff7675"
-                },
-                "border": {
-                  "style": "solid",
-                  "width": "3px",
-                  "position": "full",
-                  "color": "#ff0000"
-                },
-                "cornerBadge": {
-                  "text": "🔒",
-                  "position": "top-right",
-                  "style": "circle"
-                }
-              },
-              "performance": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#fdcb6e"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffeaa7"
-                },
-                "headerBar": {
-                  "height": "2px",
-                  "style": "gradient"
-                },
-                "cornerBadge": {
-                  "text": "⚡",
-                  "position": "top-right",
-                  "style": "square"
-                }
-              },
-              "ux": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#e83e8c"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#f783ac"
-                },
-                "footerBar": {
-                  "text": "UX",
-                  "height": "18px"
-                }
-              },
-              "ui": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#6f42c1"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#b197fc"
-                },
-                "border": {
-                  "style": "dotted",
-                  "width": "2px",
-                  "position": "left"
-                }
-              }
-            },
-            "colors": {
-              "red": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#dc3545"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ff8787"
-                }
-              },
-              "green": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#198754"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#8ce99a"
-                }
-              },
-              "blue": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#004085"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#5a8dee"
-                }
-              },
-              "yellow": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#ffc107"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffe066"
-                }
-              },
-              "orange": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#fd7e14"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffc078"
-                }
-              },
-              "purple": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#6f42c1"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#b197fc"
-                }
-              },
-              "pink": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#e83e8c"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#fcc2d7"
-                }
-              },
-              "cyan": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#0dcaf0"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#99e9f2"
-                }
-              },
-              "magenta": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#d63384"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#f06595"
-                }
-              },
-              "brown": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#795548"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#a1887f"
-                }
-              },
-              "gray": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#adb5bd"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#dee2e6"
-                }
-              },
-              "teal": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#20c997"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#63e6be"
-                }
-              },
-              "indigo": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#6610f2"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#9775fa"
-                }
-              },
-              "lime": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#84cc16"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#a3e635"
-                }
-              },
-              "amber": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#f59e0b"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#fbbf24"
-                }
-              }
-            }
-          },
-          "description": "Grouped color and style configuration for tags in kanban boards."
+"markdown-kanban.tagColors": {
+  "type": "object",
+  "default": {
+    "status": {
+      "todo": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#6c757d"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#adb5bd"
+        },
+        "border": {
+          "style": "dotted",
+          "width": "2px",
+          "position": "left"
+        },
+        "cornerBadge": {
+          "label": "○",
+          "position": "top-left",
+          "style": "circle",
+          "labelColor": "#ffffff"
         }
+      },
+      "inprogress": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#0dcaf0"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#3dd5f3"
+        },
+        "headerBar": {
+          "height": "20px",
+          "style": "gradient",
+          "label": "IN PROGRESS",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "▶",
+          "position": "top-left",
+          "style": "circle",
+          "color": "#0dcaf0",
+          "labelColor": "#ffffff"
+        }
+      },
+      "done": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#198754"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#25ce7b"
+        },
+        "border": {
+          "style": "solid",
+          "width": "2px",
+          "position": "full",
+          "color": "#00ff00"
+        },
+        "footerBar": {
+          "height": "20px",
+          "label": "COMPLETED",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "✓",
+          "position": "top-left",
+          "style": "square",
+          "color": "#00ff00",
+          "labelColor": "#ffffff"
+        }
+      },
+      "blocked": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#dc3545"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ff6b6b"
+        },
+        "border": {
+          "style": "dashed",
+          "width": "3px",
+          "position": "left",
+          "color": "#ff0000",
+          "label": "BLOCKED",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "⚠",
+          "position": "top-left",
+          "style": "circle",
+          "color": "#ff0000",
+          "labelColor": "#ffffff"
+        }
+      },
+      "review": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#007bff"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#66b2ff"
+        },
+        "headerBar": {
+          "height": "4px",
+          "style": "solid"
+        },
+        "border": {
+          "style": "solid",
+          "width": "2px",
+          "position": "left",
+          "color": "#007bff"
+        },
+        "cornerBadge": {
+          "label": "👁",
+          "position": "top-left",
+          "style": "circle"
+        }
+      },
+      "testing": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#9c27b0"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ba68c8"
+        },
+        "headerBar": {
+          "height": "3px",
+          "style": "gradient"
+        },
+        "footerBar": {
+          "height": "20px",
+          "label": "TESTING",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🧪",
+          "position": "top-left",
+          "style": "square"
+        }
+      },
+      "wip": {
+        "light": {
+          "text": "#212529",
+          "background": "#ffc107"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ffca2c"
+        },
+        "border": {
+          "style": "dashed",
+          "width": "2px",
+          "position": "full",
+          "color": "#ff9800"
+        },
+        "headerBar": {
+          "height": "20px",
+          "label": "WORK IN PROGRESS",
+          "labelColor": "#212529"
+        },
+        "cornerBadge": {
+          "label": "🚧",
+          "position": "top-left",
+          "style": "ribbon"
+        }
+      }
+    },
+    "priority": {
+      "urgent": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#dc3545"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ff7b89"
+        },
+        "border": {
+          "style": "solid",
+          "width": "3px",
+          "position": "full",
+          "color": "#ff0000"
+        },
+        "headerBar": {
+          "height": "6px",
+          "style": "solid",
+          "color": "#ff0000"
+        },
+        "footerBar": {
+          "height": "20px",
+          "label": "URGENT",
+          "color": "#ff0000",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "!!!",
+          "position": "top-left",
+          "style": "square",
+          "color": "#ff0000",
+          "labelColor": "#ffffff"
+        }
+      },
+      "high": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#fd7e14"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ffc078"
+        },
+        "border": {
+          "style": "solid",
+          "width": "2px",
+          "position": "left",
+          "color": "#fd7e14"
+        },
+        "headerBar": {
+          "height": "4px",
+          "style": "gradient"
+        },
+        "cornerBadge": {
+          "label": "!!",
+          "position": "top-left",
+          "style": "circle",
+          "color": "#fd7e14",
+          "labelColor": "#ffffff"
+        }
+      },
+      "medium": {
+        "light": {
+          "text": "#212529",
+          "background": "#ffc107"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ffe066"
+        },
+        "headerBar": {
+          "height": "3px",
+          "style": "solid"
+        },
+        "cornerBadge": {
+          "label": "!",
+          "position": "top-left",
+          "style": "circle",
+          "labelColor": "#212529"
+        }
+      },
+      "low": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#28a745"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#8ce99a"
+        },
+        "cornerBadge": {
+          "label": "↓",
+          "position": "top-left",
+          "style": "circle",
+          "labelColor": "#ffffff"
+        }
+      }
+    },
+    "type": {
+      "bug": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#dc3545"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ff7b89"
+        },
+        "border": {
+          "style": "solid",
+          "width": "2px",
+          "position": "left",
+          "color": "#dc3545",
+          "label": "BUG",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🐛",
+          "position": "top-left",
+          "style": "circle",
+          "color": "#dc3545",
+          "labelColor": "#ffffff"
+        }
+      },
+      "feature": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#17a2b8"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#6fd6e1"
+        },
+        "headerBar": {
+          "height": "4px",
+          "style": "gradient"
+        },
+        "footerBar": {
+          "height": "20px",
+          "label": "FEATURE",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "✨",
+          "position": "top-left",
+          "style": "ribbon"
+        }
+      },
+      "enhancement": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#20c997"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#4dd4ac"
+        },
+        "border": {
+          "style": "solid",
+          "width": "2px",
+          "position": "left"
+        },
+        "headerBar": {
+          "height": "3px",
+          "style": "gradient"
+        },
+        "cornerBadge": {
+          "label": "⬆",
+          "position": "top-left",
+          "style": "square"
+        }
+      },
+      "documentation": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#6f42c1"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#9775fa"
+        },
+        "footerBar": {
+          "height": "20px",
+          "label": "DOCS",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "📚",
+          "position": "top-left",
+          "style": "square"
+        }
+      },
+      "research": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#795548"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#a1887f"
+        },
+        "headerBar": {
+          "height": "20px",
+          "style": "solid",
+          "label": "RESEARCH",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🔬",
+          "position": "top-left",
+          "style": "circle"
+        }
+      },
+      "refactor": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#ff6b6b"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ff8787"
+        },
+        "border": {
+          "style": "dashed",
+          "width": "2px",
+          "position": "full"
+        },
+        "headerBar": {
+          "height": "3px",
+          "style": "solid"
+        },
+        "cornerBadge": {
+          "label": "♻",
+          "position": "top-left",
+          "style": "square"
+        }
+      },
+      "hotfix": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#ff4757"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ff6348"
+        },
+        "border": {
+          "style": "solid",
+          "width": "3px",
+          "position": "full",
+          "color": "#ff0000"
+        },
+        "headerBar": {
+          "height": "20px",
+          "label": "HOTFIX",
+          "color": "#ff0000",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🔥",
+          "position": "top-left",
+          "style": "circle"
+        }
+      },
+      "release": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#00b894"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#00d2a5"
+        },
+        "headerBar": {
+          "height": "5px",
+          "style": "gradient"
+        },
+        "footerBar": {
+          "height": "20px",
+          "label": "RELEASE",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🚀",
+          "position": "top-left",
+          "style": "ribbon"
+        }
+      },
+      "epic": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#6c5ce7"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#a29bfe"
+        },
+        "border": {
+          "style": "double",
+          "width": "3px",
+          "position": "full"
+        },
+        "headerBar": {
+          "height": "20px",
+          "style": "gradient",
+          "label": "EPIC",
+          "labelColor": "#ffffff"
+        },
+        "footerBar": {
+          "height": "4px",
+          "style": "solid"
+        },
+        "cornerBadge": {
+          "label": "⚡",
+          "position": "top-left",
+          "style": "square"
+        }
+      },
+      "spike": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#e17055"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#fab1a0"
+        },
+        "border": {
+          "style": "dotted",
+          "width": "2px",
+          "position": "left",
+          "label": "SPIKE",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🔍",
+          "position": "top-left",
+          "style": "circle"
+        }
+      },
+      "help": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#ff9ff3"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ffc0f9"
+        },
+        "headerBar": {
+          "height": "20px",
+          "label": "NEED HELP",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "❓",
+          "position": "top-left",
+          "style": "circle",
+          "color": "#ff00ff",
+          "labelColor": "#ffffff"
+        }
+      },
+      "idea": {
+        "light": {
+          "text": "#212529",
+          "background": "#fff200"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#fff94c"
+        },
+        "border": {
+          "style": "solid",
+          "width": "2px",
+          "position": "left",
+          "color": "#ffd700"
+        },
+        "cornerBadge": {
+          "label": "💡",
+          "position": "top-left",
+          "style": "circle"
+        }
+      }
+    },
+    "category": {
+      "backend": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#20c997"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#63e6be"
+        },
+        "border": {
+          "style": "solid",
+          "width": "2px",
+          "position": "left",
+          "label": "BE",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "⚙",
+          "position": "top-left",
+          "style": "circle"
+        }
+      },
+      "frontend": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#007bff"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#4dabf7"
+        },
+        "border": {
+          "style": "solid",
+          "width": "2px",
+          "position": "left",
+          "label": "FE",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🎨",
+          "position": "top-left",
+          "style": "square"
+        }
+      },
+      "database": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#fd7e14"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ffc078"
+        },
+        "border": {
+          "style": "double",
+          "width": "3px",
+          "position": "left",
+          "label": "DB",
+          "labelColor": "#ffffff"
+        },
+        "footerBar": {
+          "height": "20px",
+          "label": "DATABASE",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🗄",
+          "position": "top-left",
+          "style": "square"
+        }
+      },
+      "api": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#00cec9"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#81ecec"
+        },
+        "headerBar": {
+          "height": "20px",
+          "style": "solid",
+          "label": "API",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🔌",
+          "position": "top-left",
+          "style": "square"
+        }
+      },
+      "security": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#d63031"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ff7675"
+        },
+        "border": {
+          "style": "solid",
+          "width": "3px",
+          "position": "full",
+          "color": "#ff0000"
+        },
+        "headerBar": {
+          "height": "20px",
+          "label": "SECURITY",
+          "color": "#ff0000",
+          "labelColor": "#ffffff"
+        },
+        "footerBar": {
+          "height": "3px",
+          "color": "#ff0000"
+        },
+        "cornerBadge": {
+          "label": "🔒",
+          "position": "top-left",
+          "style": "circle",
+          "color": "#ff0000",
+          "labelColor": "#ffffff"
+        }
+      },
+      "performance": {
+        "light": {
+          "text": "#000000",
+          "background": "#fdcb6e"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ffeaa7"
+        },
+        "headerBar": {
+          "height": "3px",
+          "style": "gradient"
+        },
+        "border": {
+          "style": "solid",
+          "width": "2px",
+          "position": "left"
+        },
+        "cornerBadge": {
+          "label": "⚡",
+          "position": "top-left",
+          "style": "square"
+        }
+      },
+      "ux": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#e83e8c"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#f783ac"
+        },
+        "footerBar": {
+          "height": "20px",
+          "label": "UX DESIGN",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "👤",
+          "position": "top-left",
+          "style": "circle"
+        }
+      },
+      "ui": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#6f42c1"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#b197fc"
+        },
+        "border": {
+          "style": "dotted",
+          "width": "2px",
+          "position": "left",
+          "label": "UI",
+          "labelColor": "#ffffff"
+        },
+        "cornerBadge": {
+          "label": "🖼",
+          "position": "top-left",
+          "style": "square"
+        }
+      }
+    },
+    "colors": {
+      "red": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#dc3545"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ff8787"
+        }
+      },
+      "green": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#198754"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#8ce99a"
+        }
+      },
+      "blue": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#0056b3"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#5a8dee"
+        }
+      },
+      "yellow": {
+        "light": {
+          "text": "#212529",
+          "background": "#ffc107"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ffe066"
+        }
+      },
+      "orange": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#fd7e14"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#ffc078"
+        }
+      },
+      "purple": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#6f42c1"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#b197fc"
+        }
+      },
+      "pink": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#e83e8c"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#fcc2d7"
+        }
+      },
+      "cyan": {
+        "light": {
+          "text": "#212529",
+          "background": "#0dcaf0"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#99e9f2"
+        }
+      },
+      "magenta": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#d63384"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#f06595"
+        }
+      },
+      "brown": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#795548"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#a1887f"
+        }
+      },
+      "gray": {
+        "light": {
+          "text": "#212529",
+          "background": "#adb5bd"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#dee2e6"
+        }
+      },
+      "teal": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#20c997"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#63e6be"
+        }
+      },
+      "indigo": {
+        "light": {
+          "text": "#ffffff",
+          "background": "#6610f2"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#9775fa"
+        }
+      },
+      "lime": {
+        "light": {
+          "text": "#212529",
+          "background": "#84cc16"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#a3e635"
+        }
+      },
+      "amber": {
+        "light": {
+          "text": "#212529",
+          "background": "#f59e0b"
+        },
+        "dark": {
+          "text": "#000000",
+          "background": "#fbbf24"
+        }
+      }
+    }
+  },
+  "description": "Grouped color and style configuration for tags in kanban boards with various visual indicators."
+}
       }
     },
     "commands": [

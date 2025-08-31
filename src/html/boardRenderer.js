@@ -32,311 +32,6 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Generate dynamic CSS for tag colors
-// Generate dynamic CSS for tag colors and additional styles
-function generateTagStyles() {
-    if (!window.tagColors) {
-        console.log('No tag colors configuration found');
-        return '';
-    }
-    
-    console.log('Generating tag styles with colors:', window.tagColors);
-    
-    const isDarkTheme = document.body.classList.contains('vscode-dark') || 
-                        document.body.classList.contains('vscode-high-contrast');
-    const themeKey = isDarkTheme ? 'dark' : 'light';
-    console.log(`Using theme: ${themeKey}`);
-    
-    let styles = '';
-    
-    // Function to process tags from either grouped or flat structure
-    const processTags = (tags, groupName = null) => {
-        for (const [tagName, config] of Object.entries(tags)) {
-            // Skip if this is a group (has nested objects with light/dark themes)
-            if (config.light || config.dark) {
-                const themeColors = config[themeKey] || config.light || {};
-                if (themeColors.text && themeColors.background) {
-                    const lowerTagName = tagName.toLowerCase();
-                    console.log(`Generating styles for tag "${lowerTagName}" with colors:`, themeColors);
-                    
-                    // Tag pill styles (the tag text itself)
-                    styles += `.kanban-tag[data-tag="${lowerTagName}"] {
-                        color: ${themeColors.text} !important;
-                        background-color: ${themeColors.background} !important;
-                        border: 1px solid ${themeColors.background};
-                    }\n`;
-                    
-                    // Column background styles - subtle tint
-                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
-                        background-color: ${hexToRgba(themeColors.background, 0.15)} !important;
-                        position: relative;
-                    }\n`;
-                    
-                    // Column collapsed state
-                    styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] {
-                        background-color: ${hexToRgba(themeColors.background, 0.2)} !important;
-                    }\n`;
-                    
-                    // Card background styles
-                    styles += `.task-item[data-task-tag="${lowerTagName}"] {
-                        background-color: ${hexToRgba(themeColors.background, 0.25)} !important;
-                        position: relative;
-                    }\n`;
-                    
-                    // Card hover state
-                    styles += `.task-item[data-task-tag="${lowerTagName}"]:hover {
-                        background-color: ${hexToRgba(themeColors.background, 0.35)} !important;
-                    }\n`;
-                    
-                    // Border styles
-                    if (config.border) {
-                        const borderColor = config.border.color || themeColors.background;
-                        const borderWidth = config.border.width || '2px';
-                        const borderStyle = config.border.style || 'solid';
-                        
-                        if (config.border.position === 'left') {
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
-                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                            }\n`;
-                            styles += `.task-item[data-task-tag="${lowerTagName}"] {
-                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                            }\n`;
-                        } else {
-                            // Full border
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
-                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                            }\n`;
-                            styles += `.task-item[data-task-tag="${lowerTagName}"] {
-                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                            }\n`;
-                        }
-                    }
-                    
-                    // Header bar
-                    if (config.headerBar) {
-                        const headerColor = config.headerBar.color || themeColors.background;
-                        const headerHeight = config.headerBar.height || '4px';
-                        const headerStyle = config.headerBar.style || 'solid';
-                        
-                        const headerBg = headerStyle === 'gradient' 
-                            ? `linear-gradient(90deg, ${headerColor}, ${hexToRgba(headerColor, 0.3)})`
-                            : headerColor;
-                        
-                        // Add padding-top to make room for the header bar
-                        styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
-                            padding-top: calc(var(--whitespace-div2) + ${headerHeight}) !important;
-                        }\n`;
-                        
-                        styles += `.task-item[data-task-tag="${lowerTagName}"] {
-                            padding-top: calc(var(--whitespace-div2) + ${headerHeight}) !important;
-                        }\n`;
-                        
-                        styles += `.kanban-column[data-column-tag="${lowerTagName}"]::before {
-                            content: '';
-                            position: absolute;
-                            top: 0;
-                            left: 0;
-                            right: 0;
-                            height: ${headerHeight};
-                            background: ${headerBg};
-                            z-index: 1;
-                            border-radius: var(--whitespace-div4) var(--whitespace-div4) 0 0;
-                        }\n`;
-                        
-                        styles += `.task-item[data-task-tag="${lowerTagName}"]::before {
-                            content: '';
-                            position: absolute;
-                            top: 0;
-                            left: 0;
-                            right: 0;
-                            height: ${headerHeight};
-                            background: ${headerBg};
-                            border-radius: 4px 4px 0 0;
-                            z-index: 1;
-                        }\n`;
-                    }
-                    
-                    // Footer bar
-                    if (config.footerBar) {
-                        const footerColor = config.footerBar.color || themeColors.background;
-                        const footerHeight = config.footerBar.height || '3px';
-                        const footerText = config.footerBar.text || '';
-                        const footerTextColor = config.footerBar.textColor || themeColors.text;
-                        
-                        // Calculate actual footer height (text requires more space)
-                        const actualFooterHeight = footerText ? '20px' : footerHeight;
-                        
-                        // Add padding to the container to make room for the footer
-                        styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
-                            padding-bottom: calc(var(--whitespace-div2) + ${actualFooterHeight}) !important;
-                        }\n`;
-                        
-                        styles += `.task-item[data-task-tag="${lowerTagName}"] {
-                            padding-bottom: calc(var(--whitespace-div2) + ${actualFooterHeight}) !important;
-                        }\n`;
-                        
-                        if (footerText) {
-                            // Footer with text
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"]::after {
-                                content: '${footerText}';
-                                position: absolute;
-                                bottom: 0;
-                                left: 0;
-                                right: 0;
-                                height: ${actualFooterHeight};
-                                background: ${footerColor};
-                                color: ${footerTextColor};
-                                font-size: 10px;
-                                font-weight: bold;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                z-index: 1;
-                                border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4);
-                            }\n`;
-                            
-                            styles += `.task-item[data-task-tag="${lowerTagName}"]::after {
-                                content: '${footerText}';
-                                position: absolute;
-                                bottom: 0;
-                                left: 0;
-                                right: 0;
-                                height: ${actualFooterHeight};
-                                background: ${footerColor};
-                                color: ${footerTextColor};
-                                font-size: 10px;
-                                font-weight: bold;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                border-radius: 0 0 4px 4px;
-                                z-index: 1;
-                            }\n`;
-                        } else {
-                            // Simple footer bar
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"]::after {
-                                content: '';
-                                position: absolute;
-                                bottom: 0;
-                                left: 0;
-                                right: 0;
-                                height: ${actualFooterHeight};
-                                background: ${footerColor};
-                                z-index: 1;
-                                border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4);
-                            }\n`;
-                            
-                            styles += `.task-item[data-task-tag="${lowerTagName}"]::after {
-                                content: '';
-                                position: absolute;
-                                bottom: 0;
-                                left: 0;
-                                right: 0;
-                                height: ${actualFooterHeight};
-                                background: ${footerColor};
-                                border-radius: 0 0 4px 4px;
-                                z-index: 1;
-                            }\n`;
-                        }
-                        
-                        // Adjust the add-task button position for columns with footer bars
-                        styles += `.kanban-column[data-column-tag="${lowerTagName}"] .add-task-btn {
-                            margin-bottom: ${actualFooterHeight};
-                        }\n`;
-                    }
-                    
-                    // Corner badge
-                    if (config.cornerBadge) {
-                        const badgeColor = config.cornerBadge.color || themeColors.background;
-                        const badgeTextColor = config.cornerBadge.textColor || themeColors.text;
-                        const badgeText = config.cornerBadge.text || '';
-                        const badgePosition = config.cornerBadge.position || 'top-right';
-                        const badgeStyle = config.cornerBadge.style || 'circle';
-                        
-                        let positionStyles = '';
-                        switch (badgePosition) {
-                            case 'top-left':
-                                positionStyles = 'top: -8px; left: -8px;';
-                                break;
-                            case 'top-right':
-                                positionStyles = 'top: -8px; right: -8px;';
-                                break;
-                            case 'bottom-left':
-                                positionStyles = 'bottom: -8px; left: -8px;';
-                                break;
-                            case 'bottom-right':
-                                positionStyles = 'bottom: -8px; right: -8px;';
-                                break;
-                        }
-                        
-                        let shapeStyles = '';
-                        switch (badgeStyle) {
-                            case 'circle':
-                                shapeStyles = 'width: 20px; height: 20px; border-radius: 50%;';
-                                break;
-                            case 'square':
-                                shapeStyles = 'width: 20px; height: 20px; border-radius: 3px;';
-                                break;
-                            case 'ribbon':
-                                shapeStyles = 'padding: 2px 8px; border-radius: 3px;';
-                                break;
-                        }
-                        
-                        styles += `.kanban-column[data-column-tag="${lowerTagName}"] .corner-badge-${lowerTagName} {
-                            position: absolute;
-                            ${positionStyles}
-                            ${shapeStyles}
-                            background: ${badgeColor};
-                            color: ${badgeTextColor};
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-weight: bold;
-                            font-size: 11px;
-                            z-index: 10;
-                        }\n`;
-                        
-                        styles += `.task-item[data-task-tag="${lowerTagName}"] .corner-badge-${lowerTagName} {
-                            position: absolute;
-                            ${positionStyles}
-                            ${shapeStyles}
-                            background: ${badgeColor};
-                            color: ${badgeTextColor};
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-weight: bold;
-                            font-size: 11px;
-                            z-index: 10;
-                        }\n`;
-                    }
-                }
-            }
-        }
-    };
-    
-    // Check if we have grouped structure
-    const isGrouped = window.tagColors.status || window.tagColors.type || 
-                     window.tagColors.priority || window.tagColors.category || 
-                     window.tagColors.colors;
-    
-    if (isGrouped) {
-        // Process each group
-        const groups = ['status', 'type', 'priority', 'category', 'colors'];
-        groups.forEach(groupName => {
-            if (window.tagColors[groupName]) {
-                processTags(window.tagColors[groupName], groupName);
-            }
-        });
-    } else {
-        // Process flat structure
-        processTags(window.tagColors);
-    }
-    
-    console.log('Generated CSS length:', styles.length);
-    return styles;
-}
-
 // Apply tag styles to the document
 function applyTagStyles() {
     console.log('Applying tag styles...');
@@ -1425,7 +1120,7 @@ function handleDescriptionClick(event, element, taskId, columnId) {
     }
 }
 
-// Helper function to get all corner badges HTML for multiple tags (horizontal stacking)
+// Helper function to get all corner badges HTML for multiple tags
 function getAllCornerBadgesHtml(tags, elementType) {
     if (!window.tagColors || tags.length === 0) return '';
     
@@ -1449,7 +1144,7 @@ function getAllCornerBadgesHtml(tags, elementType) {
         }
     });
     
-    // Generate HTML for each position with horizontal stacking
+    // Generate HTML for each position with proper vertical stacking
     let html = '';
     Object.entries(positions).forEach(([position, badgesAtPosition]) => {
         badgesAtPosition.forEach((item, index) => {
@@ -1459,24 +1154,27 @@ function getAllCornerBadgesHtml(tags, elementType) {
             
             switch (position) {
                 case 'top-left':
-                    // Stack horizontally to the right
-                    positionStyle = `top: -8px; left: ${-8 + (index * offsetMultiplier)}px;`;
+                    // Stack vertically downward, keep left position constant
+                    positionStyle = `top: ${-8 + (index * offsetMultiplier)}px; left: -8px;`;
                     break;
                 case 'top-right':
-                    // Stack horizontally to the left
-                    positionStyle = `top: -8px; right: ${-8 + (index * offsetMultiplier)}px;`;
+                    // Stack vertically downward, keep right position constant
+                    positionStyle = `top: ${-8 + (index * offsetMultiplier)}px; right: -8px;`;
                     break;
                 case 'bottom-left':
-                    // Stack horizontally to the right
-                    positionStyle = `bottom: -8px; left: ${-8 + (index * offsetMultiplier)}px;`;
+                    // Stack vertically upward, keep left position constant
+                    positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; left: -8px;`;
                     break;
                 case 'bottom-right':
-                    // Stack horizontally to the left
-                    positionStyle = `bottom: -8px; right: ${-8 + (index * offsetMultiplier)}px;`;
+                    // Stack vertically upward, keep right position constant
+                    positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; right: -8px;`;
                     break;
             }
             
-            html += `<div class="corner-badge corner-badge-${item.tag}" style="${positionStyle}" data-badge-position="${position}" data-badge-index="${index}">${badge.text || ''}</div>`;
+            // Use label for text content, or empty if using image
+            const badgeContent = badge.image ? '' : (badge.label || '');
+            
+            html += `<div class="corner-badge corner-badge-${item.tag}" style="${positionStyle}" data-badge-position="${position}" data-badge-index="${index}">${badgeContent}</div>`;
         });
     });
     
@@ -1503,7 +1201,7 @@ function getTagConfig(tagName) {
     return null;
 }
 
-// Enhanced generateTagStyles to handle stacking
+// Generate dynamic CSS for tag colors and additional styles
 function generateTagStyles() {
     if (!window.tagColors) {
         console.log('No tag colors configuration found');
@@ -1530,6 +1228,20 @@ function generateTagStyles() {
         z-index: 10;
         pointer-events: none;
         transition: all 0.2s ease;
+    }\n`;
+    
+    // Add base styles for border text
+    styles += `.border-text {
+        position: absolute;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-size: 10px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        z-index: 2;
     }\n`;
     
     // Function to process tags from either grouped or flat structure
@@ -1576,6 +1288,8 @@ function generateTagStyles() {
                         const borderColor = config.border.color || themeColors.background;
                         const borderWidth = config.border.width || '2px';
                         const borderStyle = config.border.style || 'solid';
+                        const borderText = config.border.label || '';
+                        const borderTextColor = config.border.labelColor || themeColors.text;
                         
                         if (config.border.position === 'left') {
                             styles += `.kanban-column[data-all-tags~="${lowerTagName}"] {
@@ -1584,8 +1298,26 @@ function generateTagStyles() {
                             styles += `.task-item[data-all-tags~="${lowerTagName}"] {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
+                            
+                            // Border text styles if provided
+                            if (borderText) {
+                                styles += `.border-text-${lowerTagName} {
+                                    background: ${borderColor};
+                                    color: ${borderTextColor} !important;
+                                    width: ${borderWidth};
+                                    left: 0;
+                                    top: 50%;
+                                    transform: translateY(-50%) rotate(180deg);
+                                    height: auto;
+                                    padding: 4px 0;
+                                }\n`;
+                                
+                                styles += `.border-text-${lowerTagName}::after {
+                                    content: '${borderText}';
+                                }\n`;
+                            }
                         } else {
-                            // Full border - can combine multiple styles
+                            // Full border
                             styles += `.kanban-column[data-all-tags~="${lowerTagName}"] {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
@@ -1595,11 +1327,13 @@ function generateTagStyles() {
                         }
                     }
                     
-                    // Stackable header bar
+                    // Stackable header bar with text
                     if (config.headerBar) {
                         const headerColor = config.headerBar.color || themeColors.background;
-                        const headerHeight = config.headerBar.height || '4px';
+                        const headerHeight = config.headerBar.label ? '20px' : (config.headerBar.height || '4px');
                         const headerStyle = config.headerBar.style || 'solid';
+                        const headerText = config.headerBar.label || '';
+                        const headerTextColor = config.headerBar.labelColor || themeColors.text;
                         
                         const headerBg = headerStyle === 'gradient' 
                             ? `linear-gradient(90deg, ${headerColor}, ${hexToRgba(headerColor, 0.3)})`
@@ -1613,24 +1347,36 @@ function generateTagStyles() {
                             height: ${headerHeight};
                             background: ${headerBg};
                             z-index: 1;
+                            ${headerText ? `
+                                color: ${headerTextColor};
+                                font-size: 10px;
+                                font-weight: bold;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ` : ''}
                         }\n`;
+                        
+                        if (headerText) {
+                            styles += `.header-bar-${lowerTagName}::after {
+                                content: '${headerText}';
+                            }\n`;
+                        }
                     }
                     
-                    // Stackable footer bar
+                    // Stackable footer bar with text
                     if (config.footerBar) {
                         const footerColor = config.footerBar.color || themeColors.background;
-                        const footerHeight = config.footerBar.height || '3px';
-                        const footerText = config.footerBar.text || '';
-                        const footerTextColor = config.footerBar.textColor || themeColors.text;
+                        const footerHeight = config.footerBar.label ? '20px' : (config.footerBar.height || '3px');
+                        const footerText = config.footerBar.label || '';
+                        const footerTextColor = config.footerBar.labelColor || themeColors.text;
                         
                         // Create a unique class for this footer bar
-                        const actualFooterHeight = footerText ? '20px' : footerHeight;
-                        
                         styles += `.footer-bar-${lowerTagName} {
                             position: absolute;
                             left: 0;
                             right: 0;
-                            height: ${actualFooterHeight};
+                            height: ${footerHeight};
                             background: ${footerColor};
                             z-index: 1;
                             ${footerText ? `
@@ -1650,11 +1396,12 @@ function generateTagStyles() {
                         }
                     }
                     
-                    // Corner badge styles
+                    // Corner badge styles with image support
                     if (config.cornerBadge) {
                         const badgeColor = config.cornerBadge.color || themeColors.background;
-                        const badgeTextColor = config.cornerBadge.textColor || themeColors.text;
+                        const badgeTextColor = config.cornerBadge.labelColor || themeColors.text;
                         const badgeStyle = config.cornerBadge.style || 'circle';
+                        const badgeImage = config.cornerBadge.image || '';
                         
                         let shapeStyles = '';
                         switch (badgeStyle) {
@@ -1665,7 +1412,7 @@ function generateTagStyles() {
                                 shapeStyles = 'width: 20px; height: 20px; border-radius: 3px;';
                                 break;
                             case 'ribbon':
-                                shapeStyles = 'padding: 2px 8px; border-radius: 3px;';
+                                shapeStyles = 'padding: 2px 8px; border-radius: 3px; min-width: 20px;';
                                 break;
                         }
                         
@@ -1673,6 +1420,12 @@ function generateTagStyles() {
                             ${shapeStyles}
                             background: ${badgeColor} !important;
                             color: ${badgeTextColor} !important;
+                            ${badgeImage ? `
+                                background-image: url('${badgeImage}') !important;
+                                background-size: contain;
+                                background-repeat: no-repeat;
+                                background-position: center;
+                            ` : ''}
                         }\n`;
                     }
                 }
@@ -1702,20 +1455,23 @@ function generateTagStyles() {
     return styles;
 }
 
-// Function to inject header and footer bars after render
+// Function to inject header, footer bars, and border text after render
 function injectStackableBars() {
     // Process all elements with data-all-tags
     document.querySelectorAll('[data-all-tags]').forEach(element => {
         const tags = element.getAttribute('data-all-tags').split(' ');
         const existingHeaders = element.querySelectorAll('.header-bar');
         const existingFooters = element.querySelectorAll('.footer-bar');
+        const existingBorderTexts = element.querySelectorAll('.border-text');
         
         // Remove existing bars to prevent duplicates
         existingHeaders.forEach(bar => bar.remove());
         existingFooters.forEach(bar => bar.remove());
+        existingBorderTexts.forEach(text => text.remove());
         
         let headerOffset = 0;
         let footerOffset = 0;
+        let leftBorderOffset = 0;
         
         // Add header bars
         tags.forEach(tag => {
@@ -1726,7 +1482,7 @@ function injectStackableBars() {
                 headerBar.style.top = `${headerOffset}px`;
                 element.appendChild(headerBar);
                 
-                const height = parseInt(config.headerBar.height || '4px');
+                const height = config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px');
                 headerOffset += height;
             }
         });
@@ -1740,8 +1496,22 @@ function injectStackableBars() {
                 footerBar.style.bottom = `${footerOffset}px`;
                 element.appendChild(footerBar);
                 
-                const height = config.footerBar.text ? 20 : parseInt(config.footerBar.height || '3px');
+                const height = config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px');
                 footerOffset += height;
+            }
+        });
+        
+        // Add border text for left borders
+        tags.forEach(tag => {
+            const config = getTagConfig(tag);
+            if (config && config.border && config.border.position === 'left' && config.border.label) {
+                const borderText = document.createElement('div');
+                borderText.className = `border-text border-text-${tag}`;
+                borderText.style.left = `${leftBorderOffset}px`;
+                element.appendChild(borderText);
+                
+                const width = parseInt(config.border.width || '2px');
+                leftBorderOffset += width;
             }
         });
         
@@ -1751,6 +1521,9 @@ function injectStackableBars() {
         }
         if (footerOffset > 0) {
             element.style.paddingBottom = `calc(var(--whitespace-div2) + ${footerOffset}px)`;
+        }
+        if (leftBorderOffset > 0) {
+            element.style.paddingLeft = `calc(var(--whitespace-div2) + ${leftBorderOffset}px)`;
         }
     });
 }
