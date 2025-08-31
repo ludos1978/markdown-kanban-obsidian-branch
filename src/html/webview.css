@@ -676,12 +676,14 @@ button.donut-menu-item {
     align-self: flex-start;
     transform: rotate(180deg);
     writing-mode: vertical-rl;
+    flex-shrink: 0;  /* Add this to prevent shrinking */
 }
 
 .add-column-btn:hover {
     background: var(--vscode-button-hoverBackground);
     border-color: var(--vscode-focusBorder);
 }
+
 
 .initialise-btn {
     background: var(--vscode-button-background);
@@ -1639,7 +1641,7 @@ button.file-bar-menu-item {
 .kanban-board.multi-row {
     display: flex;
     flex-direction: column;
-    overflow-x: visible;
+    overflow-x: auto;
     overflow-y: auto;
 }
 
@@ -1662,6 +1664,19 @@ button.file-bar-menu-item {
 .kanban-board.multi-row .kanban-row:last-child {
     border-bottom: none;
 }
+
+.kanban-board:not(.multi-row) .add-column-btn {
+    transform: rotate(180deg);
+    writing-mode: vertical-rl;
+}
+
+/* .kanban-board.multi-row .add-column-btn {
+    transform: none;
+    writing-mode: horizontal-tb;
+    padding: 8px 16px;
+    align-self: center;
+    margin-left: auto;
+} */
 
 .kanban-row-header {
     position: sticky;
@@ -1774,19 +1789,12 @@ h6 .kanban-tag {
     position: relative;
 }
 
-
-/* Add column button positioning */
-.add-column-btn {
-    grid-column: -1;
-    grid-row: 1;
-}
-
 /* Visual feedback for row drop zones */
 .kanban-row.drag-over {
     background-color: rgba(var(--vscode-focusBorder), 0.1);
     border-radius: 8px;
     box-shadow: inset 0 0 0 2px var(--vscode-focusBorder);
-    min-height: 200px;  /* Ensure minimum height for drop zone */
+    min-height: 200px;
 }
 
 /* Make the drop zone more visible when dragging over */
@@ -1820,6 +1828,10 @@ h6 .kanban-tag {
     align-items: flex-start;
     width: 100%;
     box-sizing: border-box;
+}
+
+.kanban-board.multi-row .kanban-column {
+    flex-shrink: 0;
 }
 
 /* Make empty rows more visible as drop targets */
@@ -1879,28 +1891,21 @@ h6 .kanban-tag {
 
 /* Drop zone spacer to make entire row width droppable */
 .row-drop-zone-spacer {
-    flex: 1 1 auto;  /* Takes up all remaining space */
-    min-width: 100px;  /* Minimum width to ensure it's always present */
-    min-height: 200px;  /* Match the row min-height */
-    pointer-events: all;  /* Ensure it receives mouse events */
+    flex: 1 1 auto;
+    /* min-width: 20px; */
+    min-height: 200px;
+    pointer-events: all;
     position: relative;
 }
 
 /* Visual feedback when dragging over the spacer */
 .kanban-row.drag-over .row-drop-zone-spacer {
+    min-width: 100px;  /* Expand when dragging for better drop target */
     background: linear-gradient(90deg, 
         transparent 0%, 
         rgba(var(--vscode-focusBorder), 0.05) 50%, 
         transparent 100%);
 }
-
-
-/* Ensure add column button doesn't prevent drops */
-.add-column-btn {
-    flex-shrink: 0;  /* Don't shrink */
-    align-self: flex-start;
-}
-
 
 /* When row tags are hidden, ensure proper spacing */
 .column-title:not(:has(.column-row-tag)) {

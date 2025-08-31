@@ -407,19 +407,17 @@ function renderBoard() {
                 }
             });
             
+            // Add the "Add Column" button to each row
+            const addColumnBtn = document.createElement('button');
+            addColumnBtn.className = 'add-column-btn multi-row-add-btn'; // Add the multi-row-add-btn class
+            addColumnBtn.textContent = '+ Add Column';
+            addColumnBtn.onclick = () => addColumn(row);
+            rowContainer.appendChild(addColumnBtn);    
+
             // Add a drop zone spacer that fills remaining horizontal space
             const dropZoneSpacer = document.createElement('div');
             dropZoneSpacer.className = 'row-drop-zone-spacer';
             rowContainer.appendChild(dropZoneSpacer);
-            
-            // Add the "Add Column" button only to the first row
-            if (row === 1) {
-                const addColumnBtn = document.createElement('button');
-                addColumnBtn.className = 'add-column-btn';
-                addColumnBtn.textContent = '+ Add Column';
-                addColumnBtn.onclick = () => addColumn();
-                rowContainer.appendChild(addColumnBtn);
-            }
             
             boardElement.appendChild(rowContainer);
         }
@@ -435,7 +433,7 @@ function renderBoard() {
         const addColumnBtn = document.createElement('button');
         addColumnBtn.className = 'add-column-btn';
         addColumnBtn.textContent = '+ Add Column';
-        addColumnBtn.onclick = () => addColumn();
+        addColumnBtn.onclick = () => addColumn(1); // Default to row 1 for single row layout
         boardElement.appendChild(addColumnBtn);
     }
 
@@ -608,10 +606,10 @@ function createColumnElement(column, columnIndex) {
                 <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
                 <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
                 <div style="display: inline-block;">
-                    <div class="column-title" onclick="editColumnTitle('${column.id}')">${renderedTitle}${rowIndicator}</div>
+                    <div class="column-title" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
                     <textarea class="column-title-edit" 
                                 data-column-id="${column.id}"
-                                style="display: none;">${escapeHtml(column.title || '')}</textarea>
+                                style="display: none;">${escapeHtml(displayTitle)}</textarea>
                 </div>
             </div>
             <div class="column-controls">
@@ -673,8 +671,8 @@ function createTaskElement(task, columnId, taskIndex) {
             <div class="task-header">
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}'); updateFoldAllButton('${columnId}')">▶</span>
-                <div class="task-title-container" onclick="editTitle(this, '${task.id}', '${columnId}')">
-                    <div class="task-title-display markdown-content" 
+                <div class="task-title-container" onclick="handleTaskTitleClick(event, this, '${task.id}', '${columnId}')">
+                <div class="task-title-display markdown-content" 
                             data-task-id="${task.id}" 
                             data-column-id="${columnId}">${renderedTitle || '<span class="task-title-placeholder">Add title...</span>'}</div>
                     <textarea class="task-title-edit" 
@@ -723,7 +721,7 @@ function createTaskElement(task, columnId, taskIndex) {
                 <div class="task-description-display markdown-content" 
                         data-task-id="${task.id}" 
                         data-column-id="${columnId}"
-                        onclick="editDescription(this)"
+                        onclick="handleDescriptionClick(event, this)"
                         style="${task.description ? '' : 'display: none;'}">${renderedDescription}</div>
                 <textarea class="task-description-edit" 
                             data-task-id="${task.id}" 
@@ -731,7 +729,7 @@ function createTaskElement(task, columnId, taskIndex) {
                             data-field="description"
                             placeholder="Add description (Markdown supported)..."
                             style="display: none;">${escapeHtml(task.description || '')}</textarea>
-                ${!task.description ? `<div class="task-description-placeholder" onclick="editDescription(this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
+                ${!task.description ? `<div class="task-description-placeholder" onclick="handleDescriptionClick(event, this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
             </div>
         </div>
     `;
@@ -809,3 +807,216 @@ function toggleTaskCollapse(taskId) {
     }
 }
 
+// Global click handlers that check for Alt key
+function handleColumnTitleClick(event, columnId) {
+    const target = event.target;
+    const link = target.closest('a');
+    const img = target.closest('img');
+    const wikiLink = target.closest('.wiki-link');
+    
+    // Handle wiki links
+    if (wikiLink) {
+        event.preventDefault();
+        event.stopPropagation();
+        const documentName = wikiLink.getAttribute('data-document');
+        if (documentName) {
+            console.log('Column title - Opening wiki link:', documentName);
+            vscode.postMessage({
+                type: 'openWikiLink',
+                documentName: documentName
+            });
+        }
+        return;
+    }
+    
+    // Handle regular links
+    if (link) {
+        event.preventDefault();
+        event.stopPropagation();
+        const href = link.getAttribute('data-original-href') || link.getAttribute('href');
+        if (href && href !== '#') {
+            console.log('Column title - Opening link:', href);
+            if (href.startsWith('http://') || href.startsWith('https://')) {
+                vscode.postMessage({
+                    type: 'openExternalLink',
+                    href: href
+                });
+            } else {
+                vscode.postMessage({
+                    type: 'openFileLink',
+                    href: href
+                });
+            }
+        }
+        return;
+    }
+    
+    // Handle images
+    if (img) {
+        event.preventDefault();
+        event.stopPropagation();
+        const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
+        if (originalSrc && !originalSrc.startsWith('data:')) {
+            console.log('Column title - Opening image:', originalSrc);
+            vscode.postMessage({
+                type: 'openFileLink',
+                href: originalSrc
+            });
+        }
+        return;
+    }
+    
+    // If Alt key is pressed, don't edit
+    if (event.altKey) {
+        return;
+    }
+    
+    // Otherwise, start editing
+    event.stopPropagation();
+    editColumnTitle(columnId);
+}
+
+function handleTaskTitleClick(event, element, taskId, columnId) {
+    const target = event.target;
+    const link = target.closest('a');
+    const img = target.closest('img');
+    const wikiLink = target.closest('.wiki-link');
+    
+    // Handle wiki links
+    if (wikiLink) {
+        event.preventDefault();
+        event.stopPropagation();
+        const documentName = wikiLink.getAttribute('data-document');
+        if (documentName) {
+            console.log('Task title - Opening wiki link:', documentName);
+            vscode.postMessage({
+                type: 'openWikiLink',
+                documentName: documentName
+            });
+        }
+        return;
+    }
+    
+    // Handle regular links
+    if (link) {
+        event.preventDefault();
+        event.stopPropagation();
+        const href = link.getAttribute('data-original-href') || link.getAttribute('href');
+        if (href && href !== '#') {
+            console.log('Task title - Opening link:', href);
+            if (href.startsWith('http://') || href.startsWith('https://')) {
+                vscode.postMessage({
+                    type: 'openExternalLink',
+                    href: href
+                });
+            } else {
+                vscode.postMessage({
+                    type: 'openFileLink',
+                    href: href
+                });
+            }
+        }
+        return;
+    }
+    
+    // Handle images
+    if (img) {
+        event.preventDefault();
+        event.stopPropagation();
+        const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
+        if (originalSrc && !originalSrc.startsWith('data:')) {
+            console.log('Task title - Opening image:', originalSrc);
+            vscode.postMessage({
+                type: 'openFileLink',
+                href: originalSrc
+            });
+        }
+        return;
+    }
+    
+    // If Alt key is pressed, don't edit
+    if (event.altKey) {
+        return;
+    }
+    
+    // Otherwise, start editing
+    event.stopPropagation();
+    editTitle(element, taskId, columnId);
+}
+
+function handleDescriptionClick(event, element, taskId, columnId) {
+    const target = event.target;
+    const link = target.closest('a');
+    const img = target.closest('img');
+    const wikiLink = target.closest('.wiki-link');
+    
+    // Handle wiki links
+    if (wikiLink) {
+        event.preventDefault();
+        event.stopPropagation();
+        const documentName = wikiLink.getAttribute('data-document');
+        if (documentName) {
+            console.log('Description - Opening wiki link:', documentName);
+            vscode.postMessage({
+                type: 'openWikiLink',
+                documentName: documentName
+            });
+        }
+        return;
+    }
+    
+    // Handle regular links
+    if (link) {
+        event.preventDefault();
+        event.stopPropagation();
+        const href = link.getAttribute('data-original-href') || link.getAttribute('href');
+        if (href && href !== '#') {
+            console.log('Description - Opening link:', href);
+            if (href.startsWith('http://') || href.startsWith('https://')) {
+                vscode.postMessage({
+                    type: 'openExternalLink',
+                    href: href
+                });
+            } else {
+                vscode.postMessage({
+                    type: 'openFileLink',
+                    href: href
+                });
+            }
+        }
+        return;
+    }
+    
+    // Handle images
+    if (img) {
+        event.preventDefault();
+        event.stopPropagation();
+        const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
+        if (originalSrc && !originalSrc.startsWith('data:')) {
+            console.log('Description - Opening image:', originalSrc);
+            vscode.postMessage({
+                type: 'openFileLink',
+                href: originalSrc
+            });
+        }
+        return;
+    }
+    
+    // If Alt key is pressed, don't edit
+    if (event.altKey) {
+        return;
+    }
+    
+    // Otherwise, start editing
+    event.stopPropagation();
+    if (taskId && columnId) {
+        editDescription(element, taskId, columnId);
+    } else {
+        editDescription(element);
+    }
+}
+
+// Make functions globally available
+window.handleColumnTitleClick = handleColumnTitleClick;
+window.handleTaskTitleClick = handleTaskTitleClick;
+window.handleDescriptionClick = handleDescriptionClick;

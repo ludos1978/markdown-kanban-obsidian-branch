@@ -336,12 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
  
     // Enhanced click handler for links, images, and wiki links
     document.addEventListener('click', (e) => {
-        // Don't interfere with clicks during editing mode
-        if (isCurrentlyEditing()) {
-            return;
-        }
-
-        // Handle wiki links first (highest priority)
+        // Handle wiki links (highest priority)
         const wikiLink = e.target.closest('.wiki-link');
         if (wikiLink) {
             e.preventDefault();
@@ -355,71 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     documentName: documentName
                 });
             }
-            return;
-        }
-
-        // Handle images - check if we should edit or open
-        const img = e.target.closest('img');
-        if (img && img.src) {
-            // Check if image is inside an editable field
-            const editableContainer = img.closest('.task-title-display, .task-description-display, .column-title');
-            
-            if (editableContainer) {
-                // Start editing the field containing the image
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (editableContainer.classList.contains('task-title-display')) {
-                    const taskId = editableContainer.getAttribute('data-task-id');
-                    const columnId = editableContainer.getAttribute('data-column-id');
-                    if (taskId && columnId) {
-                        editTitle(editableContainer, taskId, columnId);
-                    }
-                } else if (editableContainer.classList.contains('task-description-display')) {
-                    const taskId = editableContainer.getAttribute('data-task-id');
-                    const columnId = editableContainer.getAttribute('data-column-id');
-                    if (taskId && columnId) {
-                        editDescription(editableContainer, taskId, columnId);
-                    }
-                } else if (editableContainer.classList.contains('column-title')) {
-                    const column = editableContainer.closest('.kanban-column');
-                    const columnId = column?.getAttribute('data-column-id');
-                    if (columnId) {
-                        editColumnTitle(columnId);
-                    }
-                }
-                return;
-            }
-            
-            // If not in an editable field, handle as file link
-            if (img.src.startsWith('vscode-webview://')) {
-                // Get original source from data attribute for opening
-                const originalSrc = img.getAttribute('data-original-src');
-                if (originalSrc) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    console.log('Opening image file:', originalSrc);
-                    vscode.postMessage({
-                        type: 'openFileLink',
-                        href: originalSrc
-                    });
-                }
-                return;
-            }
-            
-            const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
-            if (originalSrc && !originalSrc.startsWith('data:')) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                console.log('Opening image file:', originalSrc);
-                vscode.postMessage({
-                    type: 'openFileLink',
-                    href: originalSrc
-                });
-            }
-            return;
+            return false;
         }
 
         // Handle regular markdown links
@@ -431,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const href = link.getAttribute('data-original-href');
             if (!href) return;
             
-            console.log('Opening file link:', href);
+            console.log('Opening link:', href);
             
             if (href.startsWith('http://') || href.startsWith('https://')) {
                 vscode.postMessage({
@@ -444,8 +375,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     href: href
                 });
             }
-
+            
             return false;
+        }
+
+        // Handle images that are links
+        const img = e.target.closest('img');
+        if (img) {
+            const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
+            
+            // Only handle as link if it's not a data: URL
+            if (originalSrc && !originalSrc.startsWith('data:')) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('Opening image:', originalSrc);
+                vscode.postMessage({
+                    type: 'openFileLink',
+                    href: originalSrc
+                });
+                
+                return false;
+            }
         }
 
         // Handle any other clickable links (fallback)
@@ -476,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             return false;
         }
-    }, true);
+    }, false); // Changed to false for normal bubbling phase
 
     // Close menus when clicking outside (but don't interfere with editing)
     document.addEventListener('click', (e) => {

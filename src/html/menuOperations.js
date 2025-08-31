@@ -253,10 +253,19 @@ function addTaskAndUnfold(columnId) {
     addTask(columnId);
 }
 
-function addColumn() {
+function addColumn(rowNumber) {
+    // Default to row 1 if not specified
+    const targetRow = rowNumber || 1;
+    
+    // Add row tag if not row 1
+    let title = '';
+    if (targetRow > 1) {
+        title = `#row${targetRow}`;
+    }
+    
     vscode.postMessage({
         type: 'addColumn',
-        title: ''
+        title: title
     });
 }
 

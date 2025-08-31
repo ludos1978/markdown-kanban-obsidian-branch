@@ -68,3 +68,31 @@ add a burger menu in the file-info-bar. move the buttons undo, redo, lock and op
 -
 
 please write the corresponding code. Always write out full functions and where they should be added to. dont change the way the markdown is saved, except for adding the tags for the columns.
+
+---
+
+the dropping of files from the explorer is broken. it shows the message "Drop files here to create links" and blocks then, it doesnt display a location to drop in multi-row layout. It does work in the single row layout. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
+
+---
+
+in multi row mode, show the "+ Add Column" on each row, add it to the respective row it's on (using the tags #row2, #row3, #row4). explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
+
+---
+
+when alt+clicking on a link in the kanban board it should open the file instead of starting to edit the text.  explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible.
+
+---
+
+it doesnt start editing now, but it also doesnt open the file. when it's a file extension known to vscode it should open in there, but if it's an unknown extension it should open in the externally (os) defined programm
+
+---
+
+when editing a markdown column title with the tag #row2, #row3, #row4 dont show these tags during editing. explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions. only describe your solution, dont implement it!!!
+
+-
+
+please write the corresponding code. Always write out full functions and where they should be added to.
+
+---
+
+Add all available tags to the dropdown menus as a submenu point "Tags". A submenu should show the name of the tag and a checkbox next to it wether the tag is currently active. Show the same function in the column and the cards burger menu. When editing the cards tags, only add them to the title. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions. only describe your solution, dont implement it yet!!!
