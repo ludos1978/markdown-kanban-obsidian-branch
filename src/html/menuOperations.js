@@ -269,6 +269,75 @@ function addColumn(rowNumber) {
     });
 }
 
+// Tag toggle operations - uses configured tags from VSCode settings
+function toggleColumnTag(columnId, tagName) {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) return;
+    
+    const tagWithHash = `#${tagName}`;
+    let title = column.title || '';
+    
+    // Check if this specific tag exists in the title (case-insensitive)
+    const tagRegex = new RegExp(`#${tagName}\\b`, 'gi');
+    
+    if (tagRegex.test(title)) {
+        // Remove the tag
+        title = title.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
+    } else {
+        // Add the tag (preserve row tags at the end)
+        const rowMatch = title.match(/(#row\d+)$/i);
+        if (rowMatch) {
+            // Insert before row tag
+            const beforeRow = title.substring(0, title.length - rowMatch[0].length).trim();
+            title = `${beforeRow} ${tagWithHash} ${rowMatch[0]}`;
+        } else {
+            // Append at end
+            title = `${title} ${tagWithHash}`.trim();
+        }
+    }
+    
+    vscode.postMessage({
+        type: 'editColumnTitle',
+        columnId: columnId,
+        title: title
+    });
+}
+
+function toggleTaskTag(taskId, columnId, tagName) {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) return;
+    
+    const task = column.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const tagWithHash = `#${tagName}`;
+    let title = task.title || '';
+    
+    // Check if this specific tag exists in the title (case-insensitive)
+    const tagRegex = new RegExp(`#${tagName}\\b`, 'gi');
+    
+    if (tagRegex.test(title)) {
+        // Remove the tag
+        title = title.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
+    } else {
+        // Add the tag at the end
+        title = `${title} ${tagWithHash}`.trim();
+    }
+    
+    task.title = title;
+    
+    vscode.postMessage({
+        type: 'editTask',
+        taskId: taskId,
+        columnId: columnId,
+        taskData: task
+    });
+}
+
 // Modal functions
 function showInputModal(title, message, placeholder, onConfirm) {
     document.getElementById('input-modal-title').textContent = title;
@@ -307,3 +376,6 @@ function autoResize(textarea) {
     textarea.style.height = 'auto';
     textarea.style.height = textarea.scrollHeight + 'px';
 }
+
+window.toggleColumnTag = toggleColumnTag;
+window.toggleTaskTag = toggleTaskTag;

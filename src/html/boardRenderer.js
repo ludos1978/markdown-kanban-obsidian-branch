@@ -304,6 +304,49 @@ function applyFoldingStates() {
     updateGlobalColumnFoldButton();
 }
 
+// Helper function to check which configured tags are active in a title
+function getActiveTagsInTitle(text) {
+    if (!text) return [];
+    // Match all tags except row tags
+    const matches = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+)/g) || [];
+    return matches.map(tag => tag.substring(1).toLowerCase());
+}
+
+// Helper function to generate tag menu items from configuration
+function generateTagMenuItems(id, type, columnId = null) {
+    // Get configured tags from VSCode settings
+    const configuredTags = Object.keys(window.tagColors || {});
+    
+    if (configuredTags.length === 0) {
+        return '<button class="donut-menu-item" disabled>No tags configured</button>';
+    }
+    
+    // Get current title to check which tags are active
+    let currentTitle = '';
+    if (type === 'column') {
+        const column = currentBoard?.columns?.find(c => c.id === id);
+        currentTitle = column?.title || '';
+    } else if (type === 'task' && columnId) {
+        const column = currentBoard?.columns?.find(c => c.id === columnId);
+        const task = column?.tasks?.find(t => t.id === id);
+        currentTitle = task?.title || '';
+    }
+    
+    // Check which configured tags are currently in the title
+    const activeTags = getActiveTagsInTitle(currentTitle);
+    
+    // Generate menu items for all configured tags
+    return configuredTags.map(tagName => {
+        const isActive = activeTags.includes(tagName.toLowerCase());
+        const checkbox = isActive ? '✓' : '☐';
+        const onclick = type === 'column' 
+            ? `toggleColumnTag('${id}', '${tagName}')`
+            : `toggleTaskTag('${id}', '${columnId}', '${tagName}')`;
+        
+        return `<button class="donut-menu-item" onclick="${onclick}">${checkbox} ${tagName}</button>`;
+    }).join('');
+}
+
 // Render Kanban board
 function renderBoard() {
     console.log('Rendering board:', currentBoard);
@@ -637,6 +680,13 @@ function createColumnElement(column, columnIndex) {
                             </div>
                         </div>
                         <div class="donut-menu-divider"></div>
+                        <div class="donut-menu-item has-submenu">
+                            Tags
+                            <div class="donut-menu-submenu">
+                                ${generateTagMenuItems(column.id, 'column')}
+                            </div>
+                        </div>
+                        <div class="donut-menu-divider"></div>
                         <button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
                     </div>
                 </div>
@@ -708,6 +758,13 @@ function createTaskElement(task, columnId, taskIndex) {
                                         col.id !== columnId ? 
                                         `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title || 'Untitled')}</button>` : ''
                                     ).join('') : ''}
+                                </div>
+                            </div>
+                            <div class="donut-menu-divider"></div>
+                            <div class="donut-menu-item has-submenu">
+                                Tags
+                                <div class="donut-menu-submenu">
+                                    ${generateTagMenuItems(task.id, 'task', columnId)}
                                 </div>
                             </div>
                             <div class="donut-menu-divider"></div>
@@ -1020,3 +1077,5 @@ function handleDescriptionClick(event, element, taskId, columnId) {
 window.handleColumnTitleClick = handleColumnTitleClick;
 window.handleTaskTitleClick = handleTaskTitleClick;
 window.handleDescriptionClick = handleDescriptionClick;
+window.getActiveTagsInTitle = getActiveTagsInTitle;
+window.generateTagMenuItems = generateTagMenuItems;
