@@ -280,7 +280,7 @@ function generateTagMenuItems(id, type, columnId = null) {
                     menuHtml += `
                         <div class="donut-menu-item has-submenu">
                             ${group.label}
-                            <div class="donut-menu-submenu">
+                            <div class="donut-menu-submenu donut-menu-tags-grid">
                                 ${generateGroupTagItems(tags, id, type, columnId)}
                             </div>
                         </div>
@@ -292,10 +292,11 @@ function generateTagMenuItems(id, type, columnId = null) {
         return menuHtml || '<button class="donut-menu-item" disabled>No tags configured</button>';
     } else {
         // Fallback to flat structure
-        return generateFlatTagItems(Object.keys(tagConfig), id, type, columnId);
+        return `<div class="donut-menu-tags-grid">${generateFlatTagItems(Object.keys(tagConfig), id, type, columnId)}</div>`;
     }
 }
 
+// Helper function to generate tag items for a group (horizontal layout)
 function generateGroupTagItems(tags, id, type, columnId = null) {
     // Get current title to check which tags are active
     let currentTitle = '';
@@ -311,15 +312,37 @@ function generateGroupTagItems(tags, id, type, columnId = null) {
     // Check which tags are currently in the title
     const activeTags = getActiveTagsInTitle(currentTitle);
     
-    return tags.map(tagName => {
+    // Create a grid container with tag buttons
+    const tagButtons = tags.map(tagName => {
         const isActive = activeTags.includes(tagName.toLowerCase());
-        const checkbox = isActive ? '✓' : '☐';
+        const checkbox = isActive ? '✓' : '';
         const onclick = type === 'column' 
             ? `toggleColumnTag('${id}', '${tagName}')`
             : `toggleTaskTag('${id}', '${columnId}', '${tagName}')`;
         
-        return `<button class="donut-menu-item" onclick="${onclick}">${checkbox} ${tagName}</button>`;
+        // Get tag config for color
+        const config = getTagConfig(tagName);
+        const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                           document.body.classList.contains('vscode-high-contrast');
+        const themeKey = isDarkTheme ? 'dark' : 'light';
+        const themeColors = config ? (config[themeKey] || config.light || {}) : {};
+        const bgColor = themeColors.background || '#666';
+        const textColor = themeColors.text || '#fff';
+        
+        return `
+            <button class="donut-menu-tag-chip ${isActive ? 'active' : ''}" 
+                    onclick="${onclick}"
+                    style="background-color: ${isActive ? bgColor : 'transparent'}; 
+                           color: ${isActive ? textColor : 'inherit'};
+                           border-color: ${bgColor};"
+                    title="${tagName}">
+                <span class="tag-chip-check">${checkbox}</span>
+                <span class="tag-chip-name">${tagName}</span>
+            </button>
+        `;
     }).join('');
+    
+    return tagButtons;
 }
 
 // Helper function for flat structure (backward compatibility)
@@ -342,14 +365,22 @@ function generateFlatTagItems(tags, id, type, columnId = null) {
     // Check which tags are currently in the title
     const activeTags = getActiveTagsInTitle(currentTitle);
     
+    // Create horizontal layout for flat structure too
     return tags.map(tagName => {
         const isActive = activeTags.includes(tagName.toLowerCase());
-        const checkbox = isActive ? '✓' : '☐';
+        const checkbox = isActive ? '✓' : '';
         const onclick = type === 'column' 
             ? `toggleColumnTag('${id}', '${tagName}')`
             : `toggleTaskTag('${id}', '${columnId}', '${tagName}')`;
         
-        return `<button class="donut-menu-item" onclick="${onclick}">${checkbox} ${tagName}</button>`;
+        return `
+            <button class="donut-menu-tag-chip ${isActive ? 'active' : ''}" 
+                    onclick="${onclick}"
+                    title="${tagName}">
+                <span class="tag-chip-check">${checkbox}</span>
+                <span class="tag-chip-name">${tagName}</span>
+            </button>
+        `;
     }).join('');
 }
 

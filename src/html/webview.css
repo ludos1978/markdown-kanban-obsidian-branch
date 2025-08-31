@@ -1971,3 +1971,104 @@ h6 .kanban-tag {
 .kanban-column[data-all-tags~="urgent"][data-all-tags~="blocked"] {
     border: 3px double #ff0000 !important;
 }
+
+
+
+.donut-menu-tags-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px;
+    min-width: 280px;
+    max-width: 400px;
+    background: var(--vscode-menu-background);
+    border: 1px solid var(--vscode-menu-border);
+    border-radius: 4px;
+}
+
+/* Tag chip buttons */
+.donut-menu-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border: 1px solid;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    color: var(--vscode-menu-foreground);
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.donut-menu-tag-chip:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.donut-menu-tag-chip.active {
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.donut-menu-tag-chip .tag-chip-check {
+    font-size: 10px;
+    font-weight: bold;
+    min-width: 10px;
+    display: inline-block;
+}
+
+.donut-menu-tag-chip .tag-chip-name {
+    text-transform: capitalize;
+}
+
+/* Adjust submenu positioning for tag grids */
+.donut-menu-item.has-submenu:hover .donut-menu-tags-grid {
+    display: flex;
+}
+
+/* Different layouts for different groups */
+/* Status tags - 4 per row */
+.donut-menu-item:has(.donut-menu-tags-grid) .donut-menu-submenu {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    margin-left: 4px;
+}
+
+/* Priority tags - all in one row */
+.donut-menu-tags-grid:has(.donut-menu-tag-chip:nth-child(4):last-child) {
+    max-width: 320px;
+}
+
+/* Type tags - 3-4 per row due to more items */
+.donut-menu-tags-grid:has(.donut-menu-tag-chip:nth-child(8)) {
+    max-width: 350px;
+}
+
+/* Color tags - 5 per row */
+.donut-menu-tags-grid:has(.donut-menu-tag-chip:nth-child(10)) {
+    max-width: 400px;
+}
+
+/* Ensure the grid doesn't get cut off */
+.donut-menu-dropdown {
+    overflow: visible;
+}
+
+/* Dark theme adjustments */
+.vscode-dark .donut-menu-tag-chip {
+    border-color: var(--vscode-menu-border);
+}
+
+.vscode-dark .donut-menu-tag-chip:not(.active) {
+    border-color: #444;
+}
+
+/* Light theme adjustments */
+.vscode-light .donut-menu-tag-chip:not(.active) {
+    border-color: #ccc;
+}
