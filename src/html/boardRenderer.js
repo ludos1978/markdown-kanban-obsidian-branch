@@ -995,12 +995,7 @@ function createColumnElement(column, columnIndex) {
                             </div>
                         </div>
                         <div class="donut-menu-divider"></div>
-                        <div class="donut-menu-item has-submenu">
-                            Tags
-                            <div class="donut-menu-submenu">
-                                ${generateTagMenuItems(column.id, 'column')}
-                            </div>
-                        </div>
+                        ${generateTagMenuItems(column.id, 'column')}
                         <div class="donut-menu-divider"></div>
                         <button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
                     </div>
@@ -1014,6 +1009,7 @@ function createColumnElement(column, columnIndex) {
             + Add Task
         </button>
     `;
+
 
     return columnDiv;
 }
@@ -1080,18 +1076,14 @@ function createTaskElement(task, columnId, taskIndex) {
                                 </div>
                             </div>
                             <div class="donut-menu-divider"></div>
-                            <div class="donut-menu-item has-submenu">
-                                Tags
-                                <div class="donut-menu-submenu">
-                                    ${generateTagMenuItems(task.id, 'task', columnId)}
-                                </div>
-                            </div>
+                            ${generateTagMenuItems(task.id, 'task', columnId)}
                             <div class="donut-menu-divider"></div>
                             <button class="donut-menu-item danger" onclick="deleteTask('${task.id}', '${columnId}')">Delete card</button>
                         </div>
                     </div>
                 </div>
             </div>
+
             <div class="task-description-container">
                 <div class="task-description-display markdown-content" 
                         data-task-id="${task.id}" 

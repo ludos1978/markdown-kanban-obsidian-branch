@@ -53,192 +53,296 @@
         "markdown-kanban.tagColors": {
           "type": "object",
           "default": {
-            "progress": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#28a745"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#71dd8a"
-              }
-            },
-            "blocked": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#6c757d"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#adb5bd"
-              }
-            },
-            "review": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#007bff"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#66b2ff"
-              }
-            },
-            "bug": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#dc3545"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#ff7b89"
-              }
-            },
-            "feature": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#17a2b8"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#6fd6e1"
-              }
-            },
-            "gray": {
-              "light": {
-                "text": "#212529",
-                "background": "#adb5bd"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#dee2e6"
-              }
-            },
-            "darkblue": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#004085"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#5a8dee"
-              }
-            },
-            "lightblue": {
-              "light": {
-                "text": "#212529",
-                "background": "#339af0"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#a5d8ff"
-              }
-            },
-            "cyan": {
-              "light": {
-                "text": "#212529",
-                "background": "#0dcaf0"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#99e9f2"
-              }
-            },
-            "green": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#198754"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#8ce99a"
-              }
-            },
-            "yellow": {
-              "light": {
-                "text": "#212529",
-                "background": "#ffc107"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#ffe066"
-              }
-            },
-            "orange": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#fd7e14"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#ffc078"
-              }
-            },
-            "red": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#dc3545"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#ff8787"
-              }
-            },
-            "violet": {
-              "light": {
-                "text": "#ffffff",
-                "background": "#6f42c1"
-              },
-              "dark": {
-                "text": "#000000",
-                "background": "#b197fc"
-              }
-            }
-          },
-          "description": "Color configuration for tags in kanban boards. Add any tag name as a key with light/dark theme colors.",
-          "patternProperties": {
-            "^[a-zA-Z0-9_-]+$": {
-              "type": "object",
-              "properties": {
+            "status": {
+              "progress": {
                 "light": {
-                  "type": "object",
-                  "properties": {
-                    "text": {
-                      "type": "string",
-                      "pattern": "^#[0-9a-fA-F]{6}$",
-                      "description": "Text color in light theme (hex format #RRGGBB)"
-                    },
-                    "background": {
-                      "type": "string",
-                      "pattern": "^#[0-9a-fA-F]{6}$",
-                      "description": "Background color in light theme (hex format #RRGGBB)"
-                    }
-                  },
-                  "required": ["text", "background"],
-                  "additionalProperties": false
+                  "text": "#ffffff",
+                  "background": "#28a745"
                 },
                 "dark": {
-                  "type": "object",
-                  "properties": {
-                    "text": {
-                      "type": "string",
-                      "pattern": "^#[0-9a-fA-F]{6}$",
-                      "description": "Text color in dark theme (hex format #RRGGBB)"
-                    },
-                    "background": {
-                      "type": "string",
-                      "pattern": "^#[0-9a-fA-F]{6}$",
-                      "description": "Background color in dark theme (hex format #RRGGBB)"
-                    }
-                  },
-                  "required": ["text", "background"],
-                  "additionalProperties": false
+                  "text": "#000000",
+                  "background": "#71dd8a"
+                },
+                "headerBar": {
+                  "height": "3px",
+                  "style": "gradient"
                 }
               },
-              "required": ["light", "dark"],
-              "additionalProperties": false
+              "blocked": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#6c757d"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#adb5bd"
+                },
+                "border": {
+                  "style": "dashed",
+                  "width": "2px",
+                  "position": "full"
+                },
+                "cornerBadge": {
+                  "text": "⚠",
+                  "position": "top-right",
+                  "style": "circle"
+                }
+              },
+              "review": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#007bff"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#66b2ff"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "3px",
+                  "position": "left"
+                }
+              }
+            },
+            "type": {
+              "bug": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#dc3545"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ff7b89"
+                },
+                "cornerBadge": {
+                  "text": "🐛",
+                  "position": "top-left",
+                  "style": "circle"
+                }
+              },
+              "feature": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#17a2b8"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#6fd6e1"
+                },
+                "headerBar": {
+                  "height": "4px",
+                  "style": "solid"
+                },
+                "footerBar": {
+                  "height": "3px",
+                  "text": "FEATURE"
+                }
+              }
+            },
+            "priority": {
+              "urgent": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#dc3545"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ff7b89"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "3px",
+                  "position": "full",
+                  "color": "#ff0000"
+                },
+                "cornerBadge": {
+                  "text": "!",
+                  "position": "top-right",
+                  "style": "square",
+                  "color": "#ff0000",
+                  "textColor": "#ffffff"
+                }
+              },
+              "high": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#fd7e14"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ffc078"
+                },
+                "headerBar": {
+                  "height": "2px",
+                  "style": "solid"
+                }
+              },
+              "medium": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#ffc107"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ffe066"
+                }
+              },
+              "low": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#28a745"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#8ce99a"
+                }
+              }
+            },
+            "category": {
+              "ui": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#6f42c1"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#b197fc"
+                },
+                "border": {
+                  "style": "dotted",
+                  "width": "2px",
+                  "position": "left"
+                }
+              },
+              "ux": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#e83e8c"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#f783ac"
+                },
+                "footerBar": {
+                  "text": "UX",
+                  "height": "18px"
+                }
+              },
+              "backend": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#20c997"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#63e6be"
+                },
+                "cornerBadge": {
+                  "text": "⚙",
+                  "position": "bottom-right",
+                  "style": "circle"
+                }
+              },
+              "database": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#fd7e14"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ffc078"
+                },
+                "border": {
+                  "style": "double",
+                  "width": "3px",
+                  "position": "full"
+                }
+              }
+            },
+            "colors": {
+              "gray": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#adb5bd"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#dee2e6"
+                }
+              },
+              "blue": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#004085"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#5a8dee"
+                }
+              },
+              "cyan": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#0dcaf0"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#99e9f2"
+                }
+              },
+              "green": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#198754"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#8ce99a"
+                }
+              },
+              "yellow": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#ffc107"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ffe066"
+                }
+              },
+              "orange": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#fd7e14"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ffc078"
+                }
+              },
+              "red": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#dc3545"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ff8787"
+                }
+              },
+              "violet": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#6f42c1"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#b197fc"
+                }
+              }
             }
           },
-          "additionalProperties": false
+          "description": "Grouped color and style configuration for tags in kanban boards."
         }
       }
     },
