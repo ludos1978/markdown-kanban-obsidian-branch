@@ -542,7 +542,6 @@ button.donut-menu-item {
 
 .task-title-container {
     flex: 1;
-    min-width: ;
     width: 100%;
     max-width: var(--task-title-width);
     cursor: pointer;
@@ -1947,13 +1946,13 @@ h6 .kanban-tag {
 
 /* Ensure stacked badges don't overlap each other */
 .corner-badge[data-badge-index="1"] {
-    z-index: 9;
+    z-index: 50;
 }
 .corner-badge[data-badge-index="2"] {
-    z-index: 8;
+    z-index: 51;
 }
 .corner-badge[data-badge-index="3"] {
-    z-index: 7;
+    z-index: 52;
 }
 
 /* Header and footer bars */

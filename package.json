@@ -86,7 +86,7 @@
         },
         "headerBar": {
           "height": "20px",
-          "style": "gradient",
+
           "label": "IN PROGRESS",
           "labelColor": "#ffffff"
         },
@@ -186,8 +186,8 @@
           "background": "#ba68c8"
         },
         "headerBar": {
-          "height": "3px",
-          "style": "gradient"
+          "height": "3px"
+
         },
         "footerBar": {
           "height": "20px",
@@ -278,8 +278,7 @@
           "color": "#fd7e14"
         },
         "headerBar": {
-          "height": "4px",
-          "style": "gradient"
+          "height": "4px"
         },
         "cornerBadge": {
           "label": "!!",
@@ -362,8 +361,8 @@
           "background": "#6fd6e1"
         },
         "headerBar": {
-          "height": "4px",
-          "style": "gradient"
+          "height": "4px"
+
         },
         "footerBar": {
           "height": "20px",
@@ -391,8 +390,8 @@
           "position": "left"
         },
         "headerBar": {
-          "height": "3px",
-          "style": "gradient"
+          "height": "3px"
+
         },
         "cornerBadge": {
           "label": "⬆",
@@ -502,8 +501,8 @@
           "background": "#00d2a5"
         },
         "headerBar": {
-          "height": "5px",
-          "style": "gradient"
+          "height": "5px"
+
         },
         "footerBar": {
           "height": "20px",
@@ -532,7 +531,7 @@
         },
         "headerBar": {
           "height": "20px",
-          "style": "gradient",
+
           "label": "EPIC",
           "labelColor": "#ffffff"
         },
@@ -748,8 +747,7 @@
           "background": "#ffeaa7"
         },
         "headerBar": {
-          "height": "3px",
-          "style": "gradient"
+          "height": "3px"
         },
         "border": {
           "style": "solid",

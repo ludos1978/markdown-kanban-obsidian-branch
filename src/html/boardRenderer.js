@@ -1259,28 +1259,9 @@ function generateTagStyles() {
         justify-content: center;
         font-weight: bold;
         font-size: 11px;
-        z-index: 10;
+        z-index: 50;
         pointer-events: none;
         transition: all 0.2s ease;
-    }\n`;
-    
-    // Add base styles for border text
-    styles += `.border-text {
-        position: absolute;
-        writing-mode: vertical-rl;
-        transform: rotate(180deg);
-        font-size: 10px;
-        font-weight: bold;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
-        z-index: 2;
-        width: 20px !important; /* Fixed width for text visibility */
-        left: -10px !important; /* Position outside the element */
-        top: 50%;
-        transform: translateY(-50%) rotate(180deg);
-        padding: 4px 0;
     }\n`;
     
     // Function to process tags from either grouped or flat structure
@@ -1327,41 +1308,21 @@ function generateTagStyles() {
                         const borderColor = config.border.color || themeColors.background;
                         const borderWidth = config.border.width || '2px';
                         const borderStyle = config.border.style || 'solid';
-                        const borderText = config.border.label || '';
-                        const borderTextColor = config.border.labelColor || themeColors.text;
                         
                         if (config.border.position === 'left') {
-                            styles += `.kanban-column[data-all-tags~="${lowerTagName}"] {
+                            // Use data-column-tag and data-task-tag for borders (primary tag only)
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
-                            styles += `.task-item[data-all-tags~="${lowerTagName}"] {
+                            styles += `.task-item[data-task-tag="${lowerTagName}"] {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
-                            
-                            // Border text styles if provided
-                            if (borderText) {
-                                styles += `.border-text-${lowerTagName} {
-                                    background: ${borderColor};
-                                    color: ${borderTextColor} !important;
-                                    width: 20px !important;
-                                    left: -10px !important;
-                                    top: 50%;
-                                    transform: translateY(-50%) rotate(180deg);
-                                    height: auto;
-                                    padding: 4px 0;
-                                    border-radius: 0 4px 4px 0;
-                                }\n`;
-                                
-                                styles += `.border-text-${lowerTagName}::after {
-                                    content: '${borderText}';
-                                }\n`;
-                            }                       
                         } else {
                             // Full border
-                            styles += `.kanban-column[data-all-tags~="${lowerTagName}"] {
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
-                            styles += `.task-item[data-all-tags~="${lowerTagName}"] {
+                            styles += `.task-item[data-task-tag="${lowerTagName}"] {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                         }
@@ -1371,21 +1332,16 @@ function generateTagStyles() {
                     if (config.headerBar) {
                         const headerColor = config.headerBar.color || themeColors.background;
                         const headerHeight = config.headerBar.label ? '20px' : (config.headerBar.height || '4px');
-                        const headerStyle = config.headerBar.style || 'solid';
                         const headerText = config.headerBar.label || '';
                         const headerTextColor = config.headerBar.labelColor || themeColors.text;
                         
-                        const headerBg = headerStyle === 'gradient' 
-                            ? `linear-gradient(90deg, ${headerColor}, ${hexToRgba(headerColor, 0.3)})`
-                            : headerColor;
-                        
-                        // Create a unique class for this header bar
+                        // Create a unique class for this header bar - always solid color
                         styles += `.header-bar-${lowerTagName} {
                             position: absolute;
                             left: 0;
                             right: 0;
                             height: ${headerHeight};
-                            background: ${headerBg};
+                            background: ${headerColor};
                             z-index: 1;
                             ${headerText ? `
                                 color: ${headerTextColor};
@@ -1502,16 +1458,13 @@ function injectStackableBars() {
         const tags = element.getAttribute('data-all-tags').split(' ');
         const existingHeaders = element.querySelectorAll('.header-bar');
         const existingFooters = element.querySelectorAll('.footer-bar');
-        const existingBorderTexts = element.querySelectorAll('.border-text');
         
         // Remove existing bars to prevent duplicates
         existingHeaders.forEach(bar => bar.remove());
         existingFooters.forEach(bar => bar.remove());
-        existingBorderTexts.forEach(text => text.remove());
         
         let headerOffset = 0;
         let footerOffset = 0;
-        let leftBorderOffset = 0;
         let hasHeaderLabel = false;
         let hasFooterLabel = false;
         
@@ -1566,32 +1519,12 @@ function injectStackableBars() {
             }
         }
         
-        // Add border text for left borders
-        tags.forEach(tag => {
-            const config = getTagConfig(tag);
-            if (config && config.border && config.border.position === 'left' && config.border.label) {
-                const borderText = document.createElement('div');
-                borderText.className = `border-text border-text-${tag}`;
-                borderText.style.left = `${leftBorderOffset}px`;
-                element.appendChild(borderText);
-                
-                const width = parseInt(config.border.width || '2px');
-                leftBorderOffset += width;
-            }
-        });
-        
         // Adjust padding based on total bar heights
         if (headerOffset > 0) {
             element.style.paddingTop = `calc(var(--whitespace-div2) + ${headerOffset}px)`;
         }
         if (footerOffset > 0) {
             element.style.paddingBottom = `calc(var(--whitespace-div2) + ${footerOffset}px)`;
-        }
-        // Add extra padding for border text labels
-        const borderTextCount = element.querySelectorAll('.border-text').length;
-        if (borderTextCount > 0) {
-            element.style.paddingLeft = `calc(var(--whitespace-div2) + 15px)`;
-            element.style.marginLeft = '10px';
         }
     });
 }
