@@ -1465,9 +1465,11 @@ function injectStackableBars() {
         
         let headerOffset = 0;
         let footerOffset = 0;
+        let hasHeaderBar = false;  // Changed from hasHeaderLabel
+        let hasFooterBar = false;  // Changed from hasFooterLabel
         let hasHeaderLabel = false;
         let hasFooterLabel = false;
-        
+
         // Add header bars
         tags.forEach(tag => {
             const config = getTagConfig(tag);
@@ -1480,6 +1482,7 @@ function injectStackableBars() {
                 const height = config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px');
                 headerOffset += height;
                 
+                hasHeaderBar = true;  // Set for ANY header bar
                 if (config.headerBar.label) {
                     hasHeaderLabel = true;
                 }
@@ -1498,6 +1501,7 @@ function injectStackableBars() {
                 const height = config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px');
                 footerOffset += height;
                 
+                hasFooterBar = true;  // Set for ANY footer bar
                 if (config.footerBar.label) {
                     hasFooterLabel = true;
                 }
@@ -1506,6 +1510,20 @@ function injectStackableBars() {
         
         // Add classes for columns with labels
         if (element.classList.contains('kanban-column')) {
+            // Add classes for any header/footer bars
+            if (hasHeaderBar) {
+                element.classList.add('has-header-bar');
+            } else {
+                element.classList.remove('has-header-bar');
+            }
+            
+            if (hasFooterBar) {
+                element.classList.add('has-footer-bar');
+            } else {
+                element.classList.remove('has-footer-bar');
+            }
+            
+            // Add classes specifically for labels (for width adjustment)
             if (hasHeaderLabel) {
                 element.classList.add('has-header-label');
             } else {
@@ -1517,7 +1535,7 @@ function injectStackableBars() {
             } else {
                 element.classList.remove('has-footer-label');
             }
-        }
+        }        
         
         // Adjust padding based on total bar heights
         if (headerOffset > 0) {

@@ -2072,7 +2072,16 @@ h6 .kanban-tag {
     border-color: #ccc;
 }
 
-/* Dynamically adjust collapsed column width when it has labels */
+/* Ensure collapsed columns properly space content when there are header/footer bars */
+.kanban-column.collapsed.has-header-bar .column-title-section {
+    margin-top: 4px;  /* Add space below header bars */
+}
+
+.kanban-column.collapsed.has-footer-bar .column-controls {
+    margin-bottom: 4px;  /* Add space above footer bars */
+}
+
+/* Keep the width adjustments only for labels */
 .kanban-column.collapsed.has-header-label {
     width: 60px !important;
     min-width: 60px !important;
