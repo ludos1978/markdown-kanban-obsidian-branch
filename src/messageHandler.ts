@@ -206,6 +206,16 @@ export class MessageHandler {
                     )
                 );
                 break;
+            case 'reorderColumns':
+                await this.performBoardAction(() => 
+                    this._boardOperations.reorderColumns(
+                        this._getCurrentBoard()!, 
+                        message.newOrder,
+                        message.movedColumnId,
+                        message.targetRow
+                    )
+                );
+                break;
             default:
                 console.warn('Unknown message type:', message.type);
                 break;

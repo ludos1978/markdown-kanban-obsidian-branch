@@ -327,6 +327,46 @@ export class BoardOperations {
         return true;
     }
 
+    public reorderColumns(board: KanbanBoard, newOrder: string[], movedColumnId: string, targetRow: number): boolean {
+        // Find the moved column
+        const movedColumn = this.findColumn(board, movedColumnId);
+        if (!movedColumn) return false;
+        
+        // Update row tag for the moved column
+        let cleanTitle = movedColumn.title
+            .replace(/#row\d+\b/gi, '')
+            .replace(/\s+#row\d+/gi, '')
+            .replace(/#row\d+\s+/gi, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+        
+        if (targetRow > 1) {
+            movedColumn.title = cleanTitle + ` #row${targetRow}`;
+        } else {
+            movedColumn.title = cleanTitle;
+        }
+        
+        // Create a map of current columns
+        const columnMap = new Map<string, KanbanColumn>();
+        board.columns.forEach(col => columnMap.set(col.id, col));
+        
+        // Rebuild columns array in the new order
+        const reorderedColumns: KanbanColumn[] = [];
+        newOrder.forEach(id => {
+            const col = columnMap.get(id);
+            if (col) {
+                reorderedColumns.push(col);
+            }
+        });
+        
+        // Replace the columns array
+        board.columns = reorderedColumns;
+        
+        console.log('Reordered columns to:', reorderedColumns.map(c => c.id));
+        
+        return true;
+    }
+
     public moveColumnWithRowUpdate(board: KanbanBoard, columnId: string, newPosition: number, newRow: number): boolean {
         const column = this.findColumn(board, columnId);
         if (!column) return false;
@@ -350,21 +390,33 @@ export class BoardOperations {
         const currentIndex = board.columns.findIndex(col => col.id === columnId);
         if (currentIndex === -1) return false;
         
-        // Only move if the position actually changed
-        if (currentIndex !== newPosition) {
-            // Remove from current position
-            const [movedColumn] = board.columns.splice(currentIndex, 1);
-            
-            // Adjust target position because we just removed an element
-            // If we removed from before the target position, the target shifts down by 1
-            let insertPosition = newPosition;
-            if (currentIndex < newPosition) {
-                insertPosition = newPosition - 1;
+        // Build the desired order based on what calculateColumnNewPosition saw
+        // We need to reconstruct what the frontend wants the order to be
+        const targetOrder: string[] = [];
+        
+        // The newPosition tells us where this column should be in the final array
+        // We need to build that final array
+        board.columns.forEach((col, idx) => {
+            if (idx !== currentIndex) {
+                targetOrder.push(col.id);
             }
-            
-            // Insert at adjusted position
-            board.columns.splice(insertPosition, 0, movedColumn);
-        }
+        });
+        
+        // Insert our column ID at the desired position
+        targetOrder.splice(newPosition, 0, columnId);
+        
+        // Now reorder the columns array to match targetOrder
+        const reorderedColumns: KanbanColumn[] = [];
+        targetOrder.forEach(id => {
+            const col = board.columns.find(c => c.id === id);
+            if (col) {
+                reorderedColumns.push(col);
+            }
+        });
+        
+        // Replace the columns array
+        board.columns.length = 0;
+        board.columns.push(...reorderedColumns);
         
         return true;
     }
