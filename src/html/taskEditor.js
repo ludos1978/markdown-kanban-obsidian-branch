@@ -219,18 +219,42 @@ class TaskEditor {
             if (type === 'column-title') {
                 const column = currentBoard.columns.find(c => c.id === columnId);
                 if (column) {
-                    column.title = value;
-                    if (this.currentEditor.displayElement) {
-                        this.currentEditor.displayElement.innerHTML = renderMarkdown(value);
+                    // Get current row to preserve it
+                    const currentRow = getColumnRow(column.title);
+                    
+                    // Clean the value of any row tags
+                    let cleanValue = value
+                        .replace(/#row\d+\b/gi, '')
+                        .replace(/\s+#row\d+/gi, '')
+                        .replace(/#row\d+\s+/gi, '')
+                        .replace(/\s{2,}/g, ' ')
+                        .trim();
+                    
+                    // Re-add row tag if needed
+                    if (currentRow > 1) {
+                        column.title = cleanValue + ` #row${currentRow}`;
+                    } else {
+                        column.title = cleanValue;
                     }
+                    
+                    if (this.currentEditor.displayElement) {
+                        // Display without row tags
+                        const displayTitle = column.title.replace(/#row\d+/gi, '').trim();
+                        this.currentEditor.displayElement.innerHTML = renderMarkdown(displayTitle);
+                        
+                        // Add row indicator if needed
+                        if (window.showRowTags && currentRow > 1) {
+                            this.currentEditor.displayElement.innerHTML += `<span class="column-row-tag">Row ${currentRow}</span>`;
+                        }
+                    }
+                    
+                    // Send the clean value to backend (backend will add row tag)
+                    vscode.postMessage({
+                        type: 'editColumnTitle',
+                        columnId: columnId,
+                        title: cleanValue
+                    });
                 }
-                
-                // Send to extension
-                vscode.postMessage({
-                    type: 'editColumnTitle',
-                    columnId: columnId,
-                    title: value
-                });
             } else if (type === 'task-title' || type === 'task-description') {
                 const column = currentBoard.columns.find(c => c.id === columnId);
                 const task = column?.tasks.find(t => t.id === taskId);
@@ -250,25 +274,14 @@ class TaskEditor {
                             if (placeholder) placeholder.style.display = 'block';
                         }
                     }
-                }
-                
-                // Only send to extension if not transitioning
-                if (!this.isTransitioning) {
-                    if (type === 'column-title') {
-                        vscode.postMessage({
-                            type: 'editColumnTitle',
-                            columnId: columnId,
-                            title: value
-                        });
-                    } else if (type === 'task-title' || type === 'task-description') {
-                        // Send to extension
-                        vscode.postMessage({
-                            type: 'editTask',
-                            taskId: taskId,
-                            columnId: columnId,
-                            taskData: task
-                        });
-                    }
+                    
+                    // Send to extension
+                    vscode.postMessage({
+                        type: 'editTask',
+                        taskId: taskId,
+                        columnId: columnId,
+                        taskData: task
+                    });
                 }
             }
         }
