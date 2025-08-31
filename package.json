@@ -54,18 +54,60 @@
           "type": "object",
           "default": {
             "status": {
-              "progress": {
+              "todo": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#28a745"
+                  "background": "#6c757d"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#71dd8a"
+                  "background": "#adb5bd"
+                },
+                "border": {
+                  "style": "dotted",
+                  "width": "2px",
+                  "position": "left"
+                }
+              },
+              "inprogress": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#0dcaf0"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#3dd5f3"
                 },
                 "headerBar": {
                   "height": "3px",
                   "style": "gradient"
+                },
+                "cornerBadge": {
+                  "text": "▶",
+                  "position": "top-right",
+                  "style": "circle"
+                }
+              },
+              "done": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#198754"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#25ce7b"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "2px",
+                  "position": "full"
+                },
+                "cornerBadge": {
+                  "text": "✓",
+                  "position": "top-right",
+                  "style": "square",
+                  "color": "#00ff00",
+                  "textColor": "#ffffff"
                 }
               },
               "blocked": {
@@ -102,40 +144,44 @@
                   "width": "3px",
                   "position": "left"
                 }
-              }
-            },
-            "type": {
-              "bug": {
+              },
+              "testing": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#dc3545"
+                  "background": "#9c27b0"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ff7b89"
+                  "background": "#ba68c8"
+                },
+                "headerBar": {
+                  "height": "2px",
+                  "style": "solid"
                 },
                 "cornerBadge": {
-                  "text": "🐛",
+                  "text": "🧪",
                   "position": "top-left",
                   "style": "circle"
                 }
               },
-              "feature": {
+              "wip": {
                 "light": {
-                  "text": "#ffffff",
-                  "background": "#17a2b8"
+                  "text": "#212529",
+                  "background": "#ffc107"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#6fd6e1"
+                  "background": "#ffca2c"
                 },
-                "headerBar": {
-                  "height": "4px",
-                  "style": "solid"
+                "border": {
+                  "style": "dashed",
+                  "width": "2px",
+                  "position": "left",
+                  "color": "#ff9800"
                 },
                 "footerBar": {
-                  "height": "3px",
-                  "text": "FEATURE"
+                  "text": "WIP",
+                  "height": "18px"
                 }
               }
             },
@@ -198,15 +244,190 @@
                 }
               }
             },
-            "category": {
-              "ui": {
+            "type": {
+              "bug": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#dc3545"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ff7b89"
+                },
+                "cornerBadge": {
+                  "text": "🐛",
+                  "position": "top-left",
+                  "style": "circle"
+                }
+              },
+              "feature": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#17a2b8"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#6fd6e1"
+                },
+                "headerBar": {
+                  "height": "4px",
+                  "style": "solid"
+                },
+                "footerBar": {
+                  "height": "3px",
+                  "text": "FEATURE"
+                }
+              },
+              "enhancement": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#20c997"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#4dd4ac"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "2px",
+                  "position": "left"
+                },
+                "cornerBadge": {
+                  "text": "✨",
+                  "position": "top-right",
+                  "style": "circle"
+                }
+              },
+              "documentation": {
                 "light": {
                   "text": "#ffffff",
                   "background": "#6f42c1"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#b197fc"
+                  "background": "#9775fa"
+                },
+                "cornerBadge": {
+                  "text": "📚",
+                  "position": "bottom-left",
+                  "style": "square"
+                }
+              },
+              "research": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#795548"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#a1887f"
+                },
+                "headerBar": {
+                  "height": "3px",
+                  "style": "gradient"
+                },
+                "cornerBadge": {
+                  "text": "🔬",
+                  "position": "top-left",
+                  "style": "circle"
+                }
+              },
+              "refactor": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#ff6b6b"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ff8787"
+                },
+                "border": {
+                  "style": "dashed",
+                  "width": "2px",
+                  "position": "full"
+                },
+                "cornerBadge": {
+                  "text": "♻",
+                  "position": "top-right",
+                  "style": "square"
+                }
+              },
+              "hotfix": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#ff4757"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ff6348"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "3px",
+                  "position": "full",
+                  "color": "#ff0000"
+                },
+                "cornerBadge": {
+                  "text": "🔥",
+                  "position": "top-right",
+                  "style": "circle"
+                }
+              },
+              "release": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#00b894"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#00d2a5"
+                },
+                "headerBar": {
+                  "height": "4px",
+                  "style": "solid"
+                },
+                "footerBar": {
+                  "text": "RELEASE",
+                  "height": "20px"
+                },
+                "cornerBadge": {
+                  "text": "🚀",
+                  "position": "top-right",
+                  "style": "ribbon"
+                }
+              },
+              "epic": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#6c5ce7"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#a29bfe"
+                },
+                "border": {
+                  "style": "double",
+                  "width": "3px",
+                  "position": "full"
+                },
+                "headerBar": {
+                  "height": "4px",
+                  "style": "gradient"
+                },
+                "cornerBadge": {
+                  "text": "⚡",
+                  "position": "top-left",
+                  "style": "square"
+                }
+              },
+              "spike": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#e17055"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#fab1a0"
                 },
                 "border": {
                   "style": "dotted",
@@ -214,20 +435,40 @@
                   "position": "left"
                 }
               },
-              "ux": {
+              "help": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#e83e8c"
+                  "background": "#ff9ff3"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#f783ac"
+                  "background": "#ffc0f9"
                 },
-                "footerBar": {
-                  "text": "UX",
-                  "height": "18px"
+                "cornerBadge": {
+                  "text": "?",
+                  "position": "top-right",
+                  "style": "circle",
+                  "color": "#ff00ff",
+                  "textColor": "#ffffff"
                 }
               },
+              "idea": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#fff200"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#fff94c"
+                },
+                "cornerBadge": {
+                  "text": "💡",
+                  "position": "top-left",
+                  "style": "circle"
+                }
+              }
+            },
+            "category": {
               "backend": {
                 "light": {
                   "text": "#ffffff",
@@ -241,6 +482,26 @@
                   "text": "⚙",
                   "position": "bottom-right",
                   "style": "circle"
+                }
+              },
+              "frontend": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#007bff"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#4dabf7"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "2px",
+                  "position": "left"
+                },
+                "cornerBadge": {
+                  "text": "🎨",
+                  "position": "top-left",
+                  "style": "square"
                 }
               },
               "database": {
@@ -257,37 +518,105 @@
                   "width": "3px",
                   "position": "full"
                 }
+              },
+              "api": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#00cec9"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#81ecec"
+                },
+                "headerBar": {
+                  "height": "3px",
+                  "style": "solid"
+                },
+                "cornerBadge": {
+                  "text": "🔌",
+                  "position": "bottom-left",
+                  "style": "square"
+                }
+              },
+              "security": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#d63031"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ff7675"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "3px",
+                  "position": "full",
+                  "color": "#ff0000"
+                },
+                "cornerBadge": {
+                  "text": "🔒",
+                  "position": "top-right",
+                  "style": "circle"
+                }
+              },
+              "performance": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#fdcb6e"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ffeaa7"
+                },
+                "headerBar": {
+                  "height": "2px",
+                  "style": "gradient"
+                },
+                "cornerBadge": {
+                  "text": "⚡",
+                  "position": "top-right",
+                  "style": "square"
+                }
+              },
+              "ux": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#e83e8c"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#f783ac"
+                },
+                "footerBar": {
+                  "text": "UX",
+                  "height": "18px"
+                }
+              },
+              "ui": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#6f42c1"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#b197fc"
+                },
+                "border": {
+                  "style": "dotted",
+                  "width": "2px",
+                  "position": "left"
+                }
               }
             },
             "colors": {
-              "gray": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#adb5bd"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#dee2e6"
-                }
-              },
-              "blue": {
+              "red": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#004085"
+                  "background": "#dc3545"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#5a8dee"
-                }
-              },
-              "cyan": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#0dcaf0"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#99e9f2"
+                  "background": "#ff8787"
                 }
               },
               "green": {
@@ -298,6 +627,16 @@
                 "dark": {
                   "text": "#000000",
                   "background": "#8ce99a"
+                }
+              },
+              "blue": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#004085"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#5a8dee"
                 }
               },
               "yellow": {
@@ -320,17 +659,7 @@
                   "background": "#ffc078"
                 }
               },
-              "red": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#dc3545"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ff8787"
-                }
-              },
-              "violet": {
+              "purple": {
                 "light": {
                   "text": "#ffffff",
                   "background": "#6f42c1"
@@ -338,6 +667,96 @@
                 "dark": {
                   "text": "#000000",
                   "background": "#b197fc"
+                }
+              },
+              "pink": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#e83e8c"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#fcc2d7"
+                }
+              },
+              "cyan": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#0dcaf0"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#99e9f2"
+                }
+              },
+              "magenta": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#d63384"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#f06595"
+                }
+              },
+              "brown": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#795548"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#a1887f"
+                }
+              },
+              "gray": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#adb5bd"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#dee2e6"
+                }
+              },
+              "teal": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#20c997"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#63e6be"
+                }
+              },
+              "indigo": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#6610f2"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#9775fa"
+                }
+              },
+              "lime": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#84cc16"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#a3e635"
+                }
+              },
+              "amber": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#f59e0b"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#fbbf24"
                 }
               }
             }
