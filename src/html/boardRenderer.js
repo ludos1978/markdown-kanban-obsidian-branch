@@ -560,8 +560,11 @@ function renderBoard() {
         
         // Update image sources after rendering
         updateImageSources();
+        
+        // Inject header/footer bars and border text for all tags
+        injectStackableBars();
     }, 10);
-    
+
     setupDragAndDrop();
 }
 
@@ -1273,6 +1276,11 @@ function generateTagStyles() {
         justify-content: center;
         pointer-events: none;
         z-index: 2;
+        width: 20px !important; /* Fixed width for text visibility */
+        left: -10px !important; /* Position outside the element */
+        top: 50%;
+        transform: translateY(-50%) rotate(180deg);
+        padding: 4px 0;
     }\n`;
     
     // Function to process tags from either grouped or flat structure
@@ -1335,18 +1343,19 @@ function generateTagStyles() {
                                 styles += `.border-text-${lowerTagName} {
                                     background: ${borderColor};
                                     color: ${borderTextColor} !important;
-                                    width: ${borderWidth};
-                                    left: 0;
+                                    width: 20px !important;
+                                    left: -10px !important;
                                     top: 50%;
                                     transform: translateY(-50%) rotate(180deg);
                                     height: auto;
                                     padding: 4px 0;
+                                    border-radius: 0 4px 4px 0;
                                 }\n`;
                                 
                                 styles += `.border-text-${lowerTagName}::after {
                                     content: '${borderText}';
                                 }\n`;
-                            }
+                            }                       
                         } else {
                             // Full border
                             styles += `.kanban-column[data-all-tags~="${lowerTagName}"] {
@@ -1553,8 +1562,11 @@ function injectStackableBars() {
         if (footerOffset > 0) {
             element.style.paddingBottom = `calc(var(--whitespace-div2) + ${footerOffset}px)`;
         }
-        if (leftBorderOffset > 0) {
-            element.style.paddingLeft = `calc(var(--whitespace-div2) + ${leftBorderOffset}px)`;
+        // Add extra padding for border text labels (20px per label)
+        const borderTextCount = element.querySelectorAll('.border-text').length;
+        if (borderTextCount > 0) {
+            element.style.paddingLeft = `calc(var(--whitespace-div2) + 15px)`;
+            element.style.marginLeft = '10px';
         }
     });
 }
