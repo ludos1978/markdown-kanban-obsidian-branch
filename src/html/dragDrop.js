@@ -523,7 +523,6 @@ function restoreTaskPosition() {
     }
 }
 
-
 function setupRowDragAndDrop() {
     const boardElement = document.getElementById('kanban-board');
     const rows = boardElement.querySelectorAll('.kanban-row');
@@ -535,38 +534,51 @@ function setupRowDragAndDrop() {
             e.preventDefault();
             e.stopPropagation();
             
-            // Visual feedback
-            row.classList.add('drag-over');
+            // Visual feedback (this is cheap, just adding a class)
+            if (!row.classList.contains('drag-over')) {
+                row.classList.add('drag-over');
+            }
             
             // Find insertion point in this row
             const columnsInRow = Array.from(row.querySelectorAll('.kanban-column:not(.dragging)'));
             const mouseX = e.clientX;
             
-            let insertBefore = null;
+            let targetPosition = null;
             for (const col of columnsInRow) {
                 const rect = col.getBoundingClientRect();
                 if (mouseX < rect.left + rect.width / 2) {
-                    insertBefore = col;
+                    targetPosition = col;
                     break;
                 }
             }
             
-            // Move the dragged column to this position
-            if (insertBefore) {
-                row.insertBefore(dragState.draggedColumn, insertBefore);
-            } else {
-                // Insert at end (before add button if exists)
+            // Default to end position if not found
+            if (!targetPosition) {
                 const addBtn = row.querySelector('.add-column-btn');
-                if (addBtn) {
-                    row.insertBefore(dragState.draggedColumn, addBtn);
-                } else {
-                    row.appendChild(dragState.draggedColumn);
-                }
+                targetPosition = addBtn || null;
             }
             
-            // Update the row attribute
-            const rowNumber = parseInt(row.getAttribute('data-row-number') || '1');
-            dragState.draggedColumn.setAttribute('data-row', rowNumber);
+            // Only move if position changed
+            if (dragState.lastRowDropTarget !== targetPosition || dragState.lastRow !== row) {
+                dragState.lastRowDropTarget = targetPosition;
+                dragState.lastRow = row;
+                
+                // Move the dragged column to this position
+                if (targetPosition) {
+                    if (dragState.draggedColumn.nextSibling !== targetPosition) {
+                        row.insertBefore(dragState.draggedColumn, targetPosition);
+                    }
+                } else {
+                    if (dragState.draggedColumn.parentNode !== row || 
+                        dragState.draggedColumn !== row.lastElementChild) {
+                        row.appendChild(dragState.draggedColumn);
+                    }
+                }
+                
+                // Update the row attribute
+                const rowNumber = parseInt(row.getAttribute('data-row-number') || '1');
+                dragState.draggedColumn.setAttribute('data-row', rowNumber);
+            }
         });
         
         row.addEventListener('dragleave', e => {
@@ -579,6 +591,10 @@ function setupRowDragAndDrop() {
             e.preventDefault();
             e.stopPropagation();
             row.classList.remove('drag-over');
+            
+            // Clear the row tracking
+            dragState.lastRowDropTarget = null;
+            dragState.lastRow = null;
         });
     });
 }
@@ -918,6 +934,7 @@ function setupColumnDragAndDrop() {
             dragState.draggedColumnId = columnId;
             dragState.originalDataIndex = originalIndex;
             dragState.isDragging = true;
+            dragState.lastDropTarget = null;  // Track last drop position
             
             // Set drag data
             e.dataTransfer.effectAllowed = 'move';
@@ -973,6 +990,7 @@ function setupColumnDragAndDrop() {
             dragState.draggedColumnId = null;
             dragState.originalDataIndex = -1;
             dragState.isDragging = false;
+            dragState.lastDropTarget = null;
         });
 
         column.addEventListener('dragover', e => {
@@ -983,15 +1001,34 @@ function setupColumnDragAndDrop() {
             const rect = column.getBoundingClientRect();
             const midpoint = rect.left + rect.width / 2;
             
+            // Determine target position
+            let targetElement;
+            let insertBefore = false;
+            
             if (e.clientX < midpoint) {
-                // Insert before this column
-                column.parentNode.insertBefore(dragState.draggedColumn, column);
+                targetElement = column;
+                insertBefore = true;
             } else {
-                // Insert after this column
-                if (column.nextSibling) {
-                    column.parentNode.insertBefore(dragState.draggedColumn, column.nextSibling);
+                targetElement = column.nextSibling;
+                insertBefore = false;
+            }
+            
+            // Only move if it's a different position than last time
+            if (dragState.lastDropTarget !== targetElement) {
+                dragState.lastDropTarget = targetElement;
+                
+                if (insertBefore) {
+                    // Only move if not already there
+                    if (dragState.draggedColumn.nextSibling !== column) {
+                        column.parentNode.insertBefore(dragState.draggedColumn, column);
+                    }
                 } else {
-                    column.parentNode.appendChild(dragState.draggedColumn);
+                    // Only move if not already there
+                    if (targetElement && dragState.draggedColumn.nextSibling !== targetElement) {
+                        column.parentNode.insertBefore(dragState.draggedColumn, targetElement);
+                    } else if (!targetElement && dragState.draggedColumn !== column.parentNode.lastElementChild) {
+                        column.parentNode.appendChild(dragState.draggedColumn);
+                    }
                 }
             }
         });
