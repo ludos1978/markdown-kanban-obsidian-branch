@@ -514,6 +514,11 @@ window.addEventListener('message', event => {
             } else {
                 updateWhitespace('4px'); // Default fallback
             }
+            
+            // Update max row height
+            if (typeof message.maxRowHeight !== 'undefined') {
+                updateMaxRowHeight(message.maxRowHeight);
+            }
 
             // Store tag colors globally - THIS IS CRITICAL
             if (message.tagColors) {
@@ -849,6 +854,16 @@ function updateWhitespace(value) {
     
     console.log('Updating whitespace to:', value);
     document.documentElement.style.setProperty('--whitespace', value);
+}
+
+function updateMaxRowHeight(value) {
+    // If value is 0, remove the max-height restriction
+    if (value === 0) {
+        document.documentElement.style.removeProperty('--max-row-height');
+    } else {
+        // Set the max-height value
+        document.documentElement.style.setProperty('--max-row-height', value + 'px');
+    }
 }
 
 // Export functions for use by other modules

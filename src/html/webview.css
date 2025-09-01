@@ -231,10 +231,14 @@ body {
   box-sizing: border-box;
 }
 
-/* Tasks container */
+/* Tasks container must allow the children to be overflow visible! */
 .tasks-container {
-  max-height: calc(100vh - 200px);
-  overflow: visible;
+  max-height: var(--max-row-height, calc(100vh - 200px));
+  /* max-height: calc(100vh - 200px); */
+  overflow-y: auto;
+  overflow-x: visible;
+  /* overflow: visible; */
+  /* padding-bottom: 4px; */
 }
 
 .kanban-column.collapsed .tasks-container,
@@ -473,46 +477,55 @@ body {
   min-height: 3em;
 }
 
-/* Buttons */
+/* the add task button is styled horizontally and is listed after the last card */
 .add-task-btn {
-  width: 100%;
+  width: calc(100% - 8px);  /* Account for margin */
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border: 1px dashed var(--vscode-panel-border);
   border-radius: 6px;
-  padding: 12px;
-  font-size: 14px;
+  padding: 8px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-top: 0;
+  margin: 4px;  /* Add margin to match task spacing */
+  margin-top: var(--whitespace-div2);  /* Match task spacing */
 }
+
 
 .add-task-btn:hover {
   background: var(--vscode-button-secondaryHoverBackground);
   border-color: var(--vscode-focusBorder);
 }
 
+/* the column button should be styled vertically and is displayed at the end of each row after the last column */
 .add-column-btn {
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border: 1px dashed var(--vscode-panel-border);
   border-radius: 6px;
-  padding: 16px;
+  padding: 16px 8px;  /* Adjust padding for vertical text */
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s;
   align-self: flex-start;
   flex-shrink: 0;
-}
-
-.kanban-board:not(.multi-row) .add-column-btn {
   transform: rotate(180deg);
-  writing-mode: vertical-rl;
+  writing-mode: vertical-rl;  /* Always vertical */
+  min-height: 100px;  /* Ensure minimum height for vertical text */
 }
 
 .add-column-btn:hover {
   background: var(--vscode-button-hoverBackground);
   border-color: var(--vscode-focusBorder);
+}
+
+.kanban-board.multi-row .add-column-btn.multi-row-add-btn {
+  transform: rotate(180deg);
+  writing-mode: vertical-rl;
+  min-height: 150px;
+  padding: 8px 4px;
+  /* align-self: stretch; */
 }
 
 .collapsed-add-task-btn {

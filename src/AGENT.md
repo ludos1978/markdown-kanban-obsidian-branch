@@ -357,4 +357,11 @@ please write the corresponding code. Always write out full functions and where t
 
 ---
 
-can you modify the code so it doesnt inject the tag headers, footers and badges, but renders them directly with the rest of the content? explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions. keep the changes as minimal as possible.
+can you modify the code so it doesnt inject the tag headers, footers and badges, but renders them directly with the rest of the content? explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions.
+
+---
+
+can you add a configuration option to limit the row size. a setting of 0 means that it's the full cards height, other values limit the height. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions. dont change any styles apart from the maximum row height.
+
+---
+

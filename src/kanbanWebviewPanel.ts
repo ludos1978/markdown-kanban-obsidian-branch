@@ -247,6 +247,12 @@ export class KanbanWebviewPanel {
         return whitespace;
     }
 
+    private async _getMaxRowHeightConfiguration(): Promise<number> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const maxRowHeight = config.get<number>('maxRowHeight', 0);
+        return maxRowHeight;
+    }
+
     // Public methods for external access
     public isFileLocked(): boolean {
         return this._fileManager.isFileLocked();
@@ -382,6 +388,8 @@ export class KanbanWebviewPanel {
         const whitespace = await this._getWhitespaceConfiguration();
         
         const showRowTags = await this._getShowRowTagsConfiguration();
+        
+        const maxRowHeight = await this._getMaxRowHeightConfiguration();
             
         setTimeout(() => {
             this._panel.webview.postMessage({
@@ -390,7 +398,8 @@ export class KanbanWebviewPanel {
                 imageMappings: imageMappings,
                 tagColors: tagColors,
                 whitespace: whitespace,
-                showRowTags: showRowTags
+                showRowTags: showRowTags,
+                maxRowHeight: maxRowHeight
             });
         }, 10);
     }

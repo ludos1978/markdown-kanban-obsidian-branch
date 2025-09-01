@@ -818,10 +818,10 @@ function createColumnElement(column, columnIndex) {
         </div>
         <div class="tasks-container" id="tasks-${column.id}">
             ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
+            <button class="add-task-btn" onclick="addTask('${column.id}')">
+                + Add Task
+            </button>
         </div>
-        <button class="add-task-btn" onclick="addTask('${column.id}')">
-            + Add Task
-        </button>
         ${footerBarsHtml}
     `;
 
