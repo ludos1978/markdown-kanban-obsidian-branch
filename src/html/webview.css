@@ -166,7 +166,7 @@ body {
   margin-bottom: var(--whitespace-div2);
   padding-bottom: var(--whitespace-div2);
   border-bottom: 1px solid var(--vscode-panel-border);
-  min-height: 38px;
+  /* min-height: 38px; */
 }
 
 .kanban-column.collapsed .column-header {
@@ -558,9 +558,9 @@ body {
   /* align-self: stretch; */
 }
 
-.collapsed-add-task-btn {
+/* .collapsed-add-task-btn {
   margin: var(--whitespace-div2) var(--whitespace-div3-mul2);
-}
+} */
 
 .initialise-btn {
   background: var(--vscode-button-background);
@@ -1884,19 +1884,39 @@ h6 .kanban-tag {
   position: relative;
 }
 
+/* Collapsed state - bars stay in containers */
 .kanban-column.collapsed .header-bar,
 .kanban-column.collapsed .footer-bar {
   writing-mode: horizontal-tb !important;
   transform: none !important;
-  height: 20px !important;
   font-size: 9px !important;
-  padding: 0 2px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
+  width: 100% !important;
+  position: relative !important;
+}
+
+/* Only bars with labels get the 20px height in collapsed state */
+.kanban-column.collapsed .header-bar::after:not(:empty),
+.kanban-column.collapsed .footer-bar::after:not(:empty) {
+  padding: 0 2px !important;
+}
+
+/* Keep original heights for bars without labels */
+.kanban-column.collapsed .header-bar:not(:has(::after)),
+.kanban-column.collapsed .footer-bar:not(:has(::after)) {
+  /* Height will be set by the inline styles from the tag configuration */
+}
+
+/* For bars with text content, ensure they have enough height */
+.kanban-column.collapsed .header-bar:has(::after),
+.kanban-column.collapsed .footer-bar:has(::after) {
+  min-height: 20px !important;
+  padding: 0 2px !important;
 }
 
 .kanban-column::before,
@@ -1966,6 +1986,11 @@ h6 .kanban-tag {
 .kanban-column.collapsed .footer-bar::after {
   font-size: 8px !important;
   letter-spacing: -0.5px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100%;
+  display: block;
 }
 
 .kanban-column.collapsed .column-title:empty::before,

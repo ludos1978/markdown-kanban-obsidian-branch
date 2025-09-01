@@ -954,12 +954,12 @@ function createTaskElement(task, columnId, taskIndex) {
     let footerClasses = '';
     
     if (headerBarsData && headerBarsData.totalHeight) {
-        paddingTopStyle = `padding-top: calc(var(--whitespace-div2) + ${headerBarsData.totalHeight}px);`;
+        paddingTopStyle = `padding-top: ${headerBarsData.totalHeight}px);`; /*calc(var(--whitespace-div2) + */
         headerClasses = 'has-header-bar';
         if (headerBarsData.hasLabel) headerClasses += ' has-header-label';
     }
     if (footerBarsData && footerBarsData.totalHeight) {
-        paddingBottomStyle = `padding-bottom: calc(var(--whitespace-div2) + ${footerBarsData.totalHeight}px);`;
+        paddingBottomStyle = `padding-bottom: ${footerBarsData.totalHeight}px);`; /*calc(var(--whitespace-div2) + */
         footerClasses = 'has-footer-bar';
         if (footerBarsData.hasLabel) footerClasses += ' has-footer-label';
     }
@@ -1076,11 +1076,15 @@ function toggleColumnCollapse(columnId) {
     if (!window.collapsedColumns) window.collapsedColumns = new Set();
     
     // Store state
-    if (column.classList.contains('collapsed')) {
+    const isNowCollapsed = column.classList.contains('collapsed');
+    if (isNowCollapsed) {
         window.collapsedColumns.add(columnId);
     } else {
         window.collapsedColumns.delete(columnId);
     }
+    
+    // Handle header/footer bars restructuring
+    handleColumnBarsOnToggle(column, isNowCollapsed);
     
     // Save state immediately
     if (window.saveCurrentFoldingState) {
@@ -1635,6 +1639,17 @@ function generateTagStyles() {
                             styles += `.header-bar-${lowerTagName}::after {
                                 content: '${headerText}';
                             }\n`;
+                            
+                            // Collapsed state with label - needs full height
+                            styles += `.kanban-column.collapsed .header-bar-${lowerTagName} {
+                                height: 20px !important;
+                                padding: 0 2px !important;
+                            }\n`;
+                        } else {
+                            // Collapsed state without label - keep original height
+                            styles += `.kanban-column.collapsed .header-bar-${lowerTagName} {
+                                height: ${headerHeight} !important;
+                            }\n`;
                         }
                     }
                     
@@ -1666,6 +1681,17 @@ function generateTagStyles() {
                         if (footerText) {
                             styles += `.footer-bar-${lowerTagName}::after {
                                 content: '${footerText}';
+                            }\n`;
+                            
+                            // Collapsed state with label - needs full height
+                            styles += `.kanban-column.collapsed .footer-bar-${lowerTagName} {
+                                height: 20px !important;
+                                padding: 0 2px !important;
+                            }\n`;
+                        } else {
+                            // Collapsed state without label - keep original height
+                            styles += `.kanban-column.collapsed .footer-bar-${lowerTagName} {
+                                height: ${footerHeight} !important;
                             }\n`;
                         }
                     }
