@@ -514,7 +514,7 @@ window.addEventListener('message', event => {
             } else {
                 updateWhitespace('4px'); // Default fallback
             }
-            
+
             // Update max row height
             if (typeof message.maxRowHeight !== 'undefined') {
                 updateMaxRowHeight(message.maxRowHeight);
@@ -860,9 +860,11 @@ function updateMaxRowHeight(value) {
     // If value is 0, remove the max-height restriction
     if (value === 0) {
         document.documentElement.style.removeProperty('--max-row-height');
+        document.documentElement.style.setProperty('--row-overflow', 'visible');
     } else {
         // Set the max-height value
         document.documentElement.style.setProperty('--max-row-height', value + 'px');
+        document.documentElement.style.setProperty('--row-overflow', 'auto');
     }
 }
 

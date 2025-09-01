@@ -235,7 +235,7 @@ body {
 .tasks-container {
   max-height: var(--max-row-height, calc(100vh - 200px));
   /* max-height: calc(100vh - 200px); */
-  overflow-y: auto;
+  overflow-y: var(--row-overflow);
   overflow-x: visible;
   /* overflow: visible; */
   /* padding-bottom: 4px; */

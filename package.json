@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.9.92",
+  "version": "0.9.94",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -33,17 +33,17 @@
     "configuration": {
       "title": "Ludos Markdown Kanban",
       "properties": {
-        "markdownKanban.openLinksInNewTab": {
+        "markdown-kanban.openLinksInNewTab": {
           "type": "boolean",
           "default": false,
           "description": "Open file links in new tabs instead of replacing the current editor"
         },
         "markdown-kanban.whitespace": {
-            "type": "string",
-            "default": "4px",
-            "description": "The amount of whitespace/padding to use in the Kanban board (e.g., '4px', '8px', '2px')",
-            "pattern": "^\\d+(\\.\\d+)?(px|em|rem)$",
-            "patternErrorMessage": "Please enter a valid CSS size value (e.g., '4px', '0.5em', '1rem')"
+          "type": "string",
+          "default": "4px",
+          "description": "The amount of whitespace/padding to use in the Kanban board (e.g., '4px', '8px', '2px')",
+          "pattern": "^\\d+(\\.\\d+)?(px|em|rem)$",
+          "patternErrorMessage": "Please enter a valid CSS size value (e.g., '4px', '0.5em', '1rem')"
         },
         "markdown-kanban.maxRowHeight": {
           "type": "number",
@@ -59,6 +59,54 @@
         "markdown-kanban.tagColors": {
           "type": "object",
           "default": {
+            "importantcy": {
+              "high": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#dc3545"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ff6b6b"
+                },
+                "border": {
+                  "style": "dashed",
+                  "width": "3px",
+                  "position": "left",
+                  "color": "#ff0000",
+                  "label": "BLOCKED",
+                  "labelColor": "#ffffff"
+                },
+                "cornerBadge": {
+                  "label": "⚠",
+                  "position": "top-left",
+                  "style": "circle",
+                  "color": "#ff0000",
+                  "labelColor": "#ffffff"
+                }
+              },
+              "low": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#6c757d"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#adb5bd"
+                },
+                "border": {
+                  "style": "dotted",
+                  "width": "3px",
+                  "position": "left"
+                },
+                "cornerBadge": {
+                  "label": "○",
+                  "position": "top-left",
+                  "style": "circle",
+                  "labelColor": "#ffffff"
+                }
+              }
+            },
             "status": {
               "todo": {
                 "light": {
@@ -247,11 +295,6 @@
                   "style": "solid",
                   "width": "3px",
                   "position": "full",
-                  "color": "#ff0000"
-                },
-                "headerBar": {
-                  "height": "6px",
-                  "style": "solid",
                   "color": "#ff0000"
                 },
                 "footerBar": {
