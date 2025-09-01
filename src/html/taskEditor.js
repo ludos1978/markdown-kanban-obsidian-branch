@@ -6,9 +6,6 @@ class TaskEditor {
     }
 
     setupGlobalHandlers() {
-        console.log(`TaskEditor.setupGlobalHandlers`);
-
-        // Single global keydown handler
         document.addEventListener('keydown', (e) => {
             if (!this.currentEditor) return;
             
@@ -29,15 +26,12 @@ class TaskEditor {
             }
         });
 
-        // Improved global click handler that doesn't interfere with text selection
         document.addEventListener('click', (e) => {
-            // Don't close menus or interfere if we're clicking inside an editor
             if (this.currentEditor && this.currentEditor.element && 
                 this.currentEditor.element.contains(e.target)) {
-                return; // Allow normal text selection and editing behavior
+                return;
             }
             
-            // Only close menus if clicking outside both menu and editor
             if (!e.target.closest('.donut-menu')) {
                 document.querySelectorAll('.donut-menu.active').forEach(menu => {
                     menu.classList.remove('active');
@@ -45,29 +39,24 @@ class TaskEditor {
             }
         });
 
-        // Prevent interference with text selection during editing
         document.addEventListener('mousedown', (e) => {
-            // If we're in editing mode and clicking within the editor, don't interfere
             if (this.currentEditor && this.currentEditor.element && 
                 this.currentEditor.element.contains(e.target)) {
-                return; // Allow normal text selection behavior
+                return;
             }
         });
 
         document.addEventListener('mouseup', (e) => {
-            // If we're in editing mode and within the editor, don't interfere
             if (this.currentEditor && this.currentEditor.element && 
                 this.currentEditor.element.contains(e.target)) {
-                return; // Allow normal text selection behavior
+                return;
             }
         });
     }
 
     startEdit(element, type, taskId = null, columnId = null) {
-        // If transitioning, don't interfere
         if (this.isTransitioning) return;
         
-        // Get the appropriate elements based on type
         let displayElement, editElement, containerElement;
         
         if (type === 'task-title') {
@@ -88,33 +77,26 @@ class TaskEditor {
 
         if (!editElement) return;
 
-        // Check if we're already editing this exact element
         const isAlreadyEditing = this.currentEditor && 
                                 this.currentEditor.element === editElement &&
                                 editElement.style.display !== 'none';
 
-        // If we're already editing this element, don't interfere - let the user continue
         if (isAlreadyEditing) {
             return;
         }
 
-        // Save any current editor first (different element)
         if (this.currentEditor && !this.isTransitioning) {
             this.save();
         }
 
-        // Show edit element, hide display
         if (displayElement) displayElement.style.display = 'none';
         editElement.style.display = 'block';
         
-        // Auto-resize if textarea
         this.autoResize(editElement);
         
-        // Focus and position cursor at end (only for new edit sessions)
         editElement.focus();
         editElement.setSelectionRange(editElement.value.length, editElement.value.length);
 
-        // Store current editor info
         this.currentEditor = {
             element: editElement,
             displayElement: displayElement,
@@ -124,16 +106,11 @@ class TaskEditor {
             originalValue: editElement.value
         };
 
-        // Set up input handler for auto-resize
         editElement.oninput = () => this.autoResize(editElement);
         
-        // Set up blur handler (but it won't fire during transitions)
         editElement.onblur = (e) => {
-            // Don't save on blur if the user is just selecting text or if we're transitioning
             if (!this.isTransitioning) {
-                // Give a small delay to allow for double-clicks and text selection
                 setTimeout(() => {
-                    // Only save if we're still not focused and not transitioning
                     if (document.activeElement !== editElement && !this.isTransitioning) {
                         this.save();
                     }
@@ -141,13 +118,12 @@ class TaskEditor {
             }
         };
 
-        // Improved selection handling for better text editing experience
         editElement.addEventListener('mousedown', (e) => {
-            e.stopPropagation(); // Prevent other handlers from interfering
+            e.stopPropagation();
         });
 
         editElement.addEventListener('dblclick', (e) => {
-            e.stopPropagation(); // Prevent other handlers from interfering with double-click selection
+            e.stopPropagation();
         });
     }
 
@@ -160,7 +136,6 @@ class TaskEditor {
         const columnId = this.currentEditor.columnId;
         const taskItem = this.currentEditor.element.closest('.task-item');
         
-        // DON'T SAVE YET - just update local state
         const value = this.currentEditor.element.value;
         if (currentBoard && currentBoard.columns) {
             const column = currentBoard.columns.find(c => c.id === columnId);
@@ -173,19 +148,15 @@ class TaskEditor {
             }
         }
         
-        // Remove blur handler
         this.currentEditor.element.onblur = null;
         
-        // Hide title editor
         this.currentEditor.element.style.display = 'none';
         if (this.currentEditor.displayElement) {
             this.currentEditor.displayElement.style.display = 'block';
         }
         
-        // Clear current editor
         this.currentEditor = null;
         
-        // Immediately start editing description (no async needed)
         this.isTransitioning = false;
         const descContainer = taskItem.querySelector('.task-description-container');
         if (descContainer) {
@@ -203,7 +174,6 @@ class TaskEditor {
     cancel() {
         if (!this.currentEditor || this.isTransitioning) return;
         
-        // Restore original value
         this.currentEditor.element.value = this.currentEditor.originalValue;
         this.closeEditor();
     }
@@ -214,15 +184,12 @@ class TaskEditor {
         const { element, type, taskId, columnId } = this.currentEditor;
         const value = element.value;
 
-        // Update local state for immediate feedback
         if (currentBoard && currentBoard.columns) {
             if (type === 'column-title') {
                 const column = currentBoard.columns.find(c => c.id === columnId);
                 if (column) {
-                    // Get current row to preserve it
                     const currentRow = getColumnRow(column.title);
                     
-                    // Clean the value of any row tags
                     let cleanValue = value
                         .replace(/#row\d+\b/gi, '')
                         .replace(/\s+#row\d+/gi, '')
@@ -230,7 +197,6 @@ class TaskEditor {
                         .replace(/\s{2,}/g, ' ')
                         .trim();
                     
-                    // Re-add row tag if needed
                     if (currentRow > 1) {
                         column.title = cleanValue + ` #row${currentRow}`;
                     } else {
@@ -238,17 +204,14 @@ class TaskEditor {
                     }
                     
                     if (this.currentEditor.displayElement) {
-                        // Display without row tags
                         const displayTitle = column.title.replace(/#row\d+/gi, '').trim();
                         this.currentEditor.displayElement.innerHTML = renderMarkdown(displayTitle);
                         
-                        // Add row indicator if needed
                         if (window.showRowTags && currentRow > 1) {
                             this.currentEditor.displayElement.innerHTML += `<span class="column-row-tag">Row ${currentRow}</span>`;
                         }
                     }
                     
-                    // Send the clean value to backend (backend will add row tag)
                     vscode.postMessage({
                         type: 'editColumnTitle',
                         columnId: columnId,
@@ -275,7 +238,6 @@ class TaskEditor {
                         }
                     }
                     
-                    // Send to extension
                     vscode.postMessage({
                         type: 'editTask',
                         taskId: taskId,
@@ -292,20 +254,16 @@ class TaskEditor {
         
         const { element, displayElement, type } = this.currentEditor;
         
-        // Clean up event listeners
         element.onblur = null;
         element.oninput = null;
         element.removeEventListener('mousedown', this._handleMouseDown);
         element.removeEventListener('dblclick', this._handleDblClick);
         
-        // Hide edit element
         element.style.display = 'none';
         
-        // Show display element
         if (displayElement) {
             displayElement.style.display = 'block';
         } else if (type === 'task-description') {
-            // Show placeholder if description is empty
             const container = element.closest('.task-description-container');
             const placeholder = container?.querySelector('.task-description-placeholder');
             if (placeholder && !element.value.trim()) {
@@ -322,47 +280,35 @@ class TaskEditor {
     }
 }
 
-// Initialize the editor system
 const taskEditor = new TaskEditor();
 window.taskEditor = taskEditor;
 
-// Simplified edit trigger functions
 function editTitle(element, taskId, columnId) {
-    console.log(`editDescription ${element} ${taskId} ${columnId}`);
-
-    // Don't start editing if we're already editing this field
     if (taskEditor.currentEditor && 
         taskEditor.currentEditor.type === 'task-title' &&
         taskEditor.currentEditor.taskId === taskId &&
         taskEditor.currentEditor.columnId === columnId) {
-        return; // Already editing this title
+        return;
     }
     taskEditor.startEdit(element, 'task-title', taskId, columnId);
 }
 
 function editDescription(element, taskId, columnId) {
-    console.log(`editDescription ${element} ${taskId} ${columnId}`);
-
-    // Don't start editing if we're already editing this field
     if (taskEditor.currentEditor && 
         taskEditor.currentEditor.type === 'task-description' &&
         taskEditor.currentEditor.taskId === taskId &&
         taskEditor.currentEditor.columnId === columnId) {
-        return; // Already editing this description
+        return;
     }
-    // Find the actual container if needed
     const container = element.closest('.task-description-container') || element;
     taskEditor.startEdit(container, 'task-description', taskId, columnId);
 }
 
 function editColumnTitle(columnId) {
-    console.log(`editColumnTitle ${columnId}`);
-
-    // Don't start editing if we're already editing this column
     if (taskEditor.currentEditor && 
         taskEditor.currentEditor.type === 'column-title' &&
         taskEditor.currentEditor.columnId === columnId) {
-        return; // Already editing this column title
+        return;
     }
     const column = document.querySelector(`[data-column-id="${columnId}"]`);
     if (column && !column.classList.contains('collapsed')) {

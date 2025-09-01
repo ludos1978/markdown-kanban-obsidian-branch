@@ -125,6 +125,7 @@ body {
   flex-direction: column;
   padding: var(--whitespace-div2);
   min-height: 0;
+  overflow-y: var(--row-overflow);
 }
 
 .kanban-column.collapsed .column-content {
@@ -151,11 +152,13 @@ body {
 }
 
 .kanban-column.collapsed {
-  width: var(--collapsed-column-width) !important;
+  /* fixed width of collapsed column */
+  /* width: var(--collapsed-column-width) !important;
   min-width: var(--collapsed-column-width) !important;
-  max-width: var(--collapsed-column-width) !important;
+  max-width: var(--collapsed-column-width) !important; */
   overflow: visible;
   min-height: 200px;
+  width: min-content;
 }
 
 /* Column header */
@@ -257,17 +260,17 @@ body {
   gap: 12px;
   margin-top: auto;
   flex-shrink: 0;
-  padding: var(--whitespace-div2) var(--whitespace-div3-mul2);
+  /* padding: var(--whitespace-div2) var(--whitespace-div3-mul2); */
   box-sizing: border-box;
 }
 
 /* Tasks container must allow the children to be overflow visible! */
 .tasks-container {
-  max-height: var(--max-row-height, calc(100vh - 200px));
+  max-height: var(--max-row-height);
   /* max-height: calc(100vh - 200px); */
   overflow-y: var(--row-overflow);
   overflow-x: visible;
-  /* overflow: visible; */
+  overflow: visible;
   /* padding-bottom: 4px; */
 }
 
@@ -1342,6 +1345,7 @@ button.file-bar-menu-item {
 
 .kanban-board.multi-row .kanban-column {
   flex-shrink: 0;
+  width: min-content;
 }
 
 .kanban-row-header {
@@ -2049,13 +2053,13 @@ h6 .kanban-tag {
   box-sizing: border-box;
 }
 
-.kanban-column.collapsed.has-footer-bar .column-controls {
+/* .kanban-column.collapsed.has-footer-bar .column-controls {
   padding-bottom: calc(var(--whitespace-div2) * 2);
-}
+} */
 
-.kanban-column.collapsed .collapsed-add-task-btn {
+/* .kanban-column.collapsed .collapsed-add-task-btn {
   margin: var(--whitespace-div2) var(--whitespace-div3-mul2);
-}
+} */
 
 .kanban-column.collapsed .header-bar::after,
 .kanban-column.collapsed .footer-bar::after {

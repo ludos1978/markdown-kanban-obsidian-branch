@@ -436,7 +436,7 @@ export class KanbanWebviewPanel {
     private async saveToMarkdown() {
         const document = this._fileManager.getDocument();
         if (!document || !this._board || !this._board.valid) {
-            console.warn('Cannot save: no document or invalid board');
+            console.error('Cannot save: no document or invalid board');
             return;
         }
 
@@ -449,7 +449,7 @@ export class KanbanWebviewPanel {
             );
             
             if (!isDocumentOpen) {
-                console.warn('Document is no longer open, cannot save changes');
+                console.error('Document is no longer open, cannot save changes');
                 vscode.window.showWarningMessage(
                     `Cannot save changes: "${path.basename(document.fileName)}" has been closed. Please reopen the file to continue editing.`,
                     'Open File'
@@ -494,7 +494,7 @@ export class KanbanWebviewPanel {
                 );
                 
                 if (!stillOpen) {
-                    vscode.window.showWarningMessage(
+                    vscode.window.showErrorMessage(
                         `Changes applied but could not save: "${path.basename(document.fileName)}" was closed during the save operation.`
                     );
                 } else {
