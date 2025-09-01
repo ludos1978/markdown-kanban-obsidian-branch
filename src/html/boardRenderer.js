@@ -560,9 +560,6 @@ function renderBoard() {
         
         // Update image sources after rendering
         updateImageSources();
-        
-        // Inject header/footer bars and border text for all tags
-        injectStackableBars();
     }, 10);
 
     setupDragAndDrop();
@@ -690,19 +687,51 @@ function createColumnElement(column, columnIndex) {
     const columnTag = extractFirstTag(column.title);
     console.log(`Creating column "${column.title}", primary tag: "${columnTag}", all tags:`, allTags);
     
-    // Get all corner badges HTML for all tags
-    const cornerBadgesHtml = getAllCornerBadgesHtml(allTags, 'column');
-    
-    // Extract row from column title (defaults to 1 if no row tag)
-    const columnRow = getColumnRow(column.title);
-
     const columnDiv = document.createElement('div');
     const isCollapsed = window.collapsedColumns.has(column.id);
     
-    columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''}`;
+    // Get header and footer bars HTML
+    const headerBarsData = getAllHeaderBarsHtml(allTags, 'column', isCollapsed);
+    const footerBarsData = getAllFooterBarsHtml(allTags, 'column', isCollapsed);
+    
+    // Calculate padding for non-collapsed columns
+    let paddingTopStyle = '';
+    let paddingBottomStyle = '';
+    let headerClasses = '';
+    let footerClasses = '';
+    
+    if (!isCollapsed) {
+        if (headerBarsData && headerBarsData.totalHeight) {
+            paddingTopStyle = `padding-top: calc(var(--whitespace-div2) + ${headerBarsData.totalHeight}px);`;
+            headerClasses = 'has-header-bar';
+            if (headerBarsData.hasLabel) headerClasses += ' has-header-label';
+        }
+        if (footerBarsData && footerBarsData.totalHeight) {
+            paddingBottomStyle = `padding-bottom: calc(var(--whitespace-div2) + ${footerBarsData.totalHeight}px);`;
+            footerClasses = 'has-footer-bar';
+            if (footerBarsData.hasLabel) footerClasses += ' has-footer-label';
+        }
+    } else {
+        // For collapsed columns, add classes without inline padding
+        if (headerBarsData) {
+            headerClasses = 'has-header-bar';
+            if (typeof headerBarsData === 'string' && headerBarsData.includes('label')) {
+                headerClasses += ' has-header-label';
+            }
+        }
+        if (footerBarsData) {
+            footerClasses = 'has-footer-bar';
+            if (typeof footerBarsData === 'string' && footerBarsData.includes('label')) {
+                footerClasses += ' has-footer-label';
+            }
+        }
+    }
+    
+    columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''} ${headerClasses} ${footerClasses}`.trim();
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
-    columnDiv.setAttribute('data-row', columnRow);
+    columnDiv.setAttribute('data-row', getColumnRow(column.title));
+    columnDiv.style.cssText = `${paddingTopStyle} ${paddingBottomStyle}`.trim();
     
     // Add primary tag for background color only
     if (columnTag && !columnTag.startsWith('row')) {
@@ -715,15 +744,34 @@ function createColumnElement(column, columnIndex) {
         columnDiv.setAttribute('data-all-tags', allTags.join(' '));
     }
 
+    // Get all corner badges HTML for all tags
+    const cornerBadgesHtml = getAllCornerBadgesHtml(allTags, 'column');
+
     // Filter out row tags from displayed title
     const displayTitle = column.title ? column.title.replace(/#row\d+/gi, '').trim() : '';
     const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
     const foldButtonState = getFoldAllButtonState(column.id);
 
     // Only show row indicator for rows 2, 3, 4 if configuration allows (not row 1)
+    const columnRow = getColumnRow(column.title);
     const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
+    // Build HTML with bars included
+    let headerBarsHtml = '';
+    let footerBarsHtml = '';
+    
+    if (isCollapsed) {
+        // For collapsed, bars are wrapped in containers
+        headerBarsHtml = headerBarsData || '';
+        footerBarsHtml = footerBarsData || '';
+    } else {
+        // For non-collapsed, extract HTML from data object
+        headerBarsHtml = headerBarsData.html || '';
+        footerBarsHtml = footerBarsData.html || '';
+    }
+
     columnDiv.innerHTML = `
+        ${headerBarsHtml}
         ${cornerBadgesHtml}
         <div class="column-header">
             <div class="column-title-section">
@@ -774,6 +822,7 @@ function createColumnElement(column, columnIndex) {
         <button class="add-task-btn" onclick="addTask('${column.id}')">
             + Add Task
         </button>
+        ${footerBarsHtml}
     `;
 
     return columnDiv;
@@ -801,8 +850,37 @@ function createTaskElement(task, columnId, taskIndex) {
     // Get all corner badges HTML for all tags
     const cornerBadgesHtml = getAllCornerBadgesHtml(allTags, 'task');
     
+    // Get header and footer bars HTML
+    const headerBarsData = getAllHeaderBarsHtml(allTags, 'task', false);
+    const footerBarsData = getAllFooterBarsHtml(allTags, 'task', false);
+    
+    // Calculate padding
+    let paddingTopStyle = '';
+    let paddingBottomStyle = '';
+    let headerClasses = '';
+    let footerClasses = '';
+    
+    if (headerBarsData && headerBarsData.totalHeight) {
+        paddingTopStyle = `padding-top: calc(var(--whitespace-div2) + ${headerBarsData.totalHeight}px);`;
+        headerClasses = 'has-header-bar';
+        if (headerBarsData.hasLabel) headerClasses += ' has-header-label';
+    }
+    if (footerBarsData && footerBarsData.totalHeight) {
+        paddingBottomStyle = `padding-bottom: calc(var(--whitespace-div2) + ${footerBarsData.totalHeight}px);`;
+        footerClasses = 'has-footer-bar';
+        if (footerBarsData.hasLabel) footerClasses += ' has-footer-label';
+    }
+    
+    const headerBarsHtml = headerBarsData.html || '';
+    const footerBarsHtml = footerBarsData.html || '';
+    
     return `
-        <div class="task-item ${isCollapsed ? 'collapsed' : ''}" data-task-id="${task.id}" data-column-id="${columnId}" data-task-index="${taskIndex}"${tagAttribute}${allTagsAttribute}>
+        <div class="task-item ${isCollapsed ? 'collapsed' : ''} ${headerClasses} ${footerClasses}" 
+             data-task-id="${task.id}" 
+             data-column-id="${columnId}" 
+             data-task-index="${taskIndex}"${tagAttribute}${allTagsAttribute}
+             style="${paddingTopStyle} ${paddingBottomStyle}">
+            ${headerBarsHtml}
             ${cornerBadgesHtml}
             <div class="task-header">
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
@@ -869,6 +947,7 @@ function createTaskElement(task, columnId, taskIndex) {
                             style="display: none;">${escapeHtml(task.description || '')}</textarea>
                 ${!task.description ? `<div class="task-description-placeholder" onclick="handleDescriptionClick(event, this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
             </div>
+            ${footerBarsHtml}
         </div>
     `;
 }
@@ -1578,6 +1657,96 @@ function injectStackableBars() {
     });
 }
 
+// Helper function to get all header bars HTML for multiple tags
+function getAllHeaderBarsHtml(tags, elementType, isCollapsed) {
+    if (!window.tagColors || tags.length === 0) return '';
+    
+    const headerBars = [];
+    let totalHeight = 0;
+    let hasLabel = false;
+    
+    tags.forEach(tag => {
+        const config = getTagConfig(tag);
+        
+        if (config && config.headerBar) {
+            const height = config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px');
+            const headerColor = config.headerBar.color || (config[isDarkTheme() ? 'dark' : 'light'] || config.light || {}).background;
+            
+            let style = '';
+            if (!isCollapsed) {
+                // For non-collapsed, position absolutely
+                style = `top: ${totalHeight}px;`;
+            }
+            
+            headerBars.push(`<div class="header-bar header-bar-${tag}" style="${style}"></div>`);
+            totalHeight += height;
+            if (config.headerBar.label) hasLabel = true;
+        }
+    });
+    
+    if (headerBars.length === 0) return '';
+    
+    // For collapsed elements, wrap in container
+    if (isCollapsed) {
+        return `<div class="header-bars-container">${headerBars.join('')}</div>`;
+    }
+    
+    // For non-collapsed, return bars with calculated padding data
+    return {
+        html: headerBars.join(''),
+        totalHeight: totalHeight,
+        hasLabel: hasLabel
+    };
+}
+
+// Helper function to get all footer bars HTML for multiple tags
+function getAllFooterBarsHtml(tags, elementType, isCollapsed) {
+    if (!window.tagColors || tags.length === 0) return '';
+    
+    const footerBars = [];
+    let totalHeight = 0;
+    let hasLabel = false;
+    
+    tags.forEach(tag => {
+        const config = getTagConfig(tag);
+        
+        if (config && config.footerBar) {
+            const height = config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px');
+            const footerColor = config.footerBar.color || (config[isDarkTheme() ? 'dark' : 'light'] || config.light || {}).background;
+            
+            let style = '';
+            if (!isCollapsed) {
+                // For non-collapsed, position absolutely
+                style = `bottom: ${totalHeight}px;`;
+            }
+            
+            footerBars.push(`<div class="footer-bar footer-bar-${tag}" style="${style}"></div>`);
+            totalHeight += height;
+            if (config.footerBar.label) hasLabel = true;
+        }
+    });
+    
+    if (footerBars.length === 0) return '';
+    
+    // For collapsed elements, wrap in container
+    if (isCollapsed) {
+        return `<div class="footer-bars-container">${footerBars.join('')}</div>`;
+    }
+    
+    // For non-collapsed, return bars with calculated padding data
+    return {
+        html: footerBars.join(''),
+        totalHeight: totalHeight,
+        hasLabel: hasLabel
+    };
+}
+
+// Helper function to check if dark theme
+function isDarkTheme() {
+    return document.body.classList.contains('vscode-dark') || 
+           document.body.classList.contains('vscode-high-contrast');
+}
+
 // Make functions globally available
 window.handleColumnTitleClick = handleColumnTitleClick;
 window.handleTaskTitleClick = handleTaskTitleClick;
@@ -1591,4 +1760,8 @@ window.getCornerBadgeHtml = getCornerBadgeHtml;
 
 window.getAllCornerBadgesHtml = getAllCornerBadgesHtml;
 window.getTagConfig = getTagConfig;
-window.injectStackableBars = injectStackableBars;
+
+window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
+window.getAllFooterBarsHtml = getAllFooterBarsHtml;
+window.isDarkTheme = isDarkTheme;
+

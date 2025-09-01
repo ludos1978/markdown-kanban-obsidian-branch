@@ -15,26 +15,11 @@ kanban-plugin: board
 - [ ] #red
 - [ ] #magenta
 
-## # Title #row2
-
-## Column A #bug #row2
-- [ ] #bug #research
-- [ ] #enhancement
-- [ ] #research
-
 ## #review
 - [ ] #teal
 - [ ] #indigo
 - [ ] #lime
 - [ ] #amber
-
-## #ui #row4
-
-## #ux #row4
-
-## #backend #row4
-
-## #database #row4
 
 ## #todo
 
@@ -44,9 +29,16 @@ kanban-plugin: board
 
 ## #wip
 
+## # Title #row2
+
 ## #enhancement #row2
 
 ## #feature #row2
+
+## Column A #bug #blocked #row2
+- [ ] #bug #research
+- [ ] #enhancement
+- [ ] #research
 
 ## #blocked #row2
 - [ ] #orange
@@ -61,31 +53,39 @@ kanban-plugin: board
 
 ## #refactor #row2
 
-## #hotfix #row2
-
-## # Title #row3
-
-## #urgent #row3
-
-## #medium #row3
-
-## #low #row3
-
-## #high #row3
-
 ## #release #row2
 - [ ] test #feature
 - [ ] test #release #help #hotfix
 
-## # Title #row4
+## #hotfix #row2
 
 ## #epic #row2
 
 ## #spike #row2
 
-## #help #row2
+## #help #epic #release #row2
 
 ## #idea #row2
+
+## # Title #row3
+
+## #urgent #row3
+
+## #low #row3
+
+## #high #row3
+
+## #medium #row3
+
+## # Title #row4
+
+## #ux #row4
+
+## #backend #row4
+
+## #database #row4
+
+## #ui #row4
 
 ## #frontend #row4
 
