@@ -278,29 +278,33 @@ function getAllTagsInUse() {
     return tagsInUse;
 }
 
-// Helper function to get user-added tags (not in configuration)
+  // Helper function to get user-added tags (not in configuration)
 function getUserAddedTags() {
     const allTagsInUse = getAllTagsInUse();
     const configuredTags = new Set();
     const tagConfig = window.tagColors || {};
     
-    // Collect all configured tags
-    if (tagConfig.status || tagConfig.type || tagConfig.priority || tagConfig.category || tagConfig.colors) {
-        // Grouped structure
-        const groups = ['status', 'type', 'priority', 'category', 'colors'];
-        groups.forEach(group => {
-            if (tagConfig[group]) {
-                Object.keys(tagConfig[group]).forEach(tag => {
-                    configuredTags.add(tag.toLowerCase());
+    // Dynamically collect all configured tags regardless of group names
+    Object.keys(tagConfig).forEach(key => {
+        const value = tagConfig[key];
+        
+        // Check if this is a group (contains objects with light/dark themes)
+        if (value && typeof value === 'object') {
+            // Check if this is a direct tag configuration (has light/dark)
+            if (value.light || value.dark) {
+                // This is a direct tag configuration
+                configuredTags.add(key.toLowerCase());
+            } else {
+                // This might be a group, check its children
+                Object.keys(value).forEach(subKey => {
+                    const subValue = value[subKey];
+                    if (subValue && typeof subValue === 'object' && (subValue.light || subValue.dark)) {
+                        configuredTags.add(subKey.toLowerCase());
+                    }
                 });
             }
-        });
-    } else {
-        // Flat structure
-        Object.keys(tagConfig).forEach(tag => {
-            configuredTags.add(tag.toLowerCase());
-        });
-    }
+        }
+    });
     
     // Find tags that are in use but not configured
     const userAddedTags = [];
@@ -318,49 +322,45 @@ function generateTagMenuItems(id, type, columnId = null) {
     const tagConfig = window.tagColors || {};
     const userAddedTags = getUserAddedTags();
     
-    // Check if we have grouped structure
-    const isGrouped = tagConfig.status || tagConfig.type || 
-                     tagConfig.priority || tagConfig.category || 
-                     tagConfig.colors;
-    
     let menuHtml = '';
     
-    if (isGrouped) {
-        // Generate grouped menu for configured tags
-        const groups = [
-            { key: 'status', label: 'Status' },
-            { key: 'type', label: 'Type' },
-            { key: 'priority', label: 'Priority' },
-            { key: 'category', label: 'Category' },
-            { key: 'colors', label: 'Colors' }
-        ];
+    // Dynamically generate menu for all groups in configuration
+    Object.keys(tagConfig).forEach(groupKey => {
+        const groupValue = tagConfig[groupKey];
         
-        groups.forEach(group => {
-            if (tagConfig[group.key]) {
-                const tags = Object.keys(tagConfig[group.key]);
-                if (tags.length > 0) {
-                    menuHtml += `
-                        <div class="donut-menu-item has-submenu">
-                            ${group.label}
-                            <div class="donut-menu-submenu donut-menu-tags-grid">
-                                ${generateGroupTagItems(tags, id, type, columnId, true)}
-                            </div>
-                        </div>
-                    `;
-                }
+        // Check if this is a group (contains objects with light/dark themes)
+        if (groupValue && typeof groupValue === 'object') {
+            let groupTags = [];
+            
+            // Check if this is a direct tag configuration
+            if (groupValue.light || groupValue.dark) {
+                // This is a single tag, not a group
+                groupTags = [groupKey];
+            } else {
+                // This is a group, collect its tags
+                Object.keys(groupValue).forEach(tagKey => {
+                    const tagValue = groupValue[tagKey];
+                    if (tagValue && typeof tagValue === 'object' && (tagValue.light || tagValue.dark)) {
+                        groupTags.push(tagKey);
+                    }
+                });
             }
-        });
-    } else if (Object.keys(tagConfig).length > 0) {
-        // Flat structure for configured tags
-        menuHtml += `
-            <div class="donut-menu-item has-submenu">
-                Configured Tags
-                <div class="donut-menu-submenu donut-menu-tags-grid">
-                    ${generateGroupTagItems(Object.keys(tagConfig), id, type, columnId, true)}
-                </div>
-            </div>
-        `;
-    }
+            
+            if (groupTags.length > 0) {
+                // Capitalize first letter of group name for display
+                const groupLabel = groupKey.charAt(0).toUpperCase() + groupKey.slice(1);
+                
+                menuHtml += `
+                    <div class="donut-menu-item has-submenu">
+                        ${groupLabel}
+                        <div class="donut-menu-submenu donut-menu-tags-grid">
+                            ${generateGroupTagItems(groupTags, id, type, columnId, true)}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    });
     
     // Add user-added tags if any exist
     if (userAddedTags.length > 0) {
@@ -381,7 +381,6 @@ function generateTagMenuItems(id, type, columnId = null) {
     
     return menuHtml;
 }
-
 
 
 
