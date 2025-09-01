@@ -347,3 +347,14 @@ The implementation reuses existing tag detection and only extends the CSS genera
 
 
 ---
+
+can you modify the code so it doesnt inject the tag headers, footers and badges, but renders them directly with the rest of the content? explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions. keep the changes as minimal as possible.
+
+---
+
+
+please write the corresponding code. Always write out full functions and where they should be added to. dont change the way the markdown is saved, except for adding the tags for the columns. explicitly mention functions that can be removed or simplified.
+
+---
+
+can you modify the code so it doesnt inject the tag headers, footers and badges, but renders them directly with the rest of the content? explain your planned changes first without editing the sourcecode. keep the changes as minimal as possible. dont change or add any addtional features. dont add failsaves or backup solutions. keep the changes as minimal as possible.
