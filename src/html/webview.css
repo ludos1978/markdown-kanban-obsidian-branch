@@ -234,7 +234,7 @@ body {
 /* Tasks container */
 .tasks-container {
   max-height: calc(100vh - 200px);
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .kanban-column.collapsed .tasks-container,
@@ -252,6 +252,7 @@ body {
   margin-bottom: var(--whitespace-div2);
   transition: all 0.2s ease;
   position: relative;
+  overflow: visible;
 }
 
 .task-item:hover {
