@@ -1010,6 +1010,23 @@ button.file-bar-menu-item {
   margin-left: 4px;
 }
 
+/* Ensure tag grids follow normal submenu behavior */
+.donut-menu-item.has-submenu .donut-menu-submenu {
+    display: none;  /* Hidden by default */
+}
+
+.donut-menu-item.has-submenu:hover .donut-menu-submenu {
+    display: block;  /* Show on hover */
+}
+
+/* Special styling for tag grids when shown */
+.donut-menu-item.has-submenu:hover .donut-menu-tags-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px;
+}
+
 .donut-menu-tags-grid:has(.donut-menu-tag-chip:nth-child(4):last-child) {
   max-width: 320px;
 }
@@ -1966,4 +1983,29 @@ h6 .kanban-tag {
   text-overflow: ellipsis !important;
   max-width: 100%;
   display: block;
+}
+
+/* Custom (user-added) tags styling */
+.donut-menu-tag-chip.custom-tag {
+    font-style: italic;
+    opacity: 0.9;
+}
+
+.donut-menu-tag-chip.custom-tag:not(.active) {
+    border-style: dashed !important;
+}
+
+.donut-menu-tag-chip.custom-tag.active {
+    font-style: normal;
+}
+
+/* Visual separator for custom tags section */
+.donut-menu-item:has(.custom-tag)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12px;
+    right: 12px;
+    height: 1px;
+    background: var(--vscode-panel-border);
 }

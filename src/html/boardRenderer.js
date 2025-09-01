@@ -253,18 +253,80 @@ function getActiveTagsInTitle(text) {
     return matches.map(tag => tag.substring(1).toLowerCase());
 }
 
-// Helper function to generate tag menu items from configuration
+// Helper function to collect all tags currently in use across the board
+function getAllTagsInUse() {
+    const tagsInUse = new Set();
+    
+    if (!currentBoard || !currentBoard.columns) return tagsInUse;
+    
+    // Collect tags from all columns and tasks
+    currentBoard.columns.forEach(column => {
+        // Get tags from column title
+        const columnTags = getActiveTagsInTitle(column.title);
+        columnTags.forEach(tag => tagsInUse.add(tag.toLowerCase()));
+        
+        // Get tags from all tasks
+        column.tasks.forEach(task => {
+            const taskTitleTags = getActiveTagsInTitle(task.title);
+            taskTitleTags.forEach(tag => tagsInUse.add(tag.toLowerCase()));
+            
+            const taskDescTags = getActiveTagsInTitle(task.description);
+            taskDescTags.forEach(tag => tagsInUse.add(tag.toLowerCase()));
+        });
+    });
+    
+    return tagsInUse;
+}
+
+// Helper function to get user-added tags (not in configuration)
+function getUserAddedTags() {
+    const allTagsInUse = getAllTagsInUse();
+    const configuredTags = new Set();
+    const tagConfig = window.tagColors || {};
+    
+    // Collect all configured tags
+    if (tagConfig.status || tagConfig.type || tagConfig.priority || tagConfig.category || tagConfig.colors) {
+        // Grouped structure
+        const groups = ['status', 'type', 'priority', 'category', 'colors'];
+        groups.forEach(group => {
+            if (tagConfig[group]) {
+                Object.keys(tagConfig[group]).forEach(tag => {
+                    configuredTags.add(tag.toLowerCase());
+                });
+            }
+        });
+    } else {
+        // Flat structure
+        Object.keys(tagConfig).forEach(tag => {
+            configuredTags.add(tag.toLowerCase());
+        });
+    }
+    
+    // Find tags that are in use but not configured
+    const userAddedTags = [];
+    allTagsInUse.forEach(tag => {
+        if (!configuredTags.has(tag) && !tag.startsWith('row')) { // Exclude row tags
+            userAddedTags.push(tag);
+        }
+    });
+    
+    return userAddedTags.sort(); // Sort alphabetically
+}
+
+// Helper function to generate tag menu items from configuration and user-added tags
 function generateTagMenuItems(id, type, columnId = null) {
     const tagConfig = window.tagColors || {};
+    const userAddedTags = getUserAddedTags();
     
     // Check if we have grouped structure
     const isGrouped = tagConfig.status || tagConfig.type || 
                      tagConfig.priority || tagConfig.category || 
                      tagConfig.colors;
     
+    let menuHtml = '';
+    
     if (isGrouped) {
-        // Generate grouped menu
-        let menuHtml = '';
+        // Generate grouped menu for configured tags
         const groups = [
             { key: 'status', label: 'Status' },
             { key: 'type', label: 'Type' },
@@ -281,23 +343,48 @@ function generateTagMenuItems(id, type, columnId = null) {
                         <div class="donut-menu-item has-submenu">
                             ${group.label}
                             <div class="donut-menu-submenu donut-menu-tags-grid">
-                                ${generateGroupTagItems(tags, id, type, columnId)}
+                                ${generateGroupTagItems(tags, id, type, columnId, true)}
                             </div>
                         </div>
                     `;
                 }
             }
         });
-        
-        return menuHtml || '<button class="donut-menu-item" disabled>No tags configured</button>';
-    } else {
-        // Fallback to flat structure
-        return `<div class="donut-menu-tags-grid">${generateFlatTagItems(Object.keys(tagConfig), id, type, columnId)}</div>`;
+    } else if (Object.keys(tagConfig).length > 0) {
+        // Flat structure for configured tags
+        menuHtml += `
+            <div class="donut-menu-item has-submenu">
+                Configured Tags
+                <div class="donut-menu-submenu donut-menu-tags-grid">
+                    ${generateGroupTagItems(Object.keys(tagConfig), id, type, columnId, true)}
+                </div>
+            </div>
+        `;
     }
+    
+    // Add user-added tags if any exist
+    if (userAddedTags.length > 0) {
+        menuHtml += `
+            <div class="donut-menu-item has-submenu">
+                Custom Tags
+                <div class="donut-menu-submenu donut-menu-tags-grid">
+                    ${generateGroupTagItems(userAddedTags, id, type, columnId, false)}
+                </div>
+            </div>
+        `;
+    }
+    
+    // If no tags at all, show a message
+    if (!menuHtml) {
+        menuHtml = '<button class="donut-menu-item" disabled>No tags available</button>';
+    }
+    
+    return menuHtml;
 }
 
 // Helper function to generate tag items for a group (horizontal layout)
-function generateGroupTagItems(tags, id, type, columnId = null) {
+// Helper function to generate tag items for a group (horizontal layout)
+function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = true) {
     // Get current title to check which tags are active
     let currentTitle = '';
     if (type === 'column') {
@@ -320,24 +407,45 @@ function generateGroupTagItems(tags, id, type, columnId = null) {
             ? `toggleColumnTag('${id}', '${tagName}')`
             : `toggleTaskTag('${id}', '${columnId}', '${tagName}')`;
         
-        // Get tag config for color
-        const config = getTagConfig(tagName);
-        const isDarkTheme = document.body.classList.contains('vscode-dark') || 
-                           document.body.classList.contains('vscode-high-contrast');
-        const themeKey = isDarkTheme ? 'dark' : 'light';
-        const themeColors = config ? (config[themeKey] || config.light || {}) : {};
-        const bgColor = themeColors.background || '#666';
-        const textColor = themeColors.text || '#fff';
+        // Get tag config for color (only for configured tags)
+        let bgColor = '#666';
+        let textColor = '#fff';
+        
+        if (isConfigured) {
+            const config = getTagConfig(tagName);
+            if (config) {
+                const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                                   document.body.classList.contains('vscode-high-contrast');
+                const themeKey = isDarkTheme ? 'dark' : 'light';
+                const themeColors = config[themeKey] || config.light || {};
+                bgColor = themeColors.background || '#666';
+                textColor = themeColors.text || '#fff';
+            }
+        } else {
+            // Default colors for user-added tags
+            const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                               document.body.classList.contains('vscode-high-contrast');
+            if (isDarkTheme) {
+                bgColor = '#555';
+                textColor = '#ddd';
+            } else {
+                bgColor = '#999';
+                textColor = '#fff';
+            }
+        }
+        
+        const displayName = isConfigured ? tagName : tagName;
+        const title = isConfigured ? tagName : `Custom tag: ${tagName}`;
         
         return `
-            <button class="donut-menu-tag-chip ${isActive ? 'active' : ''}" 
+            <button class="donut-menu-tag-chip ${isActive ? 'active' : ''} ${isConfigured ? '' : 'custom-tag'}" 
                     onclick="${onclick}"
                     style="background-color: ${isActive ? bgColor : 'transparent'}; 
                            color: ${isActive ? textColor : 'inherit'};
                            border-color: ${bgColor};"
-                    title="${tagName}">
+                    title="${title}">
                 <span class="tag-chip-check">${checkbox}</span>
-                <span class="tag-chip-name">${tagName}</span>
+                <span class="tag-chip-name">${displayName}</span>
             </button>
         `;
     }).join('');
@@ -1765,3 +1873,5 @@ window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
 window.getAllFooterBarsHtml = getAllFooterBarsHtml;
 window.isDarkTheme = isDarkTheme;
 
+window.getAllTagsInUse = getAllTagsInUse;
+window.getUserAddedTags = getUserAddedTags;
