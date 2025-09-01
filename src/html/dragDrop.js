@@ -1,3 +1,9 @@
+
+// Add debugging flag
+let lastIndicatorUpdate = 0;
+const INDICATOR_UPDATE_THROTTLE = 100; // milliseconds
+const DEBUG_DROP = true;
+
 // Track if drag/drop is already set up to prevent multiple listeners
 let dragDropInitialized = false;
 let isProcessingDrop = false; // Prevent multiple simultaneous drops
@@ -28,8 +34,7 @@ let dragState = {
 
 // External file drop location indicators
 function createExternalDropIndicator() {
-    console.log(`createExternalDropIndicator`);
-
+    // Remove console.log from here since it's called frequently
     if (externalDropIndicator) {
         return externalDropIndicator;
     }
@@ -39,12 +44,18 @@ function createExternalDropIndicator() {
     indicator.style.display = 'none';
     document.body.appendChild(indicator);
     externalDropIndicator = indicator;
+    
+    if (DEBUG_DROP) {
+        console.log('[DROP DEBUG] External drop indicator created');
+    }
+    
     return indicator;
 }
 
 function showExternalDropIndicator(column, clientY) {
-    console.log(`showExternalDropIndicator`);
-
+    if (DEBUG_DROP && currentExternalDropColumn !== column) {
+        console.log('[DROP DEBUG] Showing indicator for column:', column.dataset.columnId);
+    }
     const indicator = createExternalDropIndicator();
     const tasksContainer = column.querySelector('.tasks-container');
     
@@ -123,117 +134,35 @@ function cleanupExternalDropIndicators() {
 }
 
 function setupGlobalDragAndDrop() {
-    console.log(`setupGlobalDragAndDrop`);
+    console.log(`[DROP DEBUG] setupGlobalDragAndDrop initialized`);
 
     const boardContainer = document.getElementById('kanban-container');
     const dropFeedback = document.getElementById('drop-zone-feedback');
     
-    // Prevent default drag behaviors on the entire board
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        boardContainer.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
+    if (!boardContainer) {
+        console.error('[DROP DEBUG] No kanban-container found!');
+        return;
     }
     
-    // Enhanced dragover handling with column-specific indicators
-    boardContainer.addEventListener('dragover', (e) => {
-        if (isExternalFileDrag(e)) {
-            const column = e.target.closest('.kanban-column');
-            if (column && !column.classList.contains('collapsed')) {
-                showExternalDropIndicator(column, e.clientY);
-            } else {
-                hideExternalDropIndicator();
-            }
-            showDropFeedback(e);
-        }
-    }, false);
+    // Variables for throttling
+    let lastIndicatorUpdate = 0;
+    const INDICATOR_UPDATE_THROTTLE = 100;
     
-    // Show drop zone feedback - only for external file drags
-    ['dragenter'].forEach(eventName => {
-        boardContainer.addEventListener(eventName, (e) => {
-            if (isExternalFileDrag(e)) {
-                showDropFeedback(e);
-            }
-        }, false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        boardContainer.addEventListener(eventName, (e) => {
-            // Only hide if we're actually leaving the board area
-            if (!boardContainer.contains(e.relatedTarget)) {
-                hideDropFeedback(e);
-                hideExternalDropIndicator();
-            }
-        }, false);
-    });
-    
-    // Check if this is an external file drag (not internal task/column drag)
-    // function isExternalFileDrag(e) {
-    //     const dt = e.dataTransfer;
-    //     if (!dt) return false;
-        
-    //     // First check if we have an active internal drag state
-    //     if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
-    //         return false; // This is definitely an internal drag
-    //     }
-        
-    //     // Check the types array for our custom MIME types
-    //     // Note: Some browsers lowercase MIME types, so check both cases
-    //     const typesArray = Array.from(dt.types);
-    //     const typesString = typesArray.join(',').toLowerCase();
-        
-    //     // Check for our specific internal kanban drag identifiers
-    //     if (typesString.includes('application/kanban-task') || 
-    //         typesString.includes('application/kanban-column') ||
-    //         typesString.includes('application/column-id')) {
-    //         return false; // Internal kanban drag
-    //     }
-        
-    //     // If we only have text/plain and no Files, it's likely internal
-    //     // External file drags always have 'Files' type
-    //     const hasFiles = typesArray.some(t => t === 'Files' || t === 'files');
-    //     const hasUriList = typesArray.some(t => t.toLowerCase() === 'text/uri-list');
-        
-    //     // Only consider it external if it has Files or uri-list
-    //     // AND doesn't have our internal markers
-    //     return hasFiles || hasUriList;
-    // }
-
+    // Helper functions
     function isExternalFileDrag(e) {
         const dt = e.dataTransfer;
         if (!dt) return false;
         
-        // Check for Files type FIRST (most reliable indicator)
         const hasFiles = Array.from(dt.types).some(t => t === 'Files' || t === 'files');
         if (hasFiles) return true;
         
-        // Then check if we have an active internal drag
         if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
             return false;
         }
         
-        // Check for uri-list (another indicator of external files)
         const hasUriList = Array.from(dt.types).some(t => t.toLowerCase() === 'text/uri-list');
         return hasUriList;
     }
-    
-    // Enhanced document-level handling
-    document.addEventListener('dragenter', (e) => {
-        if (isExternalFileDrag(e)) {
-            showDropFeedback(e);
-        }
-    });
-    
-    document.addEventListener('dragleave', (e) => {
-        if (!document.body.contains(e.relatedTarget)) {
-            hideDropFeedback(e);
-            hideExternalDropIndicator();
-        }
-    });
     
     function showDropFeedback(e) {
         if (dropFeedback) {
@@ -248,75 +177,165 @@ function setupGlobalDragAndDrop() {
         boardContainer.classList.remove('drag-highlight');
     }
     
-    // Handle dropped files
-    boardContainer.addEventListener('drop', handleFileDrop, false);
-    document.addEventListener('drop', handleFileDrop, false);
-    
-    function handleFileDrop(e) {
-        // Always hide feedback first
+    // Main drop handler function
+    function handleExternalDrop(e) {
+        console.log('[DROP DEBUG] ============ DROP EVENT FIRED ============');
+        console.log('[DROP DEBUG] Target:', e.target.className);
+        
+        if (!isExternalFileDrag(e)) {
+            console.log('[DROP DEBUG] Not an external file drag, ignoring');
+            return;
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('[DROP DEBUG] Processing external file drop');
+        
         hideDropFeedback(e);
         hideExternalDropIndicator();
         
-        // Check if this is an internal drag - if so, ignore
-        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
-            console.log('Ignoring file drop - internal drag in progress');
-            return;
-        }
-        
         if (isProcessingDrop) {
+            console.log('[DROP DEBUG] Already processing a drop');
             return;
         }
-        
-        const dt = e.dataTransfer;
-        
-        // Double-check this isn't an internal drag
-        const textData = dt.getData('text/plain');
-        if (textData && (textData.startsWith('kanban-task:') || textData.startsWith('kanban-column:'))) {
-            console.log('Ignoring file drop - detected internal kanban data');
-            return;
-        }
-        
-        const files = dt.files;
         
         isProcessingDrop = true;
         setTimeout(() => {
             isProcessingDrop = false;
         }, 1000);
         
-        if (files && files.length > 0) {
-            handleVSCodeFileDrop(e, files);
+        const dt = e.dataTransfer;
+        if (!dt) {
+            console.error('[DROP DEBUG] No dataTransfer');
+            return;
+        }
+        
+        if (dt.files && dt.files.length > 0) {
+            console.log('[DROP DEBUG] Handling file drop:', dt.files[0].name);
+            handleVSCodeFileDrop(e, dt.files);
         } else {
             const uriList = dt.getData('text/uri-list');
             const textPlain = dt.getData('text/plain');
             
             if (uriList) {
+                console.log('[DROP DEBUG] Handling URI list');
                 handleVSCodeUriDrop(e, uriList);
-            } else if (textPlain && !textPlain.startsWith('kanban-') && 
-                    (textPlain.startsWith('file://') || textPlain.includes('/'))) {
+            } else if (textPlain && textPlain.includes('/')) {
+                console.log('[DROP DEBUG] Handling text as path');
                 handleVSCodeUriDrop(e, textPlain);
-            } else {
-                isProcessingDrop = false;
             }
         }
     }
+    
+    // Register handlers on the container (works for single row)
+    boardContainer.addEventListener('dragover', function(e) {
+        if (!isExternalFileDrag(e)) return;
+        
+        e.preventDefault();
+        
+        const now = Date.now();
+        if (now - lastIndicatorUpdate >= INDICATOR_UPDATE_THROTTLE) {
+            lastIndicatorUpdate = now;
+            
+            const column = e.target.closest('.kanban-column');
+            if (column && !column.classList.contains('collapsed')) {
+                showExternalDropIndicator(column, e.clientY);
+            } else {
+                hideExternalDropIndicator();
+            }
+            showDropFeedback(e);
+        }
+    }, false);
+    
+    boardContainer.addEventListener('drop', handleExternalDrop, false);
+    
+    boardContainer.addEventListener('dragenter', function(e) {
+        if (isExternalFileDrag(e)) {
+            e.preventDefault();
+            showDropFeedback(e);
+        }
+    }, false);
+    
+    boardContainer.addEventListener('dragleave', function(e) {
+        if (!boardContainer.contains(e.relatedTarget)) {
+            hideDropFeedback(e);
+            hideExternalDropIndicator();
+        }
+    }, false);
+    
+    // CRITICAL: Also register on row elements for multi-row layout
+    // Use event delegation to handle dynamically created rows
+    boardContainer.addEventListener('dragover', function(e) {
+        // Check if we're over a row or row-drop-zone-spacer
+        const row = e.target.closest('.kanban-row');
+        const spacer = e.target.closest('.row-drop-zone-spacer');
+        
+        if ((row || spacer) && isExternalFileDrag(e)) {
+            e.preventDefault(); // Enable drop on rows and spacers
+        }
+    }, true); // Use capture phase
+    
+    boardContainer.addEventListener('drop', function(e) {
+        // Check if drop is on a row or spacer
+        const row = e.target.closest('.kanban-row');
+        const spacer = e.target.closest('.row-drop-zone-spacer');
+        
+        if ((row || spacer) && isExternalFileDrag(e)) {
+            console.log('[DROP DEBUG] Drop on row/spacer, handling...');
+            handleExternalDrop(e);
+        }
+    }, true); // Use capture phase
+    
+    // Document level handlers
+    document.addEventListener('dragover', function(e) {
+        if (!boardContainer.contains(e.target) && isExternalFileDrag(e)) {
+            e.preventDefault();
+        }
+    }, false);
+    
+    document.addEventListener('drop', function(e) {
+        if (!boardContainer.contains(e.target)) {
+            e.preventDefault();
+            console.log('[DROP DEBUG] Drop outside board, prevented');
+        }
+    }, false);
+    
+    console.log('[DROP DEBUG] All handlers registered (including multi-row support)');
 }
 
-function handleVSCodeFileDrop(e, files) {
-    console.log(`handleVSCodeFileDrop`);
 
+function handleVSCodeFileDrop(e, files) {
+    console.log(`[DROP DEBUG] handleVSCodeFileDrop called with ${files.length} files`);
+    
     const file = files[0];
     const fileName = file.name;
     
-    vscode.postMessage({
+    console.log(`[DROP DEBUG] File details:`, {
+        name: fileName,
+        type: file.type,
+        size: file.size,
+        clientX: e.clientX,
+        clientY: e.clientY
+    });
+    
+    const activeEditor = getActiveTextEditor();
+    console.log('[DROP DEBUG] Active editor:', activeEditor);
+    
+    const message = {
         type: 'handleFileDrop',
         fileName: fileName,
         dropPosition: {
             x: e.clientX,
             y: e.clientY
         },
-        activeEditor: getActiveTextEditor()
-    });
+        activeEditor: activeEditor
+    };
+    
+    console.log('[DROP DEBUG] Sending message to VSCode:', message);
+    vscode.postMessage(message);
 }
+
 
 function handleVSCodeUriDrop(e, uriData) {
     console.log(`handleVSCodeUriDrop`);
@@ -362,35 +381,62 @@ function getActiveTextEditor() {
 }
 
 function createNewTaskWithContent(content, dropPosition, description = '') {
-    console.log(`createNewTaskWithContent`);
-
+    console.log(`[DROP DEBUG] createNewTaskWithContent called`);
+    console.log(`[DROP DEBUG] Content:`, content);
+    console.log(`[DROP DEBUG] Drop position:`, dropPosition);
+    
+    // Check board availability
+    console.log('[DROP DEBUG] window.currentBoard:', window.currentBoard);
+    
+    if (!window.currentBoard) {
+        console.error('[DROP DEBUG] No board on window.currentBoard');
+        vscode.postMessage({ 
+            type: 'showMessage', 
+            text: 'Cannot create task: No board loaded' 
+        });
+        return;
+    }
+    
+    if (!window.currentBoard.columns || window.currentBoard.columns.length === 0) {
+        console.error('[DROP DEBUG] Board has no columns');
+        vscode.postMessage({ 
+            type: 'showMessage', 
+            text: 'Cannot create task: No columns available' 
+        });
+        return;
+    }
+    
+    console.log(`[DROP DEBUG] Board has ${window.currentBoard.columns.length} columns`);
+    
     if (recentlyCreatedTasks.has(content)) {
+        console.log('[DROP DEBUG] Duplicate prevention - task already created');
         return;
     }
     
     recentlyCreatedTasks.add(content);
     setTimeout(() => recentlyCreatedTasks.delete(content), 2000);
     
-    // Find the column at the drop position more accurately
+    // Find target column
     let targetColumnId = null;
     let insertionIndex = -1;
     
-    // First, try to find the column directly under the drop position
     const elementAtPoint = document.elementFromPoint(dropPosition.x, dropPosition.y);
+    console.log('[DROP DEBUG] Element at drop point:', elementAtPoint);
+    
     const columnElement = elementAtPoint?.closest('.kanban-column');
     
     if (columnElement && !columnElement.classList.contains('collapsed')) {
         targetColumnId = columnElement.dataset.columnId;
         insertionIndex = calculateInsertionIndex(columnElement, dropPosition.y);
-        console.log(`Found column directly at drop point: ${targetColumnId}`);
+        console.log(`[DROP DEBUG] Found column at drop point: ${targetColumnId}, insertion index: ${insertionIndex}`);
     } else {
-        // Fallback to finding nearest column (improved for multi-row layout)
+        console.log('[DROP DEBUG] No column at drop point, finding nearest...');
+        
         const columns = document.querySelectorAll('.kanban-column:not(.collapsed)');
         let minDistance = Infinity;
         
         columns.forEach(column => {
             const rect = column.getBoundingClientRect();
-            // Check both X and Y distance for multi-row layout
             const distX = Math.abs((rect.left + rect.right) / 2 - dropPosition.x);
             const distY = Math.abs((rect.top + rect.bottom) / 2 - dropPosition.y);
             const distance = Math.sqrt(distX * distX + distY * distY);
@@ -403,19 +449,18 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         });
         
         if (targetColumnId) {
-            console.log(`Found nearest column: ${targetColumnId} at distance ${minDistance}`);
+            console.log(`[DROP DEBUG] Found nearest column: ${targetColumnId} at distance ${minDistance}`);
         }
     }
     
-    // If still no target column found and board has columns, use first non-collapsed column
-    if (!targetColumnId && currentBoard && currentBoard.columns.length > 0) {
-        const firstNonCollapsed = currentBoard.columns.find(col => 
+    if (!targetColumnId && window.currentBoard.columns.length > 0) {
+        const firstNonCollapsed = window.currentBoard.columns.find(col => 
             !window.collapsedColumns || !window.collapsedColumns.has(col.id)
         );
         if (firstNonCollapsed) {
             targetColumnId = firstNonCollapsed.id;
             insertionIndex = -1;
-            console.log(`Using first non-collapsed column as fallback: ${targetColumnId}`);
+            console.log(`[DROP DEBUG] Using first non-collapsed column: ${targetColumnId}`);
         }
     }
     
@@ -425,20 +470,24 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             description: description
         };
         
-        vscode.postMessage({
+        const message = {
             type: 'addTaskAtPosition',
             columnId: targetColumnId,
             taskData: taskData,
             insertionIndex: insertionIndex
-        });
+        };
+        
+        console.log('[DROP DEBUG] Sending addTaskAtPosition message:', message);
+        vscode.postMessage(message);
     } else {
-        console.warn('Could not find a suitable column for the dropped file');
+        console.error('[DROP DEBUG] Could not find any suitable column');
         vscode.postMessage({ 
             type: 'showMessage', 
             text: 'Could not find a suitable column. Please ensure at least one column is not collapsed.' 
         });
     }
 }
+
 
 function calculateInsertionIndex(column, clientY) {
     console.log(`calculateInsertionIndex`);

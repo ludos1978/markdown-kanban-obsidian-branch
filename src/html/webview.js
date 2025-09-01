@@ -492,7 +492,8 @@ window.addEventListener('message', event => {
             console.log('Updating board with:', message.board);
             const previousBoard = currentBoard;
             currentBoard = message.board;
-            
+            window.currentBoard = currentBoard;  // ADD THIS LINE
+
             // Clean up any duplicate row tags
             cleanupRowTags();
             
@@ -693,9 +694,13 @@ function updateUndoRedoButtons() {
 }
 
 function insertFileLink(fileInfo) {
-    const { fileName, relativePath, isImage } = fileInfo;
-    let activeEditor = fileInfo.activeEditor || getActiveTextEditor();
+    console.log('[DROP DEBUG] insertFileLink called with:', fileInfo);
     
+    const { fileName, relativePath, isImage } = fileInfo;
+    let activeEditor = getActiveTextEditor();
+    
+    console.log('[DROP DEBUG] Current active editor:', activeEditor);
+
     // Create markdown link with ORIGINAL relative path
     let markdownLink;
     if (isImage) {
