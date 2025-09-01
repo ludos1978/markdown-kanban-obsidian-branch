@@ -334,100 +334,21 @@ document.addEventListener('DOMContentLoaded', () => {
         attributeFilter: ['class']
     });
  
-    // Enhanced click handler for links, images, and wiki links
+    // Global Alt+click handler for links/images (as fallback)
     document.addEventListener('click', (e) => {
-        // Handle wiki links (highest priority)
-        const wikiLink = e.target.closest('.wiki-link');
-        if (wikiLink) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const documentName = wikiLink.getAttribute('data-document');
-            if (documentName) {
-                console.log('Opening wiki link:', documentName);
-                vscode.postMessage({
-                    type: 'openWikiLink',
-                    documentName: documentName
-                });
-            }
-            return false;
+        // Only handle Alt+click for opening links/images
+        if (!e.altKey) return;
+        
+        // Check if we're in a kanban element that has its own handler
+        if (e.target.closest('.column-title') || 
+            e.target.closest('.task-title-container') || 
+            e.target.closest('.task-description-container')) {
+            return; // Let the specific handlers deal with it
         }
-
-        // Handle regular markdown links
-        const link = e.target.closest('a[data-original-href]');
-        if (link) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const href = link.getAttribute('data-original-href');
-            if (!href) return;
-            
-            console.log('Opening link:', href);
-            
-            if (href.startsWith('http://') || href.startsWith('https://')) {
-                vscode.postMessage({
-                    type: 'openExternalLink',
-                    href: href
-                });
-            } else {
-                vscode.postMessage({
-                    type: 'openFileLink',
-                    href: href
-                });
-            }
-            
-            return false;
-        }
-
-        // Handle images that are links
-        const img = e.target.closest('img');
-        if (img) {
-            const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
-            
-            // Only handle as link if it's not a data: URL
-            if (originalSrc && !originalSrc.startsWith('data:')) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                console.log('Opening image:', originalSrc);
-                vscode.postMessage({
-                    type: 'openFileLink',
-                    href: originalSrc
-                });
-                
-                return false;
-            }
-        }
-
-        // Handle any other clickable links (fallback)
-        const anyLink = e.target.closest('a[href]');
-        if (anyLink) {
-            const href = anyLink.getAttribute('href');
-            
-            if (!href || href.startsWith('javascript:') || href.startsWith('#')) {
-                return;
-            }
-            
-            e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('Opening fallback link:', href);
-            
-            if (href.startsWith('http://') || href.startsWith('https://')) {
-                vscode.postMessage({
-                    type: 'openExternalLink',
-                    href: href
-                });
-            } else {
-                vscode.postMessage({
-                    type: 'openFileLink',
-                    href: href
-                });
-            }
-            
-            return false;
-        }
-    }, false); // Changed to false for normal bubbling phase
+        
+        // For other areas, handle Alt+click to open
+        window.handleLinkOrImageOpen && window.handleLinkOrImageOpen(e, e.target);
+    }, false);
 
     // Close menus when clicking outside (but don't interfere with editing)
     document.addEventListener('click', (e) => {
@@ -449,30 +370,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
-
-    // Add event delegation for tag chip clicks
-    // document.addEventListener('click', (e) => {
-    //     const tagChip = e.target.closest('.donut-menu-tag-chip');
-    //     if (tagChip) {
-    //         e.stopPropagation();
-    //         e.preventDefault();
-            
-    //         const action = tagChip.getAttribute('data-tag-action');
-    //         const tagName = tagChip.getAttribute('data-tag-name');
-    //         const elementId = tagChip.getAttribute('data-element-id');
-    //         const columnId = tagChip.getAttribute('data-column-id');
-            
-    //         if (action === 'column') {
-    //             if (typeof toggleColumnTag === 'function') {
-    //                 toggleColumnTag(elementId, tagName, e);
-    //             }
-    //         } else if (action === 'task') {
-    //             if (typeof toggleTaskTag === 'function') {
-    //                 toggleTaskTag(elementId, columnId, tagName, e);
-    //             }
-    //         }
-    //     }
-    // });
 
     // Modal event listeners
     document.getElementById('input-modal').addEventListener('click', e => {

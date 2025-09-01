@@ -1226,9 +1226,8 @@ function toggleTaskCollapse(taskId) {
     }
 }
 
-// Global click handlers that check for Alt key
-function handleColumnTitleClick(event, columnId) {
-    const target = event.target;
+// Single function to handle opening links/images/wiki links
+function handleLinkOrImageOpen(event, target) {
     const link = target.closest('a');
     const img = target.closest('img');
     const wikiLink = target.closest('.wiki-link');
@@ -1239,13 +1238,12 @@ function handleColumnTitleClick(event, columnId) {
         event.stopPropagation();
         const documentName = wikiLink.getAttribute('data-document');
         if (documentName) {
-            console.log('Column title - Opening wiki link:', documentName);
             vscode.postMessage({
                 type: 'openWikiLink',
                 documentName: documentName
             });
         }
-        return;
+        return true;
     }
     
     // Handle regular links
@@ -1254,7 +1252,6 @@ function handleColumnTitleClick(event, columnId) {
         event.stopPropagation();
         const href = link.getAttribute('data-original-href') || link.getAttribute('href');
         if (href && href !== '#') {
-            console.log('Column title - Opening link:', href);
             if (href.startsWith('http://') || href.startsWith('https://')) {
                 vscode.postMessage({
                     type: 'openExternalLink',
@@ -1267,7 +1264,7 @@ function handleColumnTitleClick(event, columnId) {
                 });
             }
         }
-        return;
+        return true;
     }
     
     // Handle images
@@ -1276,157 +1273,53 @@ function handleColumnTitleClick(event, columnId) {
         event.stopPropagation();
         const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
         if (originalSrc && !originalSrc.startsWith('data:')) {
-            console.log('Column title - Opening image:', originalSrc);
             vscode.postMessage({
                 type: 'openFileLink',
                 href: originalSrc
             });
         }
-        return;
+        return true;
     }
     
-    // If Alt key is pressed, don't edit
+    return false;
+}
+
+// Global click handlers that check for Alt key
+function handleColumnTitleClick(event, columnId) {
     if (event.altKey) {
-        return;
+        // Alt+click: open link/image
+        if (handleLinkOrImageOpen(event, event.target)) return;
+        return; // Don't edit if Alt is pressed
     }
     
-    // Otherwise, start editing
+    // Default: always edit
+    event.preventDefault();
     event.stopPropagation();
     editColumnTitle(columnId);
 }
 
 function handleTaskTitleClick(event, element, taskId, columnId) {
-    const target = event.target;
-    const link = target.closest('a');
-    const img = target.closest('img');
-    const wikiLink = target.closest('.wiki-link');
-    
-    // Handle wiki links
-    if (wikiLink) {
-        event.preventDefault();
-        event.stopPropagation();
-        const documentName = wikiLink.getAttribute('data-document');
-        if (documentName) {
-            console.log('Task title - Opening wiki link:', documentName);
-            vscode.postMessage({
-                type: 'openWikiLink',
-                documentName: documentName
-            });
-        }
-        return;
-    }
-    
-    // Handle regular links
-    if (link) {
-        event.preventDefault();
-        event.stopPropagation();
-        const href = link.getAttribute('data-original-href') || link.getAttribute('href');
-        if (href && href !== '#') {
-            console.log('Task title - Opening link:', href);
-            if (href.startsWith('http://') || href.startsWith('https://')) {
-                vscode.postMessage({
-                    type: 'openExternalLink',
-                    href: href
-                });
-            } else {
-                vscode.postMessage({
-                    type: 'openFileLink',
-                    href: href
-                });
-            }
-        }
-        return;
-    }
-    
-    // Handle images
-    if (img) {
-        event.preventDefault();
-        event.stopPropagation();
-        const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
-        if (originalSrc && !originalSrc.startsWith('data:')) {
-            console.log('Task title - Opening image:', originalSrc);
-            vscode.postMessage({
-                type: 'openFileLink',
-                href: originalSrc
-            });
-        }
-        return;
-    }
-    
-    // If Alt key is pressed, don't edit
     if (event.altKey) {
-        return;
+        // Alt+click: open link/image
+        if (handleLinkOrImageOpen(event, event.target)) return;
+        return; // Don't edit if Alt is pressed
     }
     
-    // Otherwise, start editing
+    // Default: always edit
+    event.preventDefault();
     event.stopPropagation();
     editTitle(element, taskId, columnId);
 }
 
 function handleDescriptionClick(event, element, taskId, columnId) {
-    const target = event.target;
-    const link = target.closest('a');
-    const img = target.closest('img');
-    const wikiLink = target.closest('.wiki-link');
-    
-    // Handle wiki links
-    if (wikiLink) {
-        event.preventDefault();
-        event.stopPropagation();
-        const documentName = wikiLink.getAttribute('data-document');
-        if (documentName) {
-            console.log('Description - Opening wiki link:', documentName);
-            vscode.postMessage({
-                type: 'openWikiLink',
-                documentName: documentName
-            });
-        }
-        return;
-    }
-    
-    // Handle regular links
-    if (link) {
-        event.preventDefault();
-        event.stopPropagation();
-        const href = link.getAttribute('data-original-href') || link.getAttribute('href');
-        if (href && href !== '#') {
-            console.log('Description - Opening link:', href);
-            if (href.startsWith('http://') || href.startsWith('https://')) {
-                vscode.postMessage({
-                    type: 'openExternalLink',
-                    href: href
-                });
-            } else {
-                vscode.postMessage({
-                    type: 'openFileLink',
-                    href: href
-                });
-            }
-        }
-        return;
-    }
-    
-    // Handle images
-    if (img) {
-        event.preventDefault();
-        event.stopPropagation();
-        const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
-        if (originalSrc && !originalSrc.startsWith('data:')) {
-            console.log('Description - Opening image:', originalSrc);
-            vscode.postMessage({
-                type: 'openFileLink',
-                href: originalSrc
-            });
-        }
-        return;
-    }
-    
-    // If Alt key is pressed, don't edit
     if (event.altKey) {
-        return;
+        // Alt+click: open link/image
+        if (handleLinkOrImageOpen(event, event.target)) return;
+        return; // Don't edit if Alt is pressed
     }
     
-    // Otherwise, start editing
+    // Default: always edit
+    event.preventDefault();
     event.stopPropagation();
     if (taskId && columnId) {
         editDescription(element, taskId, columnId);
@@ -1949,3 +1842,4 @@ window.getAllTagsInUse = getAllTagsInUse;
 window.getUserAddedTags = getUserAddedTags;
 
 window.handleColumnBarsOnToggle = handleColumnBarsOnToggle;
+window.handleLinkOrImageOpen = handleLinkOrImageOpen;

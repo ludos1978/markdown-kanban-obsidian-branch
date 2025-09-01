@@ -3,6 +3,7 @@ import { UndoRedoManager } from './undoRedoManager';
 import { BoardOperations } from './boardOperations';
 import { LinkHandler } from './linkHandler';
 import { KanbanBoard } from './markdownParser';
+import * as vscode from 'vscode';
 
 export class MessageHandler {
     private _fileManager: FileManager;
@@ -92,7 +93,16 @@ export class MessageHandler {
             case 'showMessage':
                 // vscode.window.showInformationMessage(message.text);
                 break;
-
+            case 'resolveAndCopyPath':
+                const resolution = await this._fileManager.resolveFilePath(message.path);
+                if (resolution && resolution.exists) {
+                    await vscode.env.clipboard.writeText(resolution.resolvedPath);
+                    vscode.window.showInformationMessage('Full path copied: ' + resolution.resolvedPath);
+                } else {
+                    vscode.window.showWarningMessage('Could not resolve path: ' + message.path);
+                }
+                break;
+        
             // Task operations
             case 'editTask':
                 await this.performBoardAction(() => 

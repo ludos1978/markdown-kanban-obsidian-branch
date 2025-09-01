@@ -2092,3 +2092,25 @@ h6 .kanban-tag {
     height: 1px;
     background: var(--vscode-panel-border);
 }
+
+.context-menu {
+    position: fixed;
+    background: var(--vscode-menu-background);
+    border: 1px solid var(--vscode-menu-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 10000;
+    min-width: 150px;
+    padding: 4px 0;
+}
+
+.context-menu-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--vscode-menu-foreground);
+}
+
+.context-menu-item:hover {
+    background: var(--vscode-menu-selectionBackground);
+}

@@ -1,32 +1,41 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4F46E5"/>
-      <stop offset="100%" style="stop-color:#7C3AED"/>
-    </linearGradient>
-  </defs>
-
-  <!-- 背景 -->
-  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
-
-
-  <!-- 看板卡片 -->
-  <g transform="translate(6, 8)">
-    <!-- 列1 -->
-    <rect x="0" y="0" width="16" height="48" rx="2" fill="white" opacity="0.9"/>
-    <rect x="2" y="3" width="12" height="5" rx="0.5" fill="#EF4444" opacity="0.7"/>
-    <rect x="2" y="10" width="12" height="5" rx="0.5" fill="#F59E0B" opacity="0.7"/>
-
-    <!-- 列2 -->
-    <rect x="19" y="0" width="16" height="48" rx="2" fill="white" opacity="0.9"/>
-    <rect x="21" y="3" width="12" height="5" rx="0.5" fill="#3B82F6" opacity="0.7"/>
-    <rect x="21" y="10" width="12" height="5" rx="0.5" fill="#10B981" opacity="0.7"/>
-    <rect x="21" y="17" width="12" height="5" rx="0.5" fill="#8B5CF6" opacity="0.7"/>
-
-    <!-- 列3 -->
-    <rect x="38" y="0" width="16" height="48" rx="2" fill="white" opacity="0.9"/>
-    <rect x="40" y="3" width="12" height="5" rx="0.5" fill="#06B6D4" opacity="0.7"/>
+  <!-- Background -->
+  <rect width="64" height="64" rx="8" fill="#f0f4f8"/>
+  
+  <!-- Board Container -->
+  <rect x="6" y="6" width="52" height="52" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+  
+  <!-- Header Bar -->
+  <rect x="6" y="6" width="52" height="10" rx="4" fill="#6366f1"/>
+  
+  <!-- Column 1 -->
+  <g transform="translate(10, 20)">
+    <!-- Column header -->
+    <rect x="0" y="0" width="12" height="3" rx="1" fill="#94a3b8"/>
+    <!-- Cards -->
+    <rect x="0" y="5" width="12" height="8" rx="1" fill="#fbbf24"/>
+    <rect x="0" y="15" width="12" height="8" rx="1" fill="#fbbf24"/>
+    <rect x="0" y="25" width="12" height="8" rx="1" fill="#fbbf24" opacity="0.5"/>
   </g>
-
+  
+  <!-- Column 2 -->
+  <g transform="translate(26, 20)">
+    <!-- Column header -->
+    <rect x="0" y="0" width="12" height="3" rx="1" fill="#94a3b8"/>
+    <!-- Cards -->
+    <rect x="0" y="5" width="12" height="8" rx="1" fill="#60a5fa"/>
+    <rect x="0" y="15" width="12" height="8" rx="1" fill="#60a5fa"/>
+  </g>
+  
+  <!-- Column 3 -->
+  <g transform="translate(42, 20)">
+    <!-- Column header -->
+    <rect x="0" y="0" width="12" height="3" rx="1" fill="#94a3b8"/>
+    <!-- Cards -->
+    <rect x="0" y="5" width="12" height="8" rx="1" fill="#34d399"/>
+  </g>
+  
+  <!-- Subtle grid lines -->
+  <line x1="23" y1="20" x2="23" y2="54" stroke="#e2e8f0" stroke-width="1" opacity="0.5"/>
+  <line x1="39" y1="20" x2="39" y2="54" stroke="#e2e8f0" stroke-width="1" opacity="0.5"/>
 </svg>
