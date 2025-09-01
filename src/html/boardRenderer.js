@@ -816,48 +816,27 @@ function createColumnElement(column, columnIndex) {
     const columnDiv = document.createElement('div');
     const isCollapsed = window.collapsedColumns.has(column.id);
     
-    // Get header and footer bars HTML
-    const headerBarsData = getAllHeaderBarsHtml(allTags, 'column', isCollapsed);
-    const footerBarsData = getAllFooterBarsHtml(allTags, 'column', isCollapsed);
+    // Get header and footer bars HTML - always use containers
+    const headerBarsHtml = getAllHeaderBarsHtml(allTags, 'column', true); // Always use container structure
+    const footerBarsHtml = getAllFooterBarsHtml(allTags, 'column', true); // Always use container structure
     
-    // Calculate padding for non-collapsed columns
-    let paddingTopStyle = '';
-    let paddingBottomStyle = '';
+    // Determine classes
     let headerClasses = '';
     let footerClasses = '';
     
-    if (!isCollapsed) {
-        if (headerBarsData && headerBarsData.totalHeight) {
-            paddingTopStyle = `padding-top: calc(var(--whitespace-div2) + ${headerBarsData.totalHeight}px);`;
-            headerClasses = 'has-header-bar';
-            if (headerBarsData.hasLabel) headerClasses += ' has-header-label';
-        }
-        if (footerBarsData && footerBarsData.totalHeight) {
-            paddingBottomStyle = `padding-bottom: calc(var(--whitespace-div2) + ${footerBarsData.totalHeight}px);`;
-            footerClasses = 'has-footer-bar';
-            if (footerBarsData.hasLabel) footerClasses += ' has-footer-label';
-        }
-    } else {
-        // For collapsed columns, add classes without inline padding
-        if (headerBarsData) {
-            headerClasses = 'has-header-bar';
-            if (typeof headerBarsData === 'string' && headerBarsData.includes('label')) {
-                headerClasses += ' has-header-label';
-            }
-        }
-        if (footerBarsData) {
-            footerClasses = 'has-footer-bar';
-            if (typeof footerBarsData === 'string' && footerBarsData.includes('label')) {
-                footerClasses += ' has-footer-label';
-            }
-        }
+    if (headerBarsHtml) {
+        headerClasses = 'has-header-bar';
+        if (headerBarsHtml.includes('label')) headerClasses += ' has-header-label';
+    }
+    if (footerBarsHtml) {
+        footerClasses = 'has-footer-bar';
+        if (footerBarsHtml.includes('label')) footerClasses += ' has-footer-label';
     }
     
     columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''} ${headerClasses} ${footerClasses}`.trim();
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
     columnDiv.setAttribute('data-row', getColumnRow(column.title));
-    columnDiv.style.cssText = `${paddingTopStyle} ${paddingBottomStyle}`.trim();
     
     // Add primary tag for background color only
     if (columnTag && !columnTag.startsWith('row')) {
@@ -882,73 +861,61 @@ function createColumnElement(column, columnIndex) {
     const columnRow = getColumnRow(column.title);
     const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
-    // Build HTML with bars included
-    let headerBarsHtml = '';
-    let footerBarsHtml = '';
-    
-    if (isCollapsed) {
-        // For collapsed, bars are wrapped in containers
-        headerBarsHtml = headerBarsData || '';
-        footerBarsHtml = footerBarsData || '';
-    } else {
-        // For non-collapsed, extract HTML from data object
-        headerBarsHtml = headerBarsData.html || '';
-        footerBarsHtml = footerBarsData.html || '';
-    }
-
     columnDiv.innerHTML = `
-        ${headerBarsHtml}
+        ${headerBarsHtml || ''}
         ${cornerBadgesHtml}
-        <div class="column-header">
-            <div class="column-title-section">
-                <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
-                <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
-                <div style="display: inline-block;">
-                    <div class="column-title" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
-                    <textarea class="column-title-edit" 
-                                data-column-id="${column.id}"
-                                style="display: none;">${escapeHtml(displayTitle)}</textarea>
+        <div class="column-content">
+            <div class="column-header">
+                <div class="column-title-section">
+                    <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
+                    <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
+                    <div style="display: inline-block;">
+                        <div class="column-title" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
+                        <textarea class="column-title-edit" 
+                                    data-column-id="${column.id}"
+                                    style="display: none;">${escapeHtml(displayTitle)}</textarea>
+                    </div>
                 </div>
-            </div>
-            <div class="column-controls">
-                <span class="task-count">${column.tasks.length}</span>
-                <button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
-                    <span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
-                </button>
-                <button class="collapsed-add-task-btn" onclick="addTaskAndUnfold('${column.id}')" title="Add task and unfold column">+</button>
-                <div class="donut-menu">
-                    <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
-                    <div class="donut-menu-dropdown">
-                        <button class="donut-menu-item" onclick="insertColumnBefore('${column.id}')">Insert list before</button>
-                        <button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
-                        <div class="donut-menu-divider"></div>
-                        <button class="donut-menu-item" onclick="copyColumnAsMarkdown('${column.id}')">Copy as markdown</button>
-                        <div class="donut-menu-divider"></div>
-                        <button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
-                        <button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
-                        <div class="donut-menu-divider"></div>
-                        <div class="donut-menu-item has-submenu">
-                            Sort by
-                            <div class="donut-menu-submenu">
-                                <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'unsorted')">Unsorted</button>
-                                <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'title')">Sort by title</button>
+                <div class="column-controls">
+                    <span class="task-count">${column.tasks.length}</span>
+                    <button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
+                        <span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
+                    </button>
+                    <button class="collapsed-add-task-btn" onclick="addTaskAndUnfold('${column.id}')" title="Add task and unfold column">+</button>
+                    <div class="donut-menu">
+                        <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
+                        <div class="donut-menu-dropdown">
+                            <button class="donut-menu-item" onclick="insertColumnBefore('${column.id}')">Insert list before</button>
+                            <button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
+                            <div class="donut-menu-divider"></div>
+                            <button class="donut-menu-item" onclick="copyColumnAsMarkdown('${column.id}')">Copy as markdown</button>
+                            <div class="donut-menu-divider"></div>
+                            <button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
+                            <button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
+                            <div class="donut-menu-divider"></div>
+                            <div class="donut-menu-item has-submenu">
+                                Sort by
+                                <div class="donut-menu-submenu">
+                                    <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'unsorted')">Unsorted</button>
+                                    <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'title')">Sort by title</button>
+                                </div>
                             </div>
+                            <div class="donut-menu-divider"></div>
+                            ${generateTagMenuItems(column.id, 'column')}
+                            <div class="donut-menu-divider"></div>
+                            <button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
                         </div>
-                        <div class="donut-menu-divider"></div>
-                        ${generateTagMenuItems(column.id, 'column')}
-                        <div class="donut-menu-divider"></div>
-                        <button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
                     </div>
                 </div>
             </div>
+            <div class="tasks-container" id="tasks-${column.id}">
+                ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
+                <button class="add-task-btn" onclick="addTask('${column.id}')">
+                    + Add Task
+                </button>
+            </div>
         </div>
-        <div class="tasks-container" id="tasks-${column.id}">
-            ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
-            <button class="add-task-btn" onclick="addTask('${column.id}')">
-                + Add Task
-            </button>
-        </div>
-        ${footerBarsHtml}
+        ${footerBarsHtml || ''}
     `;
 
     return columnDiv;
@@ -1109,15 +1076,11 @@ function toggleColumnCollapse(columnId) {
     if (!window.collapsedColumns) window.collapsedColumns = new Set();
     
     // Store state
-    const isNowCollapsed = column.classList.contains('collapsed');
-    if (isNowCollapsed) {
+    if (column.classList.contains('collapsed')) {
         window.collapsedColumns.add(columnId);
     } else {
         window.collapsedColumns.delete(columnId);
     }
-    
-    // Handle header/footer bars restructuring
-    handleColumnBarsOnToggle(column, isNowCollapsed);
     
     // Save state immediately
     if (window.saveCurrentFoldingState) {
@@ -1898,41 +1861,19 @@ function getAllHeaderBarsHtml(tags, elementType, isCollapsed) {
     if (!window.tagColors || tags.length === 0) return '';
     
     const headerBars = [];
-    let totalHeight = 0;
-    let hasLabel = false;
     
     tags.forEach(tag => {
         const config = getTagConfig(tag);
         
         if (config && config.headerBar) {
-            const height = config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px');
-            const headerColor = config.headerBar.color || (config[isDarkTheme() ? 'dark' : 'light'] || config.light || {}).background;
-            
-            let style = '';
-            if (!isCollapsed) {
-                // For non-collapsed, position absolutely
-                style = `top: ${totalHeight}px;`;
-            }
-            
-            headerBars.push(`<div class="header-bar header-bar-${tag}" style="${style}"></div>`);
-            totalHeight += height;
-            if (config.headerBar.label) hasLabel = true;
+            headerBars.push(`<div class="header-bar header-bar-${tag}"></div>`);
         }
     });
     
     if (headerBars.length === 0) return '';
     
-    // For collapsed elements, wrap in container
-    if (isCollapsed) {
-        return `<div class="header-bars-container">${headerBars.join('')}</div>`;
-    }
-    
-    // For non-collapsed, return bars with calculated padding data
-    return {
-        html: headerBars.join(''),
-        totalHeight: totalHeight,
-        hasLabel: hasLabel
-    };
+    // Always return container structure
+    return `<div class="header-bars-container">${headerBars.join('')}</div>`;
 }
 
 // Helper function to get all footer bars HTML for multiple tags
@@ -1940,41 +1881,19 @@ function getAllFooterBarsHtml(tags, elementType, isCollapsed) {
     if (!window.tagColors || tags.length === 0) return '';
     
     const footerBars = [];
-    let totalHeight = 0;
-    let hasLabel = false;
     
     tags.forEach(tag => {
         const config = getTagConfig(tag);
         
         if (config && config.footerBar) {
-            const height = config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px');
-            const footerColor = config.footerBar.color || (config[isDarkTheme() ? 'dark' : 'light'] || config.light || {}).background;
-            
-            let style = '';
-            if (!isCollapsed) {
-                // For non-collapsed, position absolutely
-                style = `bottom: ${totalHeight}px;`;
-            }
-            
-            footerBars.push(`<div class="footer-bar footer-bar-${tag}" style="${style}"></div>`);
-            totalHeight += height;
-            if (config.footerBar.label) hasLabel = true;
+            footerBars.push(`<div class="footer-bar footer-bar-${tag}"></div>`);
         }
     });
     
     if (footerBars.length === 0) return '';
     
-    // For collapsed elements, wrap in container
-    if (isCollapsed) {
-        return `<div class="footer-bars-container">${footerBars.join('')}</div>`;
-    }
-    
-    // For non-collapsed, return bars with calculated padding data
-    return {
-        html: footerBars.join(''),
-        totalHeight: totalHeight,
-        hasLabel: hasLabel
-    };
+    // Always return container structure
+    return `<div class="footer-bars-container">${footerBars.join('')}</div>`;
 }
 
 // Helper function to check if dark theme
