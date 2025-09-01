@@ -125,6 +125,7 @@ body {
   flex-direction: column;
   padding: var(--whitespace-div2);
   min-height: 0;
+  overflow-y: var(--row-overflow);
 }
 
 .kanban-column.collapsed .column-content {
@@ -152,10 +153,12 @@ body {
 
 .kanban-column.collapsed {
   width: var(--collapsed-column-width) !important;
+  /* width: var(--collapsed-column-width) !important;
   min-width: var(--collapsed-column-width) !important;
-  max-width: var(--collapsed-column-width) !important;
+  max-width: var(--collapsed-column-width) !important; */
   overflow: visible;
   min-height: 200px;
+  width: min-content;
 }
 
 /* Column header */
@@ -257,15 +260,15 @@ body {
   gap: 12px;
   margin-top: auto;
   flex-shrink: 0;
-  padding: var(--whitespace-div2) var(--whitespace-div3-mul2);
+  /* padding: var(--whitespace-div2) var(--whitespace-div3-mul2); */
   box-sizing: border-box;
 }
 
 /* Tasks container must allow the children to be overflow visible! */
 .tasks-container {
-  max-height: var(--max-row-height, calc(100vh - 200px));
+  max-height: var(--max-row-height);
   /* max-height: calc(100vh - 200px); */
-  overflow-y: var(--row-overflow);
+  overflow-y: visible; /* var(--row-overflow) */
   overflow-x: visible;
   /* overflow: visible; */
   /* padding-bottom: 4px; */

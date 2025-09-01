@@ -160,20 +160,20 @@ export class KanbanWebviewPanel {
                 console.log('Current kanban document was closed:', document.fileName);
                 
                 // Clear the document reference
-                this._fileManager.setDocument(undefined as any);
+                // this._fileManager.setDocument(undefined as any);
                 
                 // Update the file info to show no file loaded
                 this._fileManager.sendFileInfo();
                 
                 // Optionally show a message to the user
-                vscode.window.showInformationMessage(
-                    `Kanban document "${path.basename(document.fileName)}" was closed. Changes will not be saved until you open a new document.`,
-                    'Open File'
-                ).then(selection => {
-                    if (selection === 'Open File') {
-                        vscode.commands.executeCommand('markdown-kanban.switchFile');
-                    }
-                });
+                // vscode.window.showInformationMessage(
+                //     `Kanban document "${path.basename(document.fileName)}" was closed. Changes will not be saved until you open a new document.`,
+                //     'Open File'
+                // ).then(selection => {
+                //     if (selection === 'Open File') {
+                //         vscode.commands.executeCommand('markdown-kanban.switchFile');
+                //     }
+                // });
             }
         });
         
@@ -434,7 +434,7 @@ export class KanbanWebviewPanel {
     }
 
     private async saveToMarkdown() {
-        const document = this._fileManager.getDocument();
+        let document = this._fileManager.getDocument();
         if (!document || !this._board || !this._board.valid) {
             console.warn('Cannot save: no document or invalid board');
             return;
@@ -445,24 +445,26 @@ export class KanbanWebviewPanel {
         try {
             // Check if document is still valid/open
             const isDocumentOpen = vscode.workspace.textDocuments.some(doc => 
-                doc.uri.toString() === document.uri.toString()
+                doc.uri.toString() === document!.uri.toString()
             );
             
             if (!isDocumentOpen) {
-                console.warn('Document is no longer open, cannot save changes');
-                vscode.window.showWarningMessage(
-                    `Cannot save changes: "${path.basename(document.fileName)}" has been closed. Please reopen the file to continue editing.`,
-                    'Open File'
-                ).then(selection => {
-                    if (selection === 'Open File') {
-                        // Try to reopen the file
-                        vscode.workspace.openTextDocument(document.uri).then(reopenedDoc => {
-                            this.loadMarkdownFile(reopenedDoc);
-                            vscode.window.showTextDocument(reopenedDoc);
-                        })
-                    }
-                });
-                return;
+                console.log('Document is closed, reopening in background for save...');
+                
+                // Reopen the document in the background
+                try {
+                    const reopenedDoc = await vscode.workspace.openTextDocument(document.uri);
+                    // Update the file manager with the reopened document
+                    this._fileManager.setDocument(reopenedDoc);
+                    document = reopenedDoc;
+                    console.log('Document reopened successfully in background');
+                } catch (reopenError) {
+                    console.error('Failed to reopen document:', reopenError);
+                    vscode.window.showErrorMessage(
+                        `Cannot save changes: Failed to reopen "${path.basename(document.fileName)}". The file may have been deleted or moved.`
+                    );
+                    return;
+                }
             }
             
             const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
@@ -490,7 +492,7 @@ export class KanbanWebviewPanel {
                 
                 // Check if the document is still open
                 const stillOpen = vscode.workspace.textDocuments.some(doc => 
-                    doc.uri.toString() === document.uri.toString()
+                    doc.uri.toString() === document!.uri.toString()
                 );
                 
                 if (!stillOpen) {
