@@ -1098,7 +1098,6 @@ function updateImageSources() {
 // Make toggle functions globally accessible
 window.toggleAllColumns = toggleAllColumns;
 
-// Simplified toggle functions
 function toggleColumnCollapse(columnId) {
     const column = document.querySelector(`[data-column-id="${columnId}"]`);
     const toggle = column.querySelector('.collapse-toggle');
@@ -1110,11 +1109,15 @@ function toggleColumnCollapse(columnId) {
     if (!window.collapsedColumns) window.collapsedColumns = new Set();
     
     // Store state
-    if (column.classList.contains('collapsed')) {
+    const isNowCollapsed = column.classList.contains('collapsed');
+    if (isNowCollapsed) {
         window.collapsedColumns.add(columnId);
     } else {
         window.collapsedColumns.delete(columnId);
     }
+    
+    // Handle header/footer bars restructuring
+    handleColumnBarsOnToggle(column, isNowCollapsed);
     
     // Save state immediately
     if (window.saveCurrentFoldingState) {
@@ -1125,6 +1128,113 @@ function toggleColumnCollapse(columnId) {
     setTimeout(() => {
         updateGlobalColumnFoldButton();
     }, 10);
+}
+
+function handleColumnBarsOnToggle(columnElement, isNowCollapsed) {
+    // Get all tags from the column
+    const allTagsAttr = columnElement.getAttribute('data-all-tags');
+    if (!allTagsAttr) return;
+    
+    const allTags = allTagsAttr.split(' ');
+    
+    // Find existing bars
+    const existingHeaderBars = columnElement.querySelectorAll('.header-bar');
+    const existingFooterBars = columnElement.querySelectorAll('.footer-bar');
+    const existingHeaderContainer = columnElement.querySelector('.header-bars-container');
+    const existingFooterContainer = columnElement.querySelector('.footer-bars-container');
+    
+    if (isNowCollapsed) {
+        // Converting to collapsed state
+        // Remove inline padding styles
+        columnElement.style.paddingTop = '';
+        columnElement.style.paddingBottom = '';
+        
+        // Create containers if they don't exist and we have bars
+        if (existingHeaderBars.length > 0 && !existingHeaderContainer) {
+            const headerContainer = document.createElement('div');
+            headerContainer.className = 'header-bars-container';
+            
+            existingHeaderBars.forEach(bar => {
+                // Reset positioning
+                bar.style.position = '';
+                bar.style.top = '';
+                bar.style.left = '';
+                bar.style.right = '';
+                headerContainer.appendChild(bar);
+            });
+            
+            // Insert at the beginning of the column
+            columnElement.insertBefore(headerContainer, columnElement.firstChild);
+        }
+        
+        if (existingFooterBars.length > 0 && !existingFooterContainer) {
+            const footerContainer = document.createElement('div');
+            footerContainer.className = 'footer-bars-container';
+            
+            existingFooterBars.forEach(bar => {
+                // Reset positioning
+                bar.style.position = '';
+                bar.style.bottom = '';
+                bar.style.left = '';
+                bar.style.right = '';
+                footerContainer.appendChild(bar);
+            });
+            
+            // Append at the end of the column
+            columnElement.appendChild(footerContainer);
+        }
+    } else {
+        // Converting to expanded state
+        let headerTotalHeight = 0;
+        let footerTotalHeight = 0;
+        
+        // Remove containers and position bars absolutely
+        if (existingHeaderContainer) {
+            const bars = Array.from(existingHeaderContainer.querySelectorAll('.header-bar'));
+            bars.forEach((bar, index) => {
+                const barTag = bar.className.match(/header-bar-(\S+)/)?.[1];
+                const config = getTagConfig(barTag);
+                const height = config?.headerBar?.label ? 20 : parseInt(config?.headerBar?.height || '4px');
+                
+                // Set absolute positioning
+                bar.style.position = 'absolute';
+                bar.style.top = `${headerTotalHeight}px`;
+                bar.style.left = '0';
+                bar.style.right = '0';
+                
+                columnElement.appendChild(bar);
+                headerTotalHeight += height;
+            });
+            existingHeaderContainer.remove();
+        }
+        
+        if (existingFooterContainer) {
+            const bars = Array.from(existingFooterContainer.querySelectorAll('.footer-bar'));
+            bars.forEach((bar, index) => {
+                const barTag = bar.className.match(/footer-bar-(\S+)/)?.[1];
+                const config = getTagConfig(barTag);
+                const height = config?.footerBar?.label ? 20 : parseInt(config?.footerBar?.height || '3px');
+                
+                // Set absolute positioning
+                bar.style.position = 'absolute';
+                bar.style.bottom = `${footerTotalHeight}px`;
+                bar.style.left = '0';
+                bar.style.right = '0';
+                
+                columnElement.appendChild(bar);
+                footerTotalHeight += height;
+            });
+            existingFooterContainer.remove();
+        }
+        
+        // Apply padding for expanded state
+        if (headerTotalHeight > 0) {
+            columnElement.style.paddingTop = `calc(var(--whitespace-div2) + ${headerTotalHeight}px)`;
+        }
+        if (footerTotalHeight > 0) {
+            columnElement.style.paddingBottom = `calc(var(--whitespace-div2) + ${footerTotalHeight}px)`;
+        }
+    }
 }
 
 function toggleTaskCollapse(taskId) {
@@ -1893,3 +2003,5 @@ window.isDarkTheme = isDarkTheme;
 
 window.getAllTagsInUse = getAllTagsInUse;
 window.getUserAddedTags = getUserAddedTags;
+
+window.handleColumnBarsOnToggle = handleColumnBarsOnToggle;
