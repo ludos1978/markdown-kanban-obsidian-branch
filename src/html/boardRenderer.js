@@ -382,7 +382,10 @@ function generateTagMenuItems(id, type, columnId = null) {
     return menuHtml;
 }
 
-// Helper function to generate tag items for a group (horizontal layout)
+
+
+
+
 // Helper function to generate tag items for a group (horizontal layout)
 function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = true) {
     // Get current title to check which tags are active
@@ -403,9 +406,9 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
     const tagButtons = tags.map(tagName => {
         const isActive = activeTags.includes(tagName.toLowerCase());
         const checkbox = isActive ? '✓' : '';
-        const onclick = type === 'column' 
-            ? `toggleColumnTag('${id}', '${tagName}')`
-            : `toggleTaskTag('${id}', '${columnId}', '${tagName}')`;
+        
+        // Create unique ID for this button
+        const buttonId = `tag-chip-${type}-${id}-${tagName}`.replace(/[^a-zA-Z0-9-]/g, '-');
         
         // Get tag config for color (only for configured tags)
         let bgColor = '#666';
@@ -437,9 +440,23 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         const displayName = isConfigured ? tagName : tagName;
         const title = isConfigured ? tagName : `Custom tag: ${tagName}`;
         
+        // Store the handler in a global object
+        if (!window.tagHandlers) window.tagHandlers = {};
+        window.tagHandlers[buttonId] = function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            if (type === 'column') {
+                handleColumnTagClick(id, tagName, event);
+            } else {
+                handleTaskTagClick(id, columnId, tagName, event);
+            }
+            return false;
+        };
+        
         return `
-            <button class="donut-menu-tag-chip ${isActive ? 'active' : ''} ${isConfigured ? '' : 'custom-tag'}" 
-                    onclick="${onclick}"
+            <button id="${buttonId}"
+                    class="donut-menu-tag-chip ${isActive ? 'active' : ''} ${isConfigured ? '' : 'custom-tag'}" 
+                    onclick="window.tagHandlers['${buttonId}'](event); return false;"
                     style="background-color: ${isActive ? bgColor : 'transparent'}; 
                            color: ${isActive ? textColor : 'inherit'};
                            border-color: ${bgColor};"
@@ -452,6 +469,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
     
     return tagButtons;
 }
+
 
 // Helper function for flat structure (backward compatibility)
 function generateFlatTagItems(tags, id, type, columnId = null) {

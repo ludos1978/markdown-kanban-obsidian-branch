@@ -1,34 +1,69 @@
-// Donut menu functions
+// Track menu hover state to prevent premature closing
+let menuHoverTimeout = null;
+
+// donut menu toggle that respects tag interactions
 function toggleDonutMenu(event, button) {
     event.stopPropagation();
     const menu = button.parentElement;
     const wasActive = menu.classList.contains('active');
     
-    // Close all other menus
+    // If closing a menu with pending tag changes, flush them
+    if (wasActive && pendingTagChanges.columns.size + pendingTagChanges.tasks.size > 0) {
+        flushPendingTagChanges();
+    }
+    
+    // Clear any pending close timeout
+    if (menuHoverTimeout) {
+        clearTimeout(menuHoverTimeout);
+        menuHoverTimeout = null;
+    }
+    
+    // Close all other menus (and flush their changes if any)
     document.querySelectorAll('.donut-menu').forEach(m => {
-        m.classList.remove('active');
+        if (m !== menu && m.classList.contains('active')) {
+            if (activeTagMenu === m && pendingTagChanges.columns.size + pendingTagChanges.tasks.size > 0) {
+                flushPendingTagChanges();
+            }
+            m.classList.remove('active');
+        }
     });
     
     // Toggle this menu
     if (!wasActive) {
         menu.classList.add('active');
-    }
-}
-
-// Column operations
-function insertColumnBefore(columnId) {
-    showInputModal(
-        'Insert Column Before',
-        'Enter column title:',
-        'Column title...',
-        title => {
-            vscode.postMessage({
-                type: 'insertColumnBefore',
-                columnId: columnId,
-                title: title
-            });
+        activeTagMenu = menu;
+        
+        // Add hover listeners to keep menu open
+        const dropdown = menu.querySelector('.donut-menu-dropdown');
+        if (dropdown) {
+            dropdown.onmouseenter = () => {
+                if (menuHoverTimeout) {
+                    clearTimeout(menuHoverTimeout);
+                    menuHoverTimeout = null;
+                }
+            };
+            
+            dropdown.onmouseleave = (e) => {
+                // Don't close if moving to a submenu
+                const toElement = e.relatedTarget;
+                if (toElement && toElement.closest('.donut-menu-dropdown') === dropdown) {
+                    return;
+                }
+                
+                // Delay closing to allow for submenu navigation
+                menuHoverTimeout = setTimeout(() => {
+                    if (pendingTagChanges.columns.size + pendingTagChanges.tasks.size > 0) {
+                        flushPendingTagChanges();
+                    }
+                    menu.classList.remove('active');
+                    activeTagMenu = null;
+                }, 300);
+            };
         }
-    );
+    } else {
+        menu.classList.remove('active');
+        activeTagMenu = null;
+    }
 }
 
 function insertColumnAfter(columnId) {
@@ -270,7 +305,13 @@ function addColumn(rowNumber) {
 }
 
 // Tag toggle operations - uses configured tags from VSCode settings
-function toggleColumnTag(columnId, tagName) {
+function toggleColumnTag(columnId, tagName, event) {
+    // Prevent event from bubbling up
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
     if (!currentBoard || !currentBoard.columns) return;
     
     const column = currentBoard.columns.find(c => c.id === columnId);
@@ -281,8 +322,9 @@ function toggleColumnTag(columnId, tagName) {
     
     // Check if this specific tag exists in the title (case-insensitive)
     const tagRegex = new RegExp(`#${tagName}\\b`, 'gi');
+    const wasActive = tagRegex.test(title);
     
-    if (tagRegex.test(title)) {
+    if (wasActive) {
         // Remove the tag
         title = title.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
     } else {
@@ -298,14 +340,31 @@ function toggleColumnTag(columnId, tagName) {
         }
     }
     
-    vscode.postMessage({
-        type: 'editColumnTitle',
-        columnId: columnId,
-        title: title
-    });
+    // Update local state immediately
+    column.title = title;
+    
+    // Update visual display without re-render
+    updateColumnDisplayImmediate(columnId, title, !wasActive, tagName);
+    
+    // Send update to backend with a delay to batch multiple toggles
+    clearTimeout(window.columnTagUpdateTimeout);
+    window.columnTagUpdateTimeout = setTimeout(() => {
+        vscode.postMessage({
+            type: 'editColumnTitle',
+            columnId: columnId,
+            title: title
+        });
+    }, 500); // Wait 500ms before sending update
 }
 
-function toggleTaskTag(taskId, columnId, tagName) {
+// Simplified toggleTaskTag that works immediately
+function toggleTaskTag(taskId, columnId, tagName, event) {
+    // Prevent event from bubbling up
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
     if (!currentBoard || !currentBoard.columns) return;
     
     const column = currentBoard.columns.find(c => c.id === columnId);
@@ -319,8 +378,9 @@ function toggleTaskTag(taskId, columnId, tagName) {
     
     // Check if this specific tag exists in the title (case-insensitive)
     const tagRegex = new RegExp(`#${tagName}\\b`, 'gi');
+    const wasActive = tagRegex.test(title);
     
-    if (tagRegex.test(title)) {
+    if (wasActive) {
         // Remove the tag
         title = title.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
     } else {
@@ -328,14 +388,228 @@ function toggleTaskTag(taskId, columnId, tagName) {
         title = `${title} ${tagWithHash}`.trim();
     }
     
+    // Update local state immediately
     task.title = title;
     
-    vscode.postMessage({
-        type: 'editTask',
-        taskId: taskId,
-        columnId: columnId,
-        taskData: task
+    // Update visual display without re-render
+    updateTaskDisplayImmediate(taskId, title, !wasActive, tagName);
+    
+    // Send update to backend with a delay to batch multiple toggles
+    clearTimeout(window.taskTagUpdateTimeout);
+    window.taskTagUpdateTimeout = setTimeout(() => {
+        vscode.postMessage({
+            type: 'editTask',
+            taskId: taskId,
+            columnId: columnId,
+            taskData: task
+        });
+    }, 500); // Wait 500ms before sending update
+}
+
+// Update column display immediately with visual feedback
+function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (!columnElement) return;
+    
+    // Update title display
+    const titleElement = columnElement.querySelector('.column-title');
+    if (titleElement) {
+        const displayTitle = newTitle.replace(/#row\d+/gi, '').trim();
+        const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
+        const columnRow = getColumnRow(newTitle);
+        const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
+        titleElement.innerHTML = renderedTitle + rowIndicator;
+    }
+    
+    // Update data attributes
+    const firstTag = extractFirstTag(newTitle);
+    if (firstTag) {
+        columnElement.setAttribute('data-column-tag', firstTag);
+    } else {
+        columnElement.removeAttribute('data-column-tag');
+    }
+    
+    const allTags = getActiveTagsInTitle(newTitle);
+    if (allTags.length > 0) {
+        columnElement.setAttribute('data-all-tags', allTags.join(' '));
+    } else {
+        columnElement.removeAttribute('data-all-tags');
+    }
+    
+    // Update the button visual state
+    const button = document.querySelector(`.donut-menu-tag-chip[data-element-id="${columnId}"][data-tag-name="${tagName}"]`);
+    if (button) {
+        button.classList.toggle('active', isActive);
+        const checkbox = button.querySelector('.tag-chip-check');
+        if (checkbox) {
+            checkbox.textContent = isActive ? '✓' : '';
+        }
+        updateTagChipStyle(button, tagName, isActive);
+    }
+}
+
+// Update task display immediately with visual feedback
+function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
+    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (!taskElement) return;
+    
+    // Update title display
+    const titleElement = taskElement.querySelector('.task-title-display');
+    if (titleElement) {
+        const renderedTitle = newTitle ? renderMarkdown(newTitle) : '<span class="task-title-placeholder">Add title...</span>';
+        titleElement.innerHTML = renderedTitle;
+    }
+    
+    // Update data attributes
+    const firstTag = extractFirstTag(newTitle);
+    if (firstTag) {
+        taskElement.setAttribute('data-task-tag', firstTag);
+    } else {
+        taskElement.removeAttribute('data-task-tag');
+    }
+    
+    const allTags = getActiveTagsInTitle(newTitle);
+    if (allTags.length > 0) {
+        taskElement.setAttribute('data-all-tags', allTags.join(' '));
+    } else {
+        taskElement.removeAttribute('data-all-tags');
+    }
+    
+    // Update the button visual state
+    const button = document.querySelector(`.donut-menu-tag-chip[data-element-id="${taskId}"][data-tag-name="${tagName}"]`);
+    if (button) {
+        button.classList.toggle('active', isActive);
+        const checkbox = button.querySelector('.tag-chip-check');
+        if (checkbox) {
+            checkbox.textContent = isActive ? '✓' : '';
+        }
+        updateTagChipStyle(button, tagName, isActive);
+    }
+}
+
+// Helper function to update tag chip styling
+function updateTagChipStyle(button, tagName, isActive) {
+    const config = getTagConfig(tagName);
+    const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                       document.body.classList.contains('vscode-high-contrast');
+    
+    let bgColor = '#666';
+    let textColor = '#fff';
+    
+    if (config) {
+        const themeKey = isDarkTheme ? 'dark' : 'light';
+        const themeColors = config[themeKey] || config.light || {};
+        bgColor = themeColors.background || '#666';
+        textColor = themeColors.text || '#fff';
+    } else {
+        // Default colors for user-added tags
+        if (isDarkTheme) {
+            bgColor = '#555';
+            textColor = '#ddd';
+        } else {
+            bgColor = '#999';
+            textColor = '#fff';
+        }
+    }
+    
+    if (isActive) {
+        button.style.backgroundColor = bgColor;
+        button.style.color = textColor;
+    } else {
+        button.style.backgroundColor = 'transparent';
+        button.style.color = 'inherit';
+    }
+}
+
+
+// Update column display without re-rendering
+function updateColumnDisplay(columnId, newTitle) {
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (!columnElement) return;
+    
+    const titleElement = columnElement.querySelector('.column-title');
+    if (titleElement) {
+        // Filter out row tags for display
+        const displayTitle = newTitle.replace(/#row\d+/gi, '').trim();
+        const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
+        
+        // Add row indicator if needed
+        const columnRow = getColumnRow(newTitle);
+        const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
+        
+        titleElement.innerHTML = renderedTitle + rowIndicator;
+    }
+    
+    // Update data attributes for styling
+    const firstTag = extractFirstTag(newTitle);
+    if (firstTag) {
+        columnElement.setAttribute('data-column-tag', firstTag);
+    } else {
+        columnElement.removeAttribute('data-column-tag');
+    }
+    
+    // Update all tags attribute
+    const allTags = getActiveTagsInTitle(newTitle);
+    if (allTags.length > 0) {
+        columnElement.setAttribute('data-all-tags', allTags.join(' '));
+    } else {
+        columnElement.removeAttribute('data-all-tags');
+    }
+}
+
+// Update task display without re-rendering
+function updateTaskDisplay(taskId, columnId, taskData) {
+    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (!taskElement) return;
+    
+    const titleElement = taskElement.querySelector('.task-title-display');
+    if (titleElement) {
+        const renderedTitle = taskData.title ? renderMarkdown(taskData.title) : '<span class="task-title-placeholder">Add title...</span>';
+        titleElement.innerHTML = renderedTitle;
+    }
+    
+    // Update data attributes for styling
+    const firstTag = extractFirstTag(taskData.title);
+    if (firstTag) {
+        taskElement.setAttribute('data-task-tag', firstTag);
+    } else {
+        taskElement.removeAttribute('data-task-tag');
+    }
+    
+    // Update all tags attribute
+    const allTags = getActiveTagsInTitle(taskData.title);
+    if (allTags.length > 0) {
+        taskElement.setAttribute('data-all-tags', allTags.join(' '));
+    } else {
+        taskElement.removeAttribute('data-all-tags');
+    }
+}
+
+// Send all pending tag changes to backend
+function flushPendingTagChanges() {
+    // Send column changes
+    pendingTagChanges.columns.forEach((title, columnId) => {
+        vscode.postMessage({
+            type: 'editColumnTitle',
+            columnId: columnId,
+            title: title
+        });
     });
+    
+    // Send task changes
+    pendingTagChanges.tasks.forEach(({ columnId, taskData }, taskId) => {
+        vscode.postMessage({
+            type: 'editTask',
+            taskId: taskId,
+            columnId: columnId,
+            taskData: taskData
+        });
+    });
+    
+    // Clear pending changes
+    pendingTagChanges.columns.clear();
+    pendingTagChanges.tasks.clear();
+    activeTagMenu = null;
 }
 
 // Modal functions
@@ -377,5 +651,237 @@ function autoResize(textarea) {
     textarea.style.height = textarea.scrollHeight + 'px';
 }
 
+
+// Direct handlers for tag clicks that don't trigger re-render
+function handleColumnTagClick(columnId, tagName, event) {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) return;
+    
+    const tagWithHash = `#${tagName}`;
+    let title = column.title || '';
+    
+    // Check if this specific tag exists in the title (case-insensitive)
+    const tagRegex = new RegExp(`#${tagName}\\b`, 'gi');
+    const wasActive = tagRegex.test(title);
+    
+    if (wasActive) {
+        // Remove the tag
+        title = title.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
+    } else {
+        // Add the tag (preserve row tags at the end)
+        const rowMatch = title.match(/(#row\d+)$/i);
+        if (rowMatch) {
+            const beforeRow = title.substring(0, title.length - rowMatch[0].length).trim();
+            title = `${beforeRow} ${tagWithHash} ${rowMatch[0]}`;
+        } else {
+            title = `${title} ${tagWithHash}`.trim();
+        }
+    }
+    
+    // Update local state
+    column.title = title;
+    
+    // Update button visual immediately
+    const button = event.currentTarget || event.target.closest('.donut-menu-tag-chip');
+    if (button) {
+        const isNowActive = !wasActive;
+        button.classList.toggle('active', isNowActive);
+        
+        const checkbox = button.querySelector('.tag-chip-check');
+        if (checkbox) {
+            checkbox.textContent = isNowActive ? '✓' : '';
+        }
+        
+        // Update colors
+        const config = getTagConfig(tagName);
+        const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                           document.body.classList.contains('vscode-high-contrast');
+        
+        let bgColor = '#666';
+        let textColor = '#fff';
+        
+        if (config) {
+            const themeKey = isDarkTheme ? 'dark' : 'light';
+            const themeColors = config[themeKey] || config.light || {};
+            bgColor = themeColors.background || '#666';
+            textColor = themeColors.text || '#fff';
+        } else {
+            if (isDarkTheme) {
+                bgColor = '#555';
+                textColor = '#ddd';
+            } else {
+                bgColor = '#999';
+                textColor = '#fff';
+            }
+        }
+        
+        if (isNowActive) {
+            button.style.backgroundColor = bgColor;
+            button.style.color = textColor;
+        } else {
+            button.style.backgroundColor = 'transparent';
+            button.style.color = 'inherit';
+        }
+    }
+    
+    // Update column display
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (columnElement) {
+        const titleElement = columnElement.querySelector('.column-title');
+        if (titleElement) {
+            const displayTitle = title.replace(/#row\d+/gi, '').trim();
+            const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
+            const columnRow = getColumnRow(title);
+            const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
+            titleElement.innerHTML = renderedTitle + rowIndicator;
+        }
+        
+        // Update data attributes
+        const firstTag = extractFirstTag(title);
+        if (firstTag) {
+            columnElement.setAttribute('data-column-tag', firstTag);
+        } else {
+            columnElement.removeAttribute('data-column-tag');
+        }
+        
+        const allTags = getActiveTagsInTitle(title);
+        if (allTags.length > 0) {
+            columnElement.setAttribute('data-all-tags', allTags.join(' '));
+        } else {
+            columnElement.removeAttribute('data-all-tags');
+        }
+    }
+    
+    // Delay sending to backend
+    clearTimeout(window.columnTagTimeout);
+    window.columnTagTimeout = setTimeout(() => {
+        vscode.postMessage({
+            type: 'editColumnTitle',
+            columnId: columnId,
+            title: title
+        });
+    }, 1000);
+}
+
+function handleTaskTagClick(taskId, columnId, tagName, event) {
+    if (!currentBoard || !currentBoard.columns) return;
+    
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) return;
+    
+    const task = column.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const tagWithHash = `#${tagName}`;
+    let title = task.title || '';
+    
+    // Check if this specific tag exists in the title (case-insensitive)
+    const tagRegex = new RegExp(`#${tagName}\\b`, 'gi');
+    const wasActive = tagRegex.test(title);
+    
+    if (wasActive) {
+        // Remove the tag
+        title = title.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
+    } else {
+        // Add the tag at the end
+        title = `${title} ${tagWithHash}`.trim();
+    }
+    
+    // Update local state
+    task.title = title;
+    
+    // Update button visual immediately
+    const button = event.currentTarget || event.target.closest('.donut-menu-tag-chip');
+    if (button) {
+        const isNowActive = !wasActive;
+        button.classList.toggle('active', isNowActive);
+        
+        const checkbox = button.querySelector('.tag-chip-check');
+        if (checkbox) {
+            checkbox.textContent = isNowActive ? '✓' : '';
+        }
+        
+        // Update colors
+        const config = getTagConfig(tagName);
+        const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                           document.body.classList.contains('vscode-high-contrast');
+        
+        let bgColor = '#666';
+        let textColor = '#fff';
+        
+        if (config) {
+            const themeKey = isDarkTheme ? 'dark' : 'light';
+            const themeColors = config[themeKey] || config.light || {};
+            bgColor = themeColors.background || '#666';
+            textColor = themeColors.text || '#fff';
+        } else {
+            if (isDarkTheme) {
+                bgColor = '#555';
+                textColor = '#ddd';
+            } else {
+                bgColor = '#999';
+                textColor = '#fff';
+            }
+        }
+        
+        if (isNowActive) {
+            button.style.backgroundColor = bgColor;
+            button.style.color = textColor;
+        } else {
+            button.style.backgroundColor = 'transparent';
+            button.style.color = 'inherit';
+        }
+    }
+    
+    // Update task display
+    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (taskElement) {
+        const titleElement = taskElement.querySelector('.task-title-display');
+        if (titleElement) {
+            const renderedTitle = title ? renderMarkdown(title) : '<span class="task-title-placeholder">Add title...</span>';
+            titleElement.innerHTML = renderedTitle;
+        }
+        
+        // Update data attributes
+        const firstTag = extractFirstTag(title);
+        if (firstTag) {
+            taskElement.setAttribute('data-task-tag', firstTag);
+        } else {
+            taskElement.removeAttribute('data-task-tag');
+        }
+        
+        const allTags = getActiveTagsInTitle(title);
+        if (allTags.length > 0) {
+            taskElement.setAttribute('data-all-tags', allTags.join(' '));
+        } else {
+            taskElement.removeAttribute('data-all-tags');
+        }
+    }
+    
+    // Delay sending to backend
+    clearTimeout(window.taskTagTimeout);
+    window.taskTagTimeout = setTimeout(() => {
+        vscode.postMessage({
+            type: 'editTask',
+            taskId: taskId,
+            columnId: columnId,
+            taskData: task
+        });
+    }, 1000);
+}
+
+// Make handlers globally available
+window.handleColumnTagClick = handleColumnTagClick;
+window.handleTaskTagClick = handleTaskTagClick;
+window.columnTagTimeout = null;
+window.taskTagTimeout = null;
+window.tagHandlers = window.tagHandlers || {};
+
+
 window.toggleColumnTag = toggleColumnTag;
 window.toggleTaskTag = toggleTaskTag;
+window.updateTagChipStyle = updateTagChipStyle;
+window.columnTagUpdateTimeout = null;
+window.taskTagUpdateTimeout = null;

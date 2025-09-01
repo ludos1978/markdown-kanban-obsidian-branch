@@ -431,20 +431,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Close menus when clicking outside (but don't interfere with editing)
     document.addEventListener('click', (e) => {
-        // Close file bar menu if clicking outside
-        if (!e.target.closest('.file-bar-menu')) {
+        // Check if clicking outside menus
+        if (!e.target.closest('.donut-menu') && !e.target.closest('.file-bar-menu')) {
+            // Flush any pending tag changes before closing menus
+            if (typeof flushPendingTagChanges === 'function' && 
+                window.pendingTagChanges && 
+                (window.pendingTagChanges.columns.size + window.pendingTagChanges.tasks.size > 0)) {
+                flushPendingTagChanges();
+            }
+            
+            // Close all menus
+            document.querySelectorAll('.donut-menu').forEach(menu => {
+                menu.classList.remove('active');
+            });
             document.querySelectorAll('.file-bar-menu').forEach(menu => {
                 menu.classList.remove('active');
             });
         }
-
-        // Only close menus if we're not in editing mode and not clicking on a menu
-        if (!isCurrentlyEditing() && !e.target.closest('.donut-menu')) {
-            document.querySelectorAll('.donut-menu').forEach(menu => {
-                menu.classList.remove('active');
-            });
-        }
     });
+
+    // Add event delegation for tag chip clicks
+    // document.addEventListener('click', (e) => {
+    //     const tagChip = e.target.closest('.donut-menu-tag-chip');
+    //     if (tagChip) {
+    //         e.stopPropagation();
+    //         e.preventDefault();
+            
+    //         const action = tagChip.getAttribute('data-tag-action');
+    //         const tagName = tagChip.getAttribute('data-tag-name');
+    //         const elementId = tagChip.getAttribute('data-element-id');
+    //         const columnId = tagChip.getAttribute('data-column-id');
+            
+    //         if (action === 'column') {
+    //             if (typeof toggleColumnTag === 'function') {
+    //                 toggleColumnTag(elementId, tagName, e);
+    //             }
+    //         } else if (action === 'task') {
+    //             if (typeof toggleTaskTag === 'function') {
+    //                 toggleTaskTag(elementId, columnId, tagName, e);
+    //             }
+    //         }
+    //     }
+    // });
 
     // Modal event listeners
     document.getElementById('input-modal').addEventListener('click', e => {
