@@ -52,7 +52,7 @@ Drag & Dropping Files from outside the editor doesnt create a correct path. Caus
 
 ### Screenshot
 
-![](./imgs/screenshot-20250826.png)
+![](./imgs/screenshot-20250901.png)
 
 ---
 
