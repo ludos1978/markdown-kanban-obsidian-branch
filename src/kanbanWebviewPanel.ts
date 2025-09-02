@@ -116,8 +116,14 @@ export class KanbanWebviewPanel {
         this._fileManager = new FileManager(this._panel.webview, extensionUri);
         this._undoRedoManager = new UndoRedoManager(this._panel.webview);
         this._boardOperations = new BoardOperations();
-        this._linkHandler = new LinkHandler(this._fileManager, this._panel.webview); // MODIFY THIS LINE
         
+        // REPLACE this line:
+        this._linkHandler = new LinkHandler(
+            this._fileManager, 
+            this._panel.webview,
+            this.handleLinkReplacement.bind(this) // ADD callback
+        );
+
         // Initialize message handler with callbacks
         this._messageHandler = new MessageHandler(
             this._fileManager,
@@ -149,6 +155,68 @@ export class KanbanWebviewPanel {
         }
     }
 
+    private async handleLinkReplacement(originalPath: string, newPath: string, isImage: boolean) {
+        if (!this._board || !this._board.valid) return;
+
+        this._undoRedoManager.saveStateForUndo(this._board);
+        
+        let modified = false;
+
+        // Helper function to replace link in text
+        const replaceLink = (text: string): string => {
+            if (!text) return text;
+            
+            // Escape special regex characters in the original path
+            const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            
+            if (isImage) {
+                // Image link pattern: ![alt](path)
+                const imageRegex = new RegExp(`(!\\[[^\\]]*\\]\\()${escapedPath}(\\))`, 'g');
+                if (imageRegex.test(text)) {
+                    return text.replace(imageRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
+                }
+            } else {
+                // Regular link pattern: [text](path)
+                const linkRegex = new RegExp(`(\\[[^\\]]+\\]\\()${escapedPath}(\\))`, 'g');
+                if (linkRegex.test(text)) {
+                    return text.replace(linkRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
+                }
+            }
+            
+            return text;
+        };
+
+        // Search and replace in all columns and tasks
+        for (const column of this._board.columns) {
+            const newTitle = replaceLink(column.title);
+            if (newTitle !== column.title) {
+                column.title = newTitle;
+                modified = true;
+            }
+
+            for (const task of column.tasks) {
+                const newTaskTitle = replaceLink(task.title);
+                if (newTaskTitle !== task.title) {
+                    task.title = newTaskTitle;
+                    modified = true;
+                }
+
+                if (task.description) {
+                    const newDescription = replaceLink(task.description);
+                    if (newDescription !== task.description) {
+                        task.description = newDescription;
+                        modified = true;
+                    }
+                }
+            }
+        }
+
+        if (modified) {
+            await this.saveToMarkdown();
+            await this.sendBoardUpdate();
+        }
+    }
+    
     /**
      * Setup listener for document close events to handle graceful degradation
      */

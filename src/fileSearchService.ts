@@ -34,7 +34,7 @@ export class FileSearchService {
         quickPick.items = items;
         quickPick.canSelectMany = false;
 
-        // Enable preview on hover/selection change
+        // Declare previewEditor outside the promise
         let previewEditor: vscode.TextEditor | undefined;
         
         quickPick.onDidChangeActive(async (items) => {
@@ -66,11 +66,15 @@ export class FileSearchService {
             quickPick.onDidHide(() => {
                 // Close preview if it was opened
                 if (previewEditor) {
-                    const tabToClose = vscode.window.tabGroups.activeTabGroup.tabs.find(
-                        tab => tab.input === previewEditor.document
-                    );
-                    if (tabToClose && tabToClose.isPreview) {
-                        vscode.window.tabGroups.close(tabToClose);
+                    try {
+                        const tabToClose = vscode.window.tabGroups.activeTabGroup.tabs.find(
+                            tab => (tab.input as any)?.uri?.toString() === previewEditor!.document.uri.toString()
+                        );
+                        if (tabToClose && tabToClose.isPreview) {
+                            vscode.window.tabGroups.close(tabToClose);
+                        }
+                    } catch (error) {
+                        // Silently fail if we can't close the preview
                     }
                 }
                 quickPick.dispose();

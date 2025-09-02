@@ -7,14 +7,19 @@ import { FileSearchService } from './fileSearchService';
 export class LinkHandler {
     private _fileManager: FileManager;
     private _fileSearchService: FileSearchService;
-    private _webview: vscode.Webview; // ADD THIS
+    private _webview: vscode.Webview;
+    private _onRequestLinkReplacement: (originalPath: string, newPath: string, isImage: boolean) => Promise<void>; // ADD THIS
 
-    constructor(fileManager: FileManager, webview: vscode.Webview) { // MODIFY THIS
+    constructor(
+        fileManager: FileManager, 
+        webview: vscode.Webview,
+        onRequestLinkReplacement: (originalPath: string, newPath: string, isImage: boolean) => Promise<void> // ADD THIS
+    ) {
         this._fileManager = fileManager;
         this._fileSearchService = new FileSearchService();
-        this._webview = webview; // ADD THIS
+        this._webview = webview;
+        this._onRequestLinkReplacement = onRequestLinkReplacement; // ADD THIS
     }
-
     /**
      * Enhanced file link handler with workspace-relative path support
      */
@@ -212,16 +217,14 @@ export class LinkHandler {
         const documentDir = path.dirname(document.uri.fsPath);
         const relativePath = path.relative(documentDir, replacementUri.fsPath).replace(/\\/g, '/');
         
-        const isImage = /!\[.*?\]\(.*?\)/.test(`![](${originalPath})`);
+        const isImage = originalPath.includes('.png') || originalPath.includes('.jpg') || 
+                       originalPath.includes('.jpeg') || originalPath.includes('.gif') || 
+                       originalPath.includes('.svg') || originalPath.includes('.bmp') ||
+                       originalPath.includes('.webp');
         
-        // Use this._webview instead of vscode
-        this._webview.postMessage({
-            type: 'replaceLinkInMarkdown',
-            originalPath: originalPath,
-            newPath: relativePath,
-            isImage: isImage
-        });
-
+        // Call the callback to handle replacement in the backend
+        await this._onRequestLinkReplacement(originalPath, relativePath, isImage);
+        
         vscode.window.showInformationMessage(`Link updated: ${originalPath} → ${relativePath}`);
     }
 
