@@ -556,9 +556,7 @@ body {
 .kanban-board.multi-row .add-column-btn.multi-row-add-btn {
   transform: rotate(180deg);
   writing-mode: vertical-rl;
-  min-height: 150px;
-  padding: 8px 4px;
-  /* align-self: stretch; */
+  padding: 12px 8px;
 }
 
 /* .collapsed-add-task-btn {
@@ -2118,8 +2116,17 @@ h6 .kanban-tag {
     background: var(--vscode-menu-selectionBackground);
 }
 
-.collapsed-add-task-btn .vscode-dark  {
-    background: black;
-    color: white;
-    border: 1px solid white;
+/* Fix collapsed add task button in dark mode */
+.vscode-dark .collapsed-add-task-btn,
+.vscode-high-contrast .collapsed-add-task-btn {
+    background: #000000;
+    color: var(--vscode-descriptionForeground);
+    border: 1px solid var(--vscode-descriptionForeground);
+}
+
+.vscode-dark .collapsed-add-task-btn:hover,
+.vscode-high-contrast .collapsed-add-task-btn:hover {
+    background: #1a1a1a;
+    color: var(--vscode-descriptionForeground);
+    border: 1px solid var(--vscode-descriptionForeground);
 }
