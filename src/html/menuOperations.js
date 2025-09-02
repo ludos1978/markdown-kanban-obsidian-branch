@@ -1,6 +1,28 @@
 // Track menu hover state to prevent premature closing
 let menuHoverTimeout = null;
 
+// Simple submenu positioning
+function positionSubmenu(menuItem) {
+    const submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
+    if (!submenu) return;
+    
+    const rect = menuItem.getBoundingClientRect();
+    const submenuWidth = 280; // Approximate max width
+    const spaceRight = window.innerWidth - rect.right;
+    const spaceLeft = rect.left;
+    
+    // Determine which side has more space
+    if (spaceRight < submenuWidth && spaceLeft > submenuWidth) {
+        // Not enough space on right, but enough on left
+        submenu.style.left = 'auto';
+        submenu.style.right = '100%';
+    } else {
+        // Enough space on right, or default behavior
+        submenu.style.left = '100%';
+        submenu.style.right = 'auto';
+    }
+}
+
 // donut menu toggle that respects tag interactions
 function toggleDonutMenu(event, button) {
     event.stopPropagation();
@@ -894,6 +916,13 @@ function handleTaskTagClick(taskId, columnId, tagName, event) {
         });
     }, 1000);
 }
+
+// Setup submenu positioning on hover
+document.addEventListener('mouseover', (e) => {
+    if (e.target.closest('.donut-menu-item.has-submenu, .file-bar-menu-item.has-submenu')) {
+        positionSubmenu(e.target.closest('.donut-menu-item.has-submenu, .file-bar-menu-item.has-submenu'));
+    }
+}, true);
 
 // Make handlers globally available
 window.handleColumnTagClick = handleColumnTagClick;
