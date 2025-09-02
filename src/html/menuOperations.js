@@ -924,6 +924,12 @@ document.addEventListener('mouseover', (e) => {
     }
 }, true);
 
+function performSort() {
+    vscode.postMessage({
+        type: 'performSort'
+    });
+}
+
 // Make handlers globally available
 window.handleColumnTagClick = handleColumnTagClick;
 window.handleTaskTagClick = handleTaskTagClick;

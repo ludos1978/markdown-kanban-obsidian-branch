@@ -226,7 +226,13 @@ export class MessageHandler {
                     )
                 );
                 break;
-            // case 'replaceLinkInMarkdown':
+            case 'performSort':
+                await this.performBoardAction(() => 
+                    this._boardOperations.performAutomaticSort(this._getCurrentBoard()!)
+                );
+                break;
+
+                // case 'replaceLinkInMarkdown':
             //     await this.handleLinkReplacement(message);
             //     break;
             default:

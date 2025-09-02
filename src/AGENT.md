@@ -393,7 +393,27 @@ if a file is put into background (by opening another view) or selecting another 
 
 keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
 
+---
+
+can you add a feature similar to the tags, but using dates such as (European date style) @2024-09-04 . also add a sorting feature that works using tags #sort-bydate in column headers, #sort-byname which is stored in the markdown file and automatically sorts on pressing a "sort" button in the file-header. also add #sort-today (gathering all cards with dates with todays date) #gather-next3days (gather all cards with dates in the next 3 days) #sort-next7days, #gather-overdue . #gather-xxx gathers all cards which have @xxx in it. @xxx should be person names. the tags might be combined. they are handled in reverse order of appearance.
+
+keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsafes. when implementing code always write out full functions if they are modified and where to make a change, especially if the change is not very obvious. use DRY programming .. add only comments in the code to explain the code, not the mention whats new. ont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
+
+ explain your planned changes first without editing the sourcecode!
+
+ -
+
+also add an #unsorted and an #ungathered tag that can be added to columns to gather cards which could not be applied to any other column. when executing the sorting handle all cards that have at least an @DATE or an @NAME , try to match it to eighter #gather tags. update the plan
+
 - 
 
+if a card cannot be sorted to any column, let it stay where it is
+
+-
+
+
+please write the corresponding code. Always write out full functions and where they should be added to. dont change the way the markdown is saved, except for adding the tags for the columns or the dates added by the user. explicitly mention functions that can be removed or simplified.
+
+keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
 
 

@@ -808,3 +808,5 @@ window.setColumnWidth = setColumnWidth;
 window.setLayoutRows = setLayoutRows;
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
+
+window.performSort = performSort;
