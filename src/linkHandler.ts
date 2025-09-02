@@ -2,12 +2,17 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { FileManager, FileResolutionResult } from './fileManager';
+import { FileSearchService } from './fileSearchService';
 
 export class LinkHandler {
     private _fileManager: FileManager;
+    private _fileSearchService: FileSearchService;
+    private _webview: vscode.Webview; // ADD THIS
 
-    constructor(fileManager: FileManager) {
+    constructor(fileManager: FileManager, webview: vscode.Webview) { // MODIFY THIS
         this._fileManager = fileManager;
+        this._fileSearchService = new FileSearchService();
+        this._webview = webview; // ADD THIS
     }
 
     /**
@@ -33,14 +38,29 @@ export class LinkHandler {
             const { resolvedPath, exists, isAbsolute, attemptedPaths } = resolution;
 
             if (!exists) {
-                // Enhanced error message with workspace context
+                // NEW: Start searching for replacement
+                const fileName = path.basename(href);
+                const searchResults = await this._fileSearchService.searchForFile(fileName);
+                
+                if (searchResults.length > 0) {
+                    // Show replacement picker
+                    const replacement = await this._fileSearchService.showFileReplacementPicker(href, searchResults);
+                    
+                    if (replacement) {
+                        // User selected a replacement - send message to apply fix
+                        await this.applyLinkReplacement(href, replacement);
+                        return;
+                    }
+                    // User cancelled - fall through to original error message
+                }
+                
+                // Original error handling (unchanged)
                 const workspaceFolders = vscode.workspace.workspaceFolders;
                 let contextInfo = '';
                 
                 if (workspaceFolders && workspaceFolders.length > 0) {
                     const folderNames = workspaceFolders.map(f => path.basename(f.uri.fsPath));
                     
-                    // Check if this looks like a workspace-relative path
                     const startsWithWorkspaceFolder = folderNames.some(name => 
                         href.startsWith(name + '/') || href.startsWith(name + '\\')
                     );
@@ -66,7 +86,6 @@ export class LinkHandler {
                     );
                 }
                 
-                // Enhanced console logging with workspace info
                 console.warn(`File not found: ${href}`);
                 console.warn('Attempted paths:');
                 attemptedPaths.forEach((path, i) => console.warn(`  ${i + 1}. ${path}`));
@@ -77,11 +96,11 @@ export class LinkHandler {
                 return;
             }
 
+            // Rest of the method remains unchanged...
             try {
                 const stats = fs.statSync(resolvedPath);
                 
                 if (stats.isDirectory()) {
-                    // Open directory in OS file explorer
                     vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(resolvedPath));
                     return;
                 }
@@ -90,49 +109,36 @@ export class LinkHandler {
                 return;
             }
 
-            // Determine if this is a text/code file that VS Code can open
             const textExtensions = [
-                // Markdown and text
                 '.md', '.markdown', '.txt', '.rtf', '.log', '.csv', '.tsv',
-                // Web
                 '.html', '.htm', '.css', '.scss', '.sass', '.less', 
                 '.js', '.jsx', '.ts', '.tsx', '.json', '.xml', '.svg',
-                // Programming languages
                 '.py', '.java', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.cs',
                 '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.r',
                 '.m', '.mm', '.pl', '.pm', '.lua', '.dart', '.elm', '.clj',
                 '.ex', '.exs', '.erl', '.hrl', '.fs', '.fsx', '.ml', '.mli',
                 '.pas', '.pp', '.asm', '.s', '.bas', '.cob', '.for', '.f90',
                 '.jl', '.nim', '.cr', '.zig', '.v', '.vh', '.vhd', '.vhdl',
-                // Shell and scripts
                 '.sh', '.bash', '.zsh', '.fish', '.ps1', '.psm1', '.psd1', '.bat', '.cmd',
-                // Config files
                 '.yml', '.yaml', '.toml', '.ini', '.cfg', '.conf', '.config',
                 '.env', '.properties', '.gitignore', '.dockerignore', '.editorconfig',
                 '.prettierrc', '.eslintrc', '.babelrc', '.webpack', 
-                // Documentation
                 '.rst', '.tex', '.latex', '.bib',
-                // Data files
                 '.sql', '.graphql', '.proto',
-                // Make files
                 'makefile', 'Makefile', 'GNUmakefile', '.mk',
-                // Docker files
                 'dockerfile', 'Dockerfile', '.dockerfile',
-                // Other
                 '.diff', '.patch', '.vue', '.svelte'
             ];
             
             const ext = path.extname(resolvedPath).toLowerCase();
             const basename = path.basename(resolvedPath).toLowerCase();
             
-            // Check if it's a text file VS Code can handle
             const isTextFile = textExtensions.includes(ext) || 
                             basename === 'makefile' || 
                             basename === 'dockerfile' ||
-                            basename.startsWith('.') && !ext; // Hidden files without extension (like .gitignore)
+                            basename.startsWith('.') && !ext;
 
             if (isTextFile) {
-                // Open in VS Code
                 const config = vscode.workspace.getConfiguration('markdownKanban');
                 const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
                 
@@ -151,7 +157,6 @@ export class LinkHandler {
                         });
                     }
                     
-                    // Enhanced success message showing resolution method
                     if (!isAbsolute) {
                         const workspaceFolders = vscode.workspace.workspaceFolders;
                         const isWorkspaceRelative = workspaceFolders?.some(f => 
@@ -164,7 +169,6 @@ export class LinkHandler {
                         );
                     }
                 } catch (error) {
-                    // If VS Code can't open it, fall back to OS default
                     console.warn(`VS Code couldn't open file, trying OS default: ${resolvedPath}`, error);
                     try {
                         await vscode.env.openExternal(vscode.Uri.file(resolvedPath));
@@ -176,14 +180,12 @@ export class LinkHandler {
                     }
                 }
             } else {
-                // For non-text files (images, PDFs, executables, etc.), open with OS default application
                 try {
                     await vscode.env.openExternal(vscode.Uri.file(resolvedPath));
                     vscode.window.showInformationMessage(
                         `Opened externally: ${path.basename(resolvedPath)}`
                     );
                 } catch (error) {
-                    // Try revealing in file explorer as fallback
                     try {
                         await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(resolvedPath));
                         vscode.window.showInformationMessage(
@@ -198,6 +200,29 @@ export class LinkHandler {
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to handle file link: ${href}`);
         }
+    }
+
+    private async applyLinkReplacement(originalPath: string, replacementUri: vscode.Uri) {
+        const document = this._fileManager.getDocument();
+        if (!document) {
+            vscode.window.showErrorMessage('No document loaded to update links');
+            return;
+        }
+
+        const documentDir = path.dirname(document.uri.fsPath);
+        const relativePath = path.relative(documentDir, replacementUri.fsPath).replace(/\\/g, '/');
+        
+        const isImage = /!\[.*?\]\(.*?\)/.test(`![](${originalPath})`);
+        
+        // Use this._webview instead of vscode
+        this._webview.postMessage({
+            type: 'replaceLinkInMarkdown',
+            originalPath: originalPath,
+            newPath: relativePath,
+            isImage: isImage
+        });
+
+        vscode.window.showInformationMessage(`Link updated: ${originalPath} → ${relativePath}`);
     }
 
     /**

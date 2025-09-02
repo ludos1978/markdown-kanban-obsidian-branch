@@ -365,3 +365,10 @@ can you add a configuration option to limit the row size. a setting of 0 means t
 
 ---
 
+is it possible to check if a (internal / relative file) link could be successfully opened? if so, i'd like a system that tries to fix the link by searching for the filename (similar to the meta+p keypress). afterwards use the found file to fix the link. explain the changes that would be needed without implementing it. use the dry programming methods. keep changes as minimal as possible.
+
+-
+
+add a ui if the file is not found, let the user choose a replacement file (already start searching), when hovering the found file - if possible - show a preview of the file. if escape is pressed, abort leave everything as it was. if a file is selected add the new link in the same style as the original, mark the original link with old link to strike it trough. dont extend or modify the current file resolution mechanisms apart from adding the search and replacement discussed. use dry programming. keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
+
+---

@@ -226,9 +226,75 @@ export class MessageHandler {
                     )
                 );
                 break;
+            case 'replaceLinkInMarkdown':
+                await this.handleLinkReplacement(message);
+                break;
             default:
                 console.warn('Unknown message type:', message.type);
                 break;
+        }
+    }
+
+    private async handleLinkReplacement(message: any) {
+        const board = this._getCurrentBoard();
+        if (!board || !board.valid) return;
+
+        const { originalPath, newPath, isImage } = message;
+        let modified = false;
+
+        // Helper function to replace link in text
+        const replaceLink = (text: string): string => {
+            if (!text) return text;
+            
+            // Build the regex patterns
+            const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            
+            if (isImage) {
+                // Image link pattern: ![alt](path)
+                const imageRegex = new RegExp(`(!\\[[^\\]]*\\]\\()${escapedPath}(\\))`, 'g');
+                if (imageRegex.test(text)) {
+                    return text.replace(imageRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
+                }
+            } else {
+                // Regular link pattern: [text](path)
+                const linkRegex = new RegExp(`(\\[[^\\]]+\\]\\()${escapedPath}(\\))`, 'g');
+                if (linkRegex.test(text)) {
+                    return text.replace(linkRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
+                }
+            }
+            
+            return text;
+        };
+
+        // Search and replace in all columns and tasks
+        for (const column of board.columns) {
+            const newTitle = replaceLink(column.title);
+            if (newTitle !== column.title) {
+                column.title = newTitle;
+                modified = true;
+            }
+
+            for (const task of column.tasks) {
+                const newTaskTitle = replaceLink(task.title);
+                if (newTaskTitle !== task.title) {
+                    task.title = newTaskTitle;
+                    modified = true;
+                }
+
+                if (task.description) {
+                    const newDescription = replaceLink(task.description);
+                    if (newDescription !== task.description) {
+                        task.description = newDescription;
+                        modified = true;
+                    }
+                }
+            }
+        }
+
+        if (modified) {
+            this._undoRedoManager.saveStateForUndo(board);
+            await this._onSaveToMarkdown();
+            await this._onBoardUpdate();
         }
     }
 

@@ -116,7 +116,7 @@ export class KanbanWebviewPanel {
         this._fileManager = new FileManager(this._panel.webview, extensionUri);
         this._undoRedoManager = new UndoRedoManager(this._panel.webview);
         this._boardOperations = new BoardOperations();
-        this._linkHandler = new LinkHandler(this._fileManager);
+        this._linkHandler = new LinkHandler(this._fileManager, this._panel.webview); // MODIFY THIS LINE
         
         // Initialize message handler with callbacks
         this._messageHandler = new MessageHandler(
