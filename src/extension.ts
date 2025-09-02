@@ -90,11 +90,17 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Optional: Add debug command to troubleshoot webview permissions
 	const debugPermissionsCommand = vscode.commands.registerCommand('markdown-kanban.debugPermissions', () => {
-		if (KanbanWebviewPanel.currentPanel) {
-			(KanbanWebviewPanel.currentPanel as any).debugWebviewPermissions();
-			vscode.window.showInformationMessage('Check the console for debug output');
+		const activeEditor = vscode.window.activeTextEditor;
+		if (activeEditor && activeEditor.document.languageId === 'markdown') {
+			const panel = KanbanWebviewPanel.getPanelForDocument(activeEditor.document.uri.toString());
+			if (panel) {
+				(panel as any).debugWebviewPermissions();
+				vscode.window.showInformationMessage('Check the console for debug output');
+			} else {
+				vscode.window.showWarningMessage('No kanban panel is open for this document');
+			}
 		} else {
-			vscode.window.showWarningMessage('No kanban panel is open');
+			vscode.window.showWarningMessage('No active markdown document');
 		}
 	});
 
@@ -117,16 +123,31 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Command to toggle file lock
 	const toggleFileLockCommand = vscode.commands.registerCommand('markdown-kanban.toggleFileLock', async () => {
-		if (KanbanWebviewPanel.currentPanel) {
-			KanbanWebviewPanel.currentPanel.toggleFileLock();
+		const activeEditor = vscode.window.activeTextEditor;
+		if (activeEditor && activeEditor.document.languageId === 'markdown') {
+			const panel = KanbanWebviewPanel.getPanelForDocument(activeEditor.document.uri.toString());
+			if (panel) {
+				panel.toggleFileLock();
+			} else {
+				vscode.window.showWarningMessage('No kanban panel is open for this document.');
+			}
 		} else {
-			vscode.window.showWarningMessage('No kanban panel is currently open.');
+			// Try to find any active panel (for backward compatibility)
+			const panels = KanbanWebviewPanel.getAllPanels();
+			if (panels.length === 1) {
+				panels[0].toggleFileLock();
+			} else if (panels.length > 1) {
+				vscode.window.showWarningMessage('Multiple kanban panels open. Please focus on the markdown document you want to lock/unlock.');
+			} else {
+				vscode.window.showWarningMessage('No kanban panel is currently open.');
+			}
 		}
 	});
 
 	// Command to open file from kanban panel (for title bar button)
 	const openKanbanFromPanelCommand = vscode.commands.registerCommand('markdown-kanban.openKanbanFromPanel', async () => {
-		if (!KanbanWebviewPanel.currentPanel) {
+		const panels = KanbanWebviewPanel.getAllPanels();
+		if (panels.length === 0) {
 			vscode.window.showWarningMessage('No kanban panel is currently open.');
 			return;
 		}
@@ -144,8 +165,9 @@ export function activate(context: vscode.ExtensionContext) {
 			const targetUri = fileUris[0];
 			try {
 				const document = await vscode.workspace.openTextDocument(targetUri);
-				KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
-				vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
+				// This will create a new panel or reuse existing one for this document
+				KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
+				vscode.window.showInformationMessage(`Kanban opened for: ${document.fileName}`);
 			} catch (error) {
 				vscode.window.showErrorMessage(`Failed to open file: ${error}`);
 			}
@@ -154,7 +176,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Command to manually switch file
 	const switchFileCommand = vscode.commands.registerCommand('markdown-kanban.switchFile', async () => {
-		if (!KanbanWebviewPanel.currentPanel) {
+		const panels = KanbanWebviewPanel.getAllPanels();
+		if (panels.length === 0) {
 			vscode.window.showWarningMessage('No kanban panel is currently open.');
 			return;
 		}
@@ -172,8 +195,9 @@ export function activate(context: vscode.ExtensionContext) {
 			const targetUri = fileUris[0];
 			try {
 				const document = await vscode.workspace.openTextDocument(targetUri);
-				KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
-				vscode.window.showInformationMessage(`Kanban switched to: ${document.fileName}`);
+				// This will create a new panel or reuse existing one
+				KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
+				vscode.window.showInformationMessage(`Kanban opened for: ${document.fileName}`);
 			} catch (error) {
 				vscode.window.showErrorMessage(`Failed to open file: ${error}`);
 			}
@@ -183,29 +207,24 @@ export function activate(context: vscode.ExtensionContext) {
 	// Listen for document changes to automatically update kanban (real-time sync)
 	const documentChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {
 		if (event.document.languageId === 'markdown' && fileListenerEnabled) {
-			// Check if the Kanban panel exists and if it's currently updating
-			if (KanbanWebviewPanel.currentPanel) {
+			// Check if a Kanban panel exists for this document
+			const panel = KanbanWebviewPanel.getPanelForDocument(event.document.uri.toString());
+			if (panel) {
 				// Check if the change is from the Kanban panel itself
-				const isUpdatingFromPanel = (KanbanWebviewPanel.currentPanel as any)._isUpdatingFromPanel;
+				const isUpdatingFromPanel = (panel as any)._isUpdatingFromPanel;
 				if (isUpdatingFromPanel) {
 					console.log('Skipping auto-reload - change is from Kanban panel');
 					return;
 				}
 				
-				const currentUri = KanbanWebviewPanel.currentPanel.getCurrentDocumentUri()?.toString();
-				const changedUri = event.document.uri.toString();
-				
-				// Only update if the changed file is the current kanban file
-				if (currentUri === changedUri) {
-					// Delay update to avoid frequent refresh
-					setTimeout(() => {
-						// Double-check the panel isn't updating now
-						const isStillUpdating = (KanbanWebviewPanel.currentPanel as any)?._isUpdatingFromPanel;
-						if (!isStillUpdating && KanbanWebviewPanel.currentPanel) {
-							KanbanWebviewPanel.currentPanel.loadMarkdownFile(event.document);
-						}
-					}, 500);
-				}
+				// Delay update to avoid frequent refresh
+				setTimeout(() => {
+					// Double-check the panel isn't updating now
+					const isStillUpdating = (panel as any)?._isUpdatingFromPanel;
+					if (!isStillUpdating) {
+						panel.loadMarkdownFile(event.document);
+					}
+				}, 500);
 			}
 		}
 	});
@@ -214,9 +233,10 @@ export function activate(context: vscode.ExtensionContext) {
 	const activeEditorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
 		if (editor && editor.document.languageId === 'markdown' && fileListenerEnabled) {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);
-			// If panel is open and not locked, automatically load current document
-			if (KanbanWebviewPanel.currentPanel && !KanbanWebviewPanel.currentPanel.isFileLocked()) {
-				KanbanWebviewPanel.currentPanel.loadMarkdownFile(editor.document);
+			// If panel exists for this document and not locked, reload
+			const panel = KanbanWebviewPanel.getPanelForDocument(editor.document.uri.toString());
+			if (panel && !panel.isFileLocked()) {
+				panel.loadMarkdownFile(editor.document);
 			}
 		} else {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', false);

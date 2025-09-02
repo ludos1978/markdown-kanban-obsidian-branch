@@ -11,7 +11,8 @@ import { MessageHandler } from './messageHandler';
 import { BackupManager } from './backupManager';
 
 export class KanbanWebviewPanel {
-    public static currentPanel: KanbanWebviewPanel | undefined;
+    private static panels: Map<string, KanbanWebviewPanel> = new Map();
+
     public static readonly viewType = 'markdownKanbanPanel';
 
     private readonly _panel: vscode.WebviewPanel;
@@ -35,17 +36,19 @@ export class KanbanWebviewPanel {
     private _lastDocumentVersion: number = -1;  // Track document version
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
-        const column = vscode.window.activeTextEditor?.viewColumn;
+        const column = vscode.window.activeTextEditor?.viewColumn || vscode.ViewColumn.One;
 
-        if (KanbanWebviewPanel.currentPanel) {
-            KanbanWebviewPanel.currentPanel._panel.reveal(column);
-            if (document) {
-                KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
+        // If we have a document, check if there's already a panel for it
+        if (document) {
+            const existingPanel = KanbanWebviewPanel.panels.get(document.uri.toString());
+            if (existingPanel) {
+                existingPanel._panel.reveal(column);
+                existingPanel.loadMarkdownFile(document);
+                return;
             }
-            return;
         }
 
-        // ENHANCED: Include ALL workspace folders in localResourceRoots from creation
+        // Create a new panel
         const localResourceRoots = [extensionUri];
         
         // Add all workspace folders
@@ -70,10 +73,12 @@ export class KanbanWebviewPanel {
         
         console.log('Creating webview with localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
         
+        // Create panel with file-specific title
+        const fileName = document ? path.basename(document.fileName) : 'Markdown Kanban';
         const panel = vscode.window.createWebviewPanel(
             KanbanWebviewPanel.viewType,
-            'Markdown Kanban',
-            column || vscode.ViewColumn.One,
+            `Kanban: ${fileName}`,
+            column,
             {
                 enableScripts: true,
                 localResourceRoots: localResourceRoots,
@@ -82,10 +87,12 @@ export class KanbanWebviewPanel {
             }
         );
 
-        KanbanWebviewPanel.currentPanel = new KanbanWebviewPanel(panel, extensionUri, context);
+        const kanbanPanel = new KanbanWebviewPanel(panel, extensionUri, context);
 
+        // Store the panel in the map
         if (document) {
-            KanbanWebviewPanel.currentPanel.loadMarkdownFile(document);
+            KanbanWebviewPanel.panels.set(document.uri.toString(), kanbanPanel);
+            kanbanPanel.loadMarkdownFile(document);
         }
     }
 
@@ -107,7 +114,18 @@ export class KanbanWebviewPanel {
         
         console.log('Reviving webview with localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
         
-        KanbanWebviewPanel.currentPanel = new KanbanWebviewPanel(panel, extensionUri, context);
+        const kanbanPanel = new KanbanWebviewPanel(panel, extensionUri, context);
+        // Don't store in map yet - will be stored when document is loaded
+    }
+
+    // Add this method to get a panel by document URI:
+    public static getPanelForDocument(documentUri: string): KanbanWebviewPanel | undefined {
+        return KanbanWebviewPanel.panels.get(documentUri);
+    }
+
+    // Add this method to get all panels:
+    public static getAllPanels(): KanbanWebviewPanel[] {
+        return Array.from(KanbanWebviewPanel.panels.values());
     }
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
@@ -400,7 +418,7 @@ export class KanbanWebviewPanel {
         // Check if this is a genuine external change
         const currentVersion = document.version;
         const isExternalChange = this._lastDocumentVersion !== -1 && 
-                                 this._lastDocumentVersion !== currentVersion - 1;
+                                this._lastDocumentVersion !== currentVersion - 1;
         
         if (isExternalChange) {
             console.log('External change detected - reloading board');
@@ -409,6 +427,23 @@ export class KanbanWebviewPanel {
         this._lastDocumentVersion = currentVersion;
         
         const documentChanged = this._fileManager.getDocument()?.uri.toString() !== document.uri.toString();
+        
+        // If document changed, update panel tracking
+        if (documentChanged) {
+            // Remove this panel from old document tracking
+            const oldDocUri = this._fileManager.getDocument()?.uri.toString();
+            if (oldDocUri && KanbanWebviewPanel.panels.get(oldDocUri) === this) {
+                KanbanWebviewPanel.panels.delete(oldDocUri);
+            }
+            
+            // Add to new document tracking
+            KanbanWebviewPanel.panels.set(document.uri.toString(), this);
+            
+            // Update panel title
+            const fileName = path.basename(document.fileName);
+            this._panel.title = `Kanban: ${fileName}`;
+        }
+        
         this._fileManager.setDocument(document);
         
         if (documentChanged) {
@@ -758,7 +793,11 @@ export class KanbanWebviewPanel {
     }
 
     public dispose() {
-        KanbanWebviewPanel.currentPanel = undefined;
+        // Remove from panels map
+        const documentUri = this._fileManager.getDocument()?.uri.toString();
+        if (documentUri && KanbanWebviewPanel.panels.get(documentUri) === this) {
+            KanbanWebviewPanel.panels.delete(documentUri);
+        }
         
         // Stop backup timer
         this._backupManager.dispose();
