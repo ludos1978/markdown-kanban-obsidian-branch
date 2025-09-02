@@ -8,6 +8,7 @@ import { UndoRedoManager } from './undoRedoManager';
 import { BoardOperations } from './boardOperations';
 import { LinkHandler } from './linkHandler';
 import { MessageHandler } from './messageHandler';
+import { BackupManager } from './backupManager';
 
 export class KanbanWebviewPanel {
     public static currentPanel: KanbanWebviewPanel | undefined;
@@ -24,6 +25,8 @@ export class KanbanWebviewPanel {
     private _boardOperations: BoardOperations;
     private _linkHandler: LinkHandler;
     private _messageHandler: MessageHandler;
+
+    private _backupManager: BackupManager;
     
     // State
     private _board?: KanbanBoard;
@@ -116,6 +119,8 @@ export class KanbanWebviewPanel {
         this._fileManager = new FileManager(this._panel.webview, extensionUri);
         this._undoRedoManager = new UndoRedoManager(this._panel.webview);
         this._boardOperations = new BoardOperations();
+        this._backupManager = new BackupManager();
+
         
         // REPLACE this line:
         this._linkHandler = new LinkHandler(
@@ -406,9 +411,14 @@ export class KanbanWebviewPanel {
         const documentChanged = this._fileManager.getDocument()?.uri.toString() !== document.uri.toString();
         this._fileManager.setDocument(document);
         
-        // ENHANCED: Update permissions when document changes to ensure access to new workspace
         if (documentChanged) {
             this._updateWebviewPermissions();
+            
+            // Create initial backup
+            await this._backupManager.createBackup(document);
+            
+            // Start periodic backup timer
+            this._backupManager.startPeriodicBackup(document);
         }
         
         try {
@@ -577,6 +587,11 @@ export class KanbanWebviewPanel {
                 }
             }
             
+            // After successful save, create a backup
+            if (success) {
+                await this._backupManager.createBackup(document);
+            }
+                        
         } catch (error) {
             console.error('Error saving to markdown:', error);
             vscode.window.showErrorMessage(`Failed to save kanban changes: ${error instanceof Error ? error.message : String(error)}`);
@@ -744,6 +759,10 @@ export class KanbanWebviewPanel {
 
     public dispose() {
         KanbanWebviewPanel.currentPanel = undefined;
+        
+        // Stop backup timer
+        this._backupManager.dispose();
+        
         this._panel.dispose();
 
         while (this._disposables.length) {

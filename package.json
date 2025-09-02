@@ -33,6 +33,36 @@
     "configuration": {
       "title": "Ludos Markdown Kanban",
       "properties": {
+        "markdown-kanban.enableBackups": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic backups of kanban files"
+        },
+        "markdown-kanban.backupInterval": {
+          "type": "number",
+          "default": 15,
+          "minimum": 5,
+          "maximum": 60,
+          "description": "Interval in minutes between automatic backups (5-60 minutes)"
+        },
+        "markdown-kanban.backupLocation": {
+          "type": "string",
+          "enum": ["same-folder", "workspace-folder", "custom"],
+          "default": "same-folder",
+          "description": "Where to store backup files",
+          "enumDescriptions": [
+            "Store backups in the same folder as the original file",
+            "Store backups in a .backups folder in the workspace root",
+            "Store backups in a custom location (set customBackupPath)"
+          ]
+        },
+        "markdown-kanban.maxBackupsPerFile": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Maximum number of backups to keep per file (older backups will be deleted)"
+        },
         "markdown-kanban.openLinksInNewTab": {
           "type": "boolean",
           "default": false,
