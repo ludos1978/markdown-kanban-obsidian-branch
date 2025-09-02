@@ -2117,3 +2117,9 @@ h6 .kanban-tag {
 .context-menu-item:hover {
     background: var(--vscode-menu-selectionBackground);
 }
+
+.collapsed-add-task-btn .vscode-dark  {
+    background: black;
+    color: white;
+    border: 1px solid white;
+}
