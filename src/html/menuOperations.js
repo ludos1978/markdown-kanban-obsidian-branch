@@ -66,19 +66,32 @@ function toggleDonutMenu(event, button) {
     }
 }
 
+function insertColumnBefore(columnId) {
+    // Close any open menus first
+    document.querySelectorAll('.donut-menu').forEach(menu => {
+        menu.classList.remove('active');
+    });
+    
+    // Send message to insert empty column
+    vscode.postMessage({
+        type: 'insertColumnBefore',
+        columnId: columnId,
+        title: ''  // Empty title for new column
+    });
+}
+
 function insertColumnAfter(columnId) {
-    showInputModal(
-        'Insert Column After',
-        'Enter column title:',
-        'Column title...',
-        title => {
-            vscode.postMessage({
-                type: 'insertColumnAfter',
-                columnId: columnId,
-                title: title
-            });
-        }
-    );
+    // Close any open menus first
+    document.querySelectorAll('.donut-menu').forEach(menu => {
+        menu.classList.remove('active');
+    });
+    
+    // Send message to insert empty column
+    vscode.postMessage({
+        type: 'insertColumnAfter',
+        columnId: columnId,
+        title: ''  // Empty title for new column
+    });
 }
 
 function moveColumnLeft(columnId) {
