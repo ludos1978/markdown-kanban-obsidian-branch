@@ -59,6 +59,28 @@
         "markdown-kanban.tagColors": {
           "type": "object",
           "default": {
+            "default": {
+              "column": {
+                "light": {
+                  "text": "#000000",
+                  "background": "#f0f0f0"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#2d2d2d"
+                }
+              },
+              "card": {
+                "light": {
+                  "text": "#000000",
+                  "background": "#ffffff"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#1e1e1e"
+                }
+              }
+            },
             "importantcy": {
               "high": {
                 "light": {

@@ -1393,6 +1393,9 @@ function getAllCornerBadgesHtml(tags, elementType) {
 function getTagConfig(tagName) {
     if (!window.tagColors) return null;
     
+    // Skip default configuration
+    if (tagName === 'default') return null;
+    
     // Check grouped structure
     const groups = ['status', 'type', 'priority', 'category', 'colors'];
     for (const group of groups) {
@@ -1438,9 +1441,47 @@ function generateTagStyles() {
         transition: all 0.2s ease;
     }\n`;
     
+    // Add default styles for elements without tags
+    if (window.tagColors.default) {
+        const defaultConfig = window.tagColors.default;
+        
+        // Default column styles
+        if (defaultConfig.column) {
+            const columnColors = defaultConfig.column[themeKey] || defaultConfig.column.light || {};
+            if (columnColors.text && columnColors.background) {
+                styles += `.kanban-column:not([data-column-tag]) {
+                    background-color: ${hexToRgba(columnColors.background, 0.15)} !important;
+                    position: relative;
+                }\n`;
+                
+                styles += `.kanban-column.collapsed:not([data-column-tag]) {
+                    background-color: ${hexToRgba(columnColors.background, 0.2)} !important;
+                }\n`;
+            }
+        }
+        
+        // Default card styles
+        if (defaultConfig.card) {
+            const cardColors = defaultConfig.card[themeKey] || defaultConfig.card.light || {};
+            if (cardColors.text && cardColors.background) {
+                styles += `.task-item:not([data-task-tag]) {
+                    background-color: ${hexToRgba(cardColors.background, 0.25)} !important;
+                    position: relative;
+                }\n`;
+                
+                styles += `.task-item:not([data-task-tag]):hover {
+                    background-color: ${hexToRgba(cardColors.background, 0.35)} !important;
+                }\n`;
+            }
+        }
+    }
+    
     // Function to process tags from either grouped or flat structure
     const processTags = (tags, groupName = null) => {
         for (const [tagName, config] of Object.entries(tags)) {
+            // Skip the default configuration
+            if (tagName === 'default') continue;
+            
             // Skip if this is a group (has nested objects with light/dark themes)
             if (config.light || config.dark) {
                 const themeColors = config[themeKey] || config.light || {};
