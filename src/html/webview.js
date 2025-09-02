@@ -69,6 +69,8 @@ function setColumnWidth(size) {
     vscode.postMessage({ type: 'showMessage', text: `Column width set to ${size}` });
 }
 
+
+
 // Function to set layout rows
 function setLayoutRows(rows) {
     console.log(`setLayoutRows ${rows}`);
@@ -417,7 +419,7 @@ window.addEventListener('message', event => {
             console.log('Updating board with:', message.board);
             const previousBoard = currentBoard;
             currentBoard = message.board;
-            window.currentBoard = currentBoard;  // ADD THIS LINE
+            window.currentBoard = currentBoard;
 
             // Clean up any duplicate row tags
             cleanupRowTags();
@@ -460,6 +462,9 @@ window.addEventListener('message', event => {
                 window.showRowTags = message.showRowTags;
                 console.log('Show row tags:', window.showRowTags);
             }
+            
+            // Save folding state before re-render
+            saveCurrentFoldingState();
             
             // Check if we should preserve editing state
             const isEditing = window.taskEditor && window.taskEditor.currentEditor;

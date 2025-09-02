@@ -371,4 +371,29 @@ is it possible to check if a (internal / relative file) link could be successful
 
 add a ui if the file is not found, let the user choose a replacement file (already start searching), when hovering the found file - if possible - show a preview of the file. if escape is pressed, abort leave everything as it was. if a file is selected add the new link in the same style as the original, mark the original link with old link to strike it trough. dont extend or modify the current file resolution mechanisms apart from adding the search and replacement discussed. use dry programming. keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
 
+-
+
+the interface looks good, also the message, however the fixed link is not added to the markdown. keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
+
 ---
+
+there are multiple bugs in the code:
+
+in the column burger menu:
+
+insert list before doesnt work anymore (it should just add an empty list, left of the current list)
+
+insert list after is not correctly working (it should not show a overlay, but just add an empty list right of the current list)
+
+copy as markdown should close the menu after pressing it (it currently stays open)
+
+Sort by "Title" doesnt work if a title is empty
+
+if a file is put into background (by opening another view) or selecting another view in split view screen. the folding of the board is reset (all are open).
+
+keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
+
+- 
+
+
+

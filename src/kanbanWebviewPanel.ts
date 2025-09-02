@@ -216,7 +216,7 @@ export class KanbanWebviewPanel {
             await this.sendBoardUpdate();
         }
     }
-    
+
     /**
      * Setup listener for document close events to handle graceful degradation
      */
@@ -347,8 +347,13 @@ export class KanbanWebviewPanel {
         this._panel.onDidChangeViewState(
             e => {
                 if (e.webviewPanel.visible) {
-                    this._ensureBoardAndSendUpdate();
+                    // Only send file info, don't re-send board data unless necessary
                     this._fileManager.sendFileInfo();
+                    
+                    // Only ensure board if we don't have one
+                    if (!this._board && this._fileManager.getDocument()) {
+                        this._ensureBoardAndSendUpdate();
+                    }
                 }
             },
             null,

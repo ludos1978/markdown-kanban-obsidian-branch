@@ -155,6 +155,11 @@ function copyColumnAsMarkdown(columnId) {
     });
     
     copyToClipboard(markdown);
+    
+    // Close all menus after copying
+    document.querySelectorAll('.donut-menu').forEach(menu => {
+        menu.classList.remove('active');
+    });
 }
 
 function copyTaskAsMarkdown(taskId, columnId) {
@@ -178,6 +183,11 @@ function copyTaskAsMarkdown(taskId, columnId) {
     }
     
     copyToClipboard(markdown);
+    
+    // Close all menus after copying
+    document.querySelectorAll('.donut-menu').forEach(menu => {
+        menu.classList.remove('active');
+    });
 }
 
 function copyToClipboard(text) {
