@@ -91,7 +91,6 @@ function wikiLinksPlugin(md, options = {}) {
 }
 
 // Tag detection and rendering plugin for markdown-it
-// Tag detection and rendering plugin for markdown-it
 function tagPlugin(md, options = {}) {
     const tagColors = options.tagColors || {};
     
@@ -107,29 +106,39 @@ function tagPlugin(md, options = {}) {
         pos++;
         if (pos >= state.posMax) return false;
         
-        // Parse tag content (word characters, underscores, hyphens, and special operators)
+        // Parse tag content - for gather tags, include full expression
         let tagStart = pos;
-        while (pos < state.posMax) {
-            const char = state.src.charCodeAt(pos);
-            // Allow alphanumeric, underscore, hyphen, equals, pipe, greater than, less than
-            if ((char >= 0x30 && char <= 0x39) || // 0-9
-                (char >= 0x41 && char <= 0x5A) || // A-Z
-                (char >= 0x61 && char <= 0x7A) || // a-z
-                char === 0x5F || // _
-                char === 0x2D || // -
-                char === 0x3D || // =
-                char === 0x7C || // |
-                char === 0x3E || // >
-                char === 0x3C) { // 
+        let tagContent = '';
+        
+        // Check if it's a gather tag
+        if (state.src.substr(pos, 7) === 'gather_') {
+            // For gather tags, capture everything until next space or end
+            while (pos < state.posMax) {
+                const char = state.src.charCodeAt(pos);
+                // Stop at space or newline
+                if (char === 0x20 || char === 0x0A) break;
                 pos++;
-            } else {
-                break;
             }
+            tagContent = state.src.slice(tagStart, pos);
+        } else {
+            // For regular tags, use existing logic
+            while (pos < state.posMax) {
+                const char = state.src.charCodeAt(pos);
+                // Allow alphanumeric, underscore, hyphen
+                if ((char >= 0x30 && char <= 0x39) || // 0-9
+                    (char >= 0x41 && char <= 0x5A) || // A-Z
+                    (char >= 0x61 && char <= 0x7A) || // a-z
+                    char === 0x5F || // _
+                    char === 0x2D) { // -
+                    pos++;
+                } else {
+                    break;
+                }
+            }
+            tagContent = state.src.slice(tagStart, pos);
         }
         
-        if (pos === tagStart) return false; // No tag content
-        
-        const tagContent = state.src.slice(tagStart, pos);
+        if (tagContent.length === 0) return false;
         
         if (silent) return true;
         
@@ -149,9 +158,14 @@ function tagPlugin(md, options = {}) {
         const tagContent = token.content;
         const fullTag = '#' + token.content;
         
-        // Extract base tag name (before any operator) for styling
-        const baseTagMatch = tagContent.match(/^([a-zA-Z0-9_-]+)/);
-        const baseTagName = baseTagMatch ? baseTagMatch[1].toLowerCase() : tagContent.toLowerCase();
+        // Extract base tag name for styling (before any operators)
+        let baseTagName = tagContent;
+        if (tagContent.startsWith('gather_')) {
+            baseTagName = 'gather'; // Use 'gather' as base for all gather tags
+        } else {
+            const baseMatch = tagContent.match(/^([a-zA-Z0-9_-]+)/);
+            baseTagName = baseMatch ? baseMatch[1].toLowerCase() : tagContent.toLowerCase();
+        }
         
         return `<span class="kanban-tag" data-tag="${escapeHtml(baseTagName)}">${escapeHtml(fullTag)}</span>`;
     };

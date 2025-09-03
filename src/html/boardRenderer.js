@@ -252,11 +252,15 @@ function applyFoldingStates() {
 // Helper function to get active tags in a title
 function getActiveTagsInTitle(text) {
     if (!text) return [];
-    // Match all tags with extended syntax except row tags
-    const matches = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g) || [];
+    // Match all tags - for gather tags, include the full expression until next space
+    const matches = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
     return matches.map(tag => {
-        // Remove the # and extract base tag name
         const fullTag = tag.substring(1);
+        // For gather tags, keep the full expression
+        if (fullTag.startsWith('gather_')) {
+            return fullTag;
+        }
+        // For other tags, extract base name
         const baseMatch = fullTag.match(/^([a-zA-Z0-9_-]+)/);
         return baseMatch ? baseMatch[1].toLowerCase() : fullTag.toLowerCase();
     });
@@ -265,9 +269,9 @@ function getActiveTagsInTitle(text) {
 // Add a new function to get full tag content (including operators)
 function getFullTagContent(text) {
     if (!text) return [];
-    // Match all tags with full content including operators
-    const matches = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g) || [];
-    return matches.map(tag => tag.substring(1)); // Remove # but keep full content
+    // Match tags including full gather expressions
+    const matches = text.match(/#(?!row\d+\b)(gather_[a-zA-Z0-9_&|=><-]+|[a-zA-Z0-9_-]+)/g) || [];
+    return matches.map(tag => tag.substring(1));
 }
 
 // Helper function to collect all tags currently in use across the board

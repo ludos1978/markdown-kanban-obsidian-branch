@@ -427,3 +427,7 @@ make the #gather function to include equal and larger smaller then funtions as w
 
 keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsafes. when implementing code always write out full functions if they are modified and where to make a change, especially if the change is not very obvious. use DRY programming .. add only comments in the code to explain the code, not the mention whats new. ont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
  explain your planned changes first without editing the sourcecode!
+
+ ---
+
+ verify the #gather functionality. only allow #gather (not #gather-) also everything until the next space is part of the gather tag (including & | < > !). currently all @DATE @PERSON end up in the #ungathered column. analyze the problem carefully and find a solution to the problems. consider that a card might have multiple @PERSON tags (but generally should only have one @DATE tag). so #gather_reto&anita should work or #gather_karl|bruno (or). the same for #gather_3<dayoffset&dayoffset<5 or #gather_dayoffset=1|dayoffset=2 (tomorrow and the next day)
