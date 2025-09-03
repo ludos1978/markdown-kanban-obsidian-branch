@@ -417,3 +417,13 @@ please write the corresponding code. Always write out full functions and where t
 keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
 
 
+---
+
+make the #gather function to include equal and larger smaller then funtions as well as or and "and". for example #gather_day=1 (tomorrow) #gather_day=-1 (yesterday) #gather_day=mon (mondays), #gather_1
+
+- 
+
+make the #gather function to include equal and larger smaller then funtions as well as or and "and". for example #gather_dayoffset=1 (tomorrow) #gather_dayoffset=-1 (yesterday) #gather_weekday=mon (mondays), #gather_1<dayoffset&dayoffset<3 (and), #gather_dayoffset=2|dayoffset=3 (or) , also include month, weekdaynum (1 to 7, starting monday), weekday (mon, tue,wed). include the and and or also in the person handling #gather_reto&anita where both tags are requred, or #gather_karl|bruno where either one is enough. give me examples what might also be useful to include, but dont expand to complex methods. "and", "or", "equal", "larger", "smaller" is the basic requirement.
+
+keep changes as minimal as possible. dont change any existing features apart from what is absolutely necessary. dont modify the markdown in any other way. dont add any fallbacks or failsafes. when implementing code always write out full functions if they are modified and where to make a change, especially if the change is not very obvious. use DRY programming .. add only comments in the code to explain the code, not the mention whats new. ont add any fallbacks or failsaves. allways write out full functions if they are modfied and where to make a change, especially if the change is not very obvious.
+ explain your planned changes first without editing the sourcecode!

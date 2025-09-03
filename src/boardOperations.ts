@@ -538,7 +538,8 @@ export class BoardOperations {
             if (!column.title) return;
             
             // Extract all gather and sort tags from column title
-            const tags = column.title.match(/#(gather-[a-zA-Z0-9_-]+|sort-[a-zA-Z0-9_-]+|ungathered|unsorted)/g) || [];
+            // Updated regex to support both dash and underscore
+            const tags = column.title.match(/#(gather[-_][a-zA-Z0-9_<>=&|]+|sort[-_][a-zA-Z0-9_-]+|ungathered|unsorted)/g) || [];
             if (tags.length > 0) {
                 // Reverse the tags to process last tag first
                 gatherColumns.push({
@@ -551,15 +552,15 @@ export class BoardOperations {
         // Process each column's tags
         gatherColumns.forEach(({ column, tags }) => {
             tags.forEach(tag => {
-                if (tag.startsWith('gather-')) {
+                if (tag.startsWith('gather-') || tag.startsWith('gather_')) {
                     this.gatherToColumn(board, column, tag, movedTasks);
                 } else if (tag === 'ungathered') {
                     this.gatherUngatheredToColumn(board, column, movedTasks);
                 } else if (tag === 'unsorted') {
                     this.gatherUnsortedToColumn(board, column, movedTasks);
-                } else if (tag === 'sort-bydate') {
+                } else if (tag === 'sort-bydate' || tag === 'sort_bydate') {
                     this.sortColumnByDate(column);
-                } else if (tag === 'sort-byname') {
+                } else if (tag === 'sort-byname' || tag === 'sort_byname') {
                     this.sortColumnByName(column);
                 }
             });
@@ -572,6 +573,9 @@ export class BoardOperations {
     private gatherToColumn(board: KanbanBoard, targetColumn: KanbanColumn, tag: string, movedTasks: Set<string>): void {
         const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
         
+        // Parse the gather expression
+        const evaluator = this.parseGatherExpression(tag);
+        
         // Collect tasks that match the gather criteria
         board.columns.forEach(sourceColumn => {
             if (sourceColumn.id === targetColumn.id) return;
@@ -583,25 +587,8 @@ export class BoardOperations {
                 const taskDate = this.extractDate(taskText);
                 const personNames = this.extractPersonNames(taskText);
                 
-                let shouldMove = false;
-                
-                if (tag === 'gather-today' && taskDate === this.getTodayString()) {
-                    shouldMove = true;
-                } else if (tag === 'gather-next3days' && taskDate && this.isWithinDays(taskDate, 3)) {
-                    shouldMove = true;
-                } else if (tag === 'gather-next7days' && taskDate && this.isWithinDays(taskDate, 7)) {
-                    shouldMove = true;
-                } else if (tag === 'gather-overdue' && taskDate && this.isOverdue(taskDate)) {
-                    shouldMove = true;
-                } else if (tag.startsWith('gather-') && !tag.match(/^gather-(today|next3days|next7days|overdue)$/)) {
-                    // Check for person name gathering
-                    const targetPerson = tag.substring(7); // Remove 'gather-' prefix
-                    if (personNames.includes(targetPerson)) {
-                        shouldMove = true;
-                    }
-                }
-                
-                if (shouldMove) {
+                // Use the expression evaluator
+                if (evaluator(taskText, taskDate, personNames)) {
                     tasksToMove.push({ task, fromColumn: sourceColumn });
                     movedTasks.add(task.id);
                 }
@@ -677,6 +664,137 @@ export class BoardOperations {
             }
         });
     }
+
+    // Parse and evaluate gather expressions with operators
+    private parseGatherExpression(tag: string): (taskText: string, taskDate: string | null, personNames: string[]) => boolean {
+        // Remove 'gather-' or 'gather_' prefix
+        let expr = tag.replace(/^gather[-_]/, '');
+        
+        // Handle legacy simple tags first
+        if (expr === 'today') {
+            return (taskText, taskDate, personNames) => taskDate === this.getTodayString();
+        }
+        if (expr === 'next3days') {
+            return (taskText, taskDate, personNames) => taskDate ? this.isWithinDays(taskDate, 3) : false;
+        }
+        if (expr === 'next7days') {
+            return (taskText, taskDate, personNames) => taskDate ? this.isWithinDays(taskDate, 7) : false;
+        }
+        if (expr === 'overdue') {
+            return (taskText, taskDate, personNames) => taskDate ? this.isOverdue(taskDate) : false;
+        }
+        
+        // Handle OR expressions (lower precedence)
+        if (expr.includes('|')) {
+            const parts = expr.split('|');
+            const subEvaluators = parts.map(part => this.parseGatherExpression('gather_' + part.trim()));
+            return (taskText, taskDate, personNames) => {
+                return subEvaluators.some(evaluator => evaluator(taskText, taskDate, personNames));
+            };
+        }
+        
+        // Handle AND expressions (higher precedence)
+        if (expr.includes('&')) {
+            const parts = expr.split('&');
+            const subEvaluators = parts.map(part => this.parseGatherExpression('gather_' + part.trim()));
+            return (taskText, taskDate, personNames) => {
+                return subEvaluators.every(evaluator => evaluator(taskText, taskDate, personNames));
+            };
+        }
+        
+        // Handle comparison expressions: property=value, property<value, property>value, value<property
+        const comparisonMatch = expr.match(/^([a-zA-Z_]+|\d+)([<>=])([a-zA-Z_]+|\d+)$/);
+        if (comparisonMatch) {
+            const [, left, operator, right] = comparisonMatch;
+            return this.createComparisonEvaluator(left, operator, right);
+        }
+        
+        // Handle simple person names (no operators) for backward compatibility
+        if (!expr.match(/[<>=]/)) {
+            return (taskText, taskDate, personNames) => {
+                return personNames.map(p => p.toLowerCase()).includes(expr.toLowerCase());
+            };
+        }
+        
+        // Default: no match
+        return () => false;
+    }
+
+    // Create comparison evaluator for date properties
+    private createComparisonEvaluator(left: string, operator: string, right: string): 
+        (taskText: string, taskDate: string | null, personNames: string[]) => boolean {
+        
+        // Determine if left or right is the property
+        const properties = ['dayoffset', 'weekday', 'weekdaynum', 'month'];
+        const isLeftProperty = properties.includes(left);
+        const property = isLeftProperty ? left : right;
+        const value = isLeftProperty ? right : left;
+        
+        // Reverse operator if value is on the left side
+        let actualOperator = operator;
+        if (!isLeftProperty) {
+            if (operator === '<') actualOperator = '>';
+            else if (operator === '>') actualOperator = '<';
+        }
+        
+        return (taskText: string, taskDate: string | null, personNames: string[]) => {
+            if (!taskDate && property !== 'person') return false;
+            
+            const propValue = this.getDatePropertyValue(property, taskDate);
+            if (propValue === null) return false;
+            
+            // For weekday string comparison
+            if (property === 'weekday') {
+                return actualOperator === '=' && propValue === value.toLowerCase();
+            }
+            
+            // For numeric comparisons
+            const numValue = parseInt(value);
+            const numPropValue = typeof propValue === 'number' ? propValue : parseInt(propValue);
+            
+            switch (actualOperator) {
+                case '=': return numPropValue === numValue;
+                case '<': return numPropValue < numValue;
+                case '>': return numPropValue > numValue;
+                default: return false;
+            }
+        };
+    }
+
+    // Get date property value
+    private getDatePropertyValue(property: string, dateStr: string | null): number | string | null {
+        if (!dateStr) return null;
+        
+        const date = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        date.setHours(0, 0, 0, 0);
+        
+        switch (property) {
+            case 'dayoffset':
+                // Calculate days difference from today
+                const diffTime = date.getTime() - today.getTime();
+                return Math.round(diffTime / (1000 * 60 * 60 * 24));
+                
+            case 'weekday':
+                // Return day name (mon, tue, wed, etc.)
+                const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+                return days[date.getDay()];
+                
+            case 'weekdaynum':
+                // Return 1-7 where Monday = 1, Sunday = 7
+                const dayNum = date.getDay(); // 0 = Sunday
+                return dayNum === 0 ? 7 : dayNum;
+                
+            case 'month':
+                // Return month number 1-12
+                return date.getMonth() + 1;
+                
+            default:
+                return null;
+        }
+    }
+
 
     // Sort column by date
     private sortColumnByDate(column: KanbanColumn): void {
