@@ -4,16 +4,21 @@ kanban-plugin: board
 
 ---
 
-## #gather-reto
-- [ ] @reto
+## #gather_reto
 
-## #gather-anita
-- [ ] @anita
+## #gather_anita
+
+## #gather_reto|anita
+
+## #gather_bruno&karl
 
 ## #ungathered
-- [ ] @bruno
+- [ ] @reto
+- [ ] @anita
 - [ ] @anita
   X
-  
+- [ ] @bruno
+- [ ] @karl @bruno
+- [ ] @anne
 
 
