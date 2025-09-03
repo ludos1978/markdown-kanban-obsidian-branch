@@ -110,7 +110,7 @@ body {
   border-radius: var(--whitespace-div4);
   width: var(--column-width);
   flex-shrink: 0;
-  border: 1px solid var(--vscode-panel-border);
+  border: 0.5px solid var(--vscode-panel-border);
   position: relative;
   height: min-content;
   transition: all 0.3s ease;
@@ -153,7 +153,7 @@ body {
 }
 
 .kanban-column.collapsed {
-  width: var(--collapsed-column-width) !important;
+  /* width: var(--collapsed-column-width) !important; */
   /* width: var(--collapsed-column-width) !important;
   min-width: var(--collapsed-column-width) !important;
   max-width: var(--collapsed-column-width) !important; */
@@ -173,15 +173,15 @@ body {
   align-items: center;
   margin-bottom: var(--whitespace-div2);
   padding-bottom: var(--whitespace-div2);
-  border-bottom: 1px solid var(--vscode-panel-border);
+  /* border-bottom: 1px solid var(--vscode-panel-border); */
   /* min-height: 38px; */
   position: sticky;
   top: -5px;
   z-index: 10;
-  background-color: inherit;
+  background-color: var(--vscode-editor-background);
   padding-top: var(--whitespace-div2);
-  margin-top: calc(-1 * var(--whitespace-div2));
-  border-top: 1px solid var(--vscode-panel-border);
+  /* margin-top: calc(-1 * var(--whitespace-div2)); */
+  /* border-top: 1px solid var(--vscode-panel-border); */
 }
 
 .kanban-column.collapsed .column-header {
@@ -244,10 +244,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100px;
+  /* min-height: 100px; */
   flex: 1;
   width: 100%;
-  padding: 15px 0;
+  padding: 5px 0;
   margin: 0;
   gap: 4px;
   white-space: nowrap;
@@ -2062,13 +2062,13 @@ h6 .kanban-tag {
   box-sizing: border-box;
 }
 
-.kanban-column.collapsed.has-footer-bar .column-controls {
+/* .kanban-column.collapsed.has-footer-bar .column-controls {
   padding-bottom: calc(var(--whitespace-div2) * 2);
-}
+} */
 
-.kanban-column.collapsed .collapsed-add-task-btn {
+/* .kanban-column.collapsed .collapsed-add-task-btn {
   margin: var(--whitespace-div2) var(--whitespace-div3-mul2);
-}
+} */
 
 .kanban-column.collapsed .header-bar::after,
 .kanban-column.collapsed .footer-bar::after {
@@ -2129,26 +2129,33 @@ h6 .kanban-tag {
 }
 
 /* Fix collapsed add task button in dark mode */
-.vscode-dark .collapsed-add-task-btn {
-    background: #000000;
-    color: var(--vscode-descriptionForeground);
-    border: 1px solid var(--vscode-descriptionForeground);
+/* light mode */
+body.vscode-light .collapsed-add-task-btn,
+body.vscode-high-contrast-light .collapsed-add-task-btn {
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
 }
 
+body.vscode-light .collapsed-add-task-btn:hover,
+body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
+}
+
+/* dark mode */
+.vscode-dark .collapsed-add-task-btn,
 .vscode-high-contrast .collapsed-add-task-btn {
-    background: #ffffff;
+    background: #000;
     color: var(--vscode-descriptionForeground);
     border: 1px solid var(--vscode-descriptionForeground);
 }
 
-.vscode-dark .collapsed-add-task-btn:hover {
-    background: #1a1a1a;
-    color: var(--vscode-descriptionForeground);
-    border: 1px solid var(--vscode-descriptionForeground);
-}
-
+.vscode-dark .collapsed-add-task-btn:hover,
 .vscode-high-contrast .collapsed-add-task-btn:hover {
-    background: #ffffff;
+    /* background: #ffffff; */
+    background: #1a1a1a;
     color: var(--vscode-descriptionForeground);
     border: 1px solid var(--vscode-descriptionForeground);
 }
