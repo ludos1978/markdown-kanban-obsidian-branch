@@ -1898,7 +1898,7 @@ h6 .kanban-tag {
 }
 
 /* Collapsed state - bars stay in containers */
-.kanban-column.collapsed .header-bar,
+/* .kanban-column.collapsed .header-bar,
 .kanban-column.collapsed .footer-bar {
   writing-mode: horizontal-tb !important;
   transform: none !important;
@@ -1911,7 +1911,7 @@ h6 .kanban-tag {
   white-space: nowrap !important;
   width: 100% !important;
   position: relative !important;
-}
+} */
 
 /* Only bars with labels get the 20px height in collapsed state */
 .kanban-column.collapsed .header-bar::after:not(:empty),
@@ -1992,14 +1992,14 @@ h6 .kanban-tag {
   justify-content: center !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  /* white-space: nowrap !important; */
 }
 
 .kanban-column.collapsed .header-bar::after,
 .kanban-column.collapsed .footer-bar::after {
   font-size: 8px !important;
   letter-spacing: -0.5px !important;
-  white-space: nowrap !important;
+  /* white-space: nowrap !important; */
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   max-width: 100%;
@@ -2074,7 +2074,7 @@ h6 .kanban-tag {
 .kanban-column.collapsed .footer-bar::after {
   font-size: 8px !important;
   letter-spacing: -0.5px !important;
-  white-space: nowrap !important;
+  /* white-space: nowrap !important; */
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   max-width: 100%;

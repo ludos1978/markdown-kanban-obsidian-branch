@@ -195,6 +195,11 @@
                   "background": "#adb5bd",
                   "backgroundDark": "#686d71"
                 },
+                "headerBar": {
+                  "height": "20px",
+                  "label": "TODO",
+                  "labelColor": "#ffffff"
+                },
                 "border": {
                   "style": "dotted",
                   "width": "2px",
@@ -248,7 +253,7 @@
                   "position": "full",
                   "color": "#00ff00"
                 },
-                "footerBar": {
+                "headerBar": {
                   "height": "20px",
                   "label": "COMPLETED",
                   "labelColor": "#ffffff"
@@ -271,6 +276,12 @@
                   "text": "#000000",
                   "background": "#ff6b6b",
                   "backgroundDark": "#994040"
+                },
+                "headerBar": {
+                  "height": "20px",
+                  "label": "BLOCKED",
+                  "style": "solid",
+                  "labelColor": "#ffffff"
                 },
                 "border": {
                   "style": "dashed",
@@ -300,8 +311,10 @@
                   "backgroundDark": "#3d6b99"
                 },
                 "headerBar": {
-                  "height": "4px",
-                  "style": "solid"
+                  "height": "20px",
+                  "label": "REVIEW",
+                  "style": "solid",
+                  "labelColor": "#ffffff"
                 },
                 "border": {
                   "style": "solid",
@@ -327,9 +340,6 @@
                   "backgroundDark": "#703e78"
                 },
                 "headerBar": {
-                  "height": "3px"
-                },
-                "footerBar": {
                   "height": "20px",
                   "label": "TESTING",
                   "labelColor": "#ffffff"
@@ -985,186 +995,231 @@
               }
             },
             "colors": {
-              "red": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#dc3545",
-                  "backgroundDark": "#842029"
+                "red": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#dc3545"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#ff8787"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ff8787",
-                  "backgroundDark": "#995151"
-                }
-              },
-              "green": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#198754",
-                  "backgroundDark": "#0f5132"
+                "green": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#198754"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#8ce99a"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#8ce99a",
-                  "backgroundDark": "#548c5c"
-                }
-              },
-              "blue": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#0056b3",
-                  "backgroundDark": "#00346b"
+                "blue": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#0056b3"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#5a8dee"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#5a8dee",
-                  "backgroundDark": "#36558f"
-                }
-              },
-              "yellow": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#ffc107",
-                  "backgroundDark": "#997404"
+                "yellow": {
+                    "light": {
+                        "text": "#212529",
+                        "background": "#ffc107"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#ffe066"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffe066",
-                  "backgroundDark": "#99863d"
-                }
-              },
-              "orange": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#fd7e14",
-                  "backgroundDark": "#984c0c"
+                "orange": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#fd7e14"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#ffc078"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#ffc078",
-                  "backgroundDark": "#997348"
-                }
-              },
-              "purple": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#6f42c1",
-                  "backgroundDark": "#432874"
+                "purple": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#6f42c1"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#b197fc"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#b197fc",
-                  "backgroundDark": "#6a5b97"
-                }
-              },
-              "pink": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#e83e8c",
-                  "backgroundDark": "#8b2554"
+                "pink": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#e83e8c"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#fcc2d7"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#fcc2d7",
-                  "backgroundDark": "#977481"
-                }
-              },
-              "cyan": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#0dcaf0",
-                  "backgroundDark": "#087990"
+                "cyan": {
+                    "light": {
+                        "text": "#212529",
+                        "background": "#0dcaf0"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#99e9f2"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#99e9f2",
-                  "backgroundDark": "#5c8c91"
-                }
-              },
-              "magenta": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#d63384",
-                  "backgroundDark": "#801f4f"
+                "magenta": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#d63384"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#f06595"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#f06595",
-                  "backgroundDark": "#903d59"
-                }
-              },
-              "brown": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#795548",
-                  "backgroundDark": "#49332b"
+                "brown": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#795548"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#a1887f"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#a1887f",
-                  "backgroundDark": "#61524c"
-                }
-              },
-              "gray": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#adb5bd",
-                  "backgroundDark": "#686d71"
+                "gray": {
+                    "light": {
+                        "text": "#212529",
+                        "background": "#adb5bd"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#dee2e6"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#dee2e6",
-                  "backgroundDark": "#85888a"
-                }
-              },
-              "teal": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#20c997",
-                  "backgroundDark": "#13795b"
+                "teal": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#20c997"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#63e6be"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#63e6be",
-                  "backgroundDark": "#3b8a72"
-                }
-              },
-              "indigo": {
-                "light": {
-                  "text": "#ffffff",
-                  "background": "#6610f2",
-                  "backgroundDark": "#3d0a91"
+                "indigo": {
+                    "light": {
+                        "text": "#ffffff",
+                        "background": "#6610f2"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#9775fa"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#9775fa",
-                  "backgroundDark": "#5b4696"
-                }
-              },
-              "lime": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#84cc16",
-                  "backgroundDark": "#4f7a0d"
+                "lime": {
+                    "light": {
+                        "text": "#212529",
+                        "background": "#84cc16"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#a3e635"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#a3e635",
-                  "backgroundDark": "#628a20"
+                "amber": {
+                    "light": {
+                        "text": "#212529",
+                        "background": "#f59e0b"
+                    },
+                    "dark": {
+                        "text": "#000000",
+                        "background": "#fbbf24"
+                    },
+                    "border": {
+                        "style": "solid",
+                        "width": "5px",
+                        "position": "left"
+                    }
                 }
-              },
-              "amber": {
-                "light": {
-                  "text": "#212529",
-                  "background": "#f59e0b",
-                  "backgroundDark": "#935f07"
-                },
-                "dark": {
-                  "text": "#000000",
-                  "background": "#fbbf24",
-                  "backgroundDark": "#977316"
-                }
-              }
             }
           },
           "description": "Grouped color and style configuration for tags in kanban boards with various visual indicators."

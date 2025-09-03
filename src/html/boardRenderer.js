@@ -1210,7 +1210,7 @@ function handleColumnBarsOnToggle(columnElement, isNowCollapsed) {
             bars.forEach((bar, index) => {
                 const barTag = bar.className.match(/header-bar-(\S+)/)?.[1];
                 const config = getTagConfig(barTag);
-                const height = config?.headerBar?.label ? 20 : parseInt(config?.headerBar?.height || '4px');
+                const height = config?.headerBar?.label ? 10 : parseInt(config?.headerBar?.height || '4px');
                 
                 // Set absolute positioning
                 bar.style.position = 'absolute';
