@@ -2011,7 +2011,7 @@ h6 .kanban-tag {
   content: '\200B';
   display: inline-block;
   width: 1px;
-  height: 100px;
+  /* height: 100px; */
 }
 
 .kanban-column.collapsed.has-header-bar {

@@ -1601,7 +1601,7 @@ function generateTagStyles() {
                     const columnBg = interpolateColor(editorBg, bgDark, 0.15);
                     styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
                         background-color: ${columnBg} !important;
-                        position: relative;
+                        // position: relative;
                     }\n`;
                     
                     // Column header background - same as column background
