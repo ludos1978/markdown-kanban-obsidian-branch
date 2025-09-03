@@ -430,4 +430,63 @@ keep changes as minimal as possible. dont change any existing features apart fro
 
  ---
 
- verify the #gather functionality. only allow #gather (not #gather-) also everything until the next space is part of the gather tag (including & | < > !). currently all @DATE @PERSON end up in the #ungathered column. analyze the problem carefully and find a solution to the problems. consider that a card might have multiple @PERSON tags (but generally should only have one @DATE tag). so #gather_reto&anita should work or #gather_karl|bruno (or). the same for #gather_3<dayoffset&dayoffset<5 or #gather_dayoffset=1|dayoffset=2 (tomorrow and the next day)
+verify the #gather functionality. only allow #gather (not #gather-) also everything until the next space is part of the gather tag (including & | < > !). currently all @DATE @PERSON end up in the #ungathered column. analyze the problem carefully and find a solution to the problems. consider that a card might have multiple @PERSON tags (but generally should only have one @DATE tag). so #gather_reto&anita should work or #gather_karl|bruno (or). the same for #gather_3<dayoffset&dayoffset<5 or #gather_dayoffset=1|dayoffset=2 (tomorrow and the next day)
+
+---
+
+@TAGS
+- everything until a space is part of the @TAG 
+- there are @DUEDATE tags @2025-03-27 or @due=2025-03-27
+  - there might be other @DATE tags such as done, modified, start and end added in the future.
+  - only the first @DATE tag of each type is handled. 
+  - a DATE tag must start with @datetype: followed by the date format (european), it might be shortened to @2025-1-17
+- there are @PERSON tags @Reto , a card might have multiple of these tags
+  - Person tags are those which dont follow the date tag structure (@xxx:dateformat)
+    - dateformat might change in the future or might be extended
+- @sticky is a special tag which makes a card stick to it's column and position.
+
+#gather_ TAGS
+- gather tags allways exaclty start with #gather_
+- the gather is a tag that only works in a column header.
+- the gather tag ends with a space and nothing else (include any special characters)
+- gather tags gather @TAGS under the column.
+- the part following the gather tag is the rules of the tag
+- gather tags can have multiple parameters
+  - PERSON
+  - DUEDATE (a date without specification is a DUEDATE)
+    - A duedate can be handled in different ways. such as:
+      - dayoffset or day : offset of the day from today (system local time)
+      - weekdaynum : number of day of week from 1 (monday) to 7 (sunday)
+      - weekday : mon, tue, wed, ...
+      - month : jan, feb
+      - monthnum : 1 .. 12
+      - others might be added here in the future
+- there is a #ungathered tag which is a fallback
+- gather tags have functions
+  - AND &
+  - OR |   (if there are multiple gather tags in a column header combine them by OR)
+  - LARGERTHEN >
+  - SMALLERTHEN <
+  - NOT !
+  - EQUAL =
+  - UNEQUAL !=
+- the combination of parameters and functions can be like this
+  - #gather_Reto : gathers all @PERSON tags where the name is Reto
+  - #gather_Reto|Anita : gathers all @PERSON tags where the name is Reto or Anita
+  - #gather_day=0 : all dates which are todays date
+  - #gather_0<day&day<3 : tomorrow and the next day, but nothing before or after
+  - #gather_weekday=1 | all mondays
+  - #gather_reto&weekday=1 | @PERSON is Reto and @DUEDATE is monday
+  - #gather_1<day&day<6&weekday!=2 : in 2 days up until in 5 days but not tuesdays
+  - if there is anything unclear ask first before implementing it!
+
+the gather sorting mechanism must work like this. The sorting is activated by pressing the sort button:
+- all cards are gathered in a list, storing the source column with them.
+- all @TAGS are extracted (can be done before, but at least we now need them)
+- all columns are gathered in a list
+- all columns rules are stored in a ordered list
+- all cards are matched against the rules of the columns
+  - the card is put into the column with the first exact match where all rules of the column apply. any further rules are ignored
+  - if a card cannot be matched against any rules:
+    - it first goes into the #ungathered column if it exists
+    - it stays in it's original column
