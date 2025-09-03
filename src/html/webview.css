@@ -105,7 +105,8 @@ body {
 
 /* Kanban columns */
 .kanban-column {
-  background-color: var(--vscode-sideBar-background);
+  /* Use editor background by default to avoid darker sidebar tint */
+  background-color: var(--vscode-editor-background);
   border-radius: var(--whitespace-div4);
   width: var(--column-width);
   flex-shrink: 0;

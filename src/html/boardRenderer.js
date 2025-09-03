@@ -1462,37 +1462,63 @@ function generateTagStyles() {
         transition: all 0.2s ease;
     }\n`;
     
-    // Add default styles for elements without tags
+    // Add default styles for elements without tags only when explicitly enabled
     if (window.tagColors.default) {
         const defaultConfig = window.tagColors.default;
-        
-        // Default column styles
-        if (defaultConfig.column) {
+
+        // Default column styles (gated)
+        if (defaultConfig.column && (defaultConfig.column.applyBackground === true || defaultConfig.column.enable === true)) {
             const columnColors = defaultConfig.column[themeKey] || defaultConfig.column.light || {};
             if (columnColors.text && columnColors.background) {
                 styles += `.kanban-column:not([data-column-tag]) {
                     background-color: ${hexToRgba(columnColors.background, 0.15)} !important;
                     position: relative;
                 }\n`;
-                
+
                 styles += `.kanban-column.collapsed:not([data-column-tag]) {
                     background-color: ${hexToRgba(columnColors.background, 0.2)} !important;
                 }\n`;
             }
         }
-        
-        // Default card styles
-        if (defaultConfig.card) {
+
+        // Default column border (always allowed if provided)
+        if (defaultConfig.column && defaultConfig.column.border) {
+            const b = defaultConfig.column.border;
+            const bStyle = b.style || 'solid';
+            const bWidth = b.width || '1px';
+            const bColor = b.color || 'var(--vscode-panel-border)';
+            if (b.position === 'left') {
+                styles += `.kanban-column:not([data-column-tag]) { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+            } else {
+                styles += `.kanban-column:not([data-column-tag]) { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+            }
+        }
+
+        // Default card styles (gated)
+        if (defaultConfig.card && (defaultConfig.card.applyBackground === true || defaultConfig.card.enable === true)) {
             const cardColors = defaultConfig.card[themeKey] || defaultConfig.card.light || {};
             if (cardColors.text && cardColors.background) {
                 styles += `.task-item:not([data-task-tag]) {
                     background-color: ${hexToRgba(cardColors.background, 0.25)} !important;
                     position: relative;
                 }\n`;
-                
+
                 styles += `.task-item:not([data-task-tag]):hover {
                     background-color: ${hexToRgba(cardColors.background, 0.35)} !important;
                 }\n`;
+            }
+        }
+
+        // Default card border (always allowed if provided)
+        if (defaultConfig.card && defaultConfig.card.border) {
+            const b = defaultConfig.card.border;
+            const bStyle = b.style || 'solid';
+            const bWidth = b.width || '1px';
+            const bColor = b.color || 'var(--vscode-panel-border)';
+            if (b.position === 'left') {
+                styles += `.task-item:not([data-task-tag]) { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+            } else {
+                styles += `.task-item:not([data-task-tag]) { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
             }
         }
     }

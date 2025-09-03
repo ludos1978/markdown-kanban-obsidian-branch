@@ -522,6 +522,7 @@ export class KanbanWebviewPanel {
         }, 10);
     }
 
+
     private async _generateImageMappings(board: KanbanBoard): Promise<ImagePathMapping> {
         const mappings: ImagePathMapping = {};
         

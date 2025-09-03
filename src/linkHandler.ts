@@ -16,7 +16,8 @@ export class LinkHandler {
         onRequestLinkReplacement: (originalPath: string, newPath: string, isImage: boolean) => Promise<void> // ADD THIS
     ) {
         this._fileManager = fileManager;
-        this._fileSearchService = new FileSearchService();
+        // Provide extension root so FileSearchService can load icon assets
+        this._fileSearchService = new FileSearchService(this._fileManager.getExtensionUri());
         this._webview = webview;
         this._onRequestLinkReplacement = onRequestLinkReplacement; // ADD THIS
     }

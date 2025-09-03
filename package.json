@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.9.115",
+  "version": "0.9.125",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -98,6 +98,12 @@
                 "dark": {
                   "text": "#ffffff",
                   "background": "#2d2d2d"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "1px",
+                  "position": "full",
+                  "color": "var(--vscode-panel-border)"
                 }
               },
               "card": {
@@ -108,6 +114,12 @@
                 "dark": {
                   "text": "#ffffff",
                   "background": "#1e1e1e"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "1px",
+                  "position": "full",
+                  "color": "var(--vscode-panel-border)"
                 }
               }
             },

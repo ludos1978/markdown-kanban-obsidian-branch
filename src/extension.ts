@@ -256,6 +256,26 @@ export function activate(context: vscode.ExtensionContext) {
 		activeEditorChangeListener,
 	);
 
+	// React to configuration changes (e.g., tag colors, whitespace, etc.)
+	const configChangeListener = vscode.workspace.onDidChangeConfiguration(async (e) => {
+		if (e.affectsConfiguration('markdown-kanban')) {
+			const panels = KanbanWebviewPanel.getAllPanels();
+			for (const panel of panels) {
+				const uri = panel.getCurrentDocumentUri?.();
+				if (uri) {
+					try {
+						const doc = await vscode.workspace.openTextDocument(uri);
+						await panel.loadMarkdownFile(doc);
+					} catch {
+						// best-effort refresh; ignore failures
+					}
+				}
+			}
+		}
+	});
+
+	context.subscriptions.push(configChangeListener);
+
 	// If current active editor is markdown, auto-activate kanban
 	if (vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.languageId === 'markdown') {
 		vscode.commands.executeCommand('setContext', 'markdownKanbanActive', true);

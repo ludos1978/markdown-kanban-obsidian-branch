@@ -39,6 +39,10 @@ export class FileManager {
         this._extensionUri = extensionUri;
     }
 
+    public getExtensionUri(): vscode.Uri {
+        return this._extensionUri;
+    }
+
     public setDocument(document: vscode.TextDocument | undefined) {
         this._document = document;
     }
