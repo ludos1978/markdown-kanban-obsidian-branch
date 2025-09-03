@@ -293,6 +293,20 @@ export class LinkHandler {
             }
         }
         
+        // Offer replacement picker before warning
+        try {
+            const baseDir = this._fileManager.getDocument()
+                ? path.dirname(this._fileManager.getDocument()!.uri.fsPath)
+                : undefined;
+            const replacement = await this._fileSearchService.pickReplacementForBrokenLink(documentName, baseDir);
+            if (replacement) {
+                await this.applyLinkReplacement(documentName, replacement);
+                return;
+            }
+        } catch (e) {
+            console.warn('[LinkHandler] Wiki replacement picker failed:', e);
+        }
+
         // Enhanced error message with workspace context
         const workspaceFolders = vscode.workspace.workspaceFolders;
         let contextInfo = '';

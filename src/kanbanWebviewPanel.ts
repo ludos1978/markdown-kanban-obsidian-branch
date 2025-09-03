@@ -188,25 +188,37 @@ export class KanbanWebviewPanel {
         // Helper function to replace link in text
         const replaceLink = (text: string): string => {
             if (!text) return text;
-            
             // Escape special regex characters in the original path
             const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            
-            if (isImage) {
-                // Image link pattern: ![alt](path)
-                const imageRegex = new RegExp(`(!\\[[^\\]]*\\]\\()${escapedPath}(\\))`, 'g');
-                if (imageRegex.test(text)) {
-                    return text.replace(imageRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
-                }
-            } else {
-                // Regular link pattern: [text](path)
-                const linkRegex = new RegExp(`(\\[[^\\]]+\\]\\()${escapedPath}(\\))`, 'g');
-                if (linkRegex.test(text)) {
-                    return text.replace(linkRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
-                }
+
+            let out = text;
+            let changed = false;
+
+            // Image link pattern: ![alt](path)
+            const imageRegex = new RegExp(`(!\\[[^\\]]*\\]\\()${escapedPath}(\\))`, 'g');
+            if (imageRegex.test(out)) {
+                out = out.replace(imageRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
+                changed = true;
             }
-            
-            return text;
+
+            // Regular link pattern: [text](path)
+            const linkRegex = new RegExp(`(\\[[^\\]]+\\]\\()${escapedPath}(\\))`, 'g');
+            if (linkRegex.test(out)) {
+                out = out.replace(linkRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
+                changed = true;
+            }
+
+            // Wiki link pattern: [[target|label]] or [[target]]
+            const wikiRegex = new RegExp(`(\\[\\[)\s*${escapedPath}(\\|[^\]]*)?(\\]\\])`, 'g');
+            if (wikiRegex.test(out)) {
+                out = out.replace(wikiRegex, (_m, p1, p2 = '', p3) => {
+                    const labelPart = p2 || '';
+                    return `~~${p1}${originalPath}${labelPart}${p3}~~ ${p1}${newPath}${labelPart}${p3}`;
+                });
+                changed = true;
+            }
+
+            return changed ? out : text;
         };
 
         // Search and replace in all columns and tasks
