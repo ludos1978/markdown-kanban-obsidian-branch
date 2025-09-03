@@ -2,6 +2,10 @@
 
 A VS Code extension that allows editing Markdown files as an interactive Kanban board. Its made to mimic the functionality of a obsidian markdown editor which allows data handling and link management in kanban format. Using the tags it's more versatile. It should be data compatible with the Kanban Obsidian Markdown format from https://github.com/mgmeyers/obsidian-kanban .
 
+## A word of caution
+
+The project is in active use by me. But i have encountered rare data storage and loading problems. But it might habe been just one intermediate version that modified some cards (the last card or the indention of content). So dont handle very important data with it yet. State in 2025-Sept-03.
+
 ## Features
 
 ### Basic Features
