@@ -160,6 +160,10 @@ body {
   overflow: visible;
   min-height: 200px;
   width: min-content;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  z-index: 5;
 }
 
 /* Column header */
