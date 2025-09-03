@@ -43,34 +43,14 @@ export class LinkHandler {
             const { resolvedPath, exists, isAbsolute, attemptedPaths } = resolution;
 
             if (!exists) {
-                // NEW: Start searching for replacement
-                const fileName = path.basename(href);
-                const searchResults = await this._fileSearchService.searchForFile(fileName);
-
-                // If we found candidates, show a QuickPick with previews
-                if (searchResults.length > 0) {
-                    const replacement = await this._fileSearchService.showFileReplacementPicker(href, searchResults);
-                    if (replacement) {
-                        await this.applyLinkReplacement(href, replacement);
-                        return;
-                    }
-                    // If user cancelled the picker, fall through to error message
-                } else {
-                    // FALLBACK: No search results (e.g., no workspace or restricted search)
-                    // Prompt user to pick a replacement file manually
-                    const picked = await vscode.window.showOpenDialog({
-                        canSelectFiles: true,
-                        canSelectFolders: false,
-                        canSelectMany: false,
-                        openLabel: 'Select Replacement',
-                        title: `File not found: ${href}`
-                    });
-
-                    if (picked && picked.length > 0) {
-                        await this.applyLinkReplacement(href, picked[0]);
-                        return;
-                    }
-                    // If user cancels, fall through to original error message
+                // Unified behavior: Open an incremental QuickPick and stream results.
+                const baseDir = this._fileManager.getDocument()
+                    ? path.dirname(this._fileManager.getDocument()!.uri.fsPath)
+                    : undefined;
+                const replacement = await this._fileSearchService.pickReplacementForBrokenLink(href, baseDir);
+                if (replacement) {
+                    await this.applyLinkReplacement(href, replacement);
+                    return;
                 }
                 
                 // Original error handling (unchanged)
