@@ -464,13 +464,28 @@ export class BoardOperations {
         return modified;
     }
 
-    // Add this method to extract date from text
-    private extractDate(text: string): string | null {
+    private extractDate(text: string, dateType: string = 'due'): string | null {
         if (!text) return null;
-        // Match both YYYY-MM-DD and DD-MM-YYYY formats
-        const match = text.match(/@(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4})/);
-        if (match) {
-            const dateStr = match[1];
+        
+        // Match shorthand format @YYYY-MM-DD or @DD-MM-YYYY (assumes it's a due date)
+        if (dateType === 'due') {
+            const shortMatch = text.match(/@(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4})(?:\s|$)/);
+            if (shortMatch) {
+                const dateStr = shortMatch[1];
+                // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
+                if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                    const parts = dateStr.split('-');
+                    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                }
+                return dateStr;
+            }
+        }
+        
+        // Match typed format @type:date (e.g., @due:2025-03-27, @done:2025-03-27)
+        const typedRegex = new RegExp(`@${dateType}:(\\d{4}-\\d{2}-\\d{2}|\\d{2}-\\d{2}-\\d{4})(?:\\s|$)`);
+        const typedMatch = text.match(typedRegex);
+        if (typedMatch) {
+            const dateStr = typedMatch[1];
             // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
             if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
                 const parts = dateStr.split('-');
@@ -478,7 +493,13 @@ export class BoardOperations {
             }
             return dateStr;
         }
+        
         return null;
+    }
+
+    private hasSticky(text: string): boolean {
+        if (!text) return false;
+        return /@sticky(?:\s|$)/.test(text);
     }
 
     // Add this method to extract person names from text
@@ -529,65 +550,124 @@ export class BoardOperations {
     public performAutomaticSort(board: KanbanBoard): boolean {
         if (!board || !board.columns) return false;
         
-        // Track which tasks have been successfully gathered
-        const gatheredTasks = new Set<string>();
+        // Track sticky tasks that shouldn't move
+        const stickyTasks = new Set<string>();
         
-        // First, identify all columns with gather/sort tags
-        const gatherColumns: Array<{
+        // First, identify all sticky tasks
+        board.columns.forEach(column => {
+            column.tasks.forEach(task => {
+                const taskText = `${task.title || ''} ${task.description || ''}`;
+                if (this.hasSticky(taskText)) {
+                    stickyTasks.add(task.id);
+                }
+            });
+        });
+        
+        // Collect all gather rules in order (column order matters for priority)
+        const gatherRules: Array<{
             column: KanbanColumn,
-            tags: string[]
+            expression: string,
+            isUngathered: boolean
         }> = [];
         
         board.columns.forEach(column => {
             if (!column.title) return;
             
-            // Extract all gather and sort tags - include full expression for gather tags
-            const matches = column.title.match(/#(gather_[a-zA-Z0-9_&|=><-]+|sort-[a-zA-Z0-9_-]+|ungathered|unsorted|gather_untagged)/g) || [];
-            if (matches.length > 0) {
-                gatherColumns.push({
-                    column: column,
-                    tags: matches.map(t => t.substring(1))
-                });
+            // Extract gather tags in order
+            const matches = column.title.match(/#(gather_[a-zA-Z0-9_&|=><!\-]+|ungathered)/g) || [];
+            matches.forEach(match => {
+                const tag = match.substring(1);
+                if (tag === 'ungathered') {
+                    gatherRules.push({
+                        column: column,
+                        expression: '',
+                        isUngathered: true
+                    });
+                } else if (tag.startsWith('gather_')) {
+                    gatherRules.push({
+                        column: column,
+                        expression: tag.substring(7),
+                        isUngathered: false
+                    });
+                }
+            });
+        });
+        
+        // Track where each card will go
+        const cardDestinations = new Map<string, KanbanColumn>();
+        
+        // Process each card against all rules
+        board.columns.forEach(sourceColumn => {
+            sourceColumn.tasks.forEach(task => {
+                // Skip sticky tasks
+                if (stickyTasks.has(task.id)) {
+                    return;
+                }
+                
+                const taskText = `${task.title || ''} ${task.description || ''}`;
+                const taskDate = this.extractDate(taskText);
+                const personNames = this.extractPersonNames(taskText);
+                const hasAnyAtTag = taskDate !== null || personNames.length > 0;
+                
+                // Check against each rule in order (first match wins)
+                let matched = false;
+                for (const rule of gatherRules) {
+                    if (rule.isUngathered) {
+                        // Ungathered catches cards with @ tags that weren't matched
+                        if (hasAnyAtTag && !matched) {
+                            cardDestinations.set(task.id, rule.column);
+                            matched = true;
+                            break;
+                        }
+                    } else {
+                        // Regular gather rule
+                        const evaluator = this.parseGatherExpression(rule.expression);
+                        if (evaluator(taskText, taskDate, personNames)) {
+                            cardDestinations.set(task.id, rule.column);
+                            matched = true;
+                            break; // First match wins
+                        }
+                    }
+                }
+                
+                // If no match, card stays in current column (implicit)
+            });
+        });
+        
+        // Now move all cards to their destinations
+        cardDestinations.forEach((targetColumn, taskId) => {
+            // Find the task and its current column
+            let sourceColumn: KanbanColumn | null = null;
+            let task: KanbanTask | null = null;
+            let taskIndex = -1;
+            
+            for (const column of board.columns) {
+                const index = column.tasks.findIndex(t => t.id === taskId);
+                if (index !== -1) {
+                    sourceColumn = column;
+                    task = column.tasks[index];
+                    taskIndex = index;
+                    break;
+                }
+            }
+            
+            // Move the task if found and not already in target
+            if (sourceColumn && task && sourceColumn.id !== targetColumn.id) {
+                sourceColumn.tasks.splice(taskIndex, 1);
+                targetColumn.tasks.push(task);
             }
         });
         
-        // FIRST PASS: Process specific gather tags
-        gatherColumns.forEach(({ column, tags }) => {
-            tags.forEach(tag => {
-                if (tag.startsWith('gather_') && 
-                    tag !== 'gather_untagged' &&
-                    tag !== 'gather_ungathered') {
-                    this.gatherToColumn(board, column, tag, gatheredTasks);
-                }
-            });
-        });
-        
-        // SECOND PASS: Process ungathered (cards with @ tags that weren't gathered)
-        gatherColumns.forEach(({ column, tags }) => {
-            tags.forEach(tag => {
-                if (tag === 'ungathered') {
-                    this.gatherUngatheredToColumn(board, column, gatheredTasks);
-                }
-            });
-        });
-        
-        // THIRD PASS: Process untagged and unsorted
-        gatherColumns.forEach(({ column, tags }) => {
-            tags.forEach(tag => {
-                if (tag === 'gather_untagged') {
-                    this.gatherUntaggedToColumn(board, column, gatheredTasks);
-                } else if (tag === 'unsorted') {
-                    this.gatherUnsortedToColumn(board, column, gatheredTasks);
-                }
-            });
-        });
-        
-        // FOURTH PASS: Apply sorting
-        gatherColumns.forEach(({ column, tags }) => {
-            tags.forEach(tag => {
-                if (tag === 'sort-bydate') {
+        // Apply sorting to columns with sort tags
+        board.columns.forEach(column => {
+            if (!column.title) return;
+            
+            const sortMatches = column.title.match(/#sort-([a-zA-Z]+)/g) || [];
+            sortMatches.forEach(match => {
+                const sortType = match.substring(6); // Remove '#sort-' prefix
+                if (sortType === 'bydate') {
                     this.sortColumnByDate(column);
-                } else if (tag === 'sort-byname') {
+                } else if (sortType === 'byname') {
                     this.sortColumnByName(column);
                 }
             });
@@ -596,51 +676,99 @@ export class BoardOperations {
         return true;
     }
 
-    // Enhanced gather method with proper expression parsing
-    private gatherToColumn(board: KanbanBoard, targetColumn: KanbanColumn, tag: string, gatheredTasks: Set<string>): void {
-        const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
+    // Update gatherToColumn to handle sticky tasks and first-match-wins
+    // private gatherToColumn(board: KanbanBoard, targetColumn: KanbanColumn, tag: string, 
+    //                     gatheredTasks: Set<string>, stickyTasks: Set<string>): void {
+    //     const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
         
-        // Remove 'gather_' prefix to get the expression
-        const expression = tag.substring(7);
+    //     // Remove 'gather_' prefix to get the expression
+    //     const expression = tag.substring(7);
         
-        // Parse and compile the expression into an evaluator function
-        const evaluator = this.parseGatherExpression(expression);
+    //     // Parse and compile the expression into an evaluator function
+    //     const evaluator = this.parseGatherExpression(expression);
         
-        // Collect tasks that match the expression
-        board.columns.forEach(sourceColumn => {
-            if (sourceColumn.id === targetColumn.id) return;
+    //     // Collect tasks that match the expression
+    //     board.columns.forEach(sourceColumn => {
+    //         if (sourceColumn.id === targetColumn.id) return;
             
-            sourceColumn.tasks.forEach(task => {
-                // Skip if already gathered
-                if (gatheredTasks.has(task.id)) return;
+    //         sourceColumn.tasks.forEach(task => {
+    //             // Skip if sticky
+    //             if (stickyTasks.has(task.id)) return;
                 
-                const taskText = `${task.title || ''} ${task.description || ''}`;
-                const taskDate = this.extractDate(taskText);
-                const personNames = this.extractPersonNames(taskText);
+    //             // Skip if already gathered (first match wins)
+    //             if (gatheredTasks.has(task.id)) return;
                 
-                if (evaluator(taskText, taskDate, personNames)) {
-                    tasksToMove.push({ task, fromColumn: sourceColumn });
-                    gatheredTasks.add(task.id); // Mark as gathered
-                }
-            });
-        });
+    //             const taskText = `${task.title || ''} ${task.description || ''}`;
+    //             const taskDate = this.extractDate(taskText);
+    //             const personNames = this.extractPersonNames(taskText);
+                
+    //             if (evaluator(taskText, taskDate, personNames)) {
+    //                 tasksToMove.push({ task, fromColumn: sourceColumn });
+    //                 gatheredTasks.add(task.id); // Mark as gathered immediately
+    //             }
+    //         });
+    //     });
         
-        // Move the tasks
-        tasksToMove.forEach(({ task, fromColumn }) => {
-            const taskIndex = fromColumn.tasks.findIndex(t => t.id === task.id);
-            if (taskIndex !== -1) {
-                fromColumn.tasks.splice(taskIndex, 1);
-                targetColumn.tasks.push(task);
-            }
-        });
-    }
+    //     // Move the tasks
+    //     tasksToMove.forEach(({ task, fromColumn }) => {
+    //         const taskIndex = fromColumn.tasks.findIndex(t => t.id === task.id);
+    //         if (taskIndex !== -1) {
+    //             fromColumn.tasks.splice(taskIndex, 1);
+    //             targetColumn.tasks.push(task);
+    //         }
+    //     });
+    // }
+
+    // // Update gatherUngatheredToColumn to handle sticky tasks
+    // private gatherUngatheredToColumn(board: KanbanBoard, targetColumn: KanbanColumn, 
+    //                                 gatheredTasks: Set<string>, stickyTasks: Set<string>): void {
+    //     const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
+        
+    //     board.columns.forEach(sourceColumn => {
+    //         if (sourceColumn.id === targetColumn.id) return;
+            
+    //         sourceColumn.tasks.forEach(task => {
+    //             // Skip if sticky
+    //             if (stickyTasks.has(task.id)) return;
+                
+    //             // Skip if already gathered
+    //             if (gatheredTasks.has(task.id)) return;
+                
+    //             const taskText = `${task.title || ''} ${task.description || ''}`;
+                
+    //             // Check if task has any @ tags
+    //             const hasDateTag = this.extractDate(taskText) !== null;
+    //             const hasPersonTags = this.extractPersonNames(taskText).length > 0;
+    //             const hasAnyAtTag = hasDateTag || hasPersonTags;
+                
+    //             // Only gather if has @ tags and wasn't already gathered
+    //             if (hasAnyAtTag) {
+    //                 tasksToMove.push({ task, fromColumn: sourceColumn });
+    //                 gatheredTasks.add(task.id);
+    //             }
+    //         });
+    //     });
+        
+    //     // Move the tasks
+    //     tasksToMove.forEach(({ task, fromColumn }) => {
+    //         const taskIndex = fromColumn.tasks.findIndex(t => t.id === task.id);
+    //         if (taskIndex !== -1) {
+    //             fromColumn.tasks.splice(taskIndex, 1);
+    //             targetColumn.tasks.push(task);
+    //         }
+    //     });
+    // }
+
 
     // Parse gather expression into an evaluator function
     private parseGatherExpression(expr: string): (taskText: string, taskDate: string | null, personNames: string[]) => boolean {
-        // Handle OR expressions (lower precedence)
+        // Remove extra spaces and normalize
+        expr = expr.trim();
+        
+        // Handle OR expressions (lowest precedence)
         if (expr.includes('|')) {
-            const parts = expr.split('|');
-            const subEvaluators = parts.map(part => this.parseGatherExpression(part.trim()));
+            const parts = this.splitByOperator(expr, '|');
+            const subEvaluators = parts.map(part => this.parseGatherExpression(part));
             return (taskText, taskDate, personNames) => {
                 return subEvaluators.some(evaluator => evaluator(taskText, taskDate, personNames));
             };
@@ -648,38 +776,42 @@ export class BoardOperations {
         
         // Handle AND expressions (higher precedence)
         if (expr.includes('&')) {
-            const parts = expr.split('&');
-            const subEvaluators = parts.map(part => this.parseGatherExpression(part.trim()));
+            const parts = this.splitByOperator(expr, '&');
+            const subEvaluators = parts.map(part => this.parseGatherExpression(part));
             return (taskText, taskDate, personNames) => {
                 return subEvaluators.every(evaluator => evaluator(taskText, taskDate, personNames));
             };
         }
         
-        // Handle comparison expressions: property<value, property>value, property=value
-        const comparisonMatch = expr.match(/^(dayoffset|weekday|month|[a-zA-Z0-9_-]+)([<>=])(-?\d+|[a-zA-Z0-9_-]+)$/);
-        if (comparisonMatch) {
-            const [, property, operator, value] = comparisonMatch;
-            return this.createComparisonEvaluator(property, operator, value);
-        }
-        
-        // Handle negation with !
+        // Handle NOT operator
         if (expr.startsWith('!')) {
             const subEvaluator = this.parseGatherExpression(expr.substring(1));
             return (taskText, taskDate, personNames) => !subEvaluator(taskText, taskDate, personNames);
         }
         
-        // Handle special keywords
-        if (expr === 'today') {
-            return (taskText, taskDate, personNames) => taskDate === this.getTodayString();
+        // Handle inequality operators (!=)
+        if (expr.includes('!=')) {
+            const parts = expr.split('!=');
+            if (parts.length === 2) {
+                const [property, value] = parts.map(p => p.trim());
+                return this.createComparisonEvaluator(property, '!=', value);
+            }
         }
-        if (expr === 'next3days') {
-            return (taskText, taskDate, personNames) => taskDate !== null && this.isWithinDays(taskDate, 3);
+        
+        // Handle comparison expressions: property<value, property>value, property=value
+        const comparisonMatch = expr.match(/^([a-zA-Z0-9_-]+)([<>=])(.+)$/);
+        if (comparisonMatch) {
+            const [, property, operator, value] = comparisonMatch;
+            return this.createComparisonEvaluator(property.trim(), operator, value.trim());
         }
-        if (expr === 'next7days') {
-            return (taskText, taskDate, personNames) => taskDate !== null && this.isWithinDays(taskDate, 7);
-        }
-        if (expr === 'overdue') {
-            return (taskText, taskDate, personNames) => taskDate !== null && this.isOverdue(taskDate);
+        
+        // Handle range expressions like 0<day, day<3
+        const rangeMatch = expr.match(/^(-?\d+)([<>])([a-zA-Z]+)$/);
+        if (rangeMatch) {
+            const [, value, operator, property] = rangeMatch;
+            // Flip operator for reverse notation
+            const flippedOp = operator === '<' ? '>' : '<';
+            return this.createComparisonEvaluator(property.trim(), flippedOp, value.trim());
         }
         
         // Default: treat as person name
@@ -688,35 +820,95 @@ export class BoardOperations {
         };
     }
 
-    // Create comparison evaluator
+    // Add helper method to split by operator respecting nesting
+    private splitByOperator(expr: string, operator: string): string[] {
+        const parts: string[] = [];
+        let current = '';
+        let depth = 0;
+        
+        for (let i = 0; i < expr.length; i++) {
+            const char = expr[i];
+            
+            if (char === '(') depth++;
+            else if (char === ')') depth--;
+            else if (char === operator && depth === 0) {
+                if (current.trim()) {
+                    parts.push(current.trim());
+                    current = '';
+                    continue;
+                }
+            }
+            current += char;
+        }
+        
+        if (current.trim()) {
+            parts.push(current.trim());
+        }
+        
+        return parts;
+    }
+
+
+    // In boardOperations.ts, replace the createComparisonEvaluator method:
     private createComparisonEvaluator(property: string, operator: string, value: string): 
         (taskText: string, taskDate: string | null, personNames: string[]) => boolean {
         
-        // Check if property is a date property or person name
-        const dateProperties = ['dayoffset', 'weekday', 'month'];
-        const isDateProperty = dateProperties.includes(property);
+        // List of date-related properties
+        const dateProperties = ['dayoffset', 'day', 'weekday', 'weekdaynum', 'month', 'monthnum'];
+        const isDateProperty = dateProperties.includes(property.toLowerCase());
         
         if (isDateProperty) {
             return (taskText: string, taskDate: string | null, personNames: string[]) => {
                 if (!taskDate) return false;
                 
-                const propValue = this.getDatePropertyValue(property, taskDate);
+                const propValue = this.getDatePropertyValue(property.toLowerCase(), taskDate);
                 if (propValue === null) return false;
                 
                 // For weekday string comparison
-                if (property === 'weekday') {
+                if (property.toLowerCase() === 'weekday') {
                     const weekdays = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
                     if (weekdays.includes(value.toLowerCase())) {
-                        return operator === '=' && propValue === value.toLowerCase();
+                        if (operator === '=') return propValue === value.toLowerCase();
+                        if (operator === '!=') return propValue !== value.toLowerCase();
+                        return false;
+                    }
+                    // If value is a number, convert weekday to number
+                    const weekdayNum = weekdays.indexOf(propValue as string);
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue)) {
+                        switch (operator) {
+                            case '=': return weekdayNum === numValue;
+                            case '!=': return weekdayNum !== numValue;
+                            case '<': return weekdayNum < numValue;
+                            case '>': return weekdayNum > numValue;
+                            default: return false;
+                        }
+                    }
+                }
+                
+                // For month string comparison
+                if (property.toLowerCase() === 'month') {
+                    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+                    if (months.includes(value.toLowerCase())) {
+                        const monthNum = (propValue as number) - 1; // propValue is 1-12, array is 0-11
+                        const targetMonth = months.indexOf(value.toLowerCase()) + 1;
+                        switch (operator) {
+                            case '=': return (propValue as number) === targetMonth;
+                            case '!=': return (propValue as number) !== targetMonth;
+                            case '<': return (propValue as number) < targetMonth;
+                            case '>': return (propValue as number) > targetMonth;
+                            default: return false;
+                        }
                     }
                 }
                 
                 // For numeric comparisons
                 const numValue = parseInt(value);
-                const numPropValue = typeof propValue === 'number' ? propValue : parseInt(propValue);
+                const numPropValue = typeof propValue === 'number' ? propValue : parseInt(propValue as string);
                 
                 switch (operator) {
                     case '=': return numPropValue === numValue;
+                    case '!=': return numPropValue !== numValue;
                     case '<': return numPropValue < numValue;
                     case '>': return numPropValue > numValue;
                     default: return false;
@@ -730,6 +922,8 @@ export class BoardOperations {
                 switch (operator) {
                     case '=':
                         return value === '1' || value === 'true' ? hasPersonName : !hasPersonName;
+                    case '!=':
+                        return value === '1' || value === 'true' ? !hasPersonName : hasPersonName;
                     default:
                         return hasPersonName;
                 }
@@ -737,41 +931,6 @@ export class BoardOperations {
         }
     }
 
-    // Fixed ungathered logic - only gather cards with @ tags that weren't already gathered
-    private gatherUngatheredToColumn(board: KanbanBoard, targetColumn: KanbanColumn, gatheredTasks: Set<string>): void {
-        const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
-        
-        board.columns.forEach(sourceColumn => {
-            if (sourceColumn.id === targetColumn.id) return;
-            
-            sourceColumn.tasks.forEach(task => {
-                // Skip if already gathered by a specific gather tag
-                if (gatheredTasks.has(task.id)) return;
-                
-                const taskText = `${task.title || ''} ${task.description || ''}`;
-                
-                // Check if task has any @ tags
-                const hasDateTag = this.extractDate(taskText) !== null;
-                const hasPersonTags = this.extractPersonNames(taskText).length > 0;
-                const hasAnyAtTag = hasDateTag || hasPersonTags;
-                
-                // Only gather if has @ tags and wasn't already gathered
-                if (hasAnyAtTag) {
-                    tasksToMove.push({ task, fromColumn: sourceColumn });
-                    gatheredTasks.add(task.id);
-                }
-            });
-        });
-        
-        // Move the tasks
-        tasksToMove.forEach(({ task, fromColumn }) => {
-            const taskIndex = fromColumn.tasks.findIndex(t => t.id === task.id);
-            if (taskIndex !== -1) {
-                fromColumn.tasks.splice(taskIndex, 1);
-                targetColumn.tasks.push(task);
-            }
-        });
-    }
 
     // Gather untagged - only cards with NO @ tags at all
     private gatherUntaggedToColumn(board: KanbanBoard, targetColumn: KanbanColumn, gatheredTasks: Set<string>): void {
@@ -933,12 +1092,13 @@ export class BoardOperations {
         
         switch (property) {
             case 'dayoffset':
-                // Calculate days difference from today
+            case 'day':
+                // Calculate days difference from today (can be negative for past dates)
                 const diffTime = date.getTime() - today.getTime();
                 return Math.round(diffTime / (1000 * 60 * 60 * 24));
                 
             case 'weekday':
-                // Return day name (mon, tue, wed, etc.)
+                // Return day name (sun, mon, tue, wed, etc.)
                 const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
                 return days[date.getDay()];
                 
@@ -948,6 +1108,11 @@ export class BoardOperations {
                 return dayNum === 0 ? 7 : dayNum;
                 
             case 'month':
+                // Return month name (jan, feb, mar, etc.)
+                const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+                return months[date.getMonth()];
+                
+            case 'monthnum':
                 // Return month number 1-12
                 return date.getMonth() + 1;
                 
