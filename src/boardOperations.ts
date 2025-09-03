@@ -525,40 +525,114 @@ export class BoardOperations {
     public performAutomaticSort(board: KanbanBoard): boolean {
         if (!board || !board.columns) return false;
         
-        // Track which tasks have been moved to avoid duplicates
+        // Track which tasks have been moved to avoid processing them again
         const movedTasks = new Set<string>();
         
-        // First, identify all columns with gather tags and their requirements
-        const gatherColumns: Array<{
+        // First, collect all columns with their gather/sort tags in order
+        const columnsWithTags: Array<{
             column: KanbanColumn,
-            tags: string[]
+            gatherTags: string[],
+            sortTags: string[]
         }> = [];
         
         board.columns.forEach(column => {
             if (!column.title) return;
             
-            // Extract all gather and sort tags from column title
-            // Updated regex to support both dash and underscore
-            const tags = column.title.match(/#(gather[-_][a-zA-Z0-9_<>=&|]+|sort[-_][a-zA-Z0-9_-]+|ungathered|unsorted)/g) || [];
-            if (tags.length > 0) {
-                // Reverse the tags to process last tag first
-                gatherColumns.push({
+            // Extract gather tags and sort tags separately
+            const gatherTags = (column.title.match(/#(gather[-_][a-zA-Z0-9_<>=&|]+|ungathered|unsorted)/g) || [])
+                .map(t => t.substring(1));
+            const sortTags = (column.title.match(/#(sort[-_][a-zA-Z0-9_-]+)/g) || [])
+                .map(t => t.substring(1));
+            
+            if (gatherTags.length > 0) {
+                columnsWithTags.push({
                     column: column,
-                    tags: tags.map(t => t.substring(1)).reverse()
+                    gatherTags: gatherTags.reverse(), // Reverse to process last tag first
+                    sortTags: sortTags
+                });
+            } else if (sortTags.length > 0) {
+                // Column only has sort tags, no gather tags
+                columnsWithTags.push({
+                    column: column,
+                    gatherTags: [],
+                    sortTags: sortTags
                 });
             }
         });
         
-        // Process each column's tags
-        gatherColumns.forEach(({ column, tags }) => {
-            tags.forEach(tag => {
-                if (tag.startsWith('gather-') || tag.startsWith('gather_')) {
-                    this.gatherToColumn(board, column, tag, movedTasks);
-                } else if (tag === 'ungathered') {
-                    this.gatherUngatheredToColumn(board, column, movedTasks);
-                } else if (tag === 'unsorted') {
-                    this.gatherUnsortedToColumn(board, column, movedTasks);
-                } else if (tag === 'sort-bydate' || tag === 'sort_bydate') {
+        // Collect all tasks from all columns with their current location
+        const allTasks: Array<{
+            task: KanbanTask,
+            fromColumn: KanbanColumn,
+            taskText: string,
+            taskDate: string | null,
+            personNames: string[]
+        }> = [];
+        
+        board.columns.forEach(column => {
+            column.tasks.forEach(task => {
+                const taskText = `${task.title || ''} ${task.description || ''}`;
+                allTasks.push({
+                    task: task,
+                    fromColumn: column,
+                    taskText: taskText,
+                    taskDate: this.extractDate(taskText),
+                    personNames: this.extractPersonNames(taskText)
+                });
+            });
+        });
+        
+        // Process each task to find its target column
+        allTasks.forEach(({ task, fromColumn, taskText, taskDate, personNames }) => {
+            if (movedTasks.has(task.id)) return;
+            
+            // Check each column in order (left to right as they appear in markdown)
+            for (const { column: targetColumn, gatherTags } of columnsWithTags) {
+                if (targetColumn.id === fromColumn.id) continue; // Skip if already in this column
+                
+                // Check if task matches any of the column's gather tags
+                let shouldMove = false;
+                
+                for (const tag of gatherTags) {
+                    if (tag === 'ungathered') {
+                        // Special case: ungathered means has @ but not moved yet
+                        if (taskText.includes('@') && !movedTasks.has(task.id)) {
+                            shouldMove = true;
+                            break;
+                        }
+                    } else if (tag === 'unsorted') {
+                        // Special case: unsorted means no @ tags and not moved yet
+                        if (!taskText.includes('@') && !movedTasks.has(task.id)) {
+                            shouldMove = true;
+                            break;
+                        }
+                    } else if (tag.startsWith('gather-') || tag.startsWith('gather_')) {
+                        // Use the expression evaluator
+                        const evaluator = this.parseGatherExpression(tag);
+                        if (evaluator(taskText, taskDate, personNames)) {
+                            shouldMove = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (shouldMove) {
+                    // Move the task to this column
+                    const taskIndex = fromColumn.tasks.findIndex(t => t.id === task.id);
+                    if (taskIndex !== -1) {
+                        fromColumn.tasks.splice(taskIndex, 1);
+                        targetColumn.tasks.push(task);
+                        movedTasks.add(task.id);
+                        break; // Stop checking other columns for this task
+                    }
+                }
+            }
+        });
+        
+        // Now apply sort operations to all columns that have sort tags
+        columnsWithTags.forEach(({ column, sortTags }) => {
+            sortTags.forEach(tag => {
+                if (tag === 'sort-bydate' || tag === 'sort_bydate') {
                     this.sortColumnByDate(column);
                 } else if (tag === 'sort-byname' || tag === 'sort_byname') {
                     this.sortColumnByName(column);
