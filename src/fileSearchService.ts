@@ -177,24 +177,22 @@ export class FileSearchService {
 
         const quickPick = vscode.window.createQuickPick();
         quickPick.title = `File not found: ${originalPath}`;
-        quickPick.placeholder = `Searching for "${nameRoot}"… Select a replacement`; 
+        quickPick.placeholder = `Searching for "${nameRoot}"… Select a replacement`;
         quickPick.canSelectMany = false;
         quickPick.matchOnDescription = true;
         quickPick.matchOnDetail = true;
         quickPick.items = [];
         quickPick.busy = true;
+        quickPick.value = nameRoot;
 
+        // Keep a set of items for current search term
         const itemsMap = new Map<string, vscode.QuickPickItem>();
-        const addUri = (uri: vscode.Uri) => {
-            const key = uri.fsPath;
-            if (itemsMap.has(key)) return;
-            const item: vscode.QuickPickItem = {
-                label: path.basename(uri.fsPath),
-                description: vscode.workspace.asRelativePath(uri.fsPath),
-                detail: uri.fsPath,
-            };
-            itemsMap.set(key, item);
-            // Update items list
+        const toItem = (uri: vscode.Uri): vscode.QuickPickItem => ({
+            label: path.basename(uri.fsPath),
+            description: vscode.workspace.asRelativePath(uri.fsPath),
+            detail: uri.fsPath,
+        });
+        const refreshItems = () => {
             quickPick.items = Array.from(itemsMap.values());
         };
 
@@ -257,65 +255,113 @@ export class FileSearchService {
             // Show UI immediately
             quickPick.show();
 
-            // Start searches in the background and stream results in
-            const excludePattern = '**/node_modules/**';
-            const patterns = [`**/${nameRoot}`, `**/${nameRoot}.*`];
+            // Search pipeline with cancelation and debounce
+            let searchSeq = 0;
+            let debounceTimer: NodeJS.Timeout | undefined;
 
-            const workspaceSearch = (async () => {
-                try {
-                    const findOps = patterns.map(p => vscode.workspace.findFiles(p, excludePattern, 200));
-                    const batches = await Promise.all(findOps);
-                    for (const batch of batches) {
-                        for (const uri of batch) addUri(uri);
+            const startSearch = (term: string) => {
+                searchSeq += 1;
+                const seq = searchSeq;
+                const normalized = term.trim().toLowerCase();
+                itemsMap.clear();
+                refreshItems();
+                quickPick.busy = true;
+                quickPick.placeholder = normalized
+                    ? `Searching for "${term}"…`
+                    : 'Type to search by filename';
+
+                const nameMatches = (uri: vscode.Uri) => {
+                    const base = path.basename(uri.fsPath);
+                    const baseNoExt = path.parse(base).name.toLowerCase();
+                    return normalized ? baseNoExt.includes(normalized) : true;
+                };
+
+                const addIfActive = (uri: vscode.Uri) => {
+                    if (seq !== searchSeq) return; // stale
+                    if (!nameMatches(uri)) return;
+                    const key = uri.fsPath;
+                    if (!itemsMap.has(key)) {
+                        itemsMap.set(key, toItem(uri));
+                        refreshItems();
                     }
-                } catch (error) {
-                    console.warn('[FileSearchService] Workspace search failed:', error);
-                }
-            })();
+                };
 
-            const baseDirScan = (async () => {
-                if (!baseDir) return;
-                try {
-                    const visited = new Set<string>();
-                    let foundCount = 0;
-                    const maxResults = 200;
-                    const scan = async (dirFsPath: string) => {
-                        if (foundCount >= maxResults) return;
-                        if (visited.has(dirFsPath)) return;
-                        visited.add(dirFsPath);
-                        const baseName = path.basename(dirFsPath);
-                        if (baseName === 'node_modules' || baseName === '.git' || baseName === 'dist' || baseName === 'out') return;
-                        let entries: [string, vscode.FileType][];
-                        try {
-                            entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirFsPath));
-                        } catch { return; }
-                        for (const [name, type] of entries) {
-                            if (foundCount >= maxResults) break;
-                            const childPath = path.join(dirFsPath, name);
-                            if (type === vscode.FileType.Directory) {
-                                await scan(childPath);
-                            } else if (type === vscode.FileType.File) {
-                                const parsed = path.parse(name);
-                                if (parsed.name === nameRoot || name === nameRoot) {
-                                    addUri(vscode.Uri.file(childPath));
-                                    foundCount++;
+                // Workspace search (two patterns) then post-filter by basename
+                const excludePattern = '**/node_modules/**';
+                const patterns = normalized
+                    ? [`**/*${term}*`, `**/*${term}*.*`]
+                    : [`**/${nameRoot}`, `**/${nameRoot}.*`];
+
+                const workspaceSearch = (async () => {
+                    try {
+                        const ops = patterns.map(p => vscode.workspace.findFiles(p, excludePattern, 200));
+                        const batches = await Promise.all(ops);
+                        for (const batch of batches) {
+                            for (const uri of batch) addIfActive(uri);
+                        }
+                    } catch (error) {
+                        if (seq === searchSeq) console.warn('[FileSearchService] Workspace search failed:', error);
+                    }
+                })();
+
+                const baseDirScan = (async () => {
+                    if (!baseDir) return;
+                    try {
+                        const visited = new Set<string>();
+                        let foundCount = 0;
+                        const maxResults = 200;
+                        const scan = async (dirFsPath: string) => {
+                            if (seq !== searchSeq) return; // cancel
+                            if (foundCount >= maxResults) return;
+                            if (visited.has(dirFsPath)) return;
+                            visited.add(dirFsPath);
+                            const baseName = path.basename(dirFsPath);
+                            if (baseName === 'node_modules' || baseName === '.git' || baseName === 'dist' || baseName === 'out') return;
+                            let entries: [string, vscode.FileType][];
+                            try {
+                                entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirFsPath));
+                            } catch { return; }
+                            for (const [name, type] of entries) {
+                                if (seq !== searchSeq) return; // cancel
+                                if (foundCount >= maxResults) break;
+                                const childPath = path.join(dirFsPath, name);
+                                if (type === vscode.FileType.Directory) {
+                                    await scan(childPath);
+                                } else if (type === vscode.FileType.File) {
+                                    const parsed = path.parse(name);
+                                    const baseNoExt = parsed.name.toLowerCase();
+                                    if (!normalized || baseNoExt.includes(normalized)) {
+                                        addIfActive(vscode.Uri.file(childPath));
+                                        foundCount++;
+                                    }
                                 }
                             }
-                        }
-                    };
-                    await scan(baseDir);
-                } catch (error) {
-                    console.warn('[FileSearchService] BaseDir scan failed:', error);
-                }
-            })();
+                        };
+                        await scan(baseDir);
+                    } catch (error) {
+                        if (seq === searchSeq) console.warn('[FileSearchService] BaseDir scan failed:', error);
+                    }
+                })();
 
-            // When both searches complete, clear busy indicator
-            Promise.all([workspaceSearch, baseDirScan]).finally(() => {
-                quickPick.busy = false;
-                if (itemsMap.size === 0) {
-                    quickPick.placeholder = `No matches for "${nameRoot}". Press Esc to cancel.`;
-                }
-            });
+                Promise.all([workspaceSearch, baseDirScan]).finally(() => {
+                    if (seq !== searchSeq) return; // stale completion
+                    quickPick.busy = false;
+                    if (itemsMap.size === 0) {
+                        quickPick.placeholder = normalized
+                            ? `No matches for "${term}". Try another term.`
+                            : `No matches for "${nameRoot}". Try typing to search.`;
+                    }
+                });
+            };
+
+            // Start initial search
+            startSearch(nameRoot);
+
+            // Debounced dynamic term handling
+            disposables.push(quickPick.onDidChangeValue((value) => {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => startSearch(value), 200);
+            }));
 
             return await acceptPromise;
         } finally {
