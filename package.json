@@ -47,7 +47,11 @@
         },
         "markdown-kanban.backupLocation": {
           "type": "string",
-          "enum": ["same-folder", "workspace-folder", "custom"],
+          "enum": [
+            "same-folder",
+            "workspace-folder",
+            "custom"
+          ],
           "default": "same-folder",
           "description": "Where to store backup files",
           "enumDescriptions": [
@@ -93,11 +97,13 @@
               "column": {
                 "light": {
                   "text": "#000000",
-                  "background": "#f0f0f0"
+                  "background": "#f0f0f0",
+                  "backgroundDark": "#909090"
                 },
                 "dark": {
                   "text": "#ffffff",
-                  "background": "#2d2d2d"
+                  "background": "#2d2d2d",
+                  "backgroundDark": "#1b1b1b"
                 },
                 "border": {
                   "style": "solid",
@@ -109,11 +115,13 @@
               "card": {
                 "light": {
                   "text": "#000000",
-                  "background": "#ffffff"
+                  "background": "#ffffff",
+                  "backgroundDark": "#999999"
                 },
                 "dark": {
                   "text": "#ffffff",
-                  "background": "#1e1e1e"
+                  "background": "#1e1e1e",
+                  "backgroundDark": "#121212"
                 },
                 "border": {
                   "style": "solid",
@@ -127,11 +135,13 @@
               "high": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#dc3545"
+                  "background": "#dc3545",
+                  "backgroundDark": "#842029"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ff6b6b"
+                  "background": "#ff6b6b",
+                  "backgroundDark": "#994040"
                 },
                 "border": {
                   "style": "dashed",
@@ -152,11 +162,13 @@
               "low": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#6c757d"
+                  "background": "#6c757d",
+                  "backgroundDark": "#41464b"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#adb5bd"
+                  "background": "#adb5bd",
+                  "backgroundDark": "#686d71"
                 },
                 "border": {
                   "style": "dotted",
@@ -175,11 +187,13 @@
               "todo": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#6c757d"
+                  "background": "#6c757d",
+                  "backgroundDark": "#41464b"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#adb5bd"
+                  "background": "#adb5bd",
+                  "backgroundDark": "#686d71"
                 },
                 "border": {
                   "style": "dotted",
@@ -196,15 +210,16 @@
               "inprogress": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#0dcaf0"
+                  "background": "#0dcaf0",
+                  "backgroundDark": "#087990"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#3dd5f3"
+                  "background": "#3dd5f3",
+                  "backgroundDark": "#258092"
                 },
                 "headerBar": {
                   "height": "20px",
-
                   "label": "IN PROGRESS",
                   "labelColor": "#ffffff"
                 },
@@ -219,11 +234,13 @@
               "done": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#198754"
+                  "background": "#198754",
+                  "backgroundDark": "#0f5132"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#25ce7b"
+                  "background": "#25ce7b",
+                  "backgroundDark": "#167c4a"
                 },
                 "border": {
                   "style": "solid",
@@ -247,11 +264,13 @@
               "blocked": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#dc3545"
+                  "background": "#dc3545",
+                  "backgroundDark": "#842029"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ff6b6b"
+                  "background": "#ff6b6b",
+                  "backgroundDark": "#994040"
                 },
                 "border": {
                   "style": "dashed",
@@ -272,11 +291,13 @@
               "review": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#007bff"
+                  "background": "#007bff",
+                  "backgroundDark": "#004a99"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#66b2ff"
+                  "background": "#66b2ff",
+                  "backgroundDark": "#3d6b99"
                 },
                 "headerBar": {
                   "height": "4px",
@@ -297,15 +318,16 @@
               "testing": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#9c27b0"
+                  "background": "#9c27b0",
+                  "backgroundDark": "#5e176a"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ba68c8"
+                  "background": "#ba68c8",
+                  "backgroundDark": "#703e78"
                 },
                 "headerBar": {
                   "height": "3px"
-
                 },
                 "footerBar": {
                   "height": "20px",
@@ -321,11 +343,13 @@
               "wip": {
                 "light": {
                   "text": "#212529",
-                  "background": "#ffc107"
+                  "background": "#ffc107",
+                  "backgroundDark": "#997404"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ffca2c"
+                  "background": "#ffca2c",
+                  "backgroundDark": "#99791a"
                 },
                 "border": {
                   "style": "dashed",
@@ -349,11 +373,13 @@
               "urgent": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#dc3545"
+                  "background": "#dc3545",
+                  "backgroundDark": "#842029"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ff7b89"
+                  "background": "#ff7b89",
+                  "backgroundDark": "#994a52"
                 },
                 "border": {
                   "style": "solid",
@@ -378,11 +404,13 @@
               "high": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#fd7e14"
+                  "background": "#fd7e14",
+                  "backgroundDark": "#984c0c"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ffc078"
+                  "background": "#ffc078",
+                  "backgroundDark": "#997348"
                 },
                 "border": {
                   "style": "solid",
@@ -404,11 +432,13 @@
               "medium": {
                 "light": {
                   "text": "#212529",
-                  "background": "#ffc107"
+                  "background": "#ffc107",
+                  "backgroundDark": "#997404"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ffe066"
+                  "background": "#ffe066",
+                  "backgroundDark": "#99863d"
                 },
                 "headerBar": {
                   "height": "3px",
@@ -424,11 +454,13 @@
               "low": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#28a745"
+                  "background": "#28a745",
+                  "backgroundDark": "#186429"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#8ce99a"
+                  "background": "#8ce99a",
+                  "backgroundDark": "#548c5c"
                 },
                 "cornerBadge": {
                   "label": "↓",
@@ -442,11 +474,13 @@
               "bug": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#dc3545"
+                  "background": "#dc3545",
+                  "backgroundDark": "#842029"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ff7b89"
+                  "background": "#ff7b89",
+                  "backgroundDark": "#994a52"
                 },
                 "border": {
                   "style": "solid",
@@ -467,15 +501,16 @@
               "feature": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#17a2b8"
+                  "background": "#17a2b8",
+                  "backgroundDark": "#0e616e"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#6fd6e1"
+                  "background": "#6fd6e1",
+                  "backgroundDark": "#438087"
                 },
                 "headerBar": {
                   "height": "4px"
-
                 },
                 "footerBar": {
                   "height": "20px",
@@ -491,11 +526,13 @@
               "enhancement": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#20c997"
+                  "background": "#20c997",
+                  "backgroundDark": "#13795b"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#4dd4ac"
+                  "background": "#4dd4ac",
+                  "backgroundDark": "#2e7f67"
                 },
                 "border": {
                   "style": "solid",
@@ -504,7 +541,6 @@
                 },
                 "headerBar": {
                   "height": "3px"
-
                 },
                 "cornerBadge": {
                   "label": "⬆",
@@ -515,11 +551,13 @@
               "documentation": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#6f42c1"
+                  "background": "#6f42c1",
+                  "backgroundDark": "#432874"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#9775fa"
+                  "background": "#9775fa",
+                  "backgroundDark": "#5b4696"
                 },
                 "footerBar": {
                   "height": "20px",
@@ -535,11 +573,13 @@
               "research": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#795548"
+                  "background": "#795548",
+                  "backgroundDark": "#49332b"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#a1887f"
+                  "background": "#a1887f",
+                  "backgroundDark": "#61524c"
                 },
                 "headerBar": {
                   "height": "20px",
@@ -556,11 +596,13 @@
               "refactor": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#ff6b6b"
+                  "background": "#ff6b6b",
+                  "backgroundDark": "#994040"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ff8787"
+                  "background": "#ff8787",
+                  "backgroundDark": "#995151"
                 },
                 "border": {
                   "style": "dashed",
@@ -580,11 +622,13 @@
               "hotfix": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#ff4757"
+                  "background": "#ff4757",
+                  "backgroundDark": "#992b34"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ff6348"
+                  "background": "#ff6348",
+                  "backgroundDark": "#993b2b"
                 },
                 "border": {
                   "style": "solid",
@@ -607,15 +651,16 @@
               "release": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#00b894"
+                  "background": "#00b894",
+                  "backgroundDark": "#006e59"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#00d2a5"
+                  "background": "#00d2a5",
+                  "backgroundDark": "#007e63"
                 },
                 "headerBar": {
                   "height": "5px"
-
                 },
                 "footerBar": {
                   "height": "20px",
@@ -631,11 +676,13 @@
               "epic": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#6c5ce7"
+                  "background": "#6c5ce7",
+                  "backgroundDark": "#41378b"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#a29bfe"
+                  "background": "#a29bfe",
+                  "backgroundDark": "#615d98"
                 },
                 "border": {
                   "style": "double",
@@ -644,7 +691,6 @@
                 },
                 "headerBar": {
                   "height": "20px",
-
                   "label": "EPIC",
                   "labelColor": "#ffffff"
                 },
@@ -661,11 +707,13 @@
               "spike": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#e17055"
+                  "background": "#e17055",
+                  "backgroundDark": "#874333"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#fab1a0"
+                  "background": "#fab1a0",
+                  "backgroundDark": "#966a60"
                 },
                 "border": {
                   "style": "dotted",
@@ -683,11 +731,13 @@
               "help": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#ff9ff3"
+                  "background": "#ff9ff3",
+                  "backgroundDark": "#995f92"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ffc0f9"
+                  "background": "#ffc0f9",
+                  "backgroundDark": "#997395"
                 },
                 "headerBar": {
                   "height": "20px",
@@ -705,11 +755,13 @@
               "idea": {
                 "light": {
                   "text": "#212529",
-                  "background": "#fff200"
+                  "background": "#fff200",
+                  "backgroundDark": "#999100"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#fff94c"
+                  "background": "#fff94c",
+                  "backgroundDark": "#99952e"
                 },
                 "border": {
                   "style": "solid",
@@ -728,11 +780,13 @@
               "backend": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#20c997"
+                  "background": "#20c997",
+                  "backgroundDark": "#13795b"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#63e6be"
+                  "background": "#63e6be",
+                  "backgroundDark": "#3b8a72"
                 },
                 "border": {
                   "style": "solid",
@@ -750,11 +804,13 @@
               "frontend": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#007bff"
+                  "background": "#007bff",
+                  "backgroundDark": "#004a99"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#4dabf7"
+                  "background": "#4dabf7",
+                  "backgroundDark": "#2e6794"
                 },
                 "border": {
                   "style": "solid",
@@ -772,11 +828,13 @@
               "database": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#fd7e14"
+                  "background": "#fd7e14",
+                  "backgroundDark": "#984c0c"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ffc078"
+                  "background": "#ffc078",
+                  "backgroundDark": "#997348"
                 },
                 "border": {
                   "style": "double",
@@ -799,11 +857,13 @@
               "api": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#00cec9"
+                  "background": "#00cec9",
+                  "backgroundDark": "#007c79"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#81ecec"
+                  "background": "#81ecec",
+                  "backgroundDark": "#4d8e8e"
                 },
                 "headerBar": {
                   "height": "20px",
@@ -820,11 +880,13 @@
               "security": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#d63031"
+                  "background": "#d63031",
+                  "backgroundDark": "#801d1d"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ff7675"
+                  "background": "#ff7675",
+                  "backgroundDark": "#994746"
                 },
                 "border": {
                   "style": "solid",
@@ -853,11 +915,13 @@
               "performance": {
                 "light": {
                   "text": "#000000",
-                  "background": "#fdcb6e"
+                  "background": "#fdcb6e",
+                  "backgroundDark": "#987a42"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ffeaa7"
+                  "background": "#ffeaa7",
+                  "backgroundDark": "#998c64"
                 },
                 "headerBar": {
                   "height": "3px"
@@ -876,11 +940,13 @@
               "ux": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#e83e8c"
+                  "background": "#e83e8c",
+                  "backgroundDark": "#8b2554"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#f783ac"
+                  "background": "#f783ac",
+                  "backgroundDark": "#944f67"
                 },
                 "footerBar": {
                   "height": "20px",
@@ -896,11 +962,13 @@
               "ui": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#6f42c1"
+                  "background": "#6f42c1",
+                  "backgroundDark": "#432874"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#b197fc"
+                  "background": "#b197fc",
+                  "backgroundDark": "#6a5b97"
                 },
                 "border": {
                   "style": "dotted",
@@ -920,151 +988,181 @@
               "red": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#dc3545"
+                  "background": "#dc3545",
+                  "backgroundDark": "#842029"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ff8787"
+                  "background": "#ff8787",
+                  "backgroundDark": "#995151"
                 }
               },
               "green": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#198754"
+                  "background": "#198754",
+                  "backgroundDark": "#0f5132"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#8ce99a"
+                  "background": "#8ce99a",
+                  "backgroundDark": "#548c5c"
                 }
               },
               "blue": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#0056b3"
+                  "background": "#0056b3",
+                  "backgroundDark": "#00346b"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#5a8dee"
+                  "background": "#5a8dee",
+                  "backgroundDark": "#36558f"
                 }
               },
               "yellow": {
                 "light": {
                   "text": "#212529",
-                  "background": "#ffc107"
+                  "background": "#ffc107",
+                  "backgroundDark": "#997404"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ffe066"
+                  "background": "#ffe066",
+                  "backgroundDark": "#99863d"
                 }
               },
               "orange": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#fd7e14"
+                  "background": "#fd7e14",
+                  "backgroundDark": "#984c0c"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#ffc078"
+                  "background": "#ffc078",
+                  "backgroundDark": "#997348"
                 }
               },
               "purple": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#6f42c1"
+                  "background": "#6f42c1",
+                  "backgroundDark": "#432874"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#b197fc"
+                  "background": "#b197fc",
+                  "backgroundDark": "#6a5b97"
                 }
               },
               "pink": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#e83e8c"
+                  "background": "#e83e8c",
+                  "backgroundDark": "#8b2554"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#fcc2d7"
+                  "background": "#fcc2d7",
+                  "backgroundDark": "#977481"
                 }
               },
               "cyan": {
                 "light": {
                   "text": "#212529",
-                  "background": "#0dcaf0"
+                  "background": "#0dcaf0",
+                  "backgroundDark": "#087990"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#99e9f2"
+                  "background": "#99e9f2",
+                  "backgroundDark": "#5c8c91"
                 }
               },
               "magenta": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#d63384"
+                  "background": "#d63384",
+                  "backgroundDark": "#801f4f"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#f06595"
+                  "background": "#f06595",
+                  "backgroundDark": "#903d59"
                 }
               },
               "brown": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#795548"
+                  "background": "#795548",
+                  "backgroundDark": "#49332b"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#a1887f"
+                  "background": "#a1887f",
+                  "backgroundDark": "#61524c"
                 }
               },
               "gray": {
                 "light": {
                   "text": "#212529",
-                  "background": "#adb5bd"
+                  "background": "#adb5bd",
+                  "backgroundDark": "#686d71"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#dee2e6"
+                  "background": "#dee2e6",
+                  "backgroundDark": "#85888a"
                 }
               },
               "teal": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#20c997"
+                  "background": "#20c997",
+                  "backgroundDark": "#13795b"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#63e6be"
+                  "background": "#63e6be",
+                  "backgroundDark": "#3b8a72"
                 }
               },
               "indigo": {
                 "light": {
                   "text": "#ffffff",
-                  "background": "#6610f2"
+                  "background": "#6610f2",
+                  "backgroundDark": "#3d0a91"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#9775fa"
+                  "background": "#9775fa",
+                  "backgroundDark": "#5b4696"
                 }
               },
               "lime": {
                 "light": {
                   "text": "#212529",
-                  "background": "#84cc16"
+                  "background": "#84cc16",
+                  "backgroundDark": "#4f7a0d"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#a3e635"
+                  "background": "#a3e635",
+                  "backgroundDark": "#628a20"
                 }
               },
               "amber": {
                 "light": {
                   "text": "#212529",
-                  "background": "#f59e0b"
+                  "background": "#f59e0b",
+                  "backgroundDark": "#935f07"
                 },
                 "dark": {
                   "text": "#000000",
-                  "background": "#fbbf24"
+                  "background": "#fbbf24",
+                  "backgroundDark": "#977316"
                 }
               }
             }

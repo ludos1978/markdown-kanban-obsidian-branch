@@ -176,9 +176,12 @@ body {
   border-bottom: 1px solid var(--vscode-panel-border);
   /* min-height: 38px; */
   position: sticky;
-  top: 0;
+  top: -5px;
   z-index: 10;
-  background-color: var(--vscode-editor-background);
+  background-color: inherit;
+  padding-top: var(--whitespace-div2);
+  margin-top: calc(-1 * var(--whitespace-div2));
+  border-top: 1px solid var(--vscode-panel-border);
 }
 
 .kanban-column.collapsed .column-header {

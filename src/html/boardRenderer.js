@@ -39,6 +39,32 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+// Helper function to parse hex color to RGB components
+function hexToRgb(hex) {
+    hex = hex.replace('#', '');
+    return {
+        r: parseInt(hex.substring(0, 2), 16),
+        g: parseInt(hex.substring(2, 4), 16),
+        b: parseInt(hex.substring(4, 6), 16)
+    };
+}
+
+// Helper function to interpolate between two colors
+function interpolateColor(color1, color2, factor) {
+    // Parse colors
+    const c1 = hexToRgb(color1);
+    const c2 = hexToRgb(color2);
+    
+    // Interpolate each component
+    const r = Math.round(c1.r + (c2.r - c1.r) * factor);
+    const g = Math.round(c1.g + (c2.g - c1.g) * factor);
+    const b = Math.round(c1.b + (c2.b - c1.b) * factor);
+    
+    // Convert to hex
+    const toHex = (n) => n.toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 // Apply tag styles to the document
 function applyTagStyles() {
     console.log('Applying tag styles...');
@@ -1473,13 +1499,18 @@ function generateTagStyles() {
         if (defaultConfig.column && (defaultConfig.column.applyBackground === true || defaultConfig.column.enable === true)) {
             const columnColors = defaultConfig.column[themeKey] || defaultConfig.column.light || {};
             if (columnColors.text && columnColors.background) {
+                const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+                const bgDark = columnColors.backgroundDark || columnColors.background;
+                
+                const columnBg = interpolateColor(editorBg, bgDark, 0.15);
                 styles += `.kanban-column:not([data-column-tag]) {
-                    background-color: ${hexToRgba(columnColors.background, 0.15)} !important;
+                    background-color: ${columnBg} !important;
                     position: relative;
                 }\n`;
 
+                const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
                 styles += `.kanban-column.collapsed:not([data-column-tag]) {
-                    background-color: ${hexToRgba(columnColors.background, 0.2)} !important;
+                    background-color: ${columnCollapsedBg} !important;
                 }\n`;
             }
         }
@@ -1501,13 +1532,18 @@ function generateTagStyles() {
         if (defaultConfig.card && (defaultConfig.card.applyBackground === true || defaultConfig.card.enable === true)) {
             const cardColors = defaultConfig.card[themeKey] || defaultConfig.card.light || {};
             if (cardColors.text && cardColors.background) {
+                const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+                const bgDark = cardColors.backgroundDark || cardColors.background;
+                
+                const cardBg = interpolateColor(editorBg, bgDark, 0.25);
                 styles += `.task-item:not([data-task-tag]) {
-                    background-color: ${hexToRgba(cardColors.background, 0.25)} !important;
+                    background-color: ${cardBg} !important;
                     position: relative;
                 }\n`;
 
+                const cardHoverBg = interpolateColor(editorBg, bgDark, 0.35);
                 styles += `.task-item:not([data-task-tag]):hover {
-                    background-color: ${hexToRgba(cardColors.background, 0.35)} !important;
+                    background-color: ${cardHoverBg} !important;
                 }\n`;
             }
         }
@@ -1546,26 +1582,36 @@ function generateTagStyles() {
                         border: 1px solid ${themeColors.background};
                     }\n`;
                     
+                    // Get the base background color (or use editor background as default)
+                    const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+                    const bgDark = themeColors.backgroundDark || themeColors.background;
+                    
                     // Column background styles - only for primary tag
+                    // Interpolate 15% towards the darker color
+                    const columnBg = interpolateColor(editorBg, bgDark, 0.15);
                     styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
-                        background-color: ${hexToRgba(themeColors.background, 0.15)} !important;
+                        background-color: ${columnBg} !important;
                         position: relative;
                     }\n`;
                     
-                    // Column collapsed state
+                    // Column collapsed state - interpolate 20% towards the darker color
+                    const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
                     styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] {
-                        background-color: ${hexToRgba(themeColors.background, 0.2)} !important;
+                        background-color: ${columnCollapsedBg} !important;
                     }\n`;
                     
                     // Card background styles - only for primary tag
+                    // Interpolate 25% towards the darker color
+                    const cardBg = interpolateColor(editorBg, bgDark, 0.25);
                     styles += `.task-item[data-task-tag="${lowerTagName}"] {
-                        background-color: ${hexToRgba(themeColors.background, 0.25)} !important;
+                        background-color: ${cardBg} !important;
                         position: relative;
                     }\n`;
                     
-                    // Card hover state
+                    // Card hover state - interpolate 35% towards the darker color
+                    const cardHoverBg = interpolateColor(editorBg, bgDark, 0.35);
                     styles += `.task-item[data-task-tag="${lowerTagName}"]:hover {
-                        background-color: ${hexToRgba(themeColors.background, 0.35)} !important;
+                        background-color: ${cardHoverBg} !important;
                     }\n`;
                     
                     // Stackable border styles using data-all-tags
