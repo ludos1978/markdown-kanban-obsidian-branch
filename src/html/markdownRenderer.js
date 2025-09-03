@@ -91,6 +91,7 @@ function wikiLinksPlugin(md, options = {}) {
 }
 
 // Tag detection and rendering plugin for markdown-it
+// Tag detection and rendering plugin for markdown-it
 function tagPlugin(md, options = {}) {
     const tagColors = options.tagColors || {};
     
@@ -106,16 +107,20 @@ function tagPlugin(md, options = {}) {
         pos++;
         if (pos >= state.posMax) return false;
         
-        // Parse tag content (word characters and underscores)
+        // Parse tag content (word characters, underscores, hyphens, and special operators)
         let tagStart = pos;
         while (pos < state.posMax) {
             const char = state.src.charCodeAt(pos);
-            // Allow alphanumeric, underscore, and hyphen
+            // Allow alphanumeric, underscore, hyphen, equals, pipe, greater than, less than
             if ((char >= 0x30 && char <= 0x39) || // 0-9
                 (char >= 0x41 && char <= 0x5A) || // A-Z
                 (char >= 0x61 && char <= 0x7A) || // a-z
                 char === 0x5F || // _
-                char === 0x2D) { // -
+                char === 0x2D || // -
+                char === 0x3D || // =
+                char === 0x7C || // |
+                char === 0x3E || // >
+                char === 0x3C) { // 
                 pos++;
             } else {
                 break;
@@ -141,10 +146,14 @@ function tagPlugin(md, options = {}) {
     
     md.renderer.rules.tag = function(tokens, idx) {
         const token = tokens[idx];
-        const tagName = token.content.toLowerCase();
+        const tagContent = token.content;
         const fullTag = '#' + token.content;
         
-        return `<span class="kanban-tag" data-tag="${escapeHtml(tagName)}">${escapeHtml(fullTag)}</span>`;
+        // Extract base tag name (before any operator) for styling
+        const baseTagMatch = tagContent.match(/^([a-zA-Z0-9_-]+)/);
+        const baseTagName = baseTagMatch ? baseTagMatch[1].toLowerCase() : tagContent.toLowerCase();
+        
+        return `<span class="kanban-tag" data-tag="${escapeHtml(baseTagName)}">${escapeHtml(fullTag)}</span>`;
     };
 }
 

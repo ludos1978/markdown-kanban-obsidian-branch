@@ -12,12 +12,16 @@ let renderTimeout = null;
 // Helper function to extract first tag from text (excluding row tags)
 function extractFirstTag(text) {
     if (!text) return null;
-    // Match tags but exclude #rowN tags
-    const tagMatch = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+)/);
-    const tag = tagMatch ? tagMatch[1].toLowerCase() : null;
-    console.log(`Extracting tag from "${text}": ${tag}`);
-    return tag;
+    // Match tags with extended characters but extract base name for styling
+    const tagMatch = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/);
+    if (tagMatch) {
+        // Extract just the base tag name (before any operators)
+        const baseMatch = tagMatch[1].match(/^([a-zA-Z0-9_-]+)/);
+        return baseMatch ? baseMatch[1].toLowerCase() : tagMatch[1].toLowerCase();
+    }
+    return null;
 }
+
 
 // Helper function to convert hex to rgba
 function hexToRgba(hex, alpha) {
@@ -245,12 +249,25 @@ function applyFoldingStates() {
     updateGlobalColumnFoldButton();
 }
 
-// Helper function to check which configured tags are active in a title
+// Helper function to get active tags in a title
 function getActiveTagsInTitle(text) {
     if (!text) return [];
-    // Match all tags except row tags
-    const matches = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+)/g) || [];
-    return matches.map(tag => tag.substring(1).toLowerCase());
+    // Match all tags with extended syntax except row tags
+    const matches = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g) || [];
+    return matches.map(tag => {
+        // Remove the # and extract base tag name
+        const fullTag = tag.substring(1);
+        const baseMatch = fullTag.match(/^([a-zA-Z0-9_-]+)/);
+        return baseMatch ? baseMatch[1].toLowerCase() : fullTag.toLowerCase();
+    });
+}
+
+// Add a new function to get full tag content (including operators)
+function getFullTagContent(text) {
+    if (!text) return [];
+    // Match all tags with full content including operators
+    const matches = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g) || [];
+    return matches.map(tag => tag.substring(1)); // Remove # but keep full content
 }
 
 // Helper function to collect all tags currently in use across the board
