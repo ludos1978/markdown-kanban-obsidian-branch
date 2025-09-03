@@ -538,7 +538,7 @@ export class BoardOperations {
             if (!column.title) return;
             
             // Extract all gather and sort tags from column title - include & in gather tags
-            const tags = column.title.match(/#(gather-[a-zA-Z0-9_&-]+|sort-[a-zA-Z0-9_-]+|ungathered|unsorted)/g) || [];
+            const tags = column.title.match(/#(gather_[a-zA-Z0-9_&-]+|sort-[a-zA-Z0-9_-]+|ungathered|unsorted)/g) || [];
             if (tags.length > 0) {
                 gatherColumns.push({
                     column: column,
@@ -549,11 +549,11 @@ export class BoardOperations {
         
         // Process each column's tags in 3 passes to ensure proper priority
         
-        // FIRST PASS: Process specific gather tags (like gather-john, gather-today, etc.)
+        // FIRST PASS: Process specific gather tags (like gather_john, gather_today, etc.)
         gatherColumns.forEach(({ column, tags }) => {
             tags.forEach(tag => {
-                if (tag.startsWith('gather-') && 
-                    tag !== 'gather-untagged') { // Don't process gather-untagged yet
+                if (tag.startsWith('gather_') && 
+                    tag !== 'gather_untagged') { // Don't process gather_untagged yet
                     // All specific gather tags (including combined conditions)
                     this.gatherToColumn(board, column, tag, movedTasks);
                 }
@@ -572,7 +572,7 @@ export class BoardOperations {
         // THIRD PASS: Process untagged and unsorted
         gatherColumns.forEach(({ column, tags }) => {
             tags.forEach(tag => {
-                if (tag === 'gather-untagged') {
+                if (tag === 'gather_untagged') {
                     this.gatherUntaggedToColumn(board, column, movedTasks);
                 } else if (tag === 'unsorted') {
                     this.gatherUnsortedToColumn(board, column, movedTasks);
@@ -630,15 +630,15 @@ export class BoardOperations {
         const { baseTag, conditions } = this.parseGatherTag(tag);
         
         // Handle standard gather tags
-        if (baseTag === 'gather-today' && taskDate === this.getTodayString()) {
+        if (baseTag === 'gather_today' && taskDate === this.getTodayString()) {
             return true;
-        } else if (baseTag === 'gather-next3days' && taskDate && this.isWithinDays(taskDate, 3)) {
+        } else if (baseTag === 'gather_next3days' && taskDate && this.isWithinDays(taskDate, 3)) {
             return true;
-        } else if (baseTag === 'gather-next7days' && taskDate && this.isWithinDays(taskDate, 7)) {
+        } else if (baseTag === 'gather_next7days' && taskDate && this.isWithinDays(taskDate, 7)) {
             return true;
-        } else if (baseTag === 'gather-overdue' && taskDate && this.isOverdue(taskDate)) {
+        } else if (baseTag === 'gather_overdue' && taskDate && this.isOverdue(taskDate)) {
             return true;
-        } else if (baseTag === 'gather-dayoffset' || baseTag === 'gather_dayoffset') {
+        } else if (baseTag === 'gather_dayoffset' || baseTag === 'gather_dayoffset') {
             // Handle dayoffset with conditions
             if (!taskDate) return false;
             
@@ -669,10 +669,10 @@ export class BoardOperations {
             }
             
             return false;
-        } else if (baseTag.startsWith('gather-') && 
-                !baseTag.match(/^gather-(today|next3days|next7days|overdue|dayoffset)$/)) {
+        } else if (baseTag.startsWith('gather_') && 
+                !baseTag.match(/^gather_(today|next3days|next7days|overdue|dayoffset)$/)) {
             // Check for person name gathering
-            const targetPerson = baseTag.substring(7); // Remove 'gather-' prefix
+            const targetPerson = baseTag.substring(7); // Remove 'gather_' prefix
             return personNames.includes(targetPerson);
         }
         
@@ -683,7 +683,7 @@ export class BoardOperations {
         baseTag: string; 
         conditions: Array<{ operator: string; value: string }> 
     } {
-        // Parse tags like gather-dayoffset=1|dayoffset=2
+        // Parse tags like gather_dayoffset=1|dayoffset=2
         const parts = tag.split(/([=|><])/);
         const baseTag = parts[0];
         const conditions: Array<{ operator: string; value: string }> = [];
@@ -705,8 +705,8 @@ export class BoardOperations {
     private gatherToColumn(board: KanbanBoard, targetColumn: KanbanColumn, tag: string, movedTasks: Set<string>): void {
         const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
         
-        // Parse combined conditions (e.g., "gather-today&john" or "gather-overdue&sarah")
-        const gatherPart = tag.substring(7); // Remove 'gather-' prefix
+        // Parse combined conditions (e.g., "gather_today&john" or "gather_overdue&sarah")
+        const gatherPart = tag.substring(7); // Remove 'gather_' prefix
         const conditions = gatherPart.split('&').map(c => c.trim());
         
         // Collect tasks that match ALL conditions (AND logic)
