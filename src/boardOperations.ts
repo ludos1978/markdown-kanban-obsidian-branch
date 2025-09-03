@@ -484,7 +484,7 @@ export class BoardOperations {
     // Add this method to extract person names from text
     private extractPersonNames(text: string): string[] {
         if (!text) return [];
-        const matches = text.match(/@([a-zA-Z0-9_-]+)/g) || [];
+        const matches = text.match(/@([a-zA-Z0-9_&-]+)/g) || [];
         // Filter out dates
         return matches
             .map(m => m.substring(1))
@@ -525,27 +525,10 @@ export class BoardOperations {
     public performAutomaticSort(board: KanbanBoard): boolean {
         if (!board || !board.columns) return false;
         
-        // Step 1: Collect ALL tasks from ALL columns with their original locations
-        const allTasks: Array<{
-            task: KanbanTask,
-            originalColumn: KanbanColumn,
-            originalIndex: number
-        }> = [];
+        // Track which tasks have been moved to avoid duplicates
+        const movedTasks = new Set<string>();
         
-        // Collect all tasks and clear columns
-        board.columns.forEach(column => {
-            column.tasks.forEach((task, index) => {
-                allTasks.push({
-                    task: task,
-                    originalColumn: column,
-                    originalIndex: index
-                });
-            });
-            // Clear all tasks from columns (we'll redistribute them)
-            column.tasks = [];
-        });
-            
-        // Step 2: Identify all columns with gather/sort tags and their rules
+        // First, identify all columns with gather tags and their requirements
         const gatherColumns: Array<{
             column: KanbanColumn,
             tags: string[]
@@ -554,67 +537,51 @@ export class BoardOperations {
         board.columns.forEach(column => {
             if (!column.title) return;
             
-            // Extract all gather and sort tags with full content including operators
-            const tags = column.title.match(/#((?:gather|sort|ungathered|unsorted)[a-zA-Z0-9_-]*(?:[=|><][a-zA-Z0-9_-]+)*)/g) || [];
+            // Extract all gather and sort tags from column title - include & in gather tags
+            const tags = column.title.match(/#(gather-[a-zA-Z0-9_&-]+|sort-[a-zA-Z0-9_-]+|ungathered|unsorted)/g) || [];
             if (tags.length > 0) {
                 gatherColumns.push({
                     column: column,
-                    tags: tags.map(t => t.substring(1)).reverse() // Remove # and reverse
+                    tags: tags.map(t => t.substring(1)) // Remove #
                 });
             }
         });
         
-        // Track which tasks have been placed
-        const placedTasks = new Set<string>();
+        // Process each column's tags in 3 passes to ensure proper priority
         
-        // Step 3: Process gather columns and distribute matching tasks
+        // FIRST PASS: Process specific gather tags (like gather-john, gather-today, etc.)
         gatherColumns.forEach(({ column, tags }) => {
-            const tasksForThisColumn: KanbanTask[] = [];
-            
             tags.forEach(tag => {
-                if (tag.startsWith('gather_')) {
-                    // Gather specific tasks to this column
-                    allTasks.forEach(({ task }) => {
-                        if (placedTasks.has(task.id)) return; // Skip already placed tasks
-                        
-                        if (this.taskMatchesGatherTag(task, tag)) {
-                            tasksForThisColumn.push(task);
-                            placedTasks.add(task.id);
-                        }
-                    });
-                } else if (tag === 'ungathered') {
-                    // Gather tasks with @ tags that haven't been placed yet
-                    allTasks.forEach(({ task }) => {
-                        if (placedTasks.has(task.id)) return;
-                        
-                        const taskText = `${task.title || ''} ${task.description || ''}`;
-                        const hasDateOrPerson = taskText.includes('@');
-                        
-                        if (hasDateOrPerson) {
-                            tasksForThisColumn.push(task);
-                            placedTasks.add(task.id);
-                        }
-                    });
-                } else if (tag === 'unsorted') {
-                    // Gather tasks without @ tags that haven't been placed yet
-                    allTasks.forEach(({ task }) => {
-                        if (placedTasks.has(task.id)) return;
-                        
-                        const taskText = `${task.title || ''} ${task.description || ''}`;
-                        const hasDateOrPerson = taskText.includes('@');
-                        
-                        if (!hasDateOrPerson) {
-                            tasksForThisColumn.push(task);
-                            placedTasks.add(task.id);
-                        }
-                    });
+                if (tag.startsWith('gather-') && 
+                    tag !== 'gather-untagged') { // Don't process gather-untagged yet
+                    // All specific gather tags (including combined conditions)
+                    this.gatherToColumn(board, column, tag, movedTasks);
                 }
             });
-            
-            // Add gathered tasks to the column
-            column.tasks = tasksForThisColumn;
-            
-            // Apply sorting if needed
+        });
+        
+        // SECOND PASS: Process ungathered (cards with @ tags that weren't gathered)
+        gatherColumns.forEach(({ column, tags }) => {
+            tags.forEach(tag => {
+                if (tag === 'ungathered') {
+                    this.gatherUngatheredToColumn(board, column, movedTasks);
+                }
+            });
+        });
+        
+        // THIRD PASS: Process untagged and unsorted
+        gatherColumns.forEach(({ column, tags }) => {
+            tags.forEach(tag => {
+                if (tag === 'gather-untagged') {
+                    this.gatherUntaggedToColumn(board, column, movedTasks);
+                } else if (tag === 'unsorted') {
+                    this.gatherUnsortedToColumn(board, column, movedTasks);
+                }
+            });
+        });
+        
+        // FOURTH PASS: Apply sorting to columns
+        gatherColumns.forEach(({ column, tags }) => {
             tags.forEach(tag => {
                 if (tag === 'sort-bydate') {
                     this.sortColumnByDate(column);
@@ -624,31 +591,33 @@ export class BoardOperations {
             });
         });
         
-        // Step 4: Return unplaced tasks to their original columns
-        allTasks.forEach(({ task, originalColumn }) => {
-            if (!placedTasks.has(task.id)) {
-                // Task wasn't matched to any gather column, return it to original column
-                originalColumn.tasks.push(task);
-            }
-        });
-        
-        // Step 5: Sort original columns that didn't have gather tags but might have sort tags
-        board.columns.forEach(column => {
-            // Skip columns that were already processed as gather columns
-            const isGatherColumn = gatherColumns.some(gc => gc.column.id === column.id);
-            if (isGatherColumn) return;
-            
-            // Check for sort tags in non-gather columns
-            if (column.title) {
-                if (column.title.includes('#sort-bydate')) {
-                    this.sortColumnByDate(column);
-                } else if (column.title.includes('#sort-byname')) {
-                    this.sortColumnByName(column);
-                }
-            }
-        });
-        
         return true;
+    }
+
+    // Gather unsorted tasks (all tasks not yet moved - regardless of @ tags)
+    private gatherUnsortedToColumn(board: KanbanBoard, targetColumn: KanbanColumn, movedTasks: Set<string>): void {
+        const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
+        
+        board.columns.forEach(sourceColumn => {
+            if (sourceColumn.id === targetColumn.id) return;
+            
+            sourceColumn.tasks.forEach(task => {
+                // Only move tasks that haven't been moved yet
+                if (!movedTasks.has(task.id)) {
+                    tasksToMove.push({ task, fromColumn: sourceColumn });
+                    movedTasks.add(task.id);
+                }
+            });
+        });
+        
+        // Move the tasks
+        tasksToMove.forEach(({ task, fromColumn }) => {
+            const taskIndex = fromColumn.tasks.findIndex(t => t.id === task.id);
+            if (taskIndex !== -1) {
+                fromColumn.tasks.splice(taskIndex, 1);
+                targetColumn.tasks.push(task);
+            }
+        });
     }
 
     // Helper method to check if a task matches a gather tag
@@ -736,10 +705,11 @@ export class BoardOperations {
     private gatherToColumn(board: KanbanBoard, targetColumn: KanbanColumn, tag: string, movedTasks: Set<string>): void {
         const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
         
-        // Parse the gather expression
-        const evaluator = this.parseGatherExpression(tag);
+        // Parse combined conditions (e.g., "gather-today&john" or "gather-overdue&sarah")
+        const gatherPart = tag.substring(7); // Remove 'gather-' prefix
+        const conditions = gatherPart.split('&').map(c => c.trim());
         
-        // Collect tasks that match the gather criteria
+        // Collect tasks that match ALL conditions (AND logic)
         board.columns.forEach(sourceColumn => {
             if (sourceColumn.id === targetColumn.id) return;
             
@@ -750,8 +720,34 @@ export class BoardOperations {
                 const taskDate = this.extractDate(taskText);
                 const personNames = this.extractPersonNames(taskText);
                 
-                // Use the expression evaluator
-                if (evaluator(taskText, taskDate, personNames)) {
+                let allConditionsMet = true;
+                
+                for (const condition of conditions) {
+                    let conditionMet = false;
+                    
+                    // Check date-based conditions
+                    if (condition === 'today' && taskDate === this.getTodayString()) {
+                        conditionMet = true;
+                    } else if (condition === 'next3days' && taskDate && this.isWithinDays(taskDate, 3)) {
+                        conditionMet = true;
+                    } else if (condition === 'next7days' && taskDate && this.isWithinDays(taskDate, 7)) {
+                        conditionMet = true;
+                    } else if (condition === 'overdue' && taskDate && this.isOverdue(taskDate)) {
+                        conditionMet = true;
+                    } else if (!condition.match(/^(today|next3days|next7days|overdue)$/)) {
+                        // Check for person name condition
+                        if (personNames.includes(condition)) {
+                            conditionMet = true;
+                        }
+                    }
+                    
+                    if (!conditionMet) {
+                        allConditionsMet = false;
+                        break;
+                    }
+                }
+                
+                if (allConditionsMet) {
                     tasksToMove.push({ task, fromColumn: sourceColumn });
                     movedTasks.add(task.id);
                 }
@@ -776,15 +772,24 @@ export class BoardOperations {
             if (sourceColumn.id === targetColumn.id) return;
             
             sourceColumn.tasks.forEach(task => {
+                // Skip if already moved by another gather column
                 if (movedTasks.has(task.id)) return;
                 
                 const taskText = `${task.title || ''} ${task.description || ''}`;
-                const hasDateOrPerson = taskText.includes('@');
                 
-                if (hasDateOrPerson) {
+                // Check if task has any @ tags (date or person)
+                const hasDateTag = this.extractDate(taskText) !== null;
+                const hasPersonTags = this.extractPersonNames(taskText).length > 0;
+                const hasAnyAtTag = hasDateTag || hasPersonTags;
+                
+                // Only move to ungathered if:
+                // 1. Has @ tags
+                // 2. Wasn't already moved by a specific gather column
+                if (hasAnyAtTag) {
                     tasksToMove.push({ task, fromColumn: sourceColumn });
                     movedTasks.add(task.id);
                 }
+                // If no @ tags, leave the card where it is
             });
         });
         
@@ -798,20 +803,25 @@ export class BoardOperations {
         });
     }
 
-    // Gather unsorted tasks (without @ tags and not moved)
-    private gatherUnsortedToColumn(board: KanbanBoard, targetColumn: KanbanColumn, movedTasks: Set<string>): void {
+    private gatherUntaggedToColumn(board: KanbanBoard, targetColumn: KanbanColumn, movedTasks: Set<string>): void {
         const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
         
         board.columns.forEach(sourceColumn => {
             if (sourceColumn.id === targetColumn.id) return;
             
             sourceColumn.tasks.forEach(task => {
+                // Skip if already moved
                 if (movedTasks.has(task.id)) return;
                 
                 const taskText = `${task.title || ''} ${task.description || ''}`;
-                const hasDateOrPerson = taskText.includes('@');
                 
-                if (!hasDateOrPerson) {
+                // Check if task has any @ tags (date or person)
+                const hasDateTag = this.extractDate(taskText) !== null;
+                const hasPersonTags = this.extractPersonNames(taskText).length > 0;
+                const hasAnyAtTag = hasDateTag || hasPersonTags;
+                
+                // Only move to untagged if it has NO @ tags at all
+                if (!hasAnyAtTag) {
                     tasksToMove.push({ task, fromColumn: sourceColumn });
                     movedTasks.add(task.id);
                 }
