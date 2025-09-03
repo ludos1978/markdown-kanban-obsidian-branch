@@ -563,31 +563,32 @@ export class BoardOperations {
             });
         });
         
-        // Collect all gather rules in order (column order matters for priority)
+        // Collect gather rules separated by type
         const gatherRules: Array<{
             column: KanbanColumn,
-            expression: string,
-            isUngathered: boolean
+            expression: string
         }> = [];
         
+        const ungatheredRules: Array<{
+            column: KanbanColumn
+        }> = [];
+        
+        // Collect all rules from columns in order
         board.columns.forEach(column => {
             if (!column.title) return;
             
-            // Extract gather tags in order
+            // Extract gather and ungathered tags
             const matches = column.title.match(/#(gather_[a-zA-Z0-9_&|=><!\-]+|ungathered)/g) || [];
             matches.forEach(match => {
                 const tag = match.substring(1);
                 if (tag === 'ungathered') {
-                    gatherRules.push({
-                        column: column,
-                        expression: '',
-                        isUngathered: true
-                    });
+                    // Store ungathered rules separately
+                    ungatheredRules.push({ column: column });
                 } else if (tag.startsWith('gather_')) {
+                    // Regular gather rules
                     gatherRules.push({
                         column: column,
-                        expression: tag.substring(7),
-                        isUngathered: false
+                        expression: tag.substring(7)
                     });
                 }
             });
@@ -595,8 +596,10 @@ export class BoardOperations {
         
         // Track where each card will go
         const cardDestinations = new Map<string, KanbanColumn>();
+        // Track which cards have been matched by gather rules
+        const matchedCards = new Set<string>();
         
-        // Process each card against all rules
+        // FIRST PASS: Process each card against all regular gather rules
         board.columns.forEach(sourceColumn => {
             sourceColumn.tasks.forEach(task => {
                 // Skip sticky tasks
@@ -607,32 +610,46 @@ export class BoardOperations {
                 const taskText = `${task.title || ''} ${task.description || ''}`;
                 const taskDate = this.extractDate(taskText);
                 const personNames = this.extractPersonNames(taskText);
-                const hasAnyAtTag = taskDate !== null || personNames.length > 0;
                 
-                // Check against each rule in order (first match wins)
-                let matched = false;
+                // Check against each gather rule in order (first match wins)
                 for (const rule of gatherRules) {
-                    if (rule.isUngathered) {
-                        // Ungathered catches cards with @ tags that weren't matched
-                        if (hasAnyAtTag && !matched) {
-                            cardDestinations.set(task.id, rule.column);
-                            matched = true;
-                            break;
-                        }
-                    } else {
-                        // Regular gather rule
-                        const evaluator = this.parseGatherExpression(rule.expression);
-                        if (evaluator(taskText, taskDate, personNames)) {
-                            cardDestinations.set(task.id, rule.column);
-                            matched = true;
-                            break; // First match wins
-                        }
+                    const evaluator = this.parseGatherExpression(rule.expression);
+                    if (evaluator(taskText, taskDate, personNames)) {
+                        cardDestinations.set(task.id, rule.column);
+                        matchedCards.add(task.id);
+                        break; // First match wins
                     }
                 }
-                
-                // If no match, card stays in current column (implicit)
             });
         });
+        
+        // SECOND PASS: Process ungathered rules (for cards with @ tags that weren't matched)
+        if (ungatheredRules.length > 0) {
+            board.columns.forEach(sourceColumn => {
+                sourceColumn.tasks.forEach(task => {
+                    // Skip sticky tasks
+                    if (stickyTasks.has(task.id)) {
+                        return;
+                    }
+                    
+                    // Skip if already matched by a gather rule
+                    if (matchedCards.has(task.id)) {
+                        return;
+                    }
+                    
+                    const taskText = `${task.title || ''} ${task.description || ''}`;
+                    const taskDate = this.extractDate(taskText);
+                    const personNames = this.extractPersonNames(taskText);
+                    const hasAnyAtTag = taskDate !== null || personNames.length > 0;
+                    
+                    // If has @ tags but wasn't gathered, apply first ungathered rule
+                    if (hasAnyAtTag) {
+                        // Use the first ungathered column found
+                        cardDestinations.set(task.id, ungatheredRules[0].column);
+                    }
+                });
+            });
+        }
         
         // Now move all cards to their destinations
         cardDestinations.forEach((targetColumn, taskId) => {
@@ -658,7 +675,7 @@ export class BoardOperations {
             }
         });
         
-        // Apply sorting to columns with sort tags
+        // THIRD PASS: Apply sorting to columns with sort tags
         board.columns.forEach(column => {
             if (!column.title) return;
             
