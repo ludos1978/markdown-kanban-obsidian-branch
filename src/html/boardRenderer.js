@@ -9,15 +9,18 @@ window.globalColumnFoldState = window.globalColumnFoldState || 'fold-mixed'; // 
 let currentBoard = null;
 let renderTimeout = null;
 
-// Helper function to extract first tag from text (excluding row tags)
+// Helper function to extract first style-tag from text
+// - Skips row tags (#rowN) and gather tags (#gather_...)
 function extractFirstTag(text) {
     if (!text) return null;
-    // Match tags with extended characters but extract base name for styling
-    const tagMatch = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/);
-    if (tagMatch) {
-        // Extract just the base tag name (before any operators)
-        const baseMatch = tagMatch[1].match(/^([a-zA-Z0-9_-]+)/);
-        return baseMatch ? baseMatch[1].toLowerCase() : tagMatch[1].toLowerCase();
+    const re = /#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const raw = m[1];
+        const baseMatch = raw.match(/^([a-zA-Z0-9_-]+)/);
+        const base = (baseMatch ? baseMatch[1] : raw).toLowerCase();
+        if (base.startsWith('gather_')) continue; // do not use gather tags for styling
+        return base;
     }
     return null;
 }
@@ -858,8 +861,8 @@ function createColumnElement(column, columnIndex) {
     columnDiv.setAttribute('data-column-index', columnIndex);
     columnDiv.setAttribute('data-row', getColumnRow(column.title));
     
-    // Add primary tag for background color only
-    if (columnTag && !columnTag.startsWith('row')) {
+    // Add primary tag for background color only (ignore row/gather)
+    if (columnTag && !columnTag.startsWith('row') && !columnTag.startsWith('gather_')) {
         columnDiv.setAttribute('data-column-tag', columnTag);
         console.log(`Set data-column-tag="${columnTag}" on column element`);
     }

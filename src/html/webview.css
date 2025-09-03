@@ -2118,20 +2118,29 @@ h6 .kanban-tag {
 }
 
 /* Fix collapsed add task button in dark mode */
-.vscode-dark .collapsed-add-task-btn,
-.vscode-high-contrast .collapsed-add-task-btn {
+.vscode-dark .collapsed-add-task-btn {
     background: #000000;
     color: var(--vscode-descriptionForeground);
     border: 1px solid var(--vscode-descriptionForeground);
 }
 
-.vscode-dark .collapsed-add-task-btn:hover,
-.vscode-high-contrast .collapsed-add-task-btn:hover {
+.vscode-high-contrast .collapsed-add-task-btn {
+    background: #ffffff;
+    color: var(--vscode-descriptionForeground);
+    border: 1px solid var(--vscode-descriptionForeground);
+}
+
+.vscode-dark .collapsed-add-task-btn:hover {
     background: #1a1a1a;
     color: var(--vscode-descriptionForeground);
     border: 1px solid var(--vscode-descriptionForeground);
 }
 
+.vscode-high-contrast .collapsed-add-task-btn:hover {
+    background: #ffffff;
+    color: var(--vscode-descriptionForeground);
+    border: 1px solid var(--vscode-descriptionForeground);
+}
 
 /* Date and person tags */
 .kanban-date-tag {
