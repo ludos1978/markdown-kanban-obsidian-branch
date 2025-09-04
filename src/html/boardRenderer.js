@@ -926,10 +926,11 @@ function createColumnElement(column, columnIndex) {
                     </div>
                 </div>
                 <div class="column-controls">
-                    <span class="task-count">${column.tasks.length}</span>
-                    <button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
-                        <span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
-                    </button>
+                    <span class="task-count">${column.tasks.length}
+                        <button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
+                            <span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
+                        </button>
+                    </span>
                     <button class="collapsed-add-task-btn" onclick="addTaskAndUnfold('${column.id}')" title="Add task and unfold column">+</button>
                     <div class="donut-menu">
                         <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
