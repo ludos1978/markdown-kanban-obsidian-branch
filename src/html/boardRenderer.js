@@ -1409,20 +1409,18 @@ function generateTagStyles() {
                 const bgDark = columnColors.backgroundDark || columnColors.background;
                 
                 const columnBg = interpolateColor(editorBg, bgDark, 0.15);
-                styles += `.kanban-column:not([data-column-tag]) {
-                    background-color: ${columnBg} !important;
-                    position: relative;
-                }\n`;
                 
                 // Default column header background
                 styles += `.kanban-column:not([data-column-tag]) .column-header {
                     background-color: ${columnBg} !important;
                 }\n`;
+                
+                // Default column content background
+                styles += `.kanban-column:not([data-column-tag]) .column-content {
+                    background-color: ${columnBg} !important;
+                }\n`;
 
                 const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
-                styles += `.kanban-column.collapsed:not([data-column-tag]) {
-                    background-color: ${columnCollapsedBg} !important;
-                }\n`;
                 
                 // Default collapsed column header background
                 styles += `.kanban-column.collapsed:not([data-column-tag]) .column-header {
@@ -1505,21 +1503,19 @@ function generateTagStyles() {
                     // Column background styles - only for primary tag
                     // Interpolate 15% towards the darker color
                     const columnBg = interpolateColor(editorBg, bgDark, 0.15);
-                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                    
+                    // Column header background
+                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
                         background-color: ${columnBg} !important;
-                        // position: relative;
                     }\n`;
                     
-                    // Column header background - same as column background
-                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
+                    // Column content background  
+                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-content {
                         background-color: ${columnBg} !important;
                     }\n`;
                     
                     // Column collapsed state - interpolate 20% towards the darker color
                     const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
-                    styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] {
-                        background-color: ${columnCollapsedBg} !important;
-                    }\n`;
                     
                     // Collapsed column header background
                     styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] .column-header {
@@ -1548,7 +1544,10 @@ function generateTagStyles() {
                         
                         if (config.border.position === 'left') {
                             // Use data-column-tag and data-task-tag for borders (primary tag only)
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-content {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
@@ -1556,8 +1555,12 @@ function generateTagStyles() {
                             }\n`;
                         } else {
                             // Full border
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-content {
+                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-top: none !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;

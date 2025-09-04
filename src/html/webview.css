@@ -209,7 +209,7 @@ body {
   flex-direction: column;
   border: 0.5px solid var(--vscode-panel-border);
   border-radius: var(--whitespace-div4);
-  padding: var(--whitespace-div2) var(--whitespace-div3-mul2);
+  /* padding: var(--whitespace-div2) var(--whitespace-div3-mul2); */
   align-items: center;
   margin: var(--whitespace-div2);
   flex: none;
@@ -331,6 +331,10 @@ body {
 }
 
 .kanban-column.collapsed .column-content {
+  display: none !important;
+}
+
+.kanban-column.collapsed .fold-all-btn {
   display: none !important;
 }
 
