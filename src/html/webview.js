@@ -121,6 +121,49 @@ async function processClipboardText(text) {
         }
     }
     
+    // Check if it's a filename (contains file extension)
+    const fileRegex = /^[^\/\\\n]*\.[a-zA-Z0-9]{1,10}$/;
+    if (fileRegex.test(text.trim())) {
+        const fileName = text.trim();
+        const isImage = isImageFile(fileName);
+        
+        if (isImage) {
+            return {
+                title: fileName,
+                content: `![${fileName}](${fileName})`,
+                isLink: true
+            };
+        } else {
+            return {
+                title: fileName,
+                content: `[${fileName}](${fileName})`,
+                isLink: true
+            };
+        }
+    }
+    
+    // Check if it's a file path (contains path separators and file extension)
+    const filePathRegex = /^[^<>:"|?*\n]*[\/\\][^\/\\\n]*\.[a-zA-Z0-9]{1,10}$/;
+    if (filePathRegex.test(text.trim())) {
+        const filePath = text.trim();
+        const fileName = filePath.split(/[\/\\]/).pop();
+        const isImage = isImageFile(fileName);
+        
+        if (isImage) {
+            return {
+                title: fileName,
+                content: `![${fileName}](${filePath})`,
+                isLink: true
+            };
+        } else {
+            return {
+                title: fileName,
+                content: `[${fileName}](${filePath})`,
+                isLink: true
+            };
+        }
+    }
+    
     // Check if it contains a URL within text
     const urlInTextRegex = /https?:\/\/[^\s]+/g;
     if (urlInTextRegex.test(text)) {
@@ -144,6 +187,15 @@ async function processClipboardText(text) {
         content: text,
         isLink: false
     };
+}
+
+function isImageFile(fileName) {
+    const imageExtensions = [
+        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 
+        'ico', 'tiff', 'tif', 'avif', 'heic', 'heif'
+    ];
+    const extension = fileName.split('.').pop().toLowerCase();
+    return imageExtensions.includes(extension);
 }
 
 function extractDomainFromUrl(url) {
@@ -183,18 +235,18 @@ async function updateClipboardCardSource() {
             clipboardSource.style.opacity = '1';
             clipboardSource.title = `Drag to create card: "${clipboardCardData.title}"`;
             
-            // Show first 20 characters of clipboard content
-            const preview = clipboardCardData.content.length > 20 
-                ? clipboardCardData.content.substring(0, 20) + '...'
-                : clipboardCardData.content;
+            // Show first 15 characters + character count
+            const preview = clipboardCardData.content.length > 15 
+                ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
+                : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
             
             // Update visual indicator based on content type
             if (clipboardCardData.isLink) {
                 iconSpan.textContent = '🔗';
-                textSpan.textContent = `Link: ${preview}`;
+                textSpan.textContent = preview;
             } else {
                 iconSpan.textContent = '📋';
-                textSpan.textContent = `Clip: ${preview}`;
+                textSpan.textContent = preview;
             }
         } else {
             clipboardSource.style.opacity = '0.5';
@@ -665,15 +717,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const textSpan = clipboardSource.querySelector('.clipboard-text');
             
             if (iconSpan && textSpan) {
-                const preview = clipboardCardData.content.length > 20 
-                    ? clipboardCardData.content.substring(0, 20) + '...'
-                    : clipboardCardData.content;
+                const preview = clipboardCardData.content.length > 15 
+                    ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
+                    : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
                 
                 iconSpan.textContent = '📋';
-                textSpan.textContent = `Clip: ${preview}`;
+                textSpan.textContent = preview;
                 clipboardSource.style.opacity = '1';
                 clipboardSource.title = `Drag to create card: "${clipboardCardData.title}"`;
-                console.log('[CLIPBOARD DEBUG] Updated button text to:', `Clip: ${preview}`);
+                console.log('[CLIPBOARD DEBUG] Updated button text to:', preview);
             }
         } else {
             console.error('[CLIPBOARD DEBUG] Clipboard source not found!');

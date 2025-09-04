@@ -16,6 +16,10 @@
             <div class="file-info-left">
                 <span class="file-icon">📄</span>
                 <span id="file-name" class="file-name">No file loaded</span>
+                <div id="clipboard-card-source" class="clipboard-card-source" draggable="true" title="Drag to create card from clipboard content" onmousedown="handleClipboardMouseDown(event)" ondragstart="handleClipboardDragStart(event)" ondragend="handleClipboardDragEnd(event)">
+                    <span class="clipboard-icon" draggable="false">📋</span>
+                    <span class="clipboard-text" draggable="false">Clip</span>
+                </div>
                 <button id="global-fold-btn" class="global-fold-btn fold-mixed" onclick="toggleAllColumns()" title="Fold/unfold all columns">
                     <span id="global-fold-icon" class="global-fold-icon">▽</span>
                     <span class="global-fold-text">Columns</span>
@@ -24,12 +28,6 @@
                     <span class="sort-icon">⇅</span>
                     <span class="sort-text">Sort</span>
                 </button>
-            </div>
-            <div class="file-info-center">
-                <div id="clipboard-card-source" class="clipboard-card-source" draggable="true" title="Drag to create card from clipboard content" onmousedown="handleClipboardMouseDown(event)" ondragstart="handleClipboardDragStart(event)" ondragend="handleClipboardDragEnd(event)">
-                    <span class="clipboard-icon" draggable="false">📋</span>
-                    <span class="clipboard-text" draggable="false">Clip</span>
-                </div>
             </div>
             <div class="file-info-right">
                 <button id="lock-status-icon" class="lock-status-icon" onclick="toggleFileLock()" title="Click to toggle file lock">🔓</button>
