@@ -85,6 +85,8 @@ body {
   overflow-x: auto;
   overflow-y: auto;
   padding: var(--whitespace-div2);
+  display: flex;
+  flex-direction: column;
 }
 
 /* Kanban board */
@@ -95,6 +97,7 @@ body {
   padding-bottom: var(--whitespace);
   flex-wrap: nowrap;
   width: max-content; /* Allow horizontal expansion */
+  align-items: flex-start;
 }
 
 .kanban-board.multi-row {
@@ -103,17 +106,15 @@ body {
   width: 100%;
 }
 
-/* Kanban columns */
+/* Kanban columns - Full height wrapper for sticky positioning */
 .kanban-column {
-  /* Use editor background by default to avoid darker sidebar tint */
-  background-color: var(--vscode-editor-background);
-  border-radius: var(--whitespace-div4);
+  /* Transparent wrapper that provides full height for sticky positioning */
+  background-color: transparent;
+  border: none;
   width: var(--column-width);
   flex-shrink: 0;
-  border: 0.5px solid var(--vscode-panel-border);
   position: relative;
-  height: min-content;
-  /* height: -webkit-fill-available; */
+  min-height: 100%;
   transition: all 0.3s ease;
   overflow: visible;
   display: flex;
@@ -121,20 +122,37 @@ body {
   padding: 0;
 }
 
-.column-content {
+.column-inner {
+  /* This is the scrollable container for sticky positioning */
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--whitespace-div2);
-  min-height: 0;
-  overflow-y: var(--row-overflow);
+  overflow-y: auto;
+  overflow-x: visible;
+  min-height: 100%;
+  background-color: transparent;
 }
 
-.kanban-column.collapsed .column-content {
-  padding: 0;
+.column-content {
+  /* This contains the actual visual column with border and background */
+  display: flex;
+  flex-direction: column;
+  padding: var(--whitespace)  var(--whitespace-div2) var(--whitespace-div2) var(--whitespace-div2);
+  flex: 0 0 auto;
+  background-color: var(--vscode-editor-background);
+  border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4);
+  border: 0.5px solid var(--vscode-panel-border);
+  border-top: none;
+  margin: 0 var(--whitespace-div2) var(--whitespace-div2) var(--whitespace-div2);
+}
+
+.kanban-column.collapsed .column-inner {
+  overflow: visible;
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: auto;
+  min-height: auto;
 }
 
 .header-bars-container,
@@ -160,6 +178,7 @@ body {
   max-width: var(--collapsed-column-width) !important; */
   overflow: visible;
   min-height: 200px;
+  height: min-content;
   width: min-content;
   position: sticky;
   top: 0;
@@ -173,29 +192,36 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--whitespace-div2);
-  padding-bottom: var(--whitespace-div2);
+  padding: var(--whitespace-div2);
   /* border-bottom: 1px solid var(--vscode-panel-border); */
   /* min-height: 38px; */
   position: sticky;
-  top: -5px;
+  top: var(--whitespace-div2);
   z-index: 10;
   background-color: var(--vscode-editor-background);
-  padding-top: var(--whitespace-div2);
+  border-radius: var(--whitespace-div4) var(--whitespace-div4) 0 0;
+  border: 0.5px solid var(--vscode-panel-border);
+  /* border-bottom: none; */
+  /* margin: 0 var(--whitespace-div2); */
+  margin-bottom: 0;
   /* margin-top: calc(-1 * var(--whitespace-div2)); */
   /* border-top: 1px solid var(--vscode-panel-border); */
 }
 
 .kanban-column.collapsed .column-header {
   flex-direction: column;
-  border-bottom: none;
-  padding-bottom: 0;
+  border: 0.5px solid var(--vscode-panel-border);
+  border-radius: var(--whitespace-div4);
+  padding: var(--whitespace-div2) var(--whitespace-div3-mul2);
   align-items: center;
-  margin-bottom: 0;
+  margin: var(--whitespace-div2);
   flex: 1;
   display: flex;
   min-height: 0;
-  padding: var(--whitespace-div2) var(--whitespace-div3-mul2);
   box-sizing: border-box;
+  position: relative;
+  top: auto;
+  background-color: var(--vscode-editor-background);
 }
 
 /* Column title section */
@@ -279,17 +305,13 @@ body {
 
 /* Tasks container must allow the children to be overflow visible! */
 .tasks-container {
-  max-height: var(--max-row-height);
-  /* max-height: calc(100vh - 200px); */
-  overflow-y: visible; /* var(--row-overflow) */
-  overflow-x: visible;
-  /* overflow: visible; */
-  /* padding-bottom: 4px; */
+  overflow: visible;
 }
 
 .kanban-column.collapsed .tasks-container,
 .kanban-column.collapsed .add-task-btn,
-.kanban-column.collapsed .fold-all-btn {
+.kanban-column.collapsed .fold-all-btn,
+.kanban-column.collapsed .column-content {
   display: none !important;
 }
 
@@ -1326,6 +1348,7 @@ button.file-bar-menu-item {
 .kanban-row {
   position: relative;
   min-height: 200px;
+  max-height: var(--max-row-height);
   padding: var(--whitespace-div2);
   transition: all 0.2s;
   display: flex;

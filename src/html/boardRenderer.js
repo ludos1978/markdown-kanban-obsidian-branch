@@ -725,6 +725,9 @@ function renderBoard() {
     setTimeout(() => {
         applyFoldingStates();
         
+        // Calculate and apply row heights based on tallest columns
+        calculateAndApplyRowHeights();
+        
         // Restore scroll positions
         scrollPositions.forEach((scrollTop, columnId) => {
             const container = document.getElementById(`tasks-${columnId}`);
@@ -911,10 +914,10 @@ function createColumnElement(column, columnIndex) {
     const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
     columnDiv.innerHTML = `
-        ${headerBarsHtml || ''}
-        ${cornerBadgesHtml}
-        <div class="column-content">
+        <div class="column-inner">
             <div class="column-header">
+                ${headerBarsHtml || ''}
+                ${cornerBadgesHtml}
                 <div class="column-title-section">
                     <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
                     <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
@@ -958,14 +961,16 @@ function createColumnElement(column, columnIndex) {
                     </div>
                 </div>
             </div>
-            <div class="tasks-container" id="tasks-${column.id}">
-                ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
-                <button class="add-task-btn" onclick="addTask('${column.id}')">
-                    + Add Task
-                </button>
+            <div class="column-content">
+                <div class="tasks-container" id="tasks-${column.id}">
+                    ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
+                    <button class="add-task-btn" onclick="addTask('${column.id}')">
+                        + Add Task
+                    </button>
+                </div>
+                ${footerBarsHtml || ''}
             </div>
         </div>
-        ${footerBarsHtml || ''}
     `;
 
     return columnDiv;
@@ -1144,6 +1149,8 @@ function toggleColumnCollapse(columnId) {
     // Update global fold button after individual column toggle
     setTimeout(() => {
         updateGlobalColumnFoldButton();
+        // Recalculate row heights when columns are collapsed/expanded
+        calculateAndApplyRowHeights();
     }, 10);
 }
 
@@ -1527,17 +1534,17 @@ function generateTagStyles() {
         }
 
         // Default column border (always allowed if provided)
-        if (defaultConfig.column && defaultConfig.column.border) {
-            const b = defaultConfig.column.border;
-            const bStyle = b.style || 'solid';
-            const bWidth = b.width || '1px';
-            const bColor = b.color || 'var(--vscode-panel-border)';
-            if (b.position === 'left') {
-                styles += `.kanban-column:not([data-column-tag]) { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
-            } else {
-                styles += `.kanban-column:not([data-column-tag]) { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
-            }
-        }
+        // if (defaultConfig.column && defaultConfig.column.border) {
+        //     const b = defaultConfig.column.border;
+        //     const bStyle = b.style || 'solid';
+        //     const bWidth = b.width || '1px';
+        //     const bColor = b.color || 'var(--vscode-panel-border)';
+        //     if (b.position === 'left') {
+        //         styles += `.kanban-column:not([data-column-tag]) { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+        //     } else {
+        //         styles += `.kanban-column:not([data-column-tag]) { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+        //     }
+        // }
 
         // Default card styles (gated)
         if (defaultConfig.card && (defaultConfig.card.applyBackground === true || defaultConfig.card.enable === true)) {
@@ -2001,3 +2008,82 @@ window.getUserAddedTags = getUserAddedTags;
 
 window.handleColumnBarsOnToggle = handleColumnBarsOnToggle;
 window.handleLinkOrImageOpen = handleLinkOrImageOpen;
+
+// Function to calculate and apply row heights based on tallest column
+function calculateAndApplyRowHeights() {
+    const boardElement = document.getElementById('kanban-board');
+    if (!boardElement) return;
+    
+    const isMultiRow = boardElement.classList.contains('multi-row');
+    
+    if (isMultiRow) {
+        // Multi-row layout: calculate height for each row
+        const rows = boardElement.querySelectorAll('.kanban-row');
+        rows.forEach(row => {
+            calculateRowHeight(row);
+        });
+    } else {
+        // Single-row layout: calculate height for all columns
+        calculateRowHeight(boardElement);
+    }
+}
+
+function calculateRowHeight(containerElement) {
+    const columns = containerElement.querySelectorAll('.kanban-column:not(.collapsed)');
+    if (columns.length === 0) return;
+    
+    // Let columns determine their natural height first
+    columns.forEach(column => {
+        column.style.minHeight = '';
+        const columnInner = column.querySelector('.column-inner');
+        if (columnInner) {
+            columnInner.style.minHeight = '';
+            columnInner.style.overflowY = 'visible';
+        }
+    });
+    
+    // Force reflow to get natural heights
+    containerElement.offsetHeight;
+    
+    // Find the tallest column's natural content height by measuring the combined height
+    // of header + content, since they're now separate
+    let maxHeight = 0;
+    columns.forEach(column => {
+        const columnHeader = column.querySelector('.column-header');
+        const columnContent = column.querySelector('.column-content');
+        
+        if (columnHeader && columnContent) {
+            // Calculate total content height
+            const headerHeight = columnHeader.scrollHeight;
+            const contentHeight = columnContent.scrollHeight;
+            const totalHeight = headerHeight + contentHeight;
+            maxHeight = Math.max(maxHeight, totalHeight);
+        }
+    });
+    
+    // Check if there's a max-row-height limit
+    const maxRowHeightCSS = getComputedStyle(document.documentElement).getPropertyValue('--max-row-height');
+    let heightLimit = null;
+    if (maxRowHeightCSS && maxRowHeightCSS.trim() !== '') {
+        heightLimit = parseInt(maxRowHeightCSS);
+    }
+    
+    // Apply the height, respecting max-row-height if set
+    const finalHeight = heightLimit ? Math.min(maxHeight, heightLimit) : maxHeight;
+    
+    columns.forEach(column => {
+        const columnInner = column.querySelector('.column-inner');
+        if (columnInner) {
+            columnInner.style.minHeight = finalHeight + 'px';
+            // Keep the column itself with min-height to match
+            column.style.minHeight = finalHeight + 'px';
+            
+            // If content exceeds the height limit, make it scrollable
+            if (heightLimit && maxHeight > heightLimit) {
+                columnInner.style.overflowY = 'auto';
+            } else {
+                columnInner.style.overflowY = 'visible';
+            }
+        }
+    });
+}
