@@ -15,6 +15,268 @@ let currentDocumentUri = null;
 let currentColumnWidth = 'medium';
 let currentLayoutRows = 1;
 
+// Clipboard card source functionality
+let clipboardCardData = null;
+
+// Global mousedown handler - no longer needed
+window.handleClipboardMouseDown = function(e) {
+    // Empty - clipboard is read on focus and Cmd/Ctrl+C
+};
+
+// Global drag handler for clipboard card source
+window.handleClipboardDragStart = function(e) {
+    console.log('[CLIPBOARD DEBUG] Global drag handler fired!');
+    console.log('[CLIPBOARD DEBUG] Current clipboardCardData:', clipboardCardData);
+    
+    // Create default data if no clipboard data
+    if (!clipboardCardData) {
+        console.log('[CLIPBOARD DEBUG] No clipboard data available, using default');
+        clipboardCardData = {
+            title: 'Clipboard Content',
+            content: 'Drag to create card from clipboard',
+            isLink: false
+        };
+    }
+    
+    // Create task data
+    const tempTask = {
+        id: 'temp-clipboard-' + Date.now(),
+        title: clipboardCardData.title,
+        description: clipboardCardData.content,
+        isFromClipboard: true
+    };
+    
+    // Set drag state
+    if (window.dragState) {
+        window.dragState.isDragging = true;
+        window.dragState.draggedClipboardCard = tempTask;
+        console.log('[CLIPBOARD DEBUG] Set dragState.draggedClipboardCard:', tempTask);
+    }
+    
+    // Set drag data
+    const dragData = JSON.stringify({
+        type: 'clipboard-card',
+        task: tempTask
+    });
+    e.dataTransfer.setData('text/plain', `CLIPBOARD_CARD:${dragData}`);
+    e.dataTransfer.effectAllowed = 'copy';
+    
+    // Add visual feedback
+    e.target.classList.add('dragging');
+};
+
+window.handleClipboardDragEnd = function(e) {
+    console.log('[CLIPBOARD DEBUG] Global drag end handler fired!');
+    
+    // Clear visual feedback
+    e.target.classList.remove('dragging');
+    
+    // Clear drag state
+    if (window.dragState) {
+        window.dragState.isDragging = false;
+        window.dragState.draggedClipboardCard = null;
+    }
+};
+
+async function readClipboardContent() {
+    try {
+        console.log('[CLIPBOARD DEBUG] Attempting to read clipboard');
+        const text = await navigator.clipboard.readText();
+        console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
+        
+        if (!text || text.trim() === '') {
+            console.log('[CLIPBOARD DEBUG] Empty clipboard');
+            return null;
+        }
+        
+        const processed = await processClipboardText(text.trim());
+        console.log('[CLIPBOARD DEBUG] Processed clipboard:', processed);
+        return processed;
+    } catch (error) {
+        console.error('[CLIPBOARD DEBUG] Failed to read clipboard:', error);
+        // Don't return error object, just null
+        return null;
+    }
+}
+
+async function processClipboardText(text) {
+    // Check if it's a URL
+    const urlRegex = /^https?:\/\/[^\s]+$/;
+    if (urlRegex.test(text)) {
+        try {
+            // Try to fetch title from URL
+            const title = await fetchUrlTitle(text);
+            return {
+                title: title || extractDomainFromUrl(text),
+                content: `[${title || extractDomainFromUrl(text)}](${text})`,
+                isLink: true
+            };
+        } catch (error) {
+            // Fallback to domain name as title
+            return {
+                title: extractDomainFromUrl(text),
+                content: `[${extractDomainFromUrl(text)}](${text})`,
+                isLink: true
+            };
+        }
+    }
+    
+    // Check if it contains a URL within text
+    const urlInTextRegex = /https?:\/\/[^\s]+/g;
+    if (urlInTextRegex.test(text)) {
+        // Extract title from first line if available
+        const lines = text.split('\n');
+        const title = lines[0].length > 50 ? lines[0].substring(0, 50) + '...' : lines[0];
+        
+        return {
+            title: title || 'Clipboard Content',
+            content: text,
+            isLink: false
+        };
+    }
+    
+    // Regular text content
+    const lines = text.split('\n');
+    const title = lines[0].length > 50 ? lines[0].substring(0, 50) + '...' : lines[0];
+    
+    return {
+        title: title || 'Clipboard Content',
+        content: text,
+        isLink: false
+    };
+}
+
+function extractDomainFromUrl(url) {
+    try {
+        const urlObj = new URL(url);
+        return urlObj.hostname.replace('www.', '');
+    } catch (error) {
+        return 'Link';
+    }
+}
+
+async function fetchUrlTitle(url) {
+    try {
+        // Note: This will likely be blocked by CORS in most cases
+        // But we'll try anyway, with a fallback to domain name
+        const response = await fetch(url, { mode: 'cors' });
+        const text = await response.text();
+        const titleMatch = text.match(/<title[^>]*>([^<]*)<\/title>/i);
+        return titleMatch ? titleMatch[1].trim() : null;
+    } catch (error) {
+        // CORS will usually block this, so we'll use domain as fallback
+        return null;
+    }
+}
+
+async function updateClipboardCardSource() {
+    console.log('[CLIPBOARD DEBUG] Updating clipboard card source');
+    clipboardCardData = await readClipboardContent();
+    console.log('[CLIPBOARD DEBUG] Read clipboard data:', clipboardCardData);
+    const clipboardSource = document.getElementById('clipboard-card-source');
+    
+    if (clipboardSource) {
+        const iconSpan = clipboardSource.querySelector('.clipboard-icon');
+        const textSpan = clipboardSource.querySelector('.clipboard-text');
+        
+        if (clipboardCardData && clipboardCardData.content) {
+            clipboardSource.style.opacity = '1';
+            clipboardSource.title = `Drag to create card: "${clipboardCardData.title}"`;
+            
+            // Show first 20 characters of clipboard content
+            const preview = clipboardCardData.content.length > 20 
+                ? clipboardCardData.content.substring(0, 20) + '...'
+                : clipboardCardData.content;
+            
+            // Update visual indicator based on content type
+            if (clipboardCardData.isLink) {
+                iconSpan.textContent = '🔗';
+                textSpan.textContent = `Link: ${preview}`;
+            } else {
+                iconSpan.textContent = '📋';
+                textSpan.textContent = `Clip: ${preview}`;
+            }
+        } else {
+            clipboardSource.style.opacity = '0.5';
+            clipboardSource.title = 'No clipboard content available';
+            
+            iconSpan.textContent = '📋';
+            textSpan.textContent = 'Clip';
+        }
+    }
+}
+
+function initializeClipboardCardSource() {
+    const clipboardSource = document.getElementById('clipboard-card-source');
+    console.log('[CLIPBOARD DEBUG] Initializing clipboard source:', clipboardSource);
+    if (!clipboardSource) {
+        console.error('[CLIPBOARD DEBUG] Clipboard source element not found!');
+        return;
+    }
+    
+    clipboardSource.addEventListener('dragstart', (e) => {
+        console.log('[CLIPBOARD DEBUG] Drag start event fired');
+        console.log('[CLIPBOARD DEBUG] e.target:', e.target);
+        console.log('[CLIPBOARD DEBUG] e.currentTarget:', e.currentTarget);
+        console.log('[CLIPBOARD DEBUG] clipboardCardData:', clipboardCardData);
+        
+        // For testing - create dummy data if no clipboard data
+        if (!clipboardCardData) {
+            console.log('[CLIPBOARD DEBUG] No clipboard data, creating test data');
+            clipboardCardData = {
+                title: 'Test Clipboard Card',
+                content: 'This is a test card from clipboard',
+                isLink: false
+            };
+        }
+        
+        // Create a temporary task object for the drag operation
+        const tempTask = {
+            id: 'temp-clipboard-' + Date.now(),
+            title: clipboardCardData.title,
+            description: clipboardCardData.content,
+            isFromClipboard: true
+        };
+        
+        console.log('[CLIPBOARD DEBUG] Setting drag data:', tempTask);
+        
+        // Store in drag data
+        const dragData = JSON.stringify({
+            type: 'clipboard-card',
+            task: tempTask
+        });
+        
+        // Use text/plain with a special prefix for clipboard cards
+        // Custom MIME types don't work reliably across browsers
+        e.dataTransfer.setData('text/plain', `CLIPBOARD_CARD:${dragData}`);
+        e.dataTransfer.effectAllowed = 'copy';
+        
+        console.log('[CLIPBOARD DEBUG] Drag data set:', dragData);
+        
+        // Set drag state to prevent interference with internal drag detection
+        console.log('[CLIPBOARD DEBUG] window.dragState before setting:', window.dragState);
+        if (window.dragState) {
+            window.dragState.isDragging = true;
+            window.dragState.draggedClipboardCard = tempTask;
+            console.log('[CLIPBOARD DEBUG] window.dragState after setting:', window.dragState);
+        } else {
+            console.error('[CLIPBOARD DEBUG] window.dragState is not available!');
+        }
+        
+        clipboardSource.classList.add('dragging');
+    });
+    
+    clipboardSource.addEventListener('dragend', (e) => {
+        clipboardSource.classList.remove('dragging');
+        
+        // Clear drag state
+        if (window.dragState) {
+            window.dragState.isDragging = false;
+            window.dragState.draggedClipboardCard = null;
+        }
+    });
+}
+
 // Function to toggle file bar menu
 function toggleFileBarMenu(event, button) {
     event.stopPropagation();
@@ -331,10 +593,111 @@ function updateDocumentUri(newUri) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    themeObserver.observe(document.body, {
-        attributes: true,
-        attributeFilter: ['class']
+    // Theme observer is set up later in the file
+    
+    // Initialize clipboard card source
+    console.log('[CLIPBOARD DEBUG] Initializing clipboard functionality');
+    initializeClipboardCardSource();
+    
+    // Update clipboard content when window gets focus
+    console.log('[CLIPBOARD DEBUG] Setting up focus event listener');
+    window.addEventListener('focus', async () => {
+        console.log('[CLIPBOARD DEBUG] Window focus event fired');
+        await updateClipboardCardSource();
     });
+    
+    // Listen for Cmd/Ctrl+C to update clipboard
+    console.log('[CLIPBOARD DEBUG] Setting up keydown event listener');
+    document.addEventListener('keydown', async (e) => {
+        console.log('[CLIPBOARD DEBUG] Keydown detected:', e.key, 'metaKey:', e.metaKey, 'ctrlKey:', e.ctrlKey);
+        // Check for Cmd+C (Mac) or Ctrl+C (Windows/Linux)
+        if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+            console.log('[CLIPBOARD DEBUG] Cmd/Ctrl+C detected, waiting for clipboard to update');
+            // Wait a bit for the clipboard to be updated
+            setTimeout(async () => {
+                console.log('[CLIPBOARD DEBUG] Reading clipboard after copy');
+                try {
+                    const text = await navigator.clipboard.readText();
+                    console.log('[CLIPBOARD DEBUG] Direct clipboard read result:', text);
+                    if (text && text.trim()) {
+                        clipboardCardData = {
+                            title: text.trim().substring(0, 50),
+                            content: text.trim(),
+                            isLink: false
+                        };
+                        console.log('[CLIPBOARD DEBUG] Set clipboardCardData from Ctrl+C:', clipboardCardData);
+                        updateClipboardCardSource();
+                    }
+                } catch (error) {
+                    console.error('[CLIPBOARD DEBUG] Failed to read clipboard after Ctrl+C:', error);
+                    // Try fallback - set dummy content to test the UI
+                    clipboardCardData = {
+                        title: 'Test Content',
+                        content: 'This is test clipboard content from Ctrl+C',
+                        isLink: false
+                    };
+                    updateClipboardCardSource();
+                }
+            }, 200);
+        }
+    });
+    
+    // Initial clipboard check
+    setTimeout(async () => {
+        console.log('[CLIPBOARD DEBUG] Initial clipboard check');
+        await updateClipboardCardSource();
+    }, 1000); // Delay to ensure everything is initialized
+    
+    // Add a simple test to verify clipboard functionality is working
+    setTimeout(() => {
+        console.log('[CLIPBOARD DEBUG] Testing clipboard functionality...');
+        const clipboardSource = document.getElementById('clipboard-card-source');
+        if (clipboardSource) {
+            console.log('[CLIPBOARD DEBUG] Clipboard source found, testing update');
+            // Force update with test data
+            clipboardCardData = {
+                title: 'Test Update',
+                content: 'Testing clipboard update functionality',
+                isLink: false
+            };
+            // Update UI without trying to read clipboard again
+            const iconSpan = clipboardSource.querySelector('.clipboard-icon');
+            const textSpan = clipboardSource.querySelector('.clipboard-text');
+            
+            if (iconSpan && textSpan) {
+                const preview = clipboardCardData.content.length > 20 
+                    ? clipboardCardData.content.substring(0, 20) + '...'
+                    : clipboardCardData.content;
+                
+                iconSpan.textContent = '📋';
+                textSpan.textContent = `Clip: ${preview}`;
+                clipboardSource.style.opacity = '1';
+                clipboardSource.title = `Drag to create card: "${clipboardCardData.title}"`;
+                console.log('[CLIPBOARD DEBUG] Updated button text to:', `Clip: ${preview}`);
+            }
+        } else {
+            console.error('[CLIPBOARD DEBUG] Clipboard source not found!');
+        }
+    }, 2000);
+    
+    // Add click handler to read clipboard (user interaction required for clipboard API)
+    const clipboardSource = document.getElementById('clipboard-card-source');
+    if (clipboardSource) {
+        clipboardSource.addEventListener('click', async () => {
+            console.log('[CLIPBOARD DEBUG] Click event - reading clipboard');
+            try {
+                const text = await navigator.clipboard.readText();
+                console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
+                if (text && text.trim()) {
+                    clipboardCardData = await processClipboardText(text.trim());
+                    console.log('[CLIPBOARD DEBUG] Updated clipboardCardData:', clipboardCardData);
+                    await updateClipboardCardSource();
+                }
+            } catch (error) {
+                console.error('[CLIPBOARD DEBUG] Failed to read clipboard on click:', error);
+            }
+        });
+    }
  
     // Global Alt+click handler for links/images (as fallback)
     document.addEventListener('click', (e) => {

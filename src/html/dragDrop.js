@@ -29,8 +29,14 @@ let dragState = {
     
     // Common
     isDragging: false,
-    lastValidDropTarget: null
+    lastValidDropTarget: null,
+    
+    // Clipboard card
+    draggedClipboardCard: null
 };
+
+// Expose dragState globally for clipboard card coordination
+window.dragState = dragState;
 
 // External file drop location indicators
 function createExternalDropIndicator() {
@@ -156,7 +162,19 @@ function setupGlobalDragAndDrop() {
         const hasFiles = Array.from(dt.types).some(t => t === 'Files' || t === 'files');
         if (hasFiles) return true;
         
-        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+        // Check for clipboard card type using drag state
+        // We can't reliably read data during dragover due to browser security
+        const hasClipboardCard = dragState.draggedClipboardCard !== null;
+        // Only log once per second to reduce spam
+        const now = Date.now();
+        if (!window.lastClipboardDebugLog || now - window.lastClipboardDebugLog > 1000) {
+            console.log('[DROP DEBUG] Has clipboard card:', hasClipboardCard, 'dragState:', dragState);
+            window.lastClipboardDebugLog = now;
+        }
+        if (hasClipboardCard) return true;
+        
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask) && !dragState.draggedClipboardCard) {
+            console.log('[DROP DEBUG] Internal drag detected, ignoring external');
             return false;
         }
         
@@ -211,7 +229,33 @@ function setupGlobalDragAndDrop() {
             return;
         }
         
-        if (dt.files && dt.files.length > 0) {
+        // Debug all available data transfer types
+        console.log('[DROP DEBUG] Available data transfer types:', Array.from(dt.types));
+        
+        // Check for clipboard card using dragState first (since dataTransfer might be empty)
+        console.log('[DROP DEBUG] Checking dragState.draggedClipboardCard:', dragState.draggedClipboardCard);
+        if (dragState.draggedClipboardCard) {
+            console.log('[DROP DEBUG] Handling clipboard card drop from dragState');
+            const clipboardData = JSON.stringify({
+                type: 'clipboard-card',
+                task: dragState.draggedClipboardCard
+            });
+            handleClipboardCardDrop(e, clipboardData);
+            // Clear the clipboard card from dragState after handling
+            dragState.draggedClipboardCard = null;
+            dragState.isDragging = false;
+            return; // Exit early since we handled it
+        }
+        
+        // Fallback: Check for clipboard card in text/plain
+        const textData = dt.getData('text/plain');
+        console.log('[DROP DEBUG] text/plain data:', textData);
+        
+        if (textData && textData.startsWith('CLIPBOARD_CARD:')) {
+            console.log('[DROP DEBUG] Handling clipboard card drop from text data');
+            const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
+            handleClipboardCardDrop(e, clipboardData);
+        } else if (dt.files && dt.files.length > 0) {
             console.log('[DROP DEBUG] Handling file drop:', dt.files[0].name);
             handleVSCodeFileDrop(e, dt.files);
         } else {
@@ -304,6 +348,40 @@ function setupGlobalDragAndDrop() {
     console.log('[DROP DEBUG] All handlers registered (including multi-row support)');
 }
 
+
+function handleClipboardCardDrop(e, clipboardData) {
+    console.log(`[DROP DEBUG] handleClipboardCardDrop called with data:`, clipboardData);
+    
+    try {
+        const parsedData = JSON.parse(clipboardData);
+        console.log('[DROP DEBUG] Parsed clipboard card data:', parsedData);
+        
+        // Extract the task data
+        const taskData = parsedData.task || parsedData;
+        console.log('[DROP DEBUG] Task data:', taskData);
+        
+        const title = taskData.title || taskData.content || parsedData.content || 'New Card';
+        const description = taskData.description || taskData.content || '';
+        
+        console.log('[DROP DEBUG] Creating task with title:', title, 'description:', description);
+        
+        createNewTaskWithContent(
+            title,
+            { x: e.clientX, y: e.clientY },
+            description
+        );
+    } catch (error) {
+        console.error('[DROP DEBUG] Failed to parse clipboard card data:', error);
+        console.error('[DROP DEBUG] Raw data was:', clipboardData);
+        // Fallback: treat as plain text
+        console.log('[DROP DEBUG] Using fallback - creating with raw data as title');
+        createNewTaskWithContent(
+            'Clipboard Content',
+            { x: e.clientX, y: e.clientY },
+            clipboardData
+        );
+    }
+}
 
 function handleVSCodeFileDrop(e, files) {
     console.log(`[DROP DEBUG] handleVSCodeFileDrop called with ${files.length} files`);

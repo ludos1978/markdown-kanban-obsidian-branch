@@ -7,6 +7,7 @@ window.columnFoldStates = window.columnFoldStates || new Map(); // Track last ma
 window.globalColumnFoldState = window.globalColumnFoldState || 'fold-mixed'; // Track global column fold state
 
 let currentBoard = null;
+// Don't set window.currentBoard here as it will be set when board is loaded
 let renderTimeout = null;
 
 // Helper function to extract first style-tag from text

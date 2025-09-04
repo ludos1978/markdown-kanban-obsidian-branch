@@ -25,6 +25,12 @@
                     <span class="sort-text">Sort</span>
                 </button>
             </div>
+            <div class="file-info-center">
+                <div id="clipboard-card-source" class="clipboard-card-source" draggable="true" title="Drag to create card from clipboard content" onmousedown="handleClipboardMouseDown(event)" ondragstart="handleClipboardDragStart(event)" ondragend="handleClipboardDragEnd(event)">
+                    <span class="clipboard-icon" draggable="false">📋</span>
+                    <span class="clipboard-text" draggable="false">Clip</span>
+                </div>
+            </div>
             <div class="file-info-right">
                 <button id="lock-status-icon" class="lock-status-icon" onclick="toggleFileLock()" title="Click to toggle file lock">🔓</button>
                 
