@@ -1285,7 +1285,10 @@ function updateFileInfoBar() {
     if (currentFileInfo.isLocked) {
         // Update lock icon button
         if (lockStatusIcon) {
-            lockStatusIcon.textContent = '🔒';
+            const lockIcon = lockStatusIcon.querySelector('.lock-icon');
+            if (lockIcon) {
+                lockIcon.textContent = '🔒';
+            }
             lockStatusIcon.title = 'File is locked - click to unlock';
             lockStatusIcon.classList.add('locked');
         }
@@ -1303,7 +1306,10 @@ function updateFileInfoBar() {
     } else {
         // Update lock icon button
         if (lockStatusIcon) {
-            lockStatusIcon.textContent = '🔓';
+            const lockIcon = lockStatusIcon.querySelector('.lock-icon');
+            if (lockIcon) {
+                lockIcon.textContent = '🔓';
+            }
             lockStatusIcon.title = 'File is unlocked - click to lock';
             lockStatusIcon.classList.remove('locked');
         }

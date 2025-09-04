@@ -48,7 +48,7 @@ body {
 .file-info-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   min-width: 0;
 }
@@ -57,7 +57,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
   position: absolute;
   left: 50%;
@@ -81,9 +81,42 @@ body {
 
 .file-info-right {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   flex-shrink: 0;
+}
+
+/* Consistent styling for all file-info header elements */
+.file-info-left .global-fold-btn,
+.file-info-left .sort-btn,
+.file-info-center .clipboard-card-source,
+.file-info-center .empty-card-source,
+.file-info-right .global-fold-btn,
+.file-info-right .sort-btn,
+.file-info-right .lock-status-icon,
+.file-info-right .file-bar-menu-btn {
+  border: 1px solid var(--vscode-button-border, transparent);
+  padding: 4px 8px;
+  margin: 0;
+  height: 24px;
+  min-width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  font-size: 12px;
+}
+
+/* Text styling for button labels */
+.lock-text,
+.menu-text {
+  font-weight: 500;
+}
+
+.lock-icon,
+.menu-icon {
+  font-size: 14px;
 }
 
 /* Hide collapsed add task button in column header */
@@ -781,6 +814,12 @@ body {
   font-size: 12px;
   font-weight: 500;
   display: flex;
+}
+
+/* Fix task count color in light mode */
+body.vscode-light .task-count,
+body.vscode-high-contrast-light .task-count {
+  color: var(--vscode-foreground);
 }
 
 .kanban-column.collapsed .task-count {

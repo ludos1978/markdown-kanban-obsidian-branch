@@ -43,11 +43,17 @@
                     <span class="sort-text">Sort</span>
                 </button>
 
-                <button id="lock-status-icon" class="lock-status-icon" onclick="toggleFileLock()" title="Click to toggle file lock">🔓</button>
+                <button id="lock-status-icon" class="lock-status-icon" onclick="toggleFileLock()" title="Click to toggle file lock">
+                    <span class="lock-icon">🔓</span>
+                    <span class="lock-text">Lock</span>
+                </button>
                 
                 <!-- File Bar Burger Menu -->
                 <div class="file-bar-menu">
-                    <button class="file-bar-menu-btn" onclick="toggleFileBarMenu(event, this)">☰</button>
+                    <button class="file-bar-menu-btn" onclick="toggleFileBarMenu(event, this)">
+                        <span class="menu-icon">☰</span>
+                        <span class="menu-text">Menu</span>
+                    </button>
                     <div class="file-bar-menu-dropdown">
                         <button class="file-bar-menu-item" onclick="undo()" title="Undo (Ctrl+Z)">
                             <span class="menu-icon">↶</span> Undo
