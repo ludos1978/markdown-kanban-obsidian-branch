@@ -921,14 +921,12 @@ function createColumnElement(column, columnIndex) {
                 <div class="column-title-section">
                     <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
                     <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
-                    <div style="display: inline-block;">
+                    <div class="column-title-container">
                         <div class="column-title" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
                         <textarea class="column-title-edit" 
                                     data-column-id="${column.id}"
                                     style="display: none;">${escapeHtml(displayTitle)}</textarea>
                     </div>
-                </div>
-                <div class="column-controls">
                     <span class="task-count">${column.tasks.length}
                         <button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
                             <span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
@@ -1923,8 +1921,17 @@ function calculateAndApplyRowHeights() {
             calculateRowHeight(row);
         });
     } else {
-        // Single-row layout: calculate height for all columns
-        calculateRowHeight(boardElement);
+        // Single-row layout: let columns use their natural height
+        // Reset any previously applied heights
+        const columns = boardElement.querySelectorAll('.kanban-column:not(.collapsed)');
+        columns.forEach(column => {
+            column.style.minHeight = '';
+            const columnInner = column.querySelector('.column-inner');
+            if (columnInner) {
+                columnInner.style.minHeight = '';
+                columnInner.style.overflowY = 'visible';
+            }
+        });
     }
 }
 
@@ -1959,7 +1966,7 @@ function calculateRowHeight(containerElement) {
     
     // Find the tallest column's natural content height by measuring the combined height
     // of header + content, since they're now separate
-    let maxHeight = 0;
+    let maxNaturalHeight = 0;
     expandedColumns.forEach(column => {
         const columnHeader = column.querySelector('.column-header');
         const columnContent = column.querySelector('.column-content');
@@ -1969,33 +1976,46 @@ function calculateRowHeight(containerElement) {
             const headerHeight = columnHeader.scrollHeight;
             const contentHeight = columnContent.scrollHeight;
             const totalHeight = headerHeight + contentHeight;
-            maxHeight = Math.max(maxHeight, totalHeight);
+            maxNaturalHeight = Math.max(maxNaturalHeight, totalHeight);
         }
     });
     
-    // Check if there's a max-row-height limit
+    // Check if there's a configured max-row-height limit
     const maxRowHeightCSS = getComputedStyle(document.documentElement).getPropertyValue('--max-row-height');
-    let heightLimit = null;
+    let configuredMaxHeight = null;
     if (maxRowHeightCSS && maxRowHeightCSS.trim() !== '') {
-        heightLimit = parseInt(maxRowHeightCSS);
+        configuredMaxHeight = parseInt(maxRowHeightCSS);
     }
     
-    // Apply the height, respecting max-row-height if set
-    const finalHeight = heightLimit ? Math.min(maxHeight, heightLimit) : maxHeight;
+    // Determine the final row height
+    let finalRowHeight;
+    let needsScrollbars = false;
     
-    // Only apply the calculated height to expanded columns
+    if (configuredMaxHeight && maxNaturalHeight > configuredMaxHeight) {
+        // Content exceeds configured limit - use limit and enable scrollbars
+        finalRowHeight = configuredMaxHeight;
+        needsScrollbars = true;
+    } else {
+        // Use natural height of tallest column
+        finalRowHeight = maxNaturalHeight;
+        needsScrollbars = false;
+    }
+    
+    // Apply the height to all expanded columns in this row
     expandedColumns.forEach(column => {
         const columnInner = column.querySelector('.column-inner');
         if (columnInner) {
-            columnInner.style.minHeight = finalHeight + 'px';
-            // Keep the column itself with min-height to match
-            column.style.minHeight = finalHeight + 'px';
+            // Set the row height
+            columnInner.style.minHeight = finalRowHeight + 'px';
+            column.style.minHeight = finalRowHeight + 'px';
             
-            // If content exceeds the height limit, make it scrollable
-            if (heightLimit && maxHeight > heightLimit) {
+            // Enable scrollbars if content exceeds the configured limit
+            if (needsScrollbars) {
                 columnInner.style.overflowY = 'auto';
+                columnInner.style.maxHeight = finalRowHeight + 'px';
             } else {
                 columnInner.style.overflowY = 'visible';
+                columnInner.style.maxHeight = '';
             }
         }
     });

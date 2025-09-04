@@ -93,7 +93,6 @@ body {
 .kanban-board {
   display: flex;
   gap: var(--whitespace-div2);
-  min-height: calc(100% - var(--whitespace));
   padding-bottom: var(--whitespace);
   flex-wrap: nowrap;
   width: max-content; /* Allow horizontal expansion */
@@ -137,7 +136,7 @@ body {
   /* This contains the actual visual column with border and background */
   display: flex;
   flex-direction: column;
-  padding: var(--whitespace)  var(--whitespace-div2) var(--whitespace-div2) var(--whitespace-div2);
+  padding: var(--whitespace-div2)  var(--whitespace-div2) var(--whitespace-div2) var(--whitespace-div2);
   flex: 0 0 auto;
   background-color: var(--vscode-editor-background);
   border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4);
@@ -189,7 +188,7 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--whitespace-div2);
-  padding: var(--whitespace-div2);
+  /* padding: var(--whitespace-div2); */
   /* border-bottom: 1px solid var(--vscode-panel-border); */
   /* min-height: 38px; */
   position: sticky;
@@ -203,6 +202,7 @@ body {
   margin-bottom: 0;
   /* margin-top: calc(-1 * var(--whitespace-div2)); */
   /* border-top: 1px solid var(--vscode-panel-border); */
+  flex-direction: column;
 }
 
 .kanban-column.collapsed .column-header {
@@ -223,12 +223,22 @@ body {
 
 /* Column title section */
 .column-title-section {
+  padding: var(--whitespace-div2);
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
   min-width: 0;
   margin-top: 0;
+  width: -webkit-fill-available;
+}
+
+/* Title container that should expand to fill available space */
+.column-title-container {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .kanban-column.collapsed .column-title-section {
@@ -246,16 +256,15 @@ body {
 .column-title,
 .column-title * {
   color: var(--vscode-foreground);
-  flex: 1;
   cursor: pointer;
   border-radius: 3px;
   min-width: 0;
   word-break: break-word;
   display: block;
   margin: 0;
-  width: var(--column-title-width);
-  min-width: var(--column-title-width);
   min-height: 16px;
+  width: 100%;
+  flex: 1;
 }
 
 .column-title:hover {
@@ -283,7 +292,23 @@ body {
   width: 100%;
 }
 
-/* Column controls */
+/* Left side controls (drag handle, collapse toggle) */
+.column-left-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Right side controls (count, add button, menu) */
+.column-right-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Column controls - keep for backwards compatibility */
 .column-controls {
   display: flex;
   gap: 4px;
@@ -514,7 +539,8 @@ body {
   flex: 1;
   padding: 2px 4px;
   min-height: 24px;
-  min-width: 230px;
+  width: 100%;
+  min-width: 0;
 }
 
 .kanban-column.collapsed .column-title-edit {
@@ -541,7 +567,7 @@ body {
 
 /* the add task button is styled horizontally and is listed after the last card */
 .add-task-btn {
-  width: calc(100% - 8px);  /* Account for margin */
+  width: calc(100%);
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border: 1px dashed var(--vscode-panel-border);
@@ -550,8 +576,8 @@ body {
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin: 4px;  /* Add margin to match task spacing */
-  margin-top: var(--whitespace-div2);  /* Match task spacing */
+  /* margin: 4px; */
+  /* margin-top: var(--whitespace-div2); */
 }
 
 
@@ -1341,8 +1367,6 @@ button.file-bar-menu-item {
 /* Multi-row layout */
 .kanban-row {
   position: relative;
-  min-height: 200px;
-  max-height: var(--max-row-height);
   padding: var(--whitespace-div2);
   transition: all 0.2s;
   display: flex;
@@ -1353,7 +1377,6 @@ button.file-bar-menu-item {
 }
 
 .kanban-board.multi-row .kanban-row {
-  min-height: 250px;
   position: relative;
 }
 
