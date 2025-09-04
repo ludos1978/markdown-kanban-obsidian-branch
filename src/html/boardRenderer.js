@@ -1134,6 +1134,14 @@ function toggleColumnCollapse(columnId) {
     const isNowCollapsed = column.classList.contains('collapsed');
     if (isNowCollapsed) {
         window.collapsedColumns.add(columnId);
+        
+        // Reset height for collapsed column
+        const columnInner = column.querySelector('.column-inner');
+        if (columnInner) {
+            columnInner.style.minHeight = '';
+            columnInner.style.overflowY = 'visible';
+        }
+        column.style.minHeight = '';
     } else {
         window.collapsedColumns.delete(columnId);
     }
@@ -2029,11 +2037,23 @@ function calculateAndApplyRowHeights() {
 }
 
 function calculateRowHeight(containerElement) {
-    const columns = containerElement.querySelectorAll('.kanban-column:not(.collapsed)');
-    if (columns.length === 0) return;
+    const expandedColumns = containerElement.querySelectorAll('.kanban-column:not(.collapsed)');
+    const collapsedColumns = containerElement.querySelectorAll('.kanban-column.collapsed');
     
-    // Let columns determine their natural height first
-    columns.forEach(column => {
+    // Reset collapsed columns to natural height first
+    collapsedColumns.forEach(column => {
+        column.style.minHeight = '';
+        const columnInner = column.querySelector('.column-inner');
+        if (columnInner) {
+            columnInner.style.minHeight = '';
+            columnInner.style.overflowY = 'visible';
+        }
+    });
+    
+    if (expandedColumns.length === 0) return;
+    
+    // Let expanded columns determine their natural height first
+    expandedColumns.forEach(column => {
         column.style.minHeight = '';
         const columnInner = column.querySelector('.column-inner');
         if (columnInner) {
@@ -2048,7 +2068,7 @@ function calculateRowHeight(containerElement) {
     // Find the tallest column's natural content height by measuring the combined height
     // of header + content, since they're now separate
     let maxHeight = 0;
-    columns.forEach(column => {
+    expandedColumns.forEach(column => {
         const columnHeader = column.querySelector('.column-header');
         const columnContent = column.querySelector('.column-content');
         
@@ -2071,7 +2091,8 @@ function calculateRowHeight(containerElement) {
     // Apply the height, respecting max-row-height if set
     const finalHeight = heightLimit ? Math.min(maxHeight, heightLimit) : maxHeight;
     
-    columns.forEach(column => {
+    // Only apply the calculated height to expanded columns
+    expandedColumns.forEach(column => {
         const columnInner = column.querySelector('.column-inner');
         if (columnInner) {
             columnInner.style.minHeight = finalHeight + 'px';
