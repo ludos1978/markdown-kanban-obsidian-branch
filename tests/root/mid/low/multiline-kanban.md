@@ -6,7 +6,7 @@ kanban-plugin: board
 
 ## ## Title
 
-## Column B #inprogress
+## In Progress #inprogress
 - [ ] #blue
 - [ ] #cyan
 - [ ] #green
@@ -15,13 +15,13 @@ kanban-plugin: board
 - [ ] #red
 - [ ] #magenta
 
-## #review
+## Review #review
 - [ ] #teal
 - [ ] #indigo
 - [ ] #lime
 - [ ] #amber
 
-## #todo
+## TODO #todo
 
 ## #review
 
@@ -94,5 +94,11 @@ kanban-plugin: board
 ## #performance #row4
 
 ## #api #row4
+
+## #done
+
+## #blocked
+
+## 
 
 
