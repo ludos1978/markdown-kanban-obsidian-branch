@@ -736,8 +736,13 @@ function setupTaskDragAndDrop() {
             const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY);
             
             if (afterElement == null) {
-                // Insert at the end
-                tasksContainer.appendChild(dragState.draggedTask);
+                // Insert at the end, but before the add button if it exists
+                const addButton = tasksContainer.querySelector('.add-task-btn');
+                if (addButton) {
+                    tasksContainer.insertBefore(dragState.draggedTask, addButton);
+                } else {
+                    tasksContainer.appendChild(dragState.draggedTask);
+                }
             } else if (afterElement !== dragState.draggedTask) {
                 // Insert before the after element
                 tasksContainer.insertBefore(dragState.draggedTask, afterElement);
@@ -880,6 +885,16 @@ function getDragAfterTaskElement(container, y) {
     console.log(`getDragAfterTaskElement`);
 
     const draggableElements = [...container.querySelectorAll('.task-item')].filter(el => el !== dragState.draggedTask);
+    const addButton = container.querySelector('.add-task-btn');
+    
+    // If dragging over or near the add button area, treat it as dropping at the end
+    if (addButton) {
+        const addButtonBox = addButton.getBoundingClientRect();
+        if (y >= addButtonBox.top - 10) { // Add 10px buffer above the button
+            // Return null to indicate dropping at the end (but before the add button)
+            return null;
+        }
+    }
     
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
