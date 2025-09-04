@@ -1378,3 +1378,40 @@ window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
 
 window.performSort = performSort;
+
+// Font size toggle functionality
+let isSmallFont = false;
+
+function toggleCardFontSize() {
+    console.log('[FONT DEBUG] Toggling card font size. Current:', isSmallFont);
+    
+    isSmallFont = !isSmallFont;
+    
+    if (isSmallFont) {
+        document.body.classList.add('small-card-fonts');
+    } else {
+        document.body.classList.remove('small-card-fonts');
+    }
+    
+    // Update button appearance
+    const fontBtn = document.getElementById('font-size-btn');
+    const fontIcon = fontBtn?.querySelector('.font-size-icon');
+    const fontText = fontBtn?.querySelector('.font-size-text');
+    
+    if (fontIcon && fontText) {
+        if (isSmallFont) {
+            fontIcon.textContent = 'a';
+            fontText.textContent = 'Small';
+            fontBtn.title = 'Switch to normal font size';
+        } else {
+            fontIcon.textContent = 'A';
+            fontText.textContent = 'Size';
+            fontBtn.title = 'Switch to small font size';
+        }
+    }
+    
+    console.log('[FONT DEBUG] Font size toggled. New state:', isSmallFont);
+}
+
+// Make function globally available
+window.toggleCardFontSize = toggleCardFontSize;

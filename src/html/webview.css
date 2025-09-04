@@ -93,6 +93,7 @@ body {
 .file-info-center .empty-card-source,
 .file-info-right .global-fold-btn,
 .file-info-right .sort-btn,
+.file-info-right .font-size-btn,
 .file-info-right .lock-status-icon,
 .file-info-right .file-bar-menu-btn {
   border: 1px solid var(--vscode-button-border, transparent);
@@ -117,6 +118,31 @@ body {
 .lock-icon,
 .menu-icon {
   font-size: 14px;
+}
+
+.font-size-icon {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* Small font mode for cards */
+body.small-card-fonts .task-item {
+  font-size: 0.75em;
+}
+
+body.small-card-fonts .task-title-display,
+body.small-card-fonts .task-description-display {
+  font-size: 0.85em;
+  line-height: 1.3;
+}
+
+body.small-card-fonts .task-item {
+  padding: 6px;
+}
+
+body.small-card-fonts .task-header {
+  gap: 6px;
+  margin-bottom: 3px;
 }
 
 /* Hide collapsed add task button in column header */
