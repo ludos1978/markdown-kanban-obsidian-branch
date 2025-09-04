@@ -96,10 +96,62 @@ body {
   font-size: 12px;
   transition: all 0.2s ease;
   user-select: none;
+  position: relative;
 }
 
 .clipboard-card-source:hover {
   background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Clipboard hover preview */
+.clipboard-preview {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--vscode-editorHoverWidget-background);
+  border: 1px solid var(--vscode-editorHoverWidget-border);
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-width: 300px;
+  display: none;
+  pointer-events: none;
+}
+
+.clipboard-preview.show {
+  display: block;
+}
+
+.clipboard-preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clipboard-preview-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-editorHoverWidget-foreground);
+  border-bottom: 1px solid var(--vscode-editorHoverWidget-border);
+  padding-bottom: 4px;
+}
+
+.clipboard-preview-image {
+  max-width: 280px;
+  max-height: 200px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-editorHoverWidget-border);
+}
+
+.clipboard-preview-text {
+  font-size: 11px;
+  color: var(--vscode-editorHoverWidget-foreground);
+  font-family: var(--vscode-editor-font-family);
+  word-break: break-word;
+  max-height: 100px;
+  overflow-y: auto;
 }
 
 .clipboard-card-source:active,

@@ -78,6 +78,86 @@ window.handleClipboardDragEnd = function(e) {
     }
 };
 
+window.showClipboardPreview = function() {
+    const preview = document.getElementById('clipboard-preview');
+    const header = document.getElementById('clipboard-preview-header');
+    const body = document.getElementById('clipboard-preview-body');
+    
+    if (!preview || !clipboardCardData) return;
+    
+    // Update header based on content type
+    if (clipboardCardData.isLink) {
+        if (clipboardCardData.content.startsWith('![')) {
+            header.textContent = 'Image Link';
+        } else if (clipboardCardData.content.startsWith('[')) {
+            header.textContent = 'File Link';
+        } else {
+            header.textContent = 'URL Link';
+        }
+    } else {
+        header.textContent = 'Clipboard Content';
+    }
+    
+    // Clear previous content
+    body.innerHTML = '';
+    
+    // Show image preview if it's an image link
+    if (clipboardCardData.isLink && clipboardCardData.content.startsWith('![')) {
+        // Extract image path from markdown ![alt](path)
+        const imageMatch = clipboardCardData.content.match(/!\[.*?\]\((.*?)\)/);
+        if (imageMatch && imageMatch[1]) {
+            const imagePath = imageMatch[1];
+            
+            // Create image element
+            const img = document.createElement('img');
+            img.className = 'clipboard-preview-image';
+            img.src = imagePath;
+            
+            // Add the markdown text first
+            const textDiv = document.createElement('div');
+            textDiv.className = 'clipboard-preview-text';
+            textDiv.textContent = clipboardCardData.content;
+            
+            img.onerror = function() {
+                // If image fails to load, just show text
+                body.appendChild(textDiv);
+            };
+            
+            img.onload = function() {
+                // Image loaded successfully - show image then text
+                body.appendChild(img);
+                body.appendChild(textDiv);
+            };
+            
+            // Start loading the image
+            // If it fails, only text will show; if it succeeds, both will show
+            
+        } else {
+            // Fallback to text
+            const textDiv = document.createElement('div');
+            textDiv.className = 'clipboard-preview-text';
+            textDiv.textContent = clipboardCardData.content;
+            body.appendChild(textDiv);
+        }
+    } else {
+        // Show text content
+        const textDiv = document.createElement('div');
+        textDiv.className = 'clipboard-preview-text';
+        textDiv.textContent = clipboardCardData.content;
+        body.appendChild(textDiv);
+    }
+    
+    // Show the preview
+    preview.classList.add('show');
+};
+
+window.hideClipboardPreview = function() {
+    const preview = document.getElementById('clipboard-preview');
+    if (preview) {
+        preview.classList.remove('show');
+    }
+};
+
 async function readClipboardContent() {
     try {
         console.log('[CLIPBOARD DEBUG] Attempting to read clipboard');
