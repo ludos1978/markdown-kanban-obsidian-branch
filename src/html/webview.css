@@ -29,13 +29,12 @@ body {
 .file-info-bar {
   background-color: var(--vscode-titleBar-activeBackground);
   border-bottom: 1px solid var(--vscode-panel-border);
-  padding: var(--whitespace-div4) var(--whitespace-div4) var(--whitespace-div4) calc(2px + var(--whitespace-div4));
+  padding: var(--whitespace-div2);
   position: fixed;
   z-index: 100;
   top: 0;
   left: 0;
   right: 0;
-  height: 32px; /* Fixed height for calculations */
 }
 
 .file-info-content {
@@ -43,6 +42,7 @@ body {
   justify-content: space-between;
   align-items: center;
   height: 100%;
+  position: relative;
 }
 
 .file-info-left {
@@ -57,7 +57,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   flex-shrink: 0;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .file-icon {
@@ -82,12 +86,17 @@ body {
   flex-shrink: 0;
 }
 
+/* Hide collapsed add task button in column header */
+.collapsed-add-task-btn {
+  display: none !important;
+}
+
 /* Clipboard card source */
 .clipboard-card-source {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 3px 6px;
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border: 1px solid var(--vscode-button-border, transparent);
@@ -154,6 +163,40 @@ body {
   overflow-y: auto;
 }
 
+/* Empty card drop source */
+.empty-card-source {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  cursor: grab;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.empty-card-source:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.empty-card-source:active,
+.empty-card-source.dragging {
+  cursor: grabbing;
+  opacity: 0.7;
+}
+
+.empty-card-source .empty-card-icon {
+  font-size: 14px;
+}
+
+.empty-card-source .empty-card-text {
+  font-weight: 500;
+}
+
 .clipboard-card-source:active,
 .clipboard-card-source.dragging {
   cursor: grabbing;
@@ -171,7 +214,7 @@ body {
 /* Main container - fills viewport below file bar */
 #kanban-container {
   position: fixed;
-  top: 32px; /* Height of file bar */
+  top: calc(var(--whitespace) + 1px + 24px);
   left: 0;
   right: 0;
   bottom: 0;
@@ -185,7 +228,7 @@ body {
 /* Kanban board */
 .kanban-board {
   display: flex;
-  gap: var(--whitespace);
+  gap: var(--whitespace-div2);
   padding-bottom: var(--whitespace);
   flex-wrap: nowrap;
   width: max-content; /* Allow horizontal expansion */

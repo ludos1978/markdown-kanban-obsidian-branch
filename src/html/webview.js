@@ -158,6 +158,50 @@ window.hideClipboardPreview = function() {
     }
 };
 
+// Empty card drag handlers
+window.handleEmptyCardDragStart = function(e) {
+    console.log('[EMPTY CARD DEBUG] Global drag handler fired!');
+    
+    // Create empty task data
+    const tempTask = {
+        id: 'temp-empty-' + Date.now(),
+        title: '',
+        description: '',
+        isFromEmptyCard: true
+    };
+    
+    // Set drag state
+    if (window.dragState) {
+        window.dragState.isDragging = true;
+        window.dragState.draggedEmptyCard = tempTask;
+        console.log('[EMPTY CARD DEBUG] Set dragState.draggedEmptyCard:', tempTask);
+    }
+    
+    // Set drag data
+    const dragData = JSON.stringify({
+        type: 'empty-card',
+        task: tempTask
+    });
+    e.dataTransfer.setData('text/plain', `EMPTY_CARD:${dragData}`);
+    e.dataTransfer.effectAllowed = 'copy';
+    
+    // Add visual feedback
+    e.target.classList.add('dragging');
+};
+
+window.handleEmptyCardDragEnd = function(e) {
+    console.log('[EMPTY CARD DEBUG] Global drag end handler fired!');
+    
+    // Clear visual feedback
+    e.target.classList.remove('dragging');
+    
+    // Clear drag state
+    if (window.dragState) {
+        window.dragState.isDragging = false;
+        window.dragState.draggedEmptyCard = null;
+    }
+};
+
 async function readClipboardContent() {
     try {
         console.log('[CLIPBOARD DEBUG] Attempting to read clipboard');
@@ -278,6 +322,16 @@ function isImageFile(fileName) {
     return imageExtensions.includes(extension);
 }
 
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function extractDomainFromUrl(url) {
     try {
         const urlObj = new URL(url);
@@ -313,12 +367,15 @@ async function updateClipboardCardSource() {
         
         if (clipboardCardData && clipboardCardData.content) {
             clipboardSource.style.opacity = '1';
-            clipboardSource.title = `Drag to create card: "${clipboardCardData.title}"`;
+            clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
             
-            // Show first 15 characters + character count
-            const preview = clipboardCardData.content.length > 15 
+            // Show first 15 characters + character count (escaped for display)
+            const rawPreview = clipboardCardData.content.length > 15 
                 ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
                 : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
+            
+            // Escape the preview content to prevent HTML rendering
+            const preview = escapeHtml(rawPreview);
             
             // Update visual indicator based on content type
             if (clipboardCardData.isLink) {
@@ -804,14 +861,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const textSpan = clipboardSource.querySelector('.clipboard-text');
             
             if (iconSpan && textSpan) {
-                const preview = clipboardCardData.content.length > 15 
+                const rawPreview = clipboardCardData.content.length > 15 
                     ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
                     : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
+                
+                // Escape preview content to prevent HTML rendering
+                const preview = escapeHtml(rawPreview);
                 
                 iconSpan.textContent = '📋';
                 textSpan.textContent = preview;
                 clipboardSource.style.opacity = '1';
-                clipboardSource.title = `Drag to create card: "${clipboardCardData.title}"`;
+                clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
                 console.log('[CLIPBOARD DEBUG] Updated button text to:', preview);
             }
         } else {

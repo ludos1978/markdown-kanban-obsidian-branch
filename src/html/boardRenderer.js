@@ -966,9 +966,9 @@ function createColumnElement(column, columnIndex) {
             <div class="column-content">
                 <div class="tasks-container" id="tasks-${column.id}">
                     ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
-                    <button class="add-task-btn" onclick="addTask('${column.id}')">
+                    ${column.tasks.length === 0 ? `<button class="add-task-btn" onclick="addTask('${column.id}')">
                         + Add Task
-                    </button>
+                    </button>` : ''}
                 </div>
             </div>
             ${footerBarsHtml || ''}

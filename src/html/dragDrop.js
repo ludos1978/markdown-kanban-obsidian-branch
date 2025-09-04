@@ -32,7 +32,10 @@ let dragState = {
     lastValidDropTarget: null,
     
     // Clipboard card
-    draggedClipboardCard: null
+    draggedClipboardCard: null,
+    
+    // Empty card
+    draggedEmptyCard: null
 };
 
 // Expose dragState globally for clipboard card coordination
@@ -165,15 +168,16 @@ function setupGlobalDragAndDrop() {
         // Check for clipboard card type using drag state
         // We can't reliably read data during dragover due to browser security
         const hasClipboardCard = dragState.draggedClipboardCard !== null;
+        const hasEmptyCard = dragState.draggedEmptyCard !== null;
         // Only log once per second to reduce spam
         const now = Date.now();
         if (!window.lastClipboardDebugLog || now - window.lastClipboardDebugLog > 1000) {
-            console.log('[DROP DEBUG] Has clipboard card:', hasClipboardCard, 'dragState:', dragState);
+            console.log('[DROP DEBUG] Has clipboard card:', hasClipboardCard, 'Has empty card:', hasEmptyCard, 'dragState:', dragState);
             window.lastClipboardDebugLog = now;
         }
-        if (hasClipboardCard) return true;
+        if (hasClipboardCard || hasEmptyCard) return true;
         
-        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask) && !dragState.draggedClipboardCard) {
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask) && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
             console.log('[DROP DEBUG] Internal drag detected, ignoring external');
             return false;
         }
@@ -247,6 +251,21 @@ function setupGlobalDragAndDrop() {
             return; // Exit early since we handled it
         }
         
+        // Check for empty card using dragState
+        console.log('[DROP DEBUG] Checking dragState.draggedEmptyCard:', dragState.draggedEmptyCard);
+        if (dragState.draggedEmptyCard) {
+            console.log('[DROP DEBUG] Handling empty card drop from dragState');
+            const emptyCardData = JSON.stringify({
+                type: 'empty-card',
+                task: dragState.draggedEmptyCard
+            });
+            handleEmptyCardDrop(e, emptyCardData);
+            // Clear the empty card from dragState after handling
+            dragState.draggedEmptyCard = null;
+            dragState.isDragging = false;
+            return; // Exit early since we handled it
+        }
+        
         // Fallback: Check for clipboard card in text/plain
         const textData = dt.getData('text/plain');
         console.log('[DROP DEBUG] text/plain data:', textData);
@@ -255,6 +274,10 @@ function setupGlobalDragAndDrop() {
             console.log('[DROP DEBUG] Handling clipboard card drop from text data');
             const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
             handleClipboardCardDrop(e, clipboardData);
+        } else if (textData && textData.startsWith('EMPTY_CARD:')) {
+            console.log('[DROP DEBUG] Handling empty card drop from text data');
+            const emptyCardData = textData.substring('EMPTY_CARD:'.length);
+            handleEmptyCardDrop(e, emptyCardData);
         } else if (dt.files && dt.files.length > 0) {
             console.log('[DROP DEBUG] Handling file drop:', dt.files[0].name);
             handleVSCodeFileDrop(e, dt.files);
@@ -274,6 +297,11 @@ function setupGlobalDragAndDrop() {
     
     // Register handlers on the container (works for single row)
     boardContainer.addEventListener('dragover', function(e) {
+        // Skip external file drag handling if we're dragging internal elements
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            return; // Don't show external drop indicators during internal drags
+        }
+        
         if (!isExternalFileDrag(e)) return;
         
         e.preventDefault();
@@ -295,6 +323,11 @@ function setupGlobalDragAndDrop() {
     boardContainer.addEventListener('drop', handleExternalDrop, false);
     
     boardContainer.addEventListener('dragenter', function(e) {
+        // Skip external file drag handling if we're dragging internal elements
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            return; // Don't show external drop feedback during internal drags
+        }
+        
         if (isExternalFileDrag(e)) {
             e.preventDefault();
             showDropFeedback(e);
@@ -311,6 +344,11 @@ function setupGlobalDragAndDrop() {
     // CRITICAL: Also register on row elements for multi-row layout
     // Use event delegation to handle dynamically created rows
     boardContainer.addEventListener('dragover', function(e) {
+        // Skip external file drag handling if we're dragging internal elements
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            return; // Don't handle external drops during internal drags
+        }
+        
         // Check if we're over a row or row-drop-zone-spacer
         const row = e.target.closest('.kanban-row');
         const spacer = e.target.closest('.row-drop-zone-spacer');
@@ -321,6 +359,11 @@ function setupGlobalDragAndDrop() {
     }, true); // Use capture phase
     
     boardContainer.addEventListener('drop', function(e) {
+        // Skip external file drop handling if we're dragging internal elements
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            return; // Don't handle external drops during internal drags
+        }
+        
         // Check if drop is on a row or spacer
         const row = e.target.closest('.kanban-row');
         const spacer = e.target.closest('.row-drop-zone-spacer');
@@ -379,6 +422,34 @@ function handleClipboardCardDrop(e, clipboardData) {
             'Clipboard Content',
             { x: e.clientX, y: e.clientY },
             clipboardData
+        );
+    }
+}
+
+function handleEmptyCardDrop(e, emptyCardData) {
+    console.log(`[DROP DEBUG] handleEmptyCardDrop called with data:`, emptyCardData);
+    
+    try {
+        const parsedData = JSON.parse(emptyCardData);
+        console.log('[DROP DEBUG] Parsed empty card data:', parsedData);
+        
+        // Create empty task
+        console.log('[DROP DEBUG] Creating empty task');
+        
+        createNewTaskWithContent(
+            '',
+            { x: e.clientX, y: e.clientY },
+            ''
+        );
+    } catch (error) {
+        console.error('[DROP DEBUG] Failed to parse empty card data:', error);
+        console.error('[DROP DEBUG] Raw data was:', emptyCardData);
+        // Fallback: create empty task anyway
+        console.log('[DROP DEBUG] Using fallback - creating empty task');
+        createNewTaskWithContent(
+            '',
+            { x: e.clientX, y: e.clientY },
+            ''
         );
     }
 }
