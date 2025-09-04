@@ -148,7 +148,7 @@ body {
 
 .kanban-column.collapsed .column-inner {
   overflow: visible;
-  flex: 1;
+  flex: none;
   display: flex;
   flex-direction: column;
   height: auto;
@@ -172,13 +172,10 @@ body {
 }
 
 .kanban-column.collapsed {
-  /* width: var(--collapsed-column-width) !important; */
-  /* width: var(--collapsed-column-width) !important;
-  min-width: var(--collapsed-column-width) !important;
-  max-width: var(--collapsed-column-width) !important; */
+  /* Use natural sizing for collapsed columns */
   overflow: visible;
-  min-height: 200px;
-  height: min-content;
+  min-height: auto;
+  height: auto;
   width: min-content;
   position: sticky;
   top: 0;
@@ -215,12 +212,12 @@ body {
   padding: var(--whitespace-div2) var(--whitespace-div3-mul2);
   align-items: center;
   margin: var(--whitespace-div2);
-  flex: 1;
+  flex: none;
   display: flex;
   min-height: 0;
   box-sizing: border-box;
-  position: relative;
-  top: auto;
+  position: sticky;
+  top: var(--whitespace-div2);
   background-color: var(--vscode-editor-background);
 }
 
@@ -308,9 +305,6 @@ body {
   overflow: visible;
 }
 
-.kanban-column.collapsed .tasks-container,
-.kanban-column.collapsed .add-task-btn,
-.kanban-column.collapsed .fold-all-btn,
 .kanban-column.collapsed .column-content {
   display: none !important;
 }
