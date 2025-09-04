@@ -966,8 +966,8 @@ function createColumnElement(column, columnIndex) {
                         + Add Task
                     </button>
                 </div>
-                ${footerBarsHtml || ''}
             </div>
+            ${footerBarsHtml || ''}
         </div>
     `;
 

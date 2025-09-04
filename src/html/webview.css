@@ -168,6 +168,7 @@ body {
 
 .footer-bars-container {
   order: 999;
+  margin-top: auto;
 }
 
 .kanban-column.collapsed {
@@ -211,7 +212,7 @@ body {
   border-radius: var(--whitespace-div4);
   /* padding: var(--whitespace-div2) var(--whitespace-div3-mul2); */
   align-items: center;
-  margin: var(--whitespace-div2);
+  /* margin: var(--whitespace-div2); */
   flex: none;
   display: flex;
   min-height: 0;
@@ -1936,6 +1937,17 @@ h6 .kanban-tag {
   flex-shrink: 0;
   pointer-events: none;
   transition: all 0.2s ease;
+}
+
+/* Footer bars styling when in column-inner */
+.column-inner > .footer-bars-container {
+  position: sticky;
+  bottom: 0;
+  background-color: var(--vscode-editor-background);
+  border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4);
+  border: 0.5px solid var(--vscode-panel-border);
+  border-top: none;
+  margin: 0 0 var(--whitespace-div2) 0;
 }
 
 .kanban-column:not(.collapsed) .header-bar,
