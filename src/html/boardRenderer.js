@@ -794,9 +794,12 @@ function toggleAllTasksInColumn(columnId) {
         }
     }
     
-    // Apply the action to all tasks
+    // Apply the action to all tasks - scope to this column only
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (!columnElement) return;
+    
     column.tasks.forEach(task => {
-        const taskElement = document.querySelector(`[data-task-id="${task.id}"]`);
+        const taskElement = columnElement.querySelector(`[data-task-id="${task.id}"]`);
         const toggle = taskElement?.querySelector('.task-collapse-toggle');
         
         if (shouldCollapse) {

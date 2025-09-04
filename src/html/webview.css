@@ -193,7 +193,7 @@ body {
   /* border-bottom: 1px solid var(--vscode-panel-border); */
   /* min-height: 38px; */
   position: sticky;
-  top: var(--whitespace-div2);
+  /* top: var(--whitespace-div2); */
   z-index: 10;
   background-color: var(--vscode-editor-background);
   border-radius: var(--whitespace-div4) var(--whitespace-div4) 0 0;
@@ -1372,7 +1372,7 @@ button.file-bar-menu-item {
 /* Multi-row layout */
 .kanban-row {
   position: relative;
-  padding: var(--whitespace-div2);
+  /* padding: var(--whitespace-div2); */
   transition: all 0.2s;
   display: flex;
   gap: var(--whitespace-div2);
