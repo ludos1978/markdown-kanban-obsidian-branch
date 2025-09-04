@@ -242,7 +242,14 @@ async function updateClipboardCardSource() {
             
             // Update visual indicator based on content type
             if (clipboardCardData.isLink) {
-                iconSpan.textContent = '🔗';
+                // Check if it's an image file or URL
+                if (clipboardCardData.content.startsWith('![')) {
+                    iconSpan.textContent = '🖼️';
+                } else if (clipboardCardData.content.startsWith('[')) {
+                    iconSpan.textContent = '📄';
+                } else {
+                    iconSpan.textContent = '🔗';
+                }
                 textSpan.textContent = preview;
             } else {
                 iconSpan.textContent = '📋';
