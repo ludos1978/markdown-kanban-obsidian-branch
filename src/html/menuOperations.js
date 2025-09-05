@@ -1242,12 +1242,7 @@ function handleTaskTagClick(taskId, columnId, tagName, event) {
     }, 1000);
 }
 
-// Setup submenu positioning on hover
-document.addEventListener('mouseover', (e) => {
-    if (e.target.closest('.donut-menu-item.has-submenu, .file-bar-menu-item.has-submenu')) {
-        positionSubmenu(e.target.closest('.donut-menu-item.has-submenu, .file-bar-menu-item.has-submenu'));
-    }
-}, true);
+// Removed redundant global mouseenter listener - menu items already have their own handlers
 
 function performSort() {
     vscode.postMessage({
