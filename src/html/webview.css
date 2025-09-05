@@ -1152,16 +1152,18 @@ button.file-bar-menu-item {
   background: var(--vscode-dropdown-background);
   border: 1px solid var(--vscode-dropdown-border);
   border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   min-width: 180px;
   max-width: 400px;
   max-height: 80vh;
-  z-index: 99999;
-  pointer-events: all;
+  z-index: 100000;
+  pointer-events: all !important;
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
   word-wrap: break-word;
+  /* Ensure submenus are always on top */
+  isolation: isolate;
 }
 
 /* Tag grid submenus need wider width */
@@ -1214,6 +1216,12 @@ button.file-bar-menu-item {
   gap: 3px;
   margin: 2px;
   padding: 3px 6px;
+  pointer-events: all !important;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+  position: relative;
+  z-index: 100001;
 }
 
 /* Tag chip text truncates */
@@ -1261,7 +1269,8 @@ button.file-bar-menu-item {
 }
 
 .donut-menu-submenu button.donut-menu-item:hover,
-.file-bar-menu-submenu button.file-bar-menu-item:hover {
+.file-bar-menu-submenu button.file-bar-menu-item:hover,
+.donut-menu-submenu .donut-menu-tag-chip:hover {
   background-color: var(--vscode-list-hoverBackground);
 }
 

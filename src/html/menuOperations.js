@@ -109,8 +109,11 @@ class SubmenuGenerator {
 
     // Show submenu with dynamic content
     showSubmenu(menuItem, id, type, columnId = null) {
-        // Remove any existing submenu
+        // Remove any existing submenu first
         this.hideSubmenu();
+        
+        // Clear any pending timeouts to prevent conflicts
+        this.clearAllTimeouts();
 
         // Create submenu element
         const submenu = document.createElement('div');
@@ -124,85 +127,167 @@ class SubmenuGenerator {
         // Generate content
         submenu.innerHTML = this.createSubmenuContent(menuItem, id, type, columnId);
         
-        // DEBUG: Add visual debugging for tag chips
-        console.log('🔍 DEBUG: Submenu created:', submenu.className);
-        console.log('🔍 DEBUG: Submenu innerHTML:', submenu.innerHTML.substring(0, 200) + '...');
-        
-        // Add event listeners to buttons to ensure they work
-        console.log('🔍 DEBUG: Looking for button.donut-menu-item:', submenu.querySelectorAll('button.donut-menu-item').length);
-        console.log('🔍 DEBUG: Looking for button.donut-menu-tag-chip:', submenu.querySelectorAll('button.donut-menu-tag-chip').length);
-        
-        submenu.querySelectorAll('button.donut-menu-item').forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // Execute the onclick if it exists
-                if (button.onclick) {
-                    button.onclick(e);
-                } else if (button.getAttribute('onclick')) {
-                    // Execute inline onclick
-                    try {
-                        eval(button.getAttribute('onclick'));
-                    } catch (error) {
-                        console.error('Error executing onclick:', error);
-                    }
-                }
-            });
-        });
-        
-        // DEBUG: Add event listeners specifically for tag chips
-        submenu.querySelectorAll('button.donut-menu-tag-chip').forEach(button => {
-            console.log('🔍 DEBUG: Adding listeners to tag chip:', button.textContent.trim());
-            button.addEventListener('click', (e) => {
-                console.log('🔍 DEBUG: Tag chip clicked!', button.textContent.trim());
-                e.stopPropagation();
-            });
-            button.addEventListener('mouseenter', (e) => {
-                console.log('🔍 DEBUG: Tag chip hovered!', button.textContent.trim());
-            });
-            // Visual debugging
-            button.style.border = '2px solid red !important';
-            button.style.zIndex = '999999';
-        });
-        
-        // Initially hide submenu to prevent flash
-        submenu.style.display = 'none';
-        submenu.style.visibility = 'hidden';
+        // Set up proper styling and z-index immediately
+        submenu.style.position = 'fixed';
+        submenu.style.zIndex = '100000'; // Higher than CSS default
         submenu.style.pointerEvents = 'all';
+        submenu.style.visibility = 'hidden'; // Hidden initially for positioning
+        submenu.style.display = 'flex'; // Use flex for proper layout
         
-        // Add hover handlers to keep submenu visible
-        submenu.addEventListener('mouseenter', () => {
-            // Cancel any pending hide timeout
-            if (window.submenuHideTimeout) {
-                clearTimeout(window.submenuHideTimeout);
-                window.submenuHideTimeout = null;
-            }
-        });
-        
-        submenu.addEventListener('mouseleave', () => {
-            // Start hide timer when leaving submenu
-            window.submenuHideTimeout = setTimeout(() => {
-                this.hideSubmenu();
-            }, 200);
-        });
-        
-        // Append to menu item
+        // Append to menu item BEFORE positioning
         menuItem.appendChild(submenu);
+        
+        // Set up click handlers for all interactive elements
+        this.setupSubmenuEventHandlers(submenu);
+        
+        // Set up hover handlers to manage visibility
+        this.setupSubmenuHoverHandlers(submenu, menuItem);
         
         // Store reference
         this.activeSubmenu = submenu;
         
         return submenu;
     }
+    
+    // Set up event handlers for submenu content
+    setupSubmenuEventHandlers(submenu) {
+        // Handle regular menu items
+        submenu.querySelectorAll('button.donut-menu-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                // Execute the onclick handler
+                if (button.onclick) {
+                    button.onclick(e);
+                } else if (button.getAttribute('onclick')) {
+                    try {
+                        eval(button.getAttribute('onclick'));
+                    } catch (error) {
+                        console.error('Error executing onclick:', error);
+                    }
+                }
+                
+                // Close menu after action
+                this.hideSubmenu();
+            });
+        });
+        
+        // Handle tag chips with special click handling
+        submenu.querySelectorAll('button.donut-menu-tag-chip').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                // Execute click handler without closing menu
+                if (button.onclick) {
+                    button.onclick(e);
+                } else if (button.getAttribute('onclick')) {
+                    try {
+                        eval(button.getAttribute('onclick'));
+                    } catch (error) {
+                        console.error('Error executing tag onclick:', error);
+                    }
+                }
+            });
+            
+            // Ensure tag chips are fully interactive
+            button.style.pointerEvents = 'all';
+            button.style.zIndex = '100001';
+        });
+    }
+    
+    // Set up hover handlers for submenu visibility management
+    setupSubmenuHoverHandlers(submenu, menuItem) {
+        // Store timeout reference on the submenu element to avoid conflicts
+        submenu._hideTimeout = null;
+        
+        // Clear timeout when hovering over submenu
+        submenu.addEventListener('mouseenter', () => {
+            this.clearSubmenuTimeout(submenu);
+            // Also clear any global timeouts
+            this.clearAllTimeouts();
+        });
+        
+        // Start hide timer when leaving submenu
+        submenu.addEventListener('mouseleave', (e) => {
+            const relatedTarget = e.relatedTarget;
+            
+            // Don't hide if moving to any part of the menu system
+            if (relatedTarget && (
+                relatedTarget === menuItem || 
+                menuItem.contains(relatedTarget) ||
+                relatedTarget.closest('.donut-menu-dropdown') ||
+                relatedTarget.closest('.donut-menu-submenu')
+            )) {
+                return;
+            }
+            
+            this.setSubmenuTimeout(submenu, 300);
+        });
+        
+        // Handle leaving the parent menu item - but don't add if already exists
+        if (!menuItem._submenuLeaveHandler) {
+            menuItem._submenuLeaveHandler = (e) => {
+                const relatedTarget = e.relatedTarget;
+                
+                // Don't hide if moving to the submenu or staying in menu system
+                if (relatedTarget && (
+                    relatedTarget === submenu || 
+                    submenu.contains(relatedTarget) ||
+                    relatedTarget.closest('.donut-menu-dropdown') ||
+                    relatedTarget.closest('.donut-menu-submenu')
+                )) {
+                    return;
+                }
+                
+                this.setSubmenuTimeout(submenu, 300);
+            };
+            
+            menuItem.addEventListener('mouseleave', menuItem._submenuLeaveHandler);
+        }
+    }
+    
+    // Helper methods for timeout management
+    clearSubmenuTimeout(submenu) {
+        if (submenu._hideTimeout) {
+            clearTimeout(submenu._hideTimeout);
+            submenu._hideTimeout = null;
+        }
+    }
+    
+    setSubmenuTimeout(submenu, delay) {
+        this.clearSubmenuTimeout(submenu);
+        submenu._hideTimeout = setTimeout(() => {
+            this.hideSubmenu();
+        }, delay);
+    }
+    
+    // Clear all pending timeouts
+    clearAllTimeouts() {
+        if (window.submenuHideTimeout) {
+            clearTimeout(window.submenuHideTimeout);
+            window.submenuHideTimeout = null;
+        }
+    }
 
     // Hide active submenu
     hideSubmenu() {
+        // Clear all timeouts first
+        this.clearAllTimeouts();
+        
         if (this.activeSubmenu) {
+            // Clear submenu-specific timeout
+            this.clearSubmenuTimeout(this.activeSubmenu);
             this.activeSubmenu.remove();
             this.activeSubmenu = null;
         }
         
-        // Also remove any other dynamic submenus
-        document.querySelectorAll('.dynamic-submenu').forEach(submenu => submenu.remove());
+        // Also remove any other dynamic submenus and clear their timeouts
+        document.querySelectorAll('.dynamic-submenu').forEach(submenu => {
+            this.clearSubmenuTimeout(submenu);
+            submenu.remove();
+        });
     }
 }
 
@@ -214,24 +299,67 @@ function applySubmenuConstraints(submenu) {
     // CSS handles all styling, this is just for measurement preparation
 }
 
-// Simple submenu positioning
+// Improved submenu positioning with viewport bounds checking
 function positionSubmenu(menuItem, submenuElement = null) {
     const submenu = submenuElement || menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
     if (!submenu) return;
     
-    // Get menu item position
+    // Get menu item position relative to viewport
     const rect = menuItem.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
     
-    // Position submenu to the right of the menu item
-    const left = rect.right + 8;
-    const top = rect.top;
+    // Get submenu dimensions (temporarily show it to measure)
+    const wasHidden = submenu.style.visibility === 'hidden';
+    if (wasHidden) {
+        submenu.style.visibility = 'hidden';
+        submenu.style.display = 'flex';
+    }
     
-    // Apply simple positioning
+    const submenuRect = submenu.getBoundingClientRect();
+    const submenuWidth = submenuRect.width || 250; // fallback width
+    const submenuHeight = submenuRect.height || 300; // fallback height
+    
+    // Calculate initial position (to the right of menu item)
+    let left = rect.right + 8;
+    let top = rect.top;
+    
+    // Check if submenu would go off the right edge
+    if (left + submenuWidth > viewportWidth - 10) {
+        // Position to the left of the menu item instead
+        left = rect.left - submenuWidth - 8;
+    }
+    
+    // If still off screen, position at viewport edge
+    if (left < 10) {
+        left = 10;
+    }
+    if (left + submenuWidth > viewportWidth - 10) {
+        left = viewportWidth - submenuWidth - 10;
+    }
+    
+    // Check vertical positioning
+    if (top + submenuHeight > viewportHeight - 10) {
+        // Position above the menu item
+        top = rect.bottom - submenuHeight;
+    }
+    
+    // Final bounds check
+    if (top < 10) {
+        top = 10;
+    }
+    
+    // Apply positioning with high z-index
+    submenu.style.setProperty('position', 'fixed', 'important');
     submenu.style.setProperty('left', left + 'px', 'important');
     submenu.style.setProperty('top', top + 'px', 'important');
-    submenu.style.setProperty('z-index', '99999', 'important');
-    submenu.style.setProperty('visibility', 'visible', 'important');
+    submenu.style.setProperty('z-index', '100000', 'important');
     submenu.style.setProperty('pointer-events', 'all', 'important');
+    
+    // Show the submenu
+    if (wasHidden) {
+        submenu.style.setProperty('visibility', 'visible', 'important');
+    }
 }
 
 
@@ -348,15 +476,21 @@ function toggleDonutMenu(event, button) {
                     menuItem.removeEventListener('mouseleave', menuItem._submenuHideHandler);
                 }
                 
-                // Simple, reliable hover handlers
+                // Improved hover handlers with immediate show and better cleanup
                 menuItem.addEventListener('mouseenter', () => {
-                    // Clear any existing timeouts
+                    // Clear any existing timeouts immediately
                     if (window.submenuHideTimeout) {
                         clearTimeout(window.submenuHideTimeout);
                         window.submenuHideTimeout = null;
                     }
                     
-                    // Show submenu immediately
+                    // Clear any submenu-specific timeouts
+                    const existingSubmenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
+                    if (existingSubmenu && window.submenuGenerator) {
+                        window.submenuGenerator.clearSubmenuTimeout(existingSubmenu);
+                    }
+                    
+                    // Show submenu immediately - no delay to prevent flickering
                     let submenu = null;
                     
                     if (menuItem.dataset.submenuType) {
@@ -374,6 +508,7 @@ function toggleDonutMenu(event, button) {
                     }
                     
                     if (submenu) {
+                        // Position and show submenu
                         positionSubmenu(menuItem, submenu);
                         submenu.style.setProperty('display', 'flex', 'important');
                         submenu.style.setProperty('visibility', 'visible', 'important');
@@ -381,22 +516,8 @@ function toggleDonutMenu(event, button) {
                     }
                 });
                 
-                menuItem.addEventListener('mouseleave', () => {
-                    // Start hide timer
-                    window.submenuHideTimeout = setTimeout(() => {
-                        // Hide all visible submenus
-                        if (window.submenuGenerator) {
-                            window.submenuGenerator.hideSubmenu();
-                        }
-                        
-                        // Also hide any static submenus
-                        document.querySelectorAll('.donut-menu-submenu, .file-bar-menu-submenu').forEach(sub => {
-                            if (sub.style.display === 'block') {
-                                sub.style.setProperty('display', 'none', 'important');
-                            }
-                        });
-                    }, 200);
-                });
+                // Note: mouseleave handling is now done in the submenu generator
+                // for dynamic submenus to avoid conflicts
                 
                 // Note: Submenu hover handlers will be added dynamically when submenus are created
             });
@@ -419,14 +540,24 @@ function toggleDonutMenu(event, button) {
                     return;
                 }
                 
+                // Clear any existing menu timeout first
+                if (menuHoverTimeout) {
+                    clearTimeout(menuHoverTimeout);
+                    menuHoverTimeout = null;
+                }
+                
                 // Delay closing to allow for submenu navigation
                 menuHoverTimeout = setTimeout(() => {
                     if (pendingTagChanges.columns.size + pendingTagChanges.tasks.size > 0) {
                         flushPendingTagChanges();
                     }
+                    // Also clear any submenu timeouts when closing the menu
+                    if (window.submenuGenerator) {
+                        window.submenuGenerator.hideSubmenu();
+                    }
                     menu.classList.remove('active');
                     activeTagMenu = null;
-                }, 300);
+                }, 400); // Slightly longer delay to prevent conflicts
             };
         }
     } else {
