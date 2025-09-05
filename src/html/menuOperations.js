@@ -1,6 +1,173 @@
 // Track menu hover state to prevent premature closing
 let menuHoverTimeout = null;
 
+// Track pending tag changes for batch updates
+let pendingTagChanges = {
+    columns: new Map(),
+    tasks: new Map()
+};
+let activeTagMenu = null;
+
+// Inline SubmenuGenerator since separate file isn't loading
+class SubmenuGenerator {
+    constructor() {
+        this.activeSubmenu = null;
+    }
+
+    // Create submenu content dynamically when hovered
+    createSubmenuContent(menuItem, id, type, columnId = null) {
+        const submenuType = menuItem.dataset.submenuType;
+        const group = menuItem.dataset.group;
+        
+        let content = '';
+        
+        switch (submenuType) {
+            case 'tags':
+                content = this.createTagGroupContent(group, id, type, columnId);
+                break;
+            case 'move':
+                content = this.createMoveContent(menuItem.dataset.taskId || id, menuItem.dataset.columnId || columnId);
+                break;
+            case 'move-to-list':
+                content = this.createMoveToListContent(menuItem.dataset.taskId || id, menuItem.dataset.columnId || columnId);
+                break;
+            case 'sort':
+                content = this.createSortContent(menuItem.dataset.columnId || columnId);
+                break;
+        }
+        
+        return content;
+    }
+
+    // Create tag group content
+    createTagGroupContent(group, id, type, columnId) {
+        const tagConfig = window.tagColors || {};
+        let tags = [];
+        
+        if (group === 'custom') {
+            // Get user-added tags using the same function as the original
+            if (window.getUserAddedTags) {
+                tags = window.getUserAddedTags();
+            }
+        } else {
+            // Get tags from the specific group in tagConfig
+            const groupValue = tagConfig[group];
+            if (groupValue && typeof groupValue === 'object') {
+                // Check if this is a direct tag or a group
+                if (groupValue.light || groupValue.dark) {
+                    // This is a single tag
+                    tags = [group];
+                } else {
+                    // This is a group, collect its tags
+                    Object.keys(groupValue).forEach(tagKey => {
+                        const tagValue = groupValue[tagKey];
+                        if (tagValue && typeof tagValue === 'object' && (tagValue.light || tagValue.dark)) {
+                            tags.push(tagKey);
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Generate the tag items HTML
+        if (window.generateGroupTagItems) {
+            return window.generateGroupTagItems(tags, id, type, columnId, group !== 'custom');
+        }
+        
+        // Fallback if generateGroupTagItems is not available
+        return '<div>Tags not available</div>';
+    }
+
+    // Create move content
+    createMoveContent(taskId, columnId) {
+        return `
+            <button class="donut-menu-item" onclick="moveTaskToTop('${taskId}', '${columnId}')">Top</button>
+            <button class="donut-menu-item" onclick="moveTaskUp('${taskId}', '${columnId}')">Up</button>
+            <button class="donut-menu-item" onclick="moveTaskDown('${taskId}', '${columnId}')">Down</button>
+            <button class="donut-menu-item" onclick="moveTaskToBottom('${taskId}', '${columnId}')">Bottom</button>
+        `;
+    }
+
+    // Create move to list content
+    createMoveToListContent(taskId, columnId) {
+        const currentBoard = window.currentBoard;
+        if (!currentBoard || !currentBoard.columns) return '';
+        
+        return currentBoard.columns.map(col => 
+            col.id !== columnId ? 
+            `<button class="donut-menu-item" onclick="moveTaskToColumn('${taskId}', '${columnId}', '${col.id}')">${window.escapeHtml ? window.escapeHtml(col.title || 'Untitled') : col.title || 'Untitled'}</button>` : ''
+        ).join('');
+    }
+
+    // Create sort content
+    createSortContent(columnId) {
+        return `
+            <button class="donut-menu-item" onclick="sortColumn('${columnId}', 'unsorted')">Unsorted</button>
+            <button class="donut-menu-item" onclick="sortColumn('${columnId}', 'title')">Sort by title</button>
+        `;
+    }
+
+    // Show submenu with dynamic content
+    showSubmenu(menuItem, id, type, columnId = null) {
+        // Remove any existing submenu
+        this.hideSubmenu();
+
+        // Create submenu element
+        const submenu = document.createElement('div');
+        submenu.className = 'donut-menu-submenu dynamic-submenu';
+        
+        // Special class for tag grids
+        if (menuItem.dataset.submenuType === 'tags') {
+            submenu.classList.add('donut-menu-tags-grid');
+        }
+        
+        // Generate content
+        submenu.innerHTML = this.createSubmenuContent(menuItem, id, type, columnId);
+        
+        // Initially hide submenu to prevent flash
+        submenu.style.display = 'none';
+        submenu.style.visibility = 'hidden';
+        
+        // Add hover handlers to keep submenu visible
+        submenu.addEventListener('mouseenter', () => {
+            // Cancel any pending hide timeout
+            if (window.submenuHideTimeout) {
+                clearTimeout(window.submenuHideTimeout);
+                window.submenuHideTimeout = null;
+            }
+        });
+        
+        submenu.addEventListener('mouseleave', () => {
+            // Start hide timer when leaving submenu
+            window.submenuHideTimeout = setTimeout(() => {
+                this.hideSubmenu();
+            }, 200);
+        });
+        
+        // Append to menu item
+        menuItem.appendChild(submenu);
+        
+        // Store reference
+        this.activeSubmenu = submenu;
+        
+        return submenu;
+    }
+
+    // Hide active submenu
+    hideSubmenu() {
+        if (this.activeSubmenu) {
+            this.activeSubmenu.remove();
+            this.activeSubmenu = null;
+        }
+        
+        // Also remove any other dynamic submenus
+        document.querySelectorAll('.dynamic-submenu').forEach(submenu => submenu.remove());
+    }
+}
+
+// Global instance
+window.submenuGenerator = new SubmenuGenerator();
+
 // Function to prepare submenu for measurement (minimal JS, CSS handles styling)
 function applySubmenuConstraints(submenu) {
     // CSS handles all styling, this is just for measurement preparation
@@ -74,13 +241,15 @@ function positionSubmenu(menuItem) {
         top = margin;
     }
     
-    // Apply positioning only - CSS handles visibility
+    // Apply positioning and make visible
     submenu.style.setProperty('left', left + 'px', 'important');
     submenu.style.setProperty('top', top + 'px', 'important');
     submenu.style.setProperty('right', 'auto', 'important');
     submenu.style.setProperty('bottom', 'auto', 'important');
     submenu.style.setProperty('position', 'fixed', 'important');
+    submenu.style.setProperty('visibility', 'visible', 'important');
 }
+
 
 // Function to position fixed dropdowns to avoid clipping
 function positionDropdown(triggerButton, dropdown) {
@@ -173,8 +342,9 @@ function toggleDonutMenu(event, button) {
         menu.classList.add('active');
         activeTagMenu = menu;
         
-        // Initialize all submenus as hidden
-        menu.querySelectorAll('.donut-menu-submenu, .file-bar-menu-submenu').forEach(submenu => {
+        // Initialize all EXISTING (static) submenus as hidden
+        // Dynamic submenus will be created hidden already
+        menu.querySelectorAll('.donut-menu-submenu:not(.dynamic-submenu), .file-bar-menu-submenu:not(.dynamic-submenu)').forEach(submenu => {
             submenu.style.setProperty('display', 'none', 'important');
         });
         
@@ -194,66 +364,56 @@ function toggleDonutMenu(event, button) {
                     menuItem.removeEventListener('mouseleave', menuItem._submenuHideHandler);
                 }
                 
-                // Create and store the handlers
-                menuItem._submenuPositionHandler = () => {
-                    // Check if this is a dynamic submenu item
+                // Simple, reliable hover handlers
+                menuItem.addEventListener('mouseenter', () => {
+                    // Clear any existing timeouts
+                    if (window.submenuHideTimeout) {
+                        clearTimeout(window.submenuHideTimeout);
+                        window.submenuHideTimeout = null;
+                    }
+                    
+                    // Show submenu immediately
+                    let submenu = null;
+                    
                     if (menuItem.dataset.submenuType) {
-                        // Generate dynamic submenu content
+                        // Dynamic submenu
                         const id = menuItem.dataset.id;
                         const type = menuItem.dataset.type;
                         const columnId = menuItem.dataset.columnId;
-                        const submenu = window.submenuGenerator.showSubmenu(menuItem, id, type, columnId);
-                        if (submenu) {
-                            positionSubmenu(menuItem);
-                            submenu.style.setProperty('display', 'block', 'important');
+                        
+                        if (window.submenuGenerator) {
+                            submenu = window.submenuGenerator.showSubmenu(menuItem, id, type, columnId);
                         }
                     } else {
-                        // Handle existing static submenus
-                        const submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
-                        if (submenu) {
-                            positionSubmenu(menuItem);
-                            submenu.style.setProperty('display', 'block', 'important');
-                        }
+                        // Static submenu
+                        submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
                     }
-                };
-                
-                menuItem._submenuHideHandler = (e) => {
-                    // Hide submenu when leaving menu item
-                    setTimeout(() => {
-                        if (!menuItem.matches(':hover')) {
-                            // For dynamic submenus, use the generator's hide method
-                            if (menuItem.dataset.submenuType && window.submenuGenerator) {
-                                window.submenuGenerator.hideSubmenu();
-                            } else {
-                                // For static submenus
-                                const submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
-                                if (submenu && !submenu.matches(':hover')) {
-                                    submenu.style.setProperty('display', 'none', 'important');
-                                }
-                            }
-                        }
-                    }, 150);
-                };
-                
-                menuItem.addEventListener('mouseenter', menuItem._submenuPositionHandler);
-                menuItem.addEventListener('mouseleave', menuItem._submenuHideHandler);
-                
-                // Add submenu hover handlers to keep it visible
-                const submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
-                if (submenu) {
-                    submenu.addEventListener('mouseenter', () => {
-                        // Keep submenu visible when hovering over it
+                    
+                    if (submenu) {
+                        positionSubmenu(menuItem);
                         submenu.style.setProperty('display', 'block', 'important');
-                    });
-                    submenu.addEventListener('mouseleave', () => {
-                        // Hide when leaving the submenu
-                        setTimeout(() => {
-                            if (!submenu.matches(':hover') && !menuItem.matches(':hover')) {
-                                submenu.style.setProperty('display', 'none', 'important');
+                        submenu.style.setProperty('visibility', 'visible', 'important');
+                    }
+                });
+                
+                menuItem.addEventListener('mouseleave', () => {
+                    // Start hide timer
+                    window.submenuHideTimeout = setTimeout(() => {
+                        // Hide all visible submenus
+                        if (window.submenuGenerator) {
+                            window.submenuGenerator.hideSubmenu();
+                        }
+                        
+                        // Also hide any static submenus
+                        document.querySelectorAll('.donut-menu-submenu, .file-bar-menu-submenu').forEach(sub => {
+                            if (sub.style.display === 'block') {
+                                sub.style.setProperty('display', 'none', 'important');
                             }
-                        }, 150);
-                    });
-                }
+                        });
+                    }, 200);
+                });
+                
+                // Note: Submenu hover handlers will be added dynamically when submenus are created
             });
             
             dropdown.onmouseenter = () => {

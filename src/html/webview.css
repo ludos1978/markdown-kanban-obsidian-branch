@@ -1153,8 +1153,8 @@ button.file-bar-menu-item {
   border: 1px solid var(--vscode-dropdown-border);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  min-width: 120px;
-  max-width: 375px;
+  min-width: 180px;
+  max-width: 400px;
   max-height: 80vh;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -1232,10 +1232,11 @@ button.file-bar-menu-item {
   height: 12px;
 }
 
-.donut-menu-item.has-submenu:hover .donut-menu-submenu,
+/* Submenu visibility now controlled by JavaScript only */
+/* .donut-menu-item.has-submenu:hover .donut-menu-submenu,
 .file-bar-menu-item.has-submenu:hover .file-bar-menu-submenu {
   display: block;
-}
+} */
 
 .donut-menu-submenu button.donut-menu-item,
 .file-bar-menu-submenu button.file-bar-menu-item {

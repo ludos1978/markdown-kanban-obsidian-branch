@@ -1,6 +1,8 @@
 // Dynamic submenu generator for DRY programming
 // Creates submenus on-demand instead of generating all HTML upfront
 
+console.log('submenuGenerator.js file is loading...');
+
 class SubmenuGenerator {
     constructor() {
         this.activeSubmenu = null;
@@ -69,41 +71,65 @@ class SubmenuGenerator {
                 content = this.createTagGroupContent(group, id, type, columnId);
                 break;
             case 'move':
-                content = this.createMoveContent();
+                content = this.createMoveContent(menuItem.dataset.taskId || id, menuItem.dataset.columnId || columnId);
                 break;
             case 'move-to-list':
-                content = this.createMoveToListContent(menuItem.dataset.taskId, menuItem.dataset.columnId);
+                content = this.createMoveToListContent(menuItem.dataset.taskId || id, menuItem.dataset.columnId || columnId);
                 break;
             case 'sort':
-                content = this.createSortContent(menuItem.dataset.columnId);
+                content = this.createSortContent(menuItem.dataset.columnId || columnId);
                 break;
         }
-
+        
         return content;
     }
 
     // Create tag group content
     createTagGroupContent(group, id, type, columnId) {
-        const allTags = window.getAllAvailableTags ? window.getAllAvailableTags() : [];
-        const groupedTags = this.groupTagsByType(allTags);
-        
+        const tagConfig = window.tagColors || {};
         let tags = [];
+        
         if (group === 'custom') {
-            tags = allTags.filter(tag => !tag.configured);
-        } else if (groupedTags[group]) {
-            tags = groupedTags[group];
+            // Get user-added tags using the same function as the original
+            if (window.getUserAddedTags) {
+                tags = window.getUserAddedTags();
+            }
+        } else {
+            // Get tags from the specific group in tagConfig
+            const groupValue = tagConfig[group];
+            if (groupValue && typeof groupValue === 'object') {
+                // Check if this is a direct tag or a group
+                if (groupValue.light || groupValue.dark) {
+                    // This is a single tag
+                    tags = [group];
+                } else {
+                    // This is a group, collect its tags
+                    Object.keys(groupValue).forEach(tagKey => {
+                        const tagValue = groupValue[tagKey];
+                        if (tagValue && typeof tagValue === 'object' && (tagValue.light || tagValue.dark)) {
+                            tags.push(tagKey);
+                        }
+                    });
+                }
+            }
         }
-
-        return window.generateGroupTagItems ? window.generateGroupTagItems(tags, id, type, columnId, group !== 'custom') : '';
+        
+        // Generate the tag items HTML
+        if (window.generateGroupTagItems) {
+            return window.generateGroupTagItems(tags, id, type, columnId, group !== 'custom');
+        }
+        
+        // Fallback if generateGroupTagItems is not available
+        return '<div>Tags not available</div>';
     }
 
     // Create move content
-    createMoveContent() {
+    createMoveContent(taskId, columnId) {
         return `
-            <button class="donut-menu-item" onclick="moveTaskToTop(this.closest('.task-item').id.replace('task-', ''), this.closest('.kanban-column').id.replace('column-', ''))">Top</button>
-            <button class="donut-menu-item" onclick="moveTaskUp(this.closest('.task-item').id.replace('task-', ''), this.closest('.kanban-column').id.replace('column-', ''))">Up</button>
-            <button class="donut-menu-item" onclick="moveTaskDown(this.closest('.task-item').id.replace('task-', ''), this.closest('.kanban-column').id.replace('column-', ''))">Down</button>
-            <button class="donut-menu-item" onclick="moveTaskToBottom(this.closest('.task-item').id.replace('task-', ''), this.closest('.kanban-column').id.replace('column-', ''))">Bottom</button>
+            <button class="donut-menu-item" onclick="moveTaskToTop('${taskId}', '${columnId}')">Top</button>
+            <button class="donut-menu-item" onclick="moveTaskUp('${taskId}', '${columnId}')">Up</button>
+            <button class="donut-menu-item" onclick="moveTaskDown('${taskId}', '${columnId}')">Down</button>
+            <button class="donut-menu-item" onclick="moveTaskToBottom('${taskId}', '${columnId}')">Bottom</button>
         `;
     }
 
@@ -158,6 +184,10 @@ class SubmenuGenerator {
         // Generate content
         submenu.innerHTML = this.createSubmenuContent(menuItem, id, type, columnId);
         
+        // Initially hide submenu to prevent flash
+        submenu.style.display = 'none';
+        submenu.style.visibility = 'hidden';
+        
         // Append to menu item
         menuItem.appendChild(submenu);
         
@@ -181,3 +211,4 @@ class SubmenuGenerator {
 
 // Global instance
 window.submenuGenerator = new SubmenuGenerator();
+console.log('SubmenuGenerator loaded:', window.submenuGenerator);
