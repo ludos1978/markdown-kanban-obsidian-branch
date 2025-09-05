@@ -1168,6 +1168,7 @@ button.file-bar-menu-item {
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   min-width: 180px;
   max-width: 400px;
+	width: 300px;
   max-height: 80vh;
   z-index: 100000;
   pointer-events: all !important;
@@ -1179,9 +1180,11 @@ button.file-bar-menu-item {
   isolation: isolate;
 }
 
-/* Tag grid submenus need wider width */
+/* Tag grid submenus need constrained width for wrapping */
 .donut-menu-submenu:has(.donut-menu-tags-grid) {
   min-width: 250px;
+  max-width: 350px;
+  width: 320px;
 }
 
 /* Submenus are positioned by JavaScript */
@@ -1202,6 +1205,8 @@ button.file-bar-menu-item {
   flex-wrap: wrap;
   gap: 4px;
   padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Submenu items prevent overflow */
@@ -1317,6 +1322,8 @@ button.file-bar-menu-item {
   background: var(--vscode-menu-background);
   border: 1px solid var(--vscode-menu-border);
   border-radius: 4px;
+  max-width: 300px;
+  width: 100%;
 }
 
 .donut-menu-tag-chip {
@@ -1324,32 +1331,32 @@ button.file-bar-menu-item {
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  border: 3px solid lime !important;
+  border: 2px solid;
   border-radius: 12px;
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: rgba(255, 0, 255, 0.3) !important;
   color: var(--vscode-menu-foreground);
   white-space: nowrap;
   flex: 0 0 auto;
-  max-width: 90px;
+  max-width: none;
   overflow: hidden;
   text-overflow: ellipsis;
   box-sizing: border-box;
-  flex-shrink: 1;
+  flex-shrink: 0;
   z-index: 999999 !important;
   position: relative !important;
 }
 
 .donut-menu-tag-chip:hover {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
 }
 
 .donut-menu-tag-chip.active {
   font-weight: bold;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .donut-menu-tag-chip .tag-chip-check {
@@ -1364,7 +1371,7 @@ button.file-bar-menu-item {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100px;
+  max-width: none;
   flex: 1;
   min-width: 0;
 }
@@ -1381,17 +1388,7 @@ button.file-bar-menu-item {
   overflow: visible;
 }
 
-.vscode-dark .donut-menu-tag-chip {
-  border-color: var(--vscode-menu-border);
-}
-
-.vscode-dark .donut-menu-tag-chip:not(.active) {
-  border-color: #444;
-}
-
-.vscode-light .donut-menu-tag-chip:not(.active) {
-  border-color: #ccc;
-}
+/* Tag chip border colors are set dynamically via inline styles based on tag configuration */
 
 /* Modal */
 .modal {

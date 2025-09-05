@@ -540,6 +540,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         // Get tag config for color (only for configured tags)
         let bgColor = '#666';
         let textColor = '#fff';
+        let bgDark = null;
         
         if (isConfigured) {
             const config = getTagConfig(tagName);
@@ -547,9 +548,29 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
                 const isDarkTheme = document.body.classList.contains('vscode-dark') || 
                                    document.body.classList.contains('vscode-high-contrast');
                 const themeKey = isDarkTheme ? 'dark' : 'light';
-                const themeColors = config[themeKey] || config.light || {};
-                bgColor = themeColors.background || '#666';
-                textColor = themeColors.text || '#fff';
+                
+                // Use the appropriate color config based on type (card or column)
+                let colorConfig = null;
+                if (type === 'column' && config.column) {
+                    colorConfig = config.column[themeKey] || config.column.light || {};
+                    bgDark = colorConfig.backgroundDark || colorConfig.background;
+                } else if (type === 'task' && config.card) {
+                    colorConfig = config.card[themeKey] || config.card.light || {};
+                    bgDark = colorConfig.backgroundDark || colorConfig.background;
+                } else {
+                    // Fallback to basic theme colors if specific type not found
+                    colorConfig = config[themeKey] || config.light || {};
+                }
+                
+                bgColor = colorConfig.background || '#666';
+                textColor = colorConfig.text || '#fff';
+                
+                // If we have a backgroundDark, interpolate it for a subtle effect
+                if (bgDark) {
+                    const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+                    // Use a lighter interpolation for the button background when active
+                    bgColor = interpolateColor(editorBg, bgDark, isActive ? 0.25 : 0.1);
+                }
             }
         } else {
             // Default colors for user-added tags
@@ -583,14 +604,17 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         
         return `
             <button id="${buttonId}"
-                    class="donut-menu-tag-chip ${isActive ? 'active' : ''} ${isConfigured ? '' : 'custom-tag'}" 
+                    class="donut-menu-tag-chip ${isActive ? 'active' : ''} ${isConfigured ? '' : 'custom-tag'}"
+                    data-tag-name="${tagName}"
+                    data-tag-type="${type}"
                     onclick="console.log('🔍 DEBUG: Inline onclick triggered for ${buttonId}'); window.tagHandlers['${buttonId}'](event); return false;"
                     style="background-color: ${isActive ? bgColor : 'transparent'}; 
-                           color: ${isActive ? textColor : 'inherit'};
-                           border-color: ${bgColor};"
+                           color: ${isActive ? textColor : (bgDark ? bgDark : 'inherit')};
+                           border-color: ${bgDark || bgColor};
+                           ${!isActive && bgDark ? `border: 2px solid ${bgDark};` : ''}"
                     title="${title}">
                 <span class="tag-chip-check">${checkbox}</span>
-                <span class="tag-chip-name">${displayName}</span>
+                <span class="tag-chip-name" style="${!isActive && bgDark ? `color: ${bgDark};` : ''}">${displayName}</span>
             </button>
         `;
     }).join('');
@@ -1392,11 +1416,11 @@ function getAllCornerBadgesHtml(tags, elementType) {
             switch (position) {
                 case 'top-left':
                     // Stack vertically downward, keep left position constant
-                    positionStyle = `top: ${-8 + (index * offsetMultiplier)}px; left: -8px;`;
+                    positionStyle = `top: ${0 + (index * offsetMultiplier)}px; left: -8px;`;
                     break;
                 case 'top-right':
                     // Stack vertically downward, keep right position constant
-                    positionStyle = `top: ${-8 + (index * offsetMultiplier)}px; right: -8px;`;
+                    positionStyle = `top: ${0 + (index * offsetMultiplier)}px; right: -8px;`;
                     break;
                 case 'bottom-left':
                     // Stack vertically upward, keep left position constant

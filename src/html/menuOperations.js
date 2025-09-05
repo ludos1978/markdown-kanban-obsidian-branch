@@ -211,6 +211,7 @@ class SimpleMenuManager {
             pointer-events: all;
             visibility: hidden;
             display: flex;
+						flex-wrap: wrap;
         `;
         
         // Append to body to escape any stacking contexts
@@ -668,6 +669,7 @@ function addColumn(rowNumber) {
 // Tag operations - simplified
 function toggleColumnTag(columnId, tagName, event) {
     console.log(`🏷️ Toggle column tag: ${columnId} -> ${tagName}`);
+    console.log(`🔍 DEBUG: Column ID type: ${typeof columnId}, value: "${columnId}"`);
     
     // Enhanced duplicate prevention with stronger key and longer timeout
     const key = `column-${columnId}-${tagName}`;
@@ -691,10 +693,29 @@ function toggleColumnTag(columnId, tagName, event) {
         console.warn('No currentBoard or columns available');
         return;
     }
+    
+    // Enhanced debugging for column finding
+    console.log(`🔍 DEBUG: Looking for column with ID "${columnId}" (type: ${typeof columnId})`);
+    console.log(`🔍 DEBUG: Available columns:`, window.currentBoard.columns.map(c => ({id: c.id, title: c.title, idType: typeof c.id})));
+    
     const column = window.currentBoard.columns.find(c => c.id === columnId);
     if (!column) {
-        console.warn(`Column not found: ${columnId}`);
+        console.warn(`❌ Column not found: ${columnId}`);
+        console.warn(`Available column IDs: ${window.currentBoard.columns.map(c => c.id).join(', ')}`);
         return;
+    }
+    
+    console.log(`✅ Found column: ${column.title} (ID: ${column.id})`);
+    
+    // Also check DOM element
+    const domElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (!domElement) {
+        console.warn(`❌ DOM element not found for column ID: ${columnId}`);
+        // Try to find any elements with data-column-id
+        const allColumnElements = document.querySelectorAll('[data-column-id]');
+        console.warn(`Available DOM column elements:`, Array.from(allColumnElements).map(el => el.getAttribute('data-column-id')));
+    } else {
+        console.log(`✅ Found DOM element for column: ${domElement.querySelector('.column-title')?.textContent}`);
     }
     
     const tagWithHash = `#${tagName}`;
@@ -729,6 +750,9 @@ function toggleColumnTag(columnId, tagName, event) {
     // Update DOM immediately using unique ID
     updateColumnDisplayImmediate(columnId, title, !wasActive, tagName);
     
+    // Update tag button appearance immediately
+    updateTagButtonAppearance(columnId, 'column', tagName, !wasActive);
+    
     // Store pending changes locally instead of sending to backend immediately
     if (!window.pendingColumnChanges) {
         window.pendingColumnChanges = new Map();
@@ -752,6 +776,8 @@ function toggleColumnTag(columnId, tagName, event) {
 
 function toggleTaskTag(taskId, columnId, tagName, event) {
     console.log(`🏷️ Toggle task tag: ${taskId} -> ${tagName}`);
+    console.log(`🔍 DEBUG: Task ID type: ${typeof taskId}, value: "${taskId}"`);
+    console.log(`🔍 DEBUG: Column ID type: ${typeof columnId}, value: "${columnId}"`);
     
     // Enhanced duplicate prevention with stronger key and longer timeout
     const key = `task-${taskId}-${tagName}`;
@@ -775,11 +801,34 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
         console.warn('No currentBoard or columns available');
         return;
     }
+    
+    // Enhanced debugging for task finding
+    console.log(`🔍 DEBUG: Looking for task with ID "${taskId}" in column "${columnId}"`);
     const column = window.currentBoard.columns.find(c => c.id === columnId);
+    if (!column) {
+        console.warn(`❌ Column not found: ${columnId}`);
+        return;
+    }
+    
+    console.log(`🔍 DEBUG: Found column: ${column.title}, tasks:`, column.tasks?.map(t => ({id: t.id, title: t.title, idType: typeof t.id})));
     const task = column?.tasks.find(t => t.id === taskId);
     if (!task) {
-        console.warn(`Task not found: ${taskId} in column ${columnId}`);
+        console.warn(`❌ Task not found: ${taskId} in column ${columnId}`);
+        console.warn(`Available task IDs in column: ${column.tasks?.map(t => t.id).join(', ') || 'none'}`);
         return;
+    }
+    
+    console.log(`✅ Found task: ${task.title} (ID: ${task.id})`);
+    
+    // Also check DOM element
+    const domElement = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (!domElement) {
+        console.warn(`❌ DOM element not found for task ID: ${taskId}`);
+        // Try to find any elements with data-task-id
+        const allTaskElements = document.querySelectorAll('[data-task-id]');
+        console.warn(`Available DOM task elements:`, Array.from(allTaskElements).map(el => el.getAttribute('data-task-id')));
+    } else {
+        console.log(`✅ Found DOM element for task: ${domElement.querySelector('.task-title-display')?.textContent}`);
     }
     
     const tagWithHash = `#${tagName}`;
@@ -808,6 +857,9 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     
     // Update DOM immediately using unique ID
     updateTaskDisplayImmediate(taskId, title, !wasActive, tagName);
+    
+    // Update tag button appearance immediately
+    updateTagButtonAppearance(taskId, 'task', tagName, !wasActive);
     
     // Store pending changes locally instead of sending to backend immediately
     if (!window.pendingTaskChanges) {
@@ -1154,12 +1206,94 @@ function updateRefreshButtonState(state, count = 0) {
     }
 }
 
+// Update tag button appearance immediately when toggled
+function updateTagButtonAppearance(id, type, tagName, isActive) {
+    console.log(`🎨 Updating tag button appearance: ${id} ${type} ${tagName} active=${isActive}`);
+    
+    // Find the tag button using the same ID pattern as in generateGroupTagItems
+    const buttonId = `tag-chip-${type}-${id}-${tagName}`.replace(/[^a-zA-Z0-9-]/g, '-');
+    const button = document.getElementById(buttonId);
+    
+    if (!button) {
+        console.log(`❌ Tag button not found: ${buttonId}`);
+        return;
+    }
+    
+    // Get tag configuration for colors (reuse logic from boardRenderer.js)
+    const config = window.getTagConfig ? window.getTagConfig(tagName) : null;
+    let bgColor = '#666';
+    let textColor = '#fff';
+    let bgDark = null;
+    
+    if (config) {
+        const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                           document.body.classList.contains('vscode-high-contrast');
+        const themeKey = isDarkTheme ? 'dark' : 'light';
+        
+        // Use the appropriate color config based on type (card or column)
+        let colorConfig = null;
+        if (type === 'column' && config.column) {
+            colorConfig = config.column[themeKey] || config.column.light || {};
+            bgDark = colorConfig.backgroundDark || colorConfig.background;
+        } else if (type === 'task' && config.card) {
+            colorConfig = config.card[themeKey] || config.card.light || {};
+            bgDark = colorConfig.backgroundDark || colorConfig.background;
+        } else {
+            // Fallback to basic theme colors if specific type not found
+            colorConfig = config[themeKey] || config.light || {};
+        }
+        
+        bgColor = colorConfig.background || '#666';
+        textColor = colorConfig.text || '#fff';
+        
+        // If we have a backgroundDark, interpolate it for a subtle effect
+        if (bgDark && window.interpolateColor) {
+            const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+            // Use a lighter interpolation for the button background when active
+            bgColor = window.interpolateColor(editorBg, bgDark, isActive ? 0.25 : 0.1);
+        }
+    }
+    
+    // Update button class
+    if (isActive) {
+        button.classList.add('active');
+    } else {
+        button.classList.remove('active');
+    }
+    
+    // Update button styling
+    button.style.backgroundColor = isActive ? bgColor : 'transparent';
+    button.style.color = isActive ? textColor : (bgDark ? bgDark : 'inherit');
+    button.style.borderColor = bgDark || bgColor;
+    
+    if (!isActive && bgDark) {
+        button.style.border = `2px solid ${bgDark}`;
+    }
+    
+    // Update the checkmark
+    const checkElement = button.querySelector('.tag-chip-check');
+    if (checkElement) {
+        checkElement.textContent = isActive ? '✓' : '';
+    }
+    
+    // Update the tag name color for inactive buttons
+    const nameElement = button.querySelector('.tag-chip-name');
+    if (nameElement && !isActive && bgDark) {
+        nameElement.style.color = bgDark;
+    } else if (nameElement) {
+        nameElement.style.color = '';
+    }
+    
+    console.log(`✅ Updated tag button ${buttonId}: active=${isActive}, bgColor=${bgColor}, textColor=${textColor}`);
+}
+
 // Make functions globally available
 window.toggleDonutMenu = toggleDonutMenu;
 window.toggleFileBarMenu = toggleFileBarMenu;
 window.handleColumnTagClick = (columnId, tagName, event) => toggleColumnTag(columnId, tagName, event);
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(taskId, columnId, tagName, event);
 window.updateTagChipStyle = updateTagChipStyle;
+window.updateTagButtonAppearance = updateTagButtonAppearance;
 window.columnTagUpdateTimeout = null;
 window.taskTagUpdateTimeout = null;
 window.toggleColumnTag = toggleColumnTag;
