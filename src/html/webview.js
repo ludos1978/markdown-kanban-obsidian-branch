@@ -15,6 +15,496 @@ let currentDocumentUri = null;
 let currentColumnWidth = 'medium';
 let currentLayoutRows = 1;
 
+// Clipboard card source functionality
+let clipboardCardData = null;
+
+// Global mousedown handler - no longer needed
+window.handleClipboardMouseDown = function(e) {
+    // Empty - clipboard is read on focus and Cmd/Ctrl+C
+};
+
+// Global drag handler for clipboard card source
+window.handleClipboardDragStart = function(e) {
+    console.log('[CLIPBOARD DEBUG] Global drag handler fired!');
+    console.log('[CLIPBOARD DEBUG] Current clipboardCardData:', clipboardCardData);
+    
+    // Create default data if no clipboard data
+    if (!clipboardCardData) {
+        console.log('[CLIPBOARD DEBUG] No clipboard data available, using default');
+        clipboardCardData = {
+            title: 'Clipboard Content',
+            content: 'Drag to create card from clipboard',
+            isLink: false
+        };
+    }
+    
+    // Create task data
+    const tempTask = {
+        id: 'temp-clipboard-' + Date.now(),
+        title: clipboardCardData.title,
+        description: clipboardCardData.content,
+        isFromClipboard: true
+    };
+    
+    // Set drag state
+    if (window.dragState) {
+        window.dragState.isDragging = true;
+        window.dragState.draggedClipboardCard = tempTask;
+        console.log('[CLIPBOARD DEBUG] Set dragState.draggedClipboardCard:', tempTask);
+    }
+    
+    // Set drag data
+    const dragData = JSON.stringify({
+        type: 'clipboard-card',
+        task: tempTask
+    });
+    e.dataTransfer.setData('text/plain', `CLIPBOARD_CARD:${dragData}`);
+    e.dataTransfer.effectAllowed = 'copy';
+    
+    // Add visual feedback
+    e.target.classList.add('dragging');
+};
+
+window.handleClipboardDragEnd = function(e) {
+    console.log('[CLIPBOARD DEBUG] Global drag end handler fired!');
+    
+    // Clear visual feedback
+    e.target.classList.remove('dragging');
+    
+    // Clear drag state
+    if (window.dragState) {
+        window.dragState.isDragging = false;
+        window.dragState.draggedClipboardCard = null;
+    }
+};
+
+window.showClipboardPreview = function() {
+    const preview = document.getElementById('clipboard-preview');
+    const header = document.getElementById('clipboard-preview-header');
+    const body = document.getElementById('clipboard-preview-body');
+    
+    if (!preview || !clipboardCardData) return;
+    
+    // Update header based on content type
+    if (clipboardCardData.isLink) {
+        if (clipboardCardData.content.startsWith('![')) {
+            header.textContent = 'Image Link';
+        } else if (clipboardCardData.content.startsWith('[')) {
+            header.textContent = 'File Link';
+        } else {
+            header.textContent = 'URL Link';
+        }
+    } else {
+        header.textContent = 'Clipboard Content';
+    }
+    
+    // Clear previous content
+    body.innerHTML = '';
+    
+    // Show image preview if it's an image link
+    if (clipboardCardData.isLink && clipboardCardData.content.startsWith('![')) {
+        // Extract image path from markdown ![alt](path)
+        const imageMatch = clipboardCardData.content.match(/!\[.*?\]\((.*?)\)/);
+        if (imageMatch && imageMatch[1]) {
+            const imagePath = imageMatch[1];
+            
+            // Create image element
+            const img = document.createElement('img');
+            img.className = 'clipboard-preview-image';
+            img.src = imagePath;
+            
+            // Add the markdown text first
+            const textDiv = document.createElement('div');
+            textDiv.className = 'clipboard-preview-text';
+            textDiv.textContent = clipboardCardData.content;
+            
+            img.onerror = function() {
+                // If image fails to load, just show text
+                body.appendChild(textDiv);
+            };
+            
+            img.onload = function() {
+                // Image loaded successfully - show image then text
+                body.appendChild(img);
+                body.appendChild(textDiv);
+            };
+            
+            // Start loading the image
+            // If it fails, only text will show; if it succeeds, both will show
+            
+        } else {
+            // Fallback to text
+            const textDiv = document.createElement('div');
+            textDiv.className = 'clipboard-preview-text';
+            textDiv.textContent = clipboardCardData.content;
+            body.appendChild(textDiv);
+        }
+    } else {
+        // Show text content
+        const textDiv = document.createElement('div');
+        textDiv.className = 'clipboard-preview-text';
+        textDiv.textContent = clipboardCardData.content;
+        body.appendChild(textDiv);
+    }
+    
+    // Show the preview
+    preview.classList.add('show');
+};
+
+window.hideClipboardPreview = function() {
+    const preview = document.getElementById('clipboard-preview');
+    if (preview) {
+        preview.classList.remove('show');
+    }
+};
+
+// Empty card drag handlers
+window.handleEmptyCardDragStart = function(e) {
+    console.log('[EMPTY CARD DEBUG] Global drag handler fired!');
+    
+    // Create empty task data
+    const tempTask = {
+        id: 'temp-empty-' + Date.now(),
+        title: '',
+        description: '',
+        isFromEmptyCard: true
+    };
+    
+    // Set drag state
+    if (window.dragState) {
+        window.dragState.isDragging = true;
+        window.dragState.draggedEmptyCard = tempTask;
+        console.log('[EMPTY CARD DEBUG] Set dragState.draggedEmptyCard:', tempTask);
+    }
+    
+    // Set drag data
+    const dragData = JSON.stringify({
+        type: 'empty-card',
+        task: tempTask
+    });
+    e.dataTransfer.setData('text/plain', `EMPTY_CARD:${dragData}`);
+    e.dataTransfer.effectAllowed = 'copy';
+    
+    // Add visual feedback
+    e.target.classList.add('dragging');
+};
+
+window.handleEmptyCardDragEnd = function(e) {
+    console.log('[EMPTY CARD DEBUG] Global drag end handler fired!');
+    
+    // Clear visual feedback
+    e.target.classList.remove('dragging');
+    
+    // Clear drag state
+    if (window.dragState) {
+        window.dragState.isDragging = false;
+        window.dragState.draggedEmptyCard = null;
+    }
+};
+
+async function readClipboardContent() {
+    try {
+        console.log('[CLIPBOARD DEBUG] Attempting to read clipboard');
+        const text = await navigator.clipboard.readText();
+        console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
+        
+        if (!text || text.trim() === '') {
+            console.log('[CLIPBOARD DEBUG] Empty clipboard');
+            return null;
+        }
+        
+        const processed = await processClipboardText(text.trim());
+        console.log('[CLIPBOARD DEBUG] Processed clipboard:', processed);
+        return processed;
+    } catch (error) {
+        console.error('[CLIPBOARD DEBUG] Failed to read clipboard:', error);
+        // Don't return error object, just null
+        return null;
+    }
+}
+
+async function processClipboardText(text) {
+    // Check if it's a URL
+    const urlRegex = /^https?:\/\/[^\s]+$/;
+    if (urlRegex.test(text)) {
+        try {
+            // Try to fetch title from URL
+            const title = await fetchUrlTitle(text);
+            return {
+                title: title || extractDomainFromUrl(text),
+                content: `[${title || extractDomainFromUrl(text)}](${text})`,
+                isLink: true
+            };
+        } catch (error) {
+            // Fallback to domain name as title
+            return {
+                title: extractDomainFromUrl(text),
+                content: `[${extractDomainFromUrl(text)}](${text})`,
+                isLink: true
+            };
+        }
+    }
+    
+    // Check if it's a filename (contains file extension)
+    const fileRegex = /^[^\/\\\n]*\.[a-zA-Z0-9]{1,10}$/;
+    if (fileRegex.test(text.trim())) {
+        const fileName = text.trim();
+        const isImage = isImageFile(fileName);
+        
+        if (isImage) {
+            return {
+                title: fileName,
+                content: `![${fileName}](${fileName})`,
+                isLink: true
+            };
+        } else {
+            return {
+                title: fileName,
+                content: `[${fileName}](${fileName})`,
+                isLink: true
+            };
+        }
+    }
+    
+    // Check if it's a file path (contains path separators and file extension)
+    const filePathRegex = /^[^<>:"|?*\n]*[\/\\][^\/\\\n]*\.[a-zA-Z0-9]{1,10}$/;
+    if (filePathRegex.test(text.trim())) {
+        const filePath = text.trim();
+        const fileName = filePath.split(/[\/\\]/).pop();
+        const isImage = isImageFile(fileName);
+        
+        if (isImage) {
+            return {
+                title: fileName,
+                content: `![${fileName}](${filePath})`,
+                isLink: true
+            };
+        } else {
+            return {
+                title: fileName,
+                content: `[${fileName}](${filePath})`,
+                isLink: true
+            };
+        }
+    }
+    
+    // Check if it contains a URL within text
+    const urlInTextRegex = /https?:\/\/[^\s]+/g;
+    if (urlInTextRegex.test(text)) {
+        // Extract title from first line if available
+        const lines = text.split('\n');
+        const title = lines[0].length > 50 ? lines[0].substring(0, 50) + '...' : lines[0];
+        
+        return {
+            title: title || 'Clipboard Content',
+            content: text,
+            isLink: false
+        };
+    }
+    
+    // Regular text content
+    const lines = text.split('\n');
+    const title = lines[0].length > 50 ? lines[0].substring(0, 50) + '...' : lines[0];
+    
+    return {
+        title: title || 'Clipboard Content',
+        content: text,
+        isLink: false
+    };
+}
+
+function isImageFile(fileName) {
+    const imageExtensions = [
+        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 
+        'ico', 'tiff', 'tif', 'avif', 'heic', 'heif'
+    ];
+    const extension = fileName.split('.').pop().toLowerCase();
+    return imageExtensions.includes(extension);
+}
+
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function extractDomainFromUrl(url) {
+    try {
+        const urlObj = new URL(url);
+        return urlObj.hostname.replace('www.', '');
+    } catch (error) {
+        return 'Link';
+    }
+}
+
+async function fetchUrlTitle(url) {
+    try {
+        // Note: This will likely be blocked by CORS in most cases
+        // But we'll try anyway, with a fallback to domain name
+        const response = await fetch(url, { mode: 'cors' });
+        const text = await response.text();
+        const titleMatch = text.match(/<title[^>]*>([^<]*)<\/title>/i);
+        return titleMatch ? titleMatch[1].trim() : null;
+    } catch (error) {
+        // CORS will usually block this, so we'll use domain as fallback
+        return null;
+    }
+}
+
+async function updateClipboardCardSource() {
+    console.log('[CLIPBOARD DEBUG] Updating clipboard card source');
+    clipboardCardData = await readClipboardContent();
+    console.log('[CLIPBOARD DEBUG] Read clipboard data:', clipboardCardData);
+    const clipboardSource = document.getElementById('clipboard-card-source');
+    
+    if (clipboardSource) {
+        const iconSpan = clipboardSource.querySelector('.clipboard-icon');
+        const textSpan = clipboardSource.querySelector('.clipboard-text');
+        
+        if (clipboardCardData && clipboardCardData.content) {
+            clipboardSource.style.opacity = '1';
+            clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
+            
+            // Show first 15 characters + character count (escaped for display)
+            const rawPreview = clipboardCardData.content.length > 15 
+                ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
+                : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
+            
+            // Escape the preview content to prevent HTML rendering
+            const preview = escapeHtml(rawPreview);
+            
+            // Update visual indicator based on content type
+            if (clipboardCardData.isLink) {
+                // Check if it's an image file or URL
+                if (clipboardCardData.content.startsWith('![')) {
+                    iconSpan.textContent = '🖼️';
+                } else if (clipboardCardData.content.startsWith('[')) {
+                    iconSpan.textContent = '📄';
+                } else {
+                    iconSpan.textContent = '🔗';
+                }
+                textSpan.textContent = preview;
+            } else {
+                iconSpan.textContent = '📋';
+                textSpan.textContent = preview;
+            }
+        } else {
+            clipboardSource.style.opacity = '0.5';
+            clipboardSource.title = 'No clipboard content available';
+            
+            iconSpan.textContent = '📋';
+            textSpan.textContent = 'Clip';
+        }
+    }
+}
+
+function initializeClipboardCardSource() {
+    const clipboardSource = document.getElementById('clipboard-card-source');
+    console.log('[CLIPBOARD DEBUG] Initializing clipboard source:', clipboardSource);
+    if (!clipboardSource) {
+        console.error('[CLIPBOARD DEBUG] Clipboard source element not found!');
+        return;
+    }
+    
+    clipboardSource.addEventListener('dragstart', (e) => {
+        console.log('[CLIPBOARD DEBUG] Drag start event fired');
+        console.log('[CLIPBOARD DEBUG] e.target:', e.target);
+        console.log('[CLIPBOARD DEBUG] e.currentTarget:', e.currentTarget);
+        console.log('[CLIPBOARD DEBUG] clipboardCardData:', clipboardCardData);
+        
+        // For testing - create dummy data if no clipboard data
+        if (!clipboardCardData) {
+            console.log('[CLIPBOARD DEBUG] No clipboard data, creating test data');
+            clipboardCardData = {
+                title: 'Test Clipboard Card',
+                content: 'This is a test card from clipboard',
+                isLink: false
+            };
+        }
+        
+        // Create a temporary task object for the drag operation
+        const tempTask = {
+            id: 'temp-clipboard-' + Date.now(),
+            title: clipboardCardData.title,
+            description: clipboardCardData.content,
+            isFromClipboard: true
+        };
+        
+        console.log('[CLIPBOARD DEBUG] Setting drag data:', tempTask);
+        
+        // Store in drag data
+        const dragData = JSON.stringify({
+            type: 'clipboard-card',
+            task: tempTask
+        });
+        
+        // Use text/plain with a special prefix for clipboard cards
+        // Custom MIME types don't work reliably across browsers
+        e.dataTransfer.setData('text/plain', `CLIPBOARD_CARD:${dragData}`);
+        e.dataTransfer.effectAllowed = 'copy';
+        
+        console.log('[CLIPBOARD DEBUG] Drag data set:', dragData);
+        
+        // Set drag state to prevent interference with internal drag detection
+        console.log('[CLIPBOARD DEBUG] window.dragState before setting:', window.dragState);
+        if (window.dragState) {
+            window.dragState.isDragging = true;
+            window.dragState.draggedClipboardCard = tempTask;
+            console.log('[CLIPBOARD DEBUG] window.dragState after setting:', window.dragState);
+        } else {
+            console.error('[CLIPBOARD DEBUG] window.dragState is not available!');
+        }
+        
+        clipboardSource.classList.add('dragging');
+    });
+    
+    clipboardSource.addEventListener('dragend', (e) => {
+        clipboardSource.classList.remove('dragging');
+        
+        // Clear drag state
+        if (window.dragState) {
+            window.dragState.isDragging = false;
+            window.dragState.draggedClipboardCard = null;
+        }
+    });
+}
+
+// Function to position file bar dropdown
+function positionFileBarDropdown(triggerButton, dropdown) {
+    const rect = triggerButton.getBoundingClientRect();
+    const dropdownWidth = 200; // Approximate dropdown width
+    const dropdownHeight = 400; // Approximate dropdown height
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Position below the button and aligned to the right
+    let left = rect.right - dropdownWidth;
+    let top = rect.bottom + 4; // Small margin below button
+    
+    // Adjust if dropdown would go off-screen horizontally
+    if (left < 10) {
+        left = 10; // Minimum left margin
+    }
+    if (left + dropdownWidth > viewportWidth) {
+        left = viewportWidth - dropdownWidth - 10;
+    }
+    
+    // Adjust if dropdown would go off-screen vertically (unlikely for top bar menu)
+    if (top + dropdownHeight > viewportHeight) {
+        top = viewportHeight - dropdownHeight - 10;
+    }
+    
+    // Apply the calculated position
+    dropdown.style.left = left + 'px';
+    dropdown.style.top = top + 'px';
+    dropdown.style.right = 'auto';
+    dropdown.style.bottom = 'auto';
+}
+
 // Function to toggle file bar menu
 function toggleFileBarMenu(event, button) {
     event.stopPropagation();
@@ -32,6 +522,64 @@ function toggleFileBarMenu(event, button) {
     // Toggle this menu
     if (!wasActive) {
         menu.classList.add('active');
+        
+        // Position the file bar dropdown
+        const dropdown = menu.querySelector('.file-bar-menu-dropdown');
+        if (dropdown) {
+            positionFileBarDropdown(button, dropdown);
+            
+            // Set up submenu positioning for file bar items with submenus
+            dropdown.querySelectorAll('.file-bar-menu-item.has-submenu').forEach(menuItem => {
+                // Remove any existing listeners to prevent duplicates
+                if (menuItem._submenuPositionHandler) {
+                    menuItem.removeEventListener('mouseenter', menuItem._submenuPositionHandler);
+                }
+                if (menuItem._submenuHideHandler) {
+                    menuItem.removeEventListener('mouseleave', menuItem._submenuHideHandler);
+                }
+                
+                // Create and store the handlers
+                menuItem._submenuPositionHandler = () => {
+                    // Position immediately when hover starts
+                    if (window.positionSubmenu) {
+                        window.positionSubmenu(menuItem);
+                    }
+                };
+                
+                menuItem._submenuHideHandler = (e) => {
+                    // Don't hide if moving to the submenu itself
+                    const submenu = menuItem.querySelector('.file-bar-menu-submenu');
+                    if (submenu) {
+                        setTimeout(() => {
+                            // Check if mouse is over the submenu
+                            if (!submenu.matches(':hover') && !menuItem.matches(':hover')) {
+                                submenu.style.setProperty('display', 'none', 'important');
+                            }
+                        }, 100);
+                    }
+                };
+                
+                menuItem.addEventListener('mouseenter', menuItem._submenuPositionHandler);
+                menuItem.addEventListener('mouseleave', menuItem._submenuHideHandler);
+                
+                // Add submenu hover handlers to keep it visible
+                const submenu = menuItem.querySelector('.file-bar-menu-submenu');
+                if (submenu) {
+                    submenu.addEventListener('mouseenter', () => {
+                        // Keep submenu visible when hovering over it
+                        submenu.style.setProperty('display', 'block', 'important');
+                    });
+                    submenu.addEventListener('mouseleave', () => {
+                        // Hide when leaving the submenu
+                        setTimeout(() => {
+                            if (!submenu.matches(':hover') && !menuItem.matches(':hover')) {
+                                submenu.style.setProperty('display', 'none', 'important');
+                            }
+                        }, 100);
+                    });
+                }
+            });
+        }
     }
 }
 
@@ -97,6 +645,113 @@ function setLayoutRows(rows) {
     vscode.postMessage({ type: 'showMessage', text: `Layout set to ${rows} row${rows > 1 ? 's' : ''}` });
 }
 
+// Global variable to store current row height
+let currentRowHeight = 'auto';
+
+// Function to apply row height to existing rows
+function applyRowHeight(height) {
+    const rows = document.querySelectorAll('.kanban-row');
+    const boardElement = document.getElementById('kanban-board');
+    const isMultiRow = boardElement && boardElement.classList.contains('multi-row');
+    
+    rows.forEach(row => {
+        if (height === 'auto') {
+            // Auto height - no constraints
+            row.style.height = 'auto';
+            row.style.minHeight = 'auto';
+            row.style.maxHeight = 'none';
+            row.style.overflowY = 'visible';
+            row.style.overflowX = 'visible';
+            
+            // Reset individual columns
+            row.querySelectorAll('.kanban-column .column-content').forEach(content => {
+                content.style.maxHeight = '';
+                content.style.overflowY = 'visible';
+            });
+        } else {
+            // Fixed height - constrain row height but no row scrollbars
+            row.style.height = height;
+            row.style.minHeight = height;
+            row.style.maxHeight = height;
+            row.style.overflowY = 'hidden';  // No row scrollbars
+            row.style.overflowX = 'visible';  // No horizontal scrollbar on row
+            
+            // Apply scrollbars to individual column contents
+            row.querySelectorAll('.kanban-column .column-content').forEach(content => {
+                const column = content.closest('.kanban-column');
+                if (!column.classList.contains('collapsed')) {
+                    // Use CSS calc to determine available height (row height minus estimated header height)
+                    // This avoids relying on offsetHeight during rendering
+                    const availableHeight = `calc(${height} - 60px)`; // Estimated header height
+                    
+                    content.style.maxHeight = availableHeight;
+                    content.style.overflowY = 'auto';  // Individual column vertical scrollbar
+                    content.style.overflowX = 'hidden'; // No horizontal scrollbar on columns
+                }
+            });
+        }
+    });
+    
+    // For single-row layout, also apply height constraints directly to columns
+    if (!isMultiRow) {
+        const columns = document.querySelectorAll('.kanban-column');
+        columns.forEach(column => {
+            const content = column.querySelector('.column-content');
+            if (content && !column.classList.contains('collapsed')) {
+                if (height === 'auto') {
+                    content.style.maxHeight = '';
+                    content.style.overflowY = 'visible';
+                } else {
+                    const availableHeight = `calc(${height} - 60px)`;
+                    content.style.maxHeight = availableHeight;
+                    content.style.overflowY = 'auto';
+                    content.style.overflowX = 'hidden';
+                }
+            }
+        });
+    }
+}
+
+// Function to set row height
+function setRowHeight(height) {
+    console.log(`setRowHeight ${height}`);
+    
+    // Store current height setting
+    currentRowHeight = height;
+    window.currentRowHeight = height;
+    
+    // Apply the height to kanban rows
+    applyRowHeight(height);
+    
+    // Store preference
+    vscode.postMessage({ 
+        type: 'setPreference', 
+        key: 'rowHeight', 
+        value: height 
+    });
+    
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+    
+    // Show user-friendly message
+    let message = 'Row height set to ';
+    switch(height) {
+        case '100vh': message += '100% of screen'; break;
+        case '66vh': message += '66% of screen'; break;
+        case '50vh': message += '50% of screen'; break;
+        case '33vh': message += '33% of screen'; break;
+        case '44em': message += '700px (~44em)'; break;
+        case '31em': message += '500px (~31em)'; break;
+        case '19em': message += '300px (~19em)'; break;
+        case 'auto': message += 'auto height'; break;
+        default: message += height; break;
+    }
+    
+    vscode.postMessage({ type: 'showMessage', text: message });
+}
+
 // Function to detect row tags from board
 function detectRowsFromBoard(board) {
     if (!board || !board.columns) return 1;
@@ -114,7 +769,7 @@ function detectRowsFromBoard(board) {
         }
     });
     
-    return Math.min(maxRow, 4); // Cap at 4 rows
+    return Math.min(maxRow, 6); // Cap at 6 rows
 }
 
 // Function to get column row from title
@@ -127,7 +782,7 @@ function getColumnRow(title) {
         // Get the last match in case there are multiple (shouldn't happen, but just in case)
         const lastMatch = rowMatches[rowMatches.length - 1];
         const rowNum = parseInt(lastMatch.replace(/#row/i, ''));
-        return Math.min(Math.max(rowNum, 1), 4); // Ensure it's between 1 and 4
+        return Math.min(Math.max(rowNum, 1), 6); // Ensure it's between 1 and 6
     }
     return 1;
 }
@@ -331,10 +986,114 @@ function updateDocumentUri(newUri) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    themeObserver.observe(document.body, {
-        attributes: true,
-        attributeFilter: ['class']
+    // Theme observer is set up later in the file
+    
+    // Initialize clipboard card source
+    console.log('[CLIPBOARD DEBUG] Initializing clipboard functionality');
+    initializeClipboardCardSource();
+    
+    // Update clipboard content when window gets focus
+    console.log('[CLIPBOARD DEBUG] Setting up focus event listener');
+    window.addEventListener('focus', async () => {
+        console.log('[CLIPBOARD DEBUG] Window focus event fired');
+        await updateClipboardCardSource();
     });
+    
+    // Listen for Cmd/Ctrl+C to update clipboard
+    console.log('[CLIPBOARD DEBUG] Setting up keydown event listener');
+    document.addEventListener('keydown', async (e) => {
+        console.log('[CLIPBOARD DEBUG] Keydown detected:', e.key, 'metaKey:', e.metaKey, 'ctrlKey:', e.ctrlKey);
+        // Check for Cmd+C (Mac) or Ctrl+C (Windows/Linux)
+        if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+            console.log('[CLIPBOARD DEBUG] Cmd/Ctrl+C detected, waiting for clipboard to update');
+            // Wait a bit for the clipboard to be updated
+            setTimeout(async () => {
+                console.log('[CLIPBOARD DEBUG] Reading clipboard after copy');
+                try {
+                    const text = await navigator.clipboard.readText();
+                    console.log('[CLIPBOARD DEBUG] Direct clipboard read result:', text);
+                    if (text && text.trim()) {
+                        clipboardCardData = {
+                            title: text.trim().substring(0, 50),
+                            content: text.trim(),
+                            isLink: false
+                        };
+                        console.log('[CLIPBOARD DEBUG] Set clipboardCardData from Ctrl+C:', clipboardCardData);
+                        updateClipboardCardSource();
+                    }
+                } catch (error) {
+                    console.error('[CLIPBOARD DEBUG] Failed to read clipboard after Ctrl+C:', error);
+                    // Try fallback - set dummy content to test the UI
+                    clipboardCardData = {
+                        title: 'Test Content',
+                        content: 'This is test clipboard content from Ctrl+C',
+                        isLink: false
+                    };
+                    updateClipboardCardSource();
+                }
+            }, 200);
+        }
+    });
+    
+    // Initial clipboard check
+    setTimeout(async () => {
+        console.log('[CLIPBOARD DEBUG] Initial clipboard check');
+        await updateClipboardCardSource();
+    }, 1000); // Delay to ensure everything is initialized
+    
+    // Add a simple test to verify clipboard functionality is working
+    setTimeout(() => {
+        console.log('[CLIPBOARD DEBUG] Testing clipboard functionality...');
+        const clipboardSource = document.getElementById('clipboard-card-source');
+        if (clipboardSource) {
+            console.log('[CLIPBOARD DEBUG] Clipboard source found, testing update');
+            // Force update with test data
+            clipboardCardData = {
+                title: 'Test Update',
+                content: 'Testing clipboard update functionality',
+                isLink: false
+            };
+            // Update UI without trying to read clipboard again
+            const iconSpan = clipboardSource.querySelector('.clipboard-icon');
+            const textSpan = clipboardSource.querySelector('.clipboard-text');
+            
+            if (iconSpan && textSpan) {
+                const rawPreview = clipboardCardData.content.length > 15 
+                    ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
+                    : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
+                
+                // Escape preview content to prevent HTML rendering
+                const preview = escapeHtml(rawPreview);
+                
+                iconSpan.textContent = '📋';
+                textSpan.textContent = preview;
+                clipboardSource.style.opacity = '1';
+                clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
+                console.log('[CLIPBOARD DEBUG] Updated button text to:', preview);
+            }
+        } else {
+            console.error('[CLIPBOARD DEBUG] Clipboard source not found!');
+        }
+    }, 2000);
+    
+    // Add click handler to read clipboard (user interaction required for clipboard API)
+    const clipboardSource = document.getElementById('clipboard-card-source');
+    if (clipboardSource) {
+        clipboardSource.addEventListener('click', async () => {
+            console.log('[CLIPBOARD DEBUG] Click event - reading clipboard');
+            try {
+                const text = await navigator.clipboard.readText();
+                console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
+                if (text && text.trim()) {
+                    clipboardCardData = await processClipboardText(text.trim());
+                    console.log('[CLIPBOARD DEBUG] Updated clipboardCardData:', clipboardCardData);
+                    await updateClipboardCardSource();
+                }
+            } catch (error) {
+                console.error('[CLIPBOARD DEBUG] Failed to read clipboard on click:', error);
+            }
+        });
+    }
  
     // Global Alt+click handler for links/images (as fallback)
     document.addEventListener('click', (e) => {
@@ -710,60 +1469,14 @@ function updateFileInfoBar() {
     if (!currentFileInfo) return;
 
     const fileNameElement = document.getElementById('file-name');
-    const lockStatusIcon = document.getElementById('lock-status-icon');
-    const lockToggleBtnElement = document.getElementById('lock-toggle-btn');
-    const lockBtnTextElement = document.getElementById('lock-btn-text');
-    const lockMenuIcon = document.getElementById('lock-menu-icon');
 
     if (fileNameElement) {
         fileNameElement.textContent = currentFileInfo.fileName;
         fileNameElement.title = currentFileInfo.filePath || currentFileInfo.fileName;
     }
-
-    if (currentFileInfo.isLocked) {
-        // Update lock icon button
-        if (lockStatusIcon) {
-            lockStatusIcon.textContent = '🔒';
-            lockStatusIcon.title = 'File is locked - click to unlock';
-            lockStatusIcon.classList.add('locked');
-        }
-        
-        // Update menu item
-        if (lockBtnTextElement) {
-            lockBtnTextElement.textContent = 'Unlock File';
-        }
-        if (lockMenuIcon) {
-            lockMenuIcon.textContent = '🔒';
-        }
-        if (lockToggleBtnElement) {
-            lockToggleBtnElement.classList.add('locked');
-        }
-    } else {
-        // Update lock icon button
-        if (lockStatusIcon) {
-            lockStatusIcon.textContent = '🔓';
-            lockStatusIcon.title = 'File is unlocked - click to lock';
-            lockStatusIcon.classList.remove('locked');
-        }
-        
-        // Update menu item
-        if (lockBtnTextElement) {
-            lockBtnTextElement.textContent = 'Lock File';
-        }
-        if (lockMenuIcon) {
-            lockMenuIcon.textContent = '🔓';
-        }
-        if (lockToggleBtnElement) {
-            lockToggleBtnElement.classList.remove('locked');
-        }
-    }
     
     // Update undo/redo buttons when file info changes
     updateUndoRedoButtons();
-}
-
-function toggleFileLock() {
-    vscode.postMessage({ type: 'toggleFileLock' });
 }
 
 function selectFile() {
@@ -806,7 +1519,47 @@ window.restoreFoldingState = restoreFoldingState;
 window.toggleFileBarMenu = toggleFileBarMenu;
 window.setColumnWidth = setColumnWidth;
 window.setLayoutRows = setLayoutRows;
+window.setRowHeight = setRowHeight;
+window.applyRowHeight = applyRowHeight;
+window.currentRowHeight = currentRowHeight;
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
 
 window.performSort = performSort;
+
+// Font size toggle functionality
+let isSmallFont = false;
+
+function toggleCardFontSize() {
+    console.log('[FONT DEBUG] Toggling card font size. Current:', isSmallFont);
+    
+    isSmallFont = !isSmallFont;
+    
+    if (isSmallFont) {
+        document.body.classList.add('small-card-fonts');
+    } else {
+        document.body.classList.remove('small-card-fonts');
+    }
+    
+    // Update button appearance
+    const fontBtn = document.getElementById('font-size-btn');
+    const fontIcon = fontBtn?.querySelector('.font-size-icon');
+    const fontText = fontBtn?.querySelector('.font-size-text');
+    
+    if (fontIcon && fontText) {
+        if (isSmallFont) {
+            fontIcon.textContent = 'a';
+            fontText.textContent = 'Small';
+            fontBtn.title = 'Switch to normal font size';
+        } else {
+            fontIcon.textContent = 'A';
+            fontText.textContent = 'Size';
+            fontBtn.title = 'Switch to small font size';
+        }
+    }
+    
+    console.log('[FONT DEBUG] Font size toggled. New state:', isSmallFont);
+}
+
+// Make function globally available
+window.toggleCardFontSize = toggleCardFontSize;

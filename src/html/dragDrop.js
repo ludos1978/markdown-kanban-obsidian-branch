@@ -29,8 +29,17 @@ let dragState = {
     
     // Common
     isDragging: false,
-    lastValidDropTarget: null
+    lastValidDropTarget: null,
+    
+    // Clipboard card
+    draggedClipboardCard: null,
+    
+    // Empty card
+    draggedEmptyCard: null
 };
+
+// Expose dragState globally for clipboard card coordination
+window.dragState = dragState;
 
 // External file drop location indicators
 function createExternalDropIndicator() {
@@ -156,7 +165,20 @@ function setupGlobalDragAndDrop() {
         const hasFiles = Array.from(dt.types).some(t => t === 'Files' || t === 'files');
         if (hasFiles) return true;
         
-        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+        // Check for clipboard card type using drag state
+        // We can't reliably read data during dragover due to browser security
+        const hasClipboardCard = dragState.draggedClipboardCard !== null;
+        const hasEmptyCard = dragState.draggedEmptyCard !== null;
+        // Only log once per second to reduce spam
+        const now = Date.now();
+        if (!window.lastClipboardDebugLog || now - window.lastClipboardDebugLog > 1000) {
+            console.log('[DROP DEBUG] Has clipboard card:', hasClipboardCard, 'Has empty card:', hasEmptyCard, 'dragState:', dragState);
+            window.lastClipboardDebugLog = now;
+        }
+        if (hasClipboardCard || hasEmptyCard) return true;
+        
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask) && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
+            console.log('[DROP DEBUG] Internal drag detected, ignoring external');
             return false;
         }
         
@@ -211,7 +233,52 @@ function setupGlobalDragAndDrop() {
             return;
         }
         
-        if (dt.files && dt.files.length > 0) {
+        // Debug all available data transfer types
+        console.log('[DROP DEBUG] Available data transfer types:', Array.from(dt.types));
+        
+        // Check for clipboard card using dragState first (since dataTransfer might be empty)
+        console.log('[DROP DEBUG] Checking dragState.draggedClipboardCard:', dragState.draggedClipboardCard);
+        if (dragState.draggedClipboardCard) {
+            console.log('[DROP DEBUG] Handling clipboard card drop from dragState');
+            const clipboardData = JSON.stringify({
+                type: 'clipboard-card',
+                task: dragState.draggedClipboardCard
+            });
+            handleClipboardCardDrop(e, clipboardData);
+            // Clear the clipboard card from dragState after handling
+            dragState.draggedClipboardCard = null;
+            dragState.isDragging = false;
+            return; // Exit early since we handled it
+        }
+        
+        // Check for empty card using dragState
+        console.log('[DROP DEBUG] Checking dragState.draggedEmptyCard:', dragState.draggedEmptyCard);
+        if (dragState.draggedEmptyCard) {
+            console.log('[DROP DEBUG] Handling empty card drop from dragState');
+            const emptyCardData = JSON.stringify({
+                type: 'empty-card',
+                task: dragState.draggedEmptyCard
+            });
+            handleEmptyCardDrop(e, emptyCardData);
+            // Clear the empty card from dragState after handling
+            dragState.draggedEmptyCard = null;
+            dragState.isDragging = false;
+            return; // Exit early since we handled it
+        }
+        
+        // Fallback: Check for clipboard card in text/plain
+        const textData = dt.getData('text/plain');
+        console.log('[DROP DEBUG] text/plain data:', textData);
+        
+        if (textData && textData.startsWith('CLIPBOARD_CARD:')) {
+            console.log('[DROP DEBUG] Handling clipboard card drop from text data');
+            const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
+            handleClipboardCardDrop(e, clipboardData);
+        } else if (textData && textData.startsWith('EMPTY_CARD:')) {
+            console.log('[DROP DEBUG] Handling empty card drop from text data');
+            const emptyCardData = textData.substring('EMPTY_CARD:'.length);
+            handleEmptyCardDrop(e, emptyCardData);
+        } else if (dt.files && dt.files.length > 0) {
             console.log('[DROP DEBUG] Handling file drop:', dt.files[0].name);
             handleVSCodeFileDrop(e, dt.files);
         } else {
@@ -230,6 +297,11 @@ function setupGlobalDragAndDrop() {
     
     // Register handlers on the container (works for single row)
     boardContainer.addEventListener('dragover', function(e) {
+        // Skip external file drag handling if we're dragging internal elements
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            return; // Don't show external drop indicators during internal drags
+        }
+        
         if (!isExternalFileDrag(e)) return;
         
         e.preventDefault();
@@ -251,6 +323,11 @@ function setupGlobalDragAndDrop() {
     boardContainer.addEventListener('drop', handleExternalDrop, false);
     
     boardContainer.addEventListener('dragenter', function(e) {
+        // Skip external file drag handling if we're dragging internal elements
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            return; // Don't show external drop feedback during internal drags
+        }
+        
         if (isExternalFileDrag(e)) {
             e.preventDefault();
             showDropFeedback(e);
@@ -267,6 +344,11 @@ function setupGlobalDragAndDrop() {
     // CRITICAL: Also register on row elements for multi-row layout
     // Use event delegation to handle dynamically created rows
     boardContainer.addEventListener('dragover', function(e) {
+        // Skip external file drag handling if we're dragging internal elements
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            return; // Don't handle external drops during internal drags
+        }
+        
         // Check if we're over a row or row-drop-zone-spacer
         const row = e.target.closest('.kanban-row');
         const spacer = e.target.closest('.row-drop-zone-spacer');
@@ -277,6 +359,11 @@ function setupGlobalDragAndDrop() {
     }, true); // Use capture phase
     
     boardContainer.addEventListener('drop', function(e) {
+        // Skip external file drop handling if we're dragging internal elements
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+            return; // Don't handle external drops during internal drags
+        }
+        
         // Check if drop is on a row or spacer
         const row = e.target.closest('.kanban-row');
         const spacer = e.target.closest('.row-drop-zone-spacer');
@@ -304,6 +391,68 @@ function setupGlobalDragAndDrop() {
     console.log('[DROP DEBUG] All handlers registered (including multi-row support)');
 }
 
+
+function handleClipboardCardDrop(e, clipboardData) {
+    console.log(`[DROP DEBUG] handleClipboardCardDrop called with data:`, clipboardData);
+    
+    try {
+        const parsedData = JSON.parse(clipboardData);
+        console.log('[DROP DEBUG] Parsed clipboard card data:', parsedData);
+        
+        // Extract the task data
+        const taskData = parsedData.task || parsedData;
+        console.log('[DROP DEBUG] Task data:', taskData);
+        
+        const title = taskData.title || taskData.content || parsedData.content || 'New Card';
+        const description = taskData.description || taskData.content || '';
+        
+        console.log('[DROP DEBUG] Creating task with title:', title, 'description:', description);
+        
+        createNewTaskWithContent(
+            title,
+            { x: e.clientX, y: e.clientY },
+            description
+        );
+    } catch (error) {
+        console.error('[DROP DEBUG] Failed to parse clipboard card data:', error);
+        console.error('[DROP DEBUG] Raw data was:', clipboardData);
+        // Fallback: treat as plain text
+        console.log('[DROP DEBUG] Using fallback - creating with raw data as title');
+        createNewTaskWithContent(
+            'Clipboard Content',
+            { x: e.clientX, y: e.clientY },
+            clipboardData
+        );
+    }
+}
+
+function handleEmptyCardDrop(e, emptyCardData) {
+    console.log(`[DROP DEBUG] handleEmptyCardDrop called with data:`, emptyCardData);
+    
+    try {
+        const parsedData = JSON.parse(emptyCardData);
+        console.log('[DROP DEBUG] Parsed empty card data:', parsedData);
+        
+        // Create empty task
+        console.log('[DROP DEBUG] Creating empty task');
+        
+        createNewTaskWithContent(
+            '',
+            { x: e.clientX, y: e.clientY },
+            ''
+        );
+    } catch (error) {
+        console.error('[DROP DEBUG] Failed to parse empty card data:', error);
+        console.error('[DROP DEBUG] Raw data was:', emptyCardData);
+        // Fallback: create empty task anyway
+        console.log('[DROP DEBUG] Using fallback - creating empty task');
+        createNewTaskWithContent(
+            '',
+            { x: e.clientX, y: e.clientY },
+            ''
+        );
+    }
+}
 
 function handleVSCodeFileDrop(e, files) {
     console.log(`[DROP DEBUG] handleVSCodeFileDrop called with ${files.length} files`);
@@ -736,8 +885,13 @@ function setupTaskDragAndDrop() {
             const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY);
             
             if (afterElement == null) {
-                // Insert at the end
-                tasksContainer.appendChild(dragState.draggedTask);
+                // Insert at the end, but before the add button if it exists
+                const addButton = tasksContainer.querySelector('.add-task-btn');
+                if (addButton) {
+                    tasksContainer.insertBefore(dragState.draggedTask, addButton);
+                } else {
+                    tasksContainer.appendChild(dragState.draggedTask);
+                }
             } else if (afterElement !== dragState.draggedTask) {
                 // Insert before the after element
                 tasksContainer.insertBefore(dragState.draggedTask, afterElement);
@@ -880,6 +1034,16 @@ function getDragAfterTaskElement(container, y) {
     console.log(`getDragAfterTaskElement`);
 
     const draggableElements = [...container.querySelectorAll('.task-item')].filter(el => el !== dragState.draggedTask);
+    const addButton = container.querySelector('.add-task-btn');
+    
+    // If dragging over or near the add button area, treat it as dropping at the end
+    if (addButton) {
+        const addButtonBox = addButton.getBoundingClientRect();
+        if (y >= addButtonBox.top - 10) { // Add 10px buffer above the button
+            // Return null to indicate dropping at the end (but before the add button)
+            return null;
+        }
+    }
     
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();

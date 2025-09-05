@@ -16,6 +16,24 @@
             <div class="file-info-left">
                 <span class="file-icon">📄</span>
                 <span id="file-name" class="file-name">No file loaded</span>
+            </div>
+            <div class="file-info-center">
+                <div id="empty-card-source" class="empty-card-source" draggable="true" title="Drag to create empty card" ondragstart="handleEmptyCardDragStart(event)" ondragend="handleEmptyCardDragEnd(event)">
+                    <span class="empty-card-icon" draggable="false">📝</span>
+                    <span class="empty-card-text" draggable="false">New Card</span>
+                </div>
+                <div id="clipboard-card-source" class="clipboard-card-source" draggable="true" title="Drag to create card from clipboard content" onmousedown="handleClipboardMouseDown(event)" ondragstart="handleClipboardDragStart(event)" ondragend="handleClipboardDragEnd(event)" onmouseenter="showClipboardPreview()" onmouseleave="hideClipboardPreview()">
+                    <span class="clipboard-icon" draggable="false">📋</span>
+                    <span class="clipboard-text" draggable="false">Clip</span>
+                    <div id="clipboard-preview" class="clipboard-preview">
+                        <div class="clipboard-preview-content">
+                            <div class="clipboard-preview-header" id="clipboard-preview-header">Clipboard Content</div>
+                            <div id="clipboard-preview-body"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="file-info-right">
                 <button id="global-fold-btn" class="global-fold-btn fold-mixed" onclick="toggleAllColumns()" title="Fold/unfold all columns">
                     <span id="global-fold-icon" class="global-fold-icon">▽</span>
                     <span class="global-fold-text">Columns</span>
@@ -24,13 +42,18 @@
                     <span class="sort-icon">⇅</span>
                     <span class="sort-text">Sort</span>
                 </button>
-            </div>
-            <div class="file-info-right">
-                <button id="lock-status-icon" class="lock-status-icon" onclick="toggleFileLock()" title="Click to toggle file lock">🔓</button>
+                
+                <button id="font-size-btn" class="font-size-btn" onclick="toggleCardFontSize()" title="Toggle card font size">
+                    <span class="font-size-icon">A</span>
+                    <span class="font-size-text">Size</span>
+                </button>
                 
                 <!-- File Bar Burger Menu -->
                 <div class="file-bar-menu">
-                    <button class="file-bar-menu-btn" onclick="toggleFileBarMenu(event, this)">☰</button>
+                    <button class="file-bar-menu-btn" onclick="toggleFileBarMenu(event, this)">
+                        <span class="menu-icon">☰</span>
+                        <span class="menu-text">Menu</span>
+                    </button>
                     <div class="file-bar-menu-dropdown">
                         <button class="file-bar-menu-item" onclick="undo()" title="Undo (Ctrl+Z)">
                             <span class="menu-icon">↶</span> Undo
@@ -39,10 +62,6 @@
                             <span class="menu-icon">↷</span> Redo
                         </button>
                         <div class="file-bar-menu-divider"></div>
-                        <button id="lock-toggle-btn" class="file-bar-menu-item" onclick="toggleFileLock()" title="Toggle file lock">
-                            <span id="lock-menu-icon" class="menu-icon">🔓</span>
-                            <span id="lock-btn-text">Lock File</span>
-                        </button>
                         <button class="file-bar-menu-item" onclick="selectFile()" title="Select different file">
                             <span class="menu-icon">📁</span> Open File
                         </button>
@@ -62,6 +81,23 @@
                                 <button class="file-bar-menu-item" onclick="setLayoutRows(2)">2 Rows</button>
                                 <button class="file-bar-menu-item" onclick="setLayoutRows(3)">3 Rows</button>
                                 <button class="file-bar-menu-item" onclick="setLayoutRows(4)">4 Rows</button>
+                                <button class="file-bar-menu-item" onclick="setLayoutRows(5)">5 Rows</button>
+                                <button class="file-bar-menu-item" onclick="setLayoutRows(6)">6 Rows</button>
+                            </div>
+                        </div>
+                        <div class="file-bar-menu-item has-submenu">
+                            <span class="menu-icon">↕</span> Row Height
+                            <div class="file-bar-menu-submenu">
+                                <button class="file-bar-menu-item" onclick="setRowHeight('100vh')">100% Screen</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('66vh')">66% Screen</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('50vh')">50% Screen</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('33vh')">33% Screen</button>
+                                <div class="file-bar-menu-divider"></div>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('44em')">700px (~44em)</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('31em')">500px (~31em)</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('19em')">300px (~19em)</button>
+                                <div class="file-bar-menu-divider"></div>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('auto')">Auto Height</button>
                             </div>
                         </div>
                     </div>

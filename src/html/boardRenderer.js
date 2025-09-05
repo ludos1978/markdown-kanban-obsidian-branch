@@ -7,6 +7,7 @@ window.columnFoldStates = window.columnFoldStates || new Map(); // Track last ma
 window.globalColumnFoldState = window.globalColumnFoldState || 'fold-mixed'; // Track global column fold state
 
 let currentBoard = null;
+// Don't set window.currentBoard here as it will be set when board is loaded
 let renderTimeout = null;
 
 // Helper function to extract first style-tag from text
@@ -397,15 +398,11 @@ function generateTagMenuItems(id, type, columnId = null) {
             }
             
             if (groupTags.length > 0) {
-                // Capitalize first letter of group name for display
+                // Use dynamic submenu generation - just add placeholder with data attributes
                 const groupLabel = groupKey.charAt(0).toUpperCase() + groupKey.slice(1);
-                
                 menuHtml += `
-                    <div class="donut-menu-item has-submenu">
+                    <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="${groupKey}" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}">
                         ${groupLabel}
-                        <div class="donut-menu-submenu donut-menu-tags-grid">
-                            ${generateGroupTagItems(groupTags, id, type, columnId, true)}
-                        </div>
                     </div>
                 `;
             }
@@ -415,11 +412,8 @@ function generateTagMenuItems(id, type, columnId = null) {
     // Add user-added tags if any exist
     if (userAddedTags.length > 0) {
         menuHtml += `
-            <div class="donut-menu-item has-submenu">
+            <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="custom" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}">
                 Custom Tags
-                <div class="donut-menu-submenu donut-menu-tags-grid">
-                    ${generateGroupTagItems(userAddedTags, id, type, columnId, false)}
-                </div>
             </div>
         `;
     }
@@ -725,6 +719,14 @@ function renderBoard() {
     setTimeout(() => {
         applyFoldingStates();
         
+        // Calculate and apply row heights based on tallest columns
+        calculateAndApplyRowHeights();
+        
+        // Apply user-configured row height if set
+        if (window.currentRowHeight && window.currentRowHeight !== 'auto') {
+            window.applyRowHeight(window.currentRowHeight);
+        }
+        
         // Restore scroll positions
         scrollPositions.forEach((scrollTop, columnId) => {
             const container = document.getElementById(`tasks-${columnId}`);
@@ -791,9 +793,12 @@ function toggleAllTasksInColumn(columnId) {
         }
     }
     
-    // Apply the action to all tasks
+    // Apply the action to all tasks - scope to this column only
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (!columnElement) return;
+    
     column.tasks.forEach(task => {
-        const taskElement = document.querySelector(`[data-task-id="${task.id}"]`);
+        const taskElement = columnElement.querySelector(`[data-task-id="${task.id}"]`);
         const toggle = taskElement?.querySelector('.task-collapse-toggle');
         
         if (shouldCollapse) {
@@ -911,21 +916,19 @@ function createColumnElement(column, columnIndex) {
     const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
     columnDiv.innerHTML = `
-        ${headerBarsHtml || ''}
-        ${cornerBadgesHtml}
-        <div class="column-content">
+        <div class="column-inner">
             <div class="column-header">
+                ${headerBarsHtml || ''}
+                ${cornerBadgesHtml}
                 <div class="column-title-section">
                     <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
                     <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
-                    <div style="display: inline-block;">
+                    <div class="column-title-container">
                         <div class="column-title" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
                         <textarea class="column-title-edit" 
                                     data-column-id="${column.id}"
                                     style="display: none;">${escapeHtml(displayTitle)}</textarea>
                     </div>
-                </div>
-                <div class="column-controls">
                     <span class="task-count">${column.tasks.length}
                         <button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
                             <span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
@@ -943,12 +946,8 @@ function createColumnElement(column, columnIndex) {
                             <button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
                             <button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
                             <div class="donut-menu-divider"></div>
-                            <div class="donut-menu-item has-submenu">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="sort" data-column-id="${column.id}">
                                 Sort by
-                                <div class="donut-menu-submenu">
-                                    <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'unsorted')">Unsorted</button>
-                                    <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'title')">Sort by title</button>
-                                </div>
                             </div>
                             <div class="donut-menu-divider"></div>
                             ${generateTagMenuItems(column.id, 'column')}
@@ -958,14 +957,16 @@ function createColumnElement(column, columnIndex) {
                     </div>
                 </div>
             </div>
-            <div class="tasks-container" id="tasks-${column.id}">
-                ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
-                <button class="add-task-btn" onclick="addTask('${column.id}')">
-                    + Add Task
-                </button>
+            <div class="column-content">
+                <div class="tasks-container" id="tasks-${column.id}">
+                    ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
+                    ${column.tasks.length === 0 ? `<button class="add-task-btn" onclick="addTask('${column.id}')">
+                        + Add Task
+                    </button>` : ''}
+                </div>
             </div>
+            ${footerBarsHtml || ''}
         </div>
-        ${footerBarsHtml || ''}
     `;
 
     return columnDiv;
@@ -1049,23 +1050,11 @@ function createTaskElement(task, columnId, taskIndex) {
                             <div class="donut-menu-divider"></div>
                             <button class="donut-menu-item" onclick="copyTaskAsMarkdown('${task.id}', '${columnId}')">Copy as markdown</button>
                             <div class="donut-menu-divider"></div>
-                            <div class="donut-menu-item has-submenu">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="move" data-task-id="${task.id}" data-column-id="${columnId}">
                                 Move
-                                <div class="donut-menu-submenu">
-                                    <button class="donut-menu-item" onclick="moveTaskToTop('${task.id}', '${columnId}')">Top</button>
-                                    <button class="donut-menu-item" onclick="moveTaskUp('${task.id}', '${columnId}')">Up</button>
-                                    <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Down</button>
-                                    <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Bottom</button>
-                                </div>
                             </div>
-                            <div class="donut-menu-item has-submenu">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="move-to-list" data-task-id="${task.id}" data-column-id="${columnId}">
                                 Move to list
-                                <div class="donut-menu-submenu">
-                                    ${currentBoard && currentBoard.columns ? currentBoard.columns.map(col => 
-                                        col.id !== columnId ? 
-                                        `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title || 'Untitled')}</button>` : ''
-                                    ).join('') : ''}
-                                </div>
                             </div>
                             <div class="donut-menu-divider"></div>
                             ${generateTagMenuItems(task.id, 'task', columnId)}
@@ -1129,12 +1118,17 @@ function toggleColumnCollapse(columnId) {
     const isNowCollapsed = column.classList.contains('collapsed');
     if (isNowCollapsed) {
         window.collapsedColumns.add(columnId);
+        
+        // Reset height for collapsed column - let it use natural size
+        const columnInner = column.querySelector('.column-inner');
+        if (columnInner) {
+            columnInner.style.minHeight = '';
+            columnInner.style.overflowY = 'visible';
+        }
+        column.style.minHeight = '';
     } else {
         window.collapsedColumns.delete(columnId);
     }
-    
-    // Handle header/footer bars restructuring
-    handleColumnBarsOnToggle(column, isNowCollapsed);
     
     // Save state immediately
     if (window.saveCurrentFoldingState) {
@@ -1144,115 +1138,12 @@ function toggleColumnCollapse(columnId) {
     // Update global fold button after individual column toggle
     setTimeout(() => {
         updateGlobalColumnFoldButton();
+        // Recalculate row heights when columns are collapsed/expanded
+        calculateAndApplyRowHeights();
     }, 10);
 }
 
-function handleColumnBarsOnToggle(columnElement, isNowCollapsed) {
-    // Get all tags from the column
-    const allTagsAttr = columnElement.getAttribute('data-all-tags');
-    if (!allTagsAttr) return;
-    
-    const allTags = allTagsAttr.split(' ');
-    
-    // Find existing bars
-    const existingHeaderBars = columnElement.querySelectorAll('.header-bar');
-    const existingFooterBars = columnElement.querySelectorAll('.footer-bar');
-    const existingHeaderContainer = columnElement.querySelector('.header-bars-container');
-    const existingFooterContainer = columnElement.querySelector('.footer-bars-container');
-    
-    if (isNowCollapsed) {
-        // Converting to collapsed state
-        // Remove inline padding styles
-        columnElement.style.paddingTop = '';
-        columnElement.style.paddingBottom = '';
-        
-        // Create containers if they don't exist and we have bars
-        if (existingHeaderBars.length > 0 && !existingHeaderContainer) {
-            const headerContainer = document.createElement('div');
-            headerContainer.className = 'header-bars-container';
-            
-            existingHeaderBars.forEach(bar => {
-                // Reset positioning
-                bar.style.position = '';
-                bar.style.top = '';
-                bar.style.left = '';
-                bar.style.right = '';
-                headerContainer.appendChild(bar);
-            });
-            
-            // Insert at the beginning of the column
-            columnElement.insertBefore(headerContainer, columnElement.firstChild);
-        }
-        
-        if (existingFooterBars.length > 0 && !existingFooterContainer) {
-            const footerContainer = document.createElement('div');
-            footerContainer.className = 'footer-bars-container';
-            
-            existingFooterBars.forEach(bar => {
-                // Reset positioning
-                bar.style.position = '';
-                bar.style.bottom = '';
-                bar.style.left = '';
-                bar.style.right = '';
-                footerContainer.appendChild(bar);
-            });
-            
-            // Append at the end of the column
-            columnElement.appendChild(footerContainer);
-        }
-    } else {
-        // Converting to expanded state
-        let headerTotalHeight = 0;
-        let footerTotalHeight = 0;
-        
-        // Remove containers and position bars absolutely
-        if (existingHeaderContainer) {
-            const bars = Array.from(existingHeaderContainer.querySelectorAll('.header-bar'));
-            bars.forEach((bar, index) => {
-                const barTag = bar.className.match(/header-bar-(\S+)/)?.[1];
-                const config = getTagConfig(barTag);
-                const height = config?.headerBar?.label ? 10 : parseInt(config?.headerBar?.height || '4px');
-                
-                // Set absolute positioning
-                bar.style.position = 'absolute';
-                bar.style.top = `${headerTotalHeight}px`;
-                bar.style.left = '0';
-                bar.style.right = '0';
-                
-                columnElement.appendChild(bar);
-                headerTotalHeight += height;
-            });
-            existingHeaderContainer.remove();
-        }
-        
-        if (existingFooterContainer) {
-            const bars = Array.from(existingFooterContainer.querySelectorAll('.footer-bar'));
-            bars.forEach((bar, index) => {
-                const barTag = bar.className.match(/footer-bar-(\S+)/)?.[1];
-                const config = getTagConfig(barTag);
-                const height = config?.footerBar?.label ? 20 : parseInt(config?.footerBar?.height || '3px');
-                
-                // Set absolute positioning
-                bar.style.position = 'absolute';
-                bar.style.bottom = `${footerTotalHeight}px`;
-                bar.style.left = '0';
-                bar.style.right = '0';
-                
-                columnElement.appendChild(bar);
-                footerTotalHeight += height;
-            });
-            existingFooterContainer.remove();
-        }
-        
-        // Apply padding for expanded state
-        if (headerTotalHeight > 0) {
-            columnElement.style.paddingTop = `calc(var(--whitespace-div2) + ${headerTotalHeight}px)`;
-        }
-        if (footerTotalHeight > 0) {
-            columnElement.style.paddingBottom = `calc(var(--whitespace-div2) + ${footerTotalHeight}px)`;
-        }
-    }
-}
+// Removed handleColumnBarsOnToggle - no longer needed since we keep same HTML structure
 
 function toggleTaskCollapse(taskId) {
     const task = document.querySelector(`[data-task-id="${taskId}"]`);
@@ -1504,20 +1395,18 @@ function generateTagStyles() {
                 const bgDark = columnColors.backgroundDark || columnColors.background;
                 
                 const columnBg = interpolateColor(editorBg, bgDark, 0.15);
-                styles += `.kanban-column:not([data-column-tag]) {
-                    background-color: ${columnBg} !important;
-                    position: relative;
-                }\n`;
                 
                 // Default column header background
                 styles += `.kanban-column:not([data-column-tag]) .column-header {
                     background-color: ${columnBg} !important;
                 }\n`;
+                
+                // Default column content background
+                styles += `.kanban-column:not([data-column-tag]) .column-content {
+                    background-color: ${columnBg} !important;
+                }\n`;
 
                 const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
-                styles += `.kanban-column.collapsed:not([data-column-tag]) {
-                    background-color: ${columnCollapsedBg} !important;
-                }\n`;
                 
                 // Default collapsed column header background
                 styles += `.kanban-column.collapsed:not([data-column-tag]) .column-header {
@@ -1527,17 +1416,17 @@ function generateTagStyles() {
         }
 
         // Default column border (always allowed if provided)
-        if (defaultConfig.column && defaultConfig.column.border) {
-            const b = defaultConfig.column.border;
-            const bStyle = b.style || 'solid';
-            const bWidth = b.width || '1px';
-            const bColor = b.color || 'var(--vscode-panel-border)';
-            if (b.position === 'left') {
-                styles += `.kanban-column:not([data-column-tag]) { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
-            } else {
-                styles += `.kanban-column:not([data-column-tag]) { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
-            }
-        }
+        // if (defaultConfig.column && defaultConfig.column.border) {
+        //     const b = defaultConfig.column.border;
+        //     const bStyle = b.style || 'solid';
+        //     const bWidth = b.width || '1px';
+        //     const bColor = b.color || 'var(--vscode-panel-border)';
+        //     if (b.position === 'left') {
+        //         styles += `.kanban-column:not([data-column-tag]) { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+        //     } else {
+        //         styles += `.kanban-column:not([data-column-tag]) { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+        //     }
+        // }
 
         // Default card styles (gated)
         if (defaultConfig.card && (defaultConfig.card.applyBackground === true || defaultConfig.card.enable === true)) {
@@ -1600,21 +1489,19 @@ function generateTagStyles() {
                     // Column background styles - only for primary tag
                     // Interpolate 15% towards the darker color
                     const columnBg = interpolateColor(editorBg, bgDark, 0.15);
-                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                    
+                    // Column header background
+                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
                         background-color: ${columnBg} !important;
-                        // position: relative;
                     }\n`;
                     
-                    // Column header background - same as column background
-                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
+                    // Column content background  
+                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-content {
                         background-color: ${columnBg} !important;
                     }\n`;
                     
                     // Column collapsed state - interpolate 20% towards the darker color
                     const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
-                    styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] {
-                        background-color: ${columnCollapsedBg} !important;
-                    }\n`;
                     
                     // Collapsed column header background
                     styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] .column-header {
@@ -1643,7 +1530,10 @@ function generateTagStyles() {
                         
                         if (config.border.position === 'left') {
                             // Use data-column-tag and data-task-tag for borders (primary tag only)
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-content {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
@@ -1651,8 +1541,12 @@ function generateTagStyles() {
                             }\n`;
                         } else {
                             // Full border
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] {
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-content {
+                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-top: none !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
@@ -1999,5 +1893,119 @@ window.isDarkTheme = isDarkTheme;
 window.getAllTagsInUse = getAllTagsInUse;
 window.getUserAddedTags = getUserAddedTags;
 
-window.handleColumnBarsOnToggle = handleColumnBarsOnToggle;
+// window.handleColumnBarsOnToggle = handleColumnBarsOnToggle; // Removed - no longer needed
 window.handleLinkOrImageOpen = handleLinkOrImageOpen;
+
+// Function to calculate and apply row heights based on tallest column
+function calculateAndApplyRowHeights() {
+    const boardElement = document.getElementById('kanban-board');
+    if (!boardElement) return;
+    
+    const isMultiRow = boardElement.classList.contains('multi-row');
+    
+    if (isMultiRow) {
+        // Multi-row layout: calculate height for each row
+        const rows = boardElement.querySelectorAll('.kanban-row');
+        rows.forEach(row => {
+            calculateRowHeight(row);
+        });
+    } else {
+        // Single-row layout: let columns use their natural height
+        // Reset any previously applied heights
+        const columns = boardElement.querySelectorAll('.kanban-column:not(.collapsed)');
+        columns.forEach(column => {
+            column.style.minHeight = '';
+            const columnInner = column.querySelector('.column-inner');
+            if (columnInner) {
+                columnInner.style.minHeight = '';
+                columnInner.style.overflowY = 'visible';
+            }
+        });
+    }
+}
+
+function calculateRowHeight(containerElement) {
+    const expandedColumns = containerElement.querySelectorAll('.kanban-column:not(.collapsed)');
+    const collapsedColumns = containerElement.querySelectorAll('.kanban-column.collapsed');
+    
+    // Reset collapsed columns to natural height first
+    collapsedColumns.forEach(column => {
+        column.style.minHeight = '';
+        const columnInner = column.querySelector('.column-inner');
+        if (columnInner) {
+            columnInner.style.minHeight = '';
+            columnInner.style.overflowY = 'visible';
+        }
+    });
+    
+    if (expandedColumns.length === 0) return;
+    
+    // Let expanded columns determine their natural height first
+    expandedColumns.forEach(column => {
+        column.style.minHeight = '';
+        const columnInner = column.querySelector('.column-inner');
+        if (columnInner) {
+            columnInner.style.minHeight = '';
+            columnInner.style.overflowY = 'visible';
+        }
+    });
+    
+    // Force reflow to get natural heights
+    containerElement.offsetHeight;
+    
+    // Find the tallest column's natural content height by measuring the combined height
+    // of header + content, since they're now separate
+    let maxNaturalHeight = 0;
+    expandedColumns.forEach(column => {
+        const columnHeader = column.querySelector('.column-header');
+        const columnContent = column.querySelector('.column-content');
+        
+        if (columnHeader && columnContent) {
+            // Calculate total content height
+            const headerHeight = columnHeader.scrollHeight;
+            const contentHeight = columnContent.scrollHeight;
+            const totalHeight = headerHeight + contentHeight;
+            maxNaturalHeight = Math.max(maxNaturalHeight, totalHeight);
+        }
+    });
+    
+    // Check if there's a configured max-row-height limit
+    const maxRowHeightCSS = getComputedStyle(document.documentElement).getPropertyValue('--max-row-height');
+    let configuredMaxHeight = null;
+    if (maxRowHeightCSS && maxRowHeightCSS.trim() !== '') {
+        configuredMaxHeight = parseInt(maxRowHeightCSS);
+    }
+    
+    // Determine the final row height
+    let finalRowHeight;
+    let needsScrollbars = false;
+    
+    if (configuredMaxHeight && maxNaturalHeight > configuredMaxHeight) {
+        // Content exceeds configured limit - use limit and enable scrollbars
+        finalRowHeight = configuredMaxHeight;
+        needsScrollbars = true;
+    } else {
+        // Use natural height of tallest column
+        finalRowHeight = maxNaturalHeight;
+        needsScrollbars = false;
+    }
+    
+    // Apply the height to all expanded columns in this row
+    expandedColumns.forEach(column => {
+        const columnInner = column.querySelector('.column-inner');
+        if (columnInner) {
+            // Set the row height
+            columnInner.style.minHeight = finalRowHeight + 'px';
+            column.style.minHeight = finalRowHeight + 'px';
+            
+            // Enable scrollbars if content exceeds the configured limit
+            if (needsScrollbars) {
+                columnInner.style.overflowY = 'auto';
+                columnInner.style.maxHeight = finalRowHeight + 'px';
+            } else {
+                columnInner.style.overflowY = 'visible';
+                columnInner.style.maxHeight = '';
+            }
+        }
+    });
+}
