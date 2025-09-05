@@ -552,6 +552,10 @@ function moveColumnLeft(columnId) {
             newPosition: index - 1,
             newRow: currentRow
         });
+        
+        // Update button state to show unsaved changes
+        updateRefreshButtonState('unsaved', 1);
+        console.log('📦 Column moved left - showing unsaved state');
     }
 }
 
@@ -575,6 +579,10 @@ function moveColumnRight(columnId) {
             newPosition: index + 1,
             newRow: currentRow
         });
+        
+        // Update button state to show unsaved changes
+        updateRefreshButtonState('unsaved', 1);
+        console.log('📦 Column moved right - showing unsaved state');
     }
 }
 
@@ -651,6 +659,10 @@ function moveTaskToTop(taskId, columnId) {
         flushPendingTagChanges();
     }
     vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
+    
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+    console.log('📦 Task moved to top - showing unsaved state');
 }
 
 function moveTaskUp(taskId, columnId) {
@@ -660,6 +672,10 @@ function moveTaskUp(taskId, columnId) {
         flushPendingTagChanges();
     }
     vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
+    
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+    console.log('📦 Task moved up - showing unsaved state');
 }
 
 function moveTaskDown(taskId, columnId) {
@@ -669,6 +685,10 @@ function moveTaskDown(taskId, columnId) {
         flushPendingTagChanges();
     }
     vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
+    
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+    console.log('📦 Task moved down - showing unsaved state');
 }
 
 function moveTaskToBottom(taskId, columnId) {
@@ -678,6 +698,10 @@ function moveTaskToBottom(taskId, columnId) {
         flushPendingTagChanges();
     }
     vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
+    
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+    console.log('📦 Task moved to bottom - showing unsaved state');
 }
 
 function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
@@ -687,6 +711,10 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
         flushPendingTagChanges();
     }
     vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
+    
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+    console.log('📦 Task moved to column - showing unsaved state');
 }
 
 function deleteTask(taskId, columnId) {
@@ -972,6 +1000,15 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
         columnElement.removeAttribute('data-all-tags');
     }
     
+    // Update header bars immediately
+    console.log(`🎨 Updating header bars immediately for column ${columnId} with tags:`, allTags);
+    if (window.updateVisualTagState && typeof window.updateVisualTagState === 'function') {
+        const isCollapsed = columnElement.classList.contains('collapsed');
+        window.updateVisualTagState(columnElement, allTags, 'column', isCollapsed);
+    } else {
+        console.warn('updateVisualTagState function not available');
+    }
+    
     // Update tag chip button state using unique identifiers
     const button = document.querySelector(`.donut-menu-tag-chip[data-element-id="${columnId}"][data-tag-name="${tagName}"]`);
     if (button) {
@@ -1036,6 +1073,15 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
         taskElement.setAttribute('data-all-tags', allTags.join(' '));
     } else {
         taskElement.removeAttribute('data-all-tags');
+    }
+    
+    // Update header bars immediately
+    console.log(`🎨 Updating header bars immediately for task ${taskId} with tags:`, allTags);
+    if (window.updateVisualTagState && typeof window.updateVisualTagState === 'function') {
+        const isCollapsed = taskElement.classList.contains('collapsed');
+        window.updateVisualTagState(taskElement, allTags, 'task', isCollapsed);
+    } else {
+        console.warn('updateVisualTagState function not available');
     }
     
     // Update tag chip button state using unique identifiers
@@ -1375,6 +1421,20 @@ function updateRefreshButtonState(state, count = 0) {
                 refreshText.textContent = 'Refresh';
                 refreshBtn.title = 'Refresh from source markdown';
             }, 2000);
+            break;
+        case 'unsaved':
+            refreshBtn.classList.remove('saved');
+            refreshBtn.classList.add('pending');
+            refreshIcon.textContent = '!';
+            refreshText.textContent = 'Unsaved';
+            refreshBtn.title = 'Changes have been made - click to refresh and save all changes';
+            break;
+        case 'error':
+            refreshBtn.classList.remove('pending', 'saved');
+            refreshBtn.classList.add('error');
+            refreshIcon.textContent = '❌';
+            refreshText.textContent = 'Error';
+            refreshBtn.title = 'Save failed - click to try again';
             break;
         default:
             refreshBtn.classList.remove('pending', 'saved');

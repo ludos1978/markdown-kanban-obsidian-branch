@@ -1007,6 +1007,12 @@ function setupTaskDragHandle(handle) {
                         toColumnId: finalColumnId,
                         newIndex: dropIndex
                     });
+                    
+                    // Update button state to show unsaved changes
+                    if (typeof updateRefreshButtonState === 'function') {
+                        updateRefreshButtonState('unsaved', 1);
+                        console.log('📦 Task moved via drag - showing unsaved state');
+                    }
                 }
             }
             
@@ -1214,6 +1220,12 @@ function setupColumnDragAndDrop() {
                 movedColumnId: columnId,
                 targetRow: newRow
             });
+            
+            // Update button state to show unsaved changes
+            if (typeof updateRefreshButtonState === 'function') {
+                updateRefreshButtonState('unsaved', 1);
+                console.log('📦 Columns reordered via drag - showing unsaved state');
+            }
             
             // Reset drag state
             dragState.draggedColumn = null;

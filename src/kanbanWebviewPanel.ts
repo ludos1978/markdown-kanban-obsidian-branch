@@ -595,6 +595,11 @@ export class KanbanWebviewPanel {
         }
 
         console.log('💾 Starting save operation for:', path.basename(document.fileName));
+        console.log('📋 Board state:', { 
+            valid: this._board.valid, 
+            columnsCount: this._board.columns?.length, 
+            tasksCount: this._board.columns?.reduce((sum, col) => sum + col.tasks.length, 0) 
+        });
         this._isUpdatingFromPanel = true;
         
         try {
@@ -631,6 +636,8 @@ export class KanbanWebviewPanel {
             );
             
             const success = await vscode.workspace.applyEdit(edit);
+            console.log('📝 workspace.applyEdit result:', success);
+            
             if (!success) {
                 // VS Code's applyEdit can return false even when successful
                 // Check if the document actually contains our changes before failing
@@ -643,14 +650,28 @@ export class KanbanWebviewPanel {
                 const currentContent = document.getText();
                 const expectedContent = markdown;
                 
+                console.log('📊 Content comparison:');
+                console.log('  Expected length:', expectedContent.length);
+                console.log('  Actual length:', currentContent.length);
+                console.log('  Content matches:', currentContent === expectedContent);
+                
                 if (currentContent === expectedContent) {
                     console.log('✅ Changes were applied despite applyEdit returning false');
                 } else {
                     console.error('❌ Changes were not applied - this is a real failure');
-                    console.log('Expected length:', expectedContent.length);
-                    console.log('Actual length:', currentContent.length);
-                    console.log('First 100 chars expected:', expectedContent.substring(0, 100));
-                    console.log('First 100 chars actual:', currentContent.substring(0, 100));
+                    console.log('  First 200 chars expected:', JSON.stringify(expectedContent.substring(0, 200)));
+                    console.log('  First 200 chars actual:', JSON.stringify(currentContent.substring(0, 200)));
+                    
+                    // Find the first difference
+                    for (let i = 0; i < Math.max(expectedContent.length, currentContent.length); i++) {
+                        if (expectedContent[i] !== currentContent[i]) {
+                            console.log(`  First difference at position ${i}:`);
+                            console.log(`    Expected: "${expectedContent[i]}" (${expectedContent.charCodeAt(i)})`);
+                            console.log(`    Actual: "${currentContent[i]}" (${currentContent.charCodeAt(i) || 'undefined'})`);
+                            break;
+                        }
+                    }
+                    
                     throw new Error('Failed to apply workspace edit: Content mismatch detected');
                 }
             }

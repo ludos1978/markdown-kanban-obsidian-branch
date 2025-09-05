@@ -1447,6 +1447,16 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             redo();
         }
+        // Meta+S or Ctrl+S to apply pending data
+        else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            console.log('🎯 Meta+S shortcut pressed - applying pending data');
+            if (typeof flushPendingTagChanges === 'function') {
+                flushPendingTagChanges();
+            } else {
+                console.warn('flushPendingTagChanges function not available');
+            }
+        }
     }
 });
 
