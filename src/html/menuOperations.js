@@ -26,10 +26,10 @@ class SubmenuGenerator {
                 content = this.createTagGroupContent(group, id, type, columnId);
                 break;
             case 'move':
-                content = this.createMoveContent(menuItem.dataset.taskId || id, menuItem.dataset.columnId || columnId);
+                content = this.createMoveContent(id, columnId);
                 break;
             case 'move-to-list':
-                content = this.createMoveToListContent(menuItem.dataset.taskId || id, menuItem.dataset.columnId || columnId);
+                content = this.createMoveToListContent(id, columnId);
                 break;
             case 'sort':
                 content = this.createSortContent(menuItem.dataset.columnId || columnId);
@@ -173,80 +173,22 @@ function applySubmenuConstraints(submenu) {
     // CSS handles all styling, this is just for measurement preparation
 }
 
-// Submenu positioning for fixed positioned submenus
-function positionSubmenu(menuItem) {
-    const submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
+// Simple submenu positioning
+function positionSubmenu(menuItem, submenuElement = null) {
+    const submenu = submenuElement || menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
     if (!submenu) return;
     
+    // Get menu item position
     const rect = menuItem.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
     
-    // Apply layout constraints first, then measure
-    applySubmenuConstraints(submenu);
+    // Position submenu to the right of the menu item
+    const left = rect.right + 8;
+    const top = rect.top;
     
-    // Make submenu visible temporarily to measure its actual dimensions
-    submenu.style.visibility = 'hidden';
-    submenu.style.display = 'block';
-    submenu.style.position = 'fixed';
-    submenu.style.left = '0px';
-    submenu.style.top = '0px';
-    
-    // Force layout calculation
-    submenu.offsetHeight;
-    
-    // Get actual dimensions after constraints are applied
-    const submenuRect = submenu.getBoundingClientRect();
-    const submenuWidth = Math.min(submenuRect.width || 250, 250);
-    const submenuHeight = submenuRect.height || 150;
-    
-    let left, top;
-    const margin = 8;
-    
-    // Determine horizontal position
-    const spaceRight = viewportWidth - rect.right;
-    const spaceLeft = rect.left;
-    
-    if (spaceRight >= submenuWidth + margin) {
-        // Position to the right of menu item
-        left = rect.right + margin;
-    } else if (spaceLeft >= submenuWidth + margin) {
-        // Position to the left of menu item  
-        left = rect.left - submenuWidth - margin;
-    } else {
-        // Not enough space on either side, position where there's more space
-        if (spaceRight > spaceLeft) {
-            left = rect.right + margin;
-        } else {
-            left = rect.left - submenuWidth - margin;
-        }
-    }
-    
-    // Ensure it stays within viewport horizontally
-    if (left < margin) {
-        left = margin;
-    }
-    if (left + submenuWidth > viewportWidth - margin) {
-        left = viewportWidth - submenuWidth - margin;
-    }
-    
-    // Position vertically aligned with menu item
-    top = rect.top;
-    
-    // Adjust if submenu would go off-screen vertically
-    if (top + submenuHeight > viewportHeight - margin) {
-        top = viewportHeight - submenuHeight - margin;
-    }
-    if (top < margin) {
-        top = margin;
-    }
-    
-    // Apply positioning and make visible
+    // Apply simple positioning
     submenu.style.setProperty('left', left + 'px', 'important');
     submenu.style.setProperty('top', top + 'px', 'important');
-    submenu.style.setProperty('right', 'auto', 'important');
-    submenu.style.setProperty('bottom', 'auto', 'important');
-    submenu.style.setProperty('position', 'fixed', 'important');
+    submenu.style.setProperty('z-index', '10001', 'important');
     submenu.style.setProperty('visibility', 'visible', 'important');
 }
 
@@ -390,7 +332,7 @@ function toggleDonutMenu(event, button) {
                     }
                     
                     if (submenu) {
-                        positionSubmenu(menuItem);
+                        positionSubmenu(menuItem, submenu);
                         submenu.style.setProperty('display', 'block', 'important');
                         submenu.style.setProperty('visibility', 'visible', 'important');
                     }
@@ -424,9 +366,13 @@ function toggleDonutMenu(event, button) {
             };
             
             dropdown.onmouseleave = (e) => {
-                // Don't close if moving to a submenu
+                // Don't close if moving to a submenu or staying within dropdown
                 const toElement = e.relatedTarget;
-                if (toElement && toElement.closest('.donut-menu-dropdown') === dropdown) {
+                if (toElement && (
+                    toElement.closest('.donut-menu-dropdown') === dropdown ||
+                    toElement.closest('.donut-menu-submenu') ||
+                    toElement.closest('.file-bar-menu-submenu')
+                )) {
                     return;
                 }
                 
@@ -1292,6 +1238,7 @@ function performSort() {
 window.handleColumnTagClick = handleColumnTagClick;
 window.handleTaskTagClick = handleTaskTagClick;
 window.positionSubmenu = positionSubmenu;
+window.toggleDonutMenu = toggleDonutMenu;
 window.columnTagTimeout = null;
 window.taskTagTimeout = null;
 window.tagHandlers = window.tagHandlers || {};

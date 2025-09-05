@@ -1063,10 +1063,10 @@ body.vscode-high-contrast-light .task-count {
   background: none;
   width: 100%;
   text-align: left;
+  position: relative;
   transition: background-color 0.2s;
   white-space: nowrap;
   display: block;
-  position: relative;
   box-sizing: border-box;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -541,8 +541,11 @@ function toggleFileBarMenu(event, button) {
                 // Create and store the handlers
                 menuItem._submenuPositionHandler = () => {
                     // Position immediately when hover starts
-                    if (window.positionSubmenu) {
-                        window.positionSubmenu(menuItem);
+                    const submenu = menuItem.querySelector('.file-bar-menu-submenu');
+                    if (submenu && window.positionSubmenu) {
+                        window.positionSubmenu(menuItem, submenu);
+                        submenu.style.setProperty('display', 'block', 'important');
+                        submenu.style.setProperty('visibility', 'visible', 'important');
                     }
                 };
                 

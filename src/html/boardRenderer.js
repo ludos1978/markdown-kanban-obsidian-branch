@@ -946,7 +946,7 @@ function createColumnElement(column, columnIndex) {
                             <button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
                             <button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
                             <div class="donut-menu-divider"></div>
-                            <div class="donut-menu-item has-submenu" data-submenu-type="sort" data-column-id="${column.id}">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="sort" data-id="${column.id}" data-type="column" data-column-id="${column.id}">
                                 Sort by
                             </div>
                             <div class="donut-menu-divider"></div>
@@ -1050,10 +1050,10 @@ function createTaskElement(task, columnId, taskIndex) {
                             <div class="donut-menu-divider"></div>
                             <button class="donut-menu-item" onclick="copyTaskAsMarkdown('${task.id}', '${columnId}')">Copy as markdown</button>
                             <div class="donut-menu-divider"></div>
-                            <div class="donut-menu-item has-submenu" data-submenu-type="move" data-task-id="${task.id}" data-column-id="${columnId}">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="move" data-id="${task.id}" data-type="task" data-column-id="${columnId}">
                                 Move
                             </div>
-                            <div class="donut-menu-item has-submenu" data-submenu-type="move-to-list" data-task-id="${task.id}" data-column-id="${columnId}">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="move-to-list" data-id="${task.id}" data-type="task" data-column-id="${columnId}">
                                 Move to list
                             </div>
                             <div class="donut-menu-divider"></div>
