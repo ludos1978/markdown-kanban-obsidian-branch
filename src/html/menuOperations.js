@@ -1,6 +1,13 @@
 // Unified Menu System - Simple and DRY
 console.log('Unified menu system loading...');
 
+// Declare window properties for TypeScript
+if (typeof window !== 'undefined') {
+    window._lastFlushedChanges = null;
+    window.handleColumnTagClick = null;
+    window.handleTaskTagClick = null;
+}
+
 // Global state
 let activeTagMenu = null;
 let pendingTagChanges = {
@@ -204,7 +211,7 @@ class SimpleMenuManager {
         // Create content based on submenu type
         submenu.innerHTML = this.createSubmenuContent(menuItem, id, type, columnId);
         
-        // Style and position
+        // Style and position of tag submenus
         submenu.style.cssText = `
             position: fixed;
             z-index: 100000;
@@ -1092,30 +1099,146 @@ function updateTagChipStyle(button, tagName, isActive) {
 function flushPendingTagChanges() {
     console.log('🔄 Flushing pending tag changes...');
     
-    // Flush column changes
+    // Store changes temporarily in case we need to retry
+    const columnChangesToFlush = new Map();
+    const taskChangesToFlush = new Map();
+    
+    // Copy column changes
     if (window.pendingColumnChanges && window.pendingColumnChanges.size > 0) {
-        console.log(`📤 Sending ${window.pendingColumnChanges.size} column changes`);
-        window.pendingColumnChanges.forEach(({ title, columnId }) => {
-            console.log(`📤 Column ${columnId}: ${title}`);
-            vscode.postMessage({ type: 'editColumnTitle', columnId, title });
+        console.log(`📤 Preparing to send ${window.pendingColumnChanges.size} column changes`);
+        window.pendingColumnChanges.forEach((value, key) => {
+            columnChangesToFlush.set(key, value);
         });
-        window.pendingColumnChanges.clear();
     }
     
-    // Flush task changes  
+    // Copy task changes  
     if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
-        console.log(`📤 Sending ${window.pendingTaskChanges.size} task changes`);
-        window.pendingTaskChanges.forEach(({ taskId, columnId, taskData }) => {
-            console.log(`📤 Task ${taskId}: ${taskData.title}`);
-            vscode.postMessage({ type: 'editTask', taskId, columnId, taskData });
+        console.log(`📤 Preparing to send ${window.pendingTaskChanges.size} task changes`);
+        window.pendingTaskChanges.forEach((value, key) => {
+            taskChangesToFlush.set(key, value);
         });
-        window.pendingTaskChanges.clear();
     }
+    
+    // If no changes to flush, return early
+    if (columnChangesToFlush.size === 0 && taskChangesToFlush.size === 0) {
+        console.log('ℹ️ No pending changes to flush');
+        return;
+    }
+    
+    // Clear the pending changes optimistically
+    if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
+    if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
+    
+    // Send column changes
+    columnChangesToFlush.forEach(({ title, columnId }) => {
+        console.log(`📤 Column ${columnId}: ${title}`);
+        vscode.postMessage({ 
+            type: 'editColumnTitle', 
+            columnId, 
+            title,
+            _flushId: Date.now() // Add ID for tracking
+        });
+    });
+    
+    // Send task changes
+    taskChangesToFlush.forEach(({ taskId, columnId, taskData }) => {
+        console.log(`📤 Task ${taskId}: ${taskData.title}`);
+        vscode.postMessage({ 
+            type: 'editTask', 
+            taskId, 
+            columnId, 
+            taskData,
+            _flushId: Date.now() // Add ID for tracking
+        });
+    });
     
     // Update refresh button state
-    updateRefreshButtonState('saved');
+    updateRefreshButtonState('pending', 0); // Show as saved
     
-    console.log('✅ All pending tag changes flushed');
+    // Store the changes in case we need to retry
+    window._lastFlushedChanges = {
+        columns: columnChangesToFlush,
+        tasks: taskChangesToFlush,
+        timestamp: Date.now()
+    };
+    
+    console.log('✅ All pending tag changes sent to backend');
+}
+
+// Retry function for failed saves
+function retryLastFlushedChanges() {
+    if (!window._lastFlushedChanges) {
+        console.warn('⚠️ No changes to retry');
+        return false;
+    }
+    
+    const { columns, tasks, timestamp } = window._lastFlushedChanges;
+    const timeSinceFlush = Date.now() - timestamp;
+    
+    // Don't retry if too much time has passed (5 minutes)
+    if (timeSinceFlush > 300000) {
+        console.warn('⚠️ Last flush too old to retry safely');
+        window._lastFlushedChanges = null;
+        return false;
+    }
+    
+    console.log('🔄 Retrying last flushed changes...');
+    
+    // Re-add changes to pending and flush again
+    if (columns.size > 0) {
+        if (!window.pendingColumnChanges) {
+            window.pendingColumnChanges = new Map();
+        }
+        columns.forEach((value, key) => {
+            window.pendingColumnChanges.set(key, value);
+        });
+    }
+    
+    if (tasks.size > 0) {
+        if (!window.pendingTaskChanges) {
+            window.pendingTaskChanges = new Map();
+        }
+        tasks.forEach((value, key) => {
+            window.pendingTaskChanges.set(key, value);
+        });
+    }
+    
+    // Clear the retry data and flush again
+    window._lastFlushedChanges = null;
+    
+    // Add a small delay before retrying
+    setTimeout(() => {
+        flushPendingTagChanges();
+    }, 1000);
+    
+    return true;
+}
+
+// Function to handle save errors from the backend
+function handleSaveError(errorMessage) {
+    console.error('❌ Save error from backend:', errorMessage);
+    
+    // Update UI to show error state
+    updateRefreshButtonState('error');
+    
+    // Show user-friendly error message
+    if (errorMessage.includes('workspace edit')) {
+        console.warn('💾 Workspace edit failed - this might be due to:');
+        console.warn('  • File permissions');
+        console.warn('  • File is open in another editor');
+        console.warn('  • File was modified externally');
+        console.warn('  • VS Code is busy with other operations');
+        
+        // Attempt to retry after a delay
+        setTimeout(() => {
+            console.log('🔄 Attempting automatic retry...');
+            if (retryLastFlushedChanges()) {
+                console.log('✅ Retry initiated');
+            } else {
+                console.warn('❌ Retry failed - manual refresh may be needed');
+            }
+        }, 2000);
+    }
 }
 
 // Modal functions

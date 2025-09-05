@@ -8,7 +8,8 @@
       "Bash(npm install:*)",
       "Bash(npm run watch:*)",
       "Bash(pkill:*)",
-      "Bash(code:*)"
+      "Bash(code:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
