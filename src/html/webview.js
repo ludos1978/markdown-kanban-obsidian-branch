@@ -1209,12 +1209,15 @@ window.addEventListener('message', event => {
                 updateMaxRowHeight(message.maxRowHeight);
             }
 
+            // Check if we should skip rendering (for direct DOM updates like tag changes)
+            const shouldSkipRender = message.skipRender || message.board?.skipRender;
+
             // Store tag colors globally - THIS IS CRITICAL
             if (message.tagColors) {
                 window.tagColors = message.tagColors;
                 console.log('Received tag colors:', window.tagColors);
-                // Apply styles immediately when we receive new colors
-                if (typeof applyTagStyles === 'function') {
+                // Only apply styles if not skipping render (prevents style spam during tag operations)
+                if (!shouldSkipRender && typeof applyTagStyles === 'function') {
                     applyTagStyles();
                 }
             }
@@ -1227,9 +1230,6 @@ window.addEventListener('message', event => {
             
             // Save folding state before re-render
             saveCurrentFoldingState();
-            
-            // Check if we should skip rendering (for direct DOM updates like tag changes)
-            const shouldSkipRender = message.skipRender || message.board?.skipRender;
             const isEditing = window.taskEditor && window.taskEditor.currentEditor;
             
             console.log('🔄 Board update received:', {

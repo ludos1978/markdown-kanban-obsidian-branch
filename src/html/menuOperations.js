@@ -783,10 +783,11 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
         updateTagChipStyle(button, tagName, isActive);
     }
     
-    // Force style reapplication
-    if (typeof applyTagStyles === 'function') {
-        applyTagStyles();
-    }
+    // Skip style regeneration - styles should already be applied
+    // Only reapply styles if doing a full refresh
+    // if (typeof applyTagStyles === 'function') {
+    //     applyTagStyles();
+    // }
     
     // Visual confirmation that tag was applied
     if (isActive) {
@@ -849,10 +850,11 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
         updateTagChipStyle(button, tagName, isActive);
     }
     
-    // Force style reapplication
-    if (typeof applyTagStyles === 'function') {
-        applyTagStyles();
-    }
+    // Skip style regeneration - styles should already be applied
+    // Only reapply styles if doing a full refresh
+    // if (typeof applyTagStyles === 'function') {
+    //     applyTagStyles();
+    // }
     
     // Visual confirmation that tag was applied
     if (isActive) {
