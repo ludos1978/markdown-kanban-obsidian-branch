@@ -19,6 +19,17 @@ class SimpleMenuManager {
     handleButtonClick(button, shouldCloseMenu = true) {
         console.log('Button clicked:', button.textContent.trim());
         
+        // Check if this is a tag chip button - these have their own click handlers
+        // and should not be double-handled
+        if (button.classList.contains('donut-menu-tag-chip')) {
+            console.log('🏷️ Tag chip button - letting default handler manage it');
+            // Still close the menu, but don't re-execute the onclick
+            if (shouldCloseMenu) {
+                setTimeout(() => this.hideSubmenu(), 100);
+            }
+            return;
+        }
+        
         // Get onclick attribute and parse it safely
         const onclick = button.getAttribute('onclick');
         if (onclick) {
@@ -48,13 +59,23 @@ class SimpleMenuManager {
             functionString = functionString.replace(/console\.log\([^)]*\);?\s*/g, '');
         }
         
-        // Handle window.tagHandlers pattern
+        // Handle window.tagHandlers pattern - but check if already handled
         const tagHandlerMatch = functionString.match(/window\.tagHandlers\['([^']+)'\]\(([^)]*)\)/);
         if (tagHandlerMatch) {
             const handlerKey = tagHandlerMatch[1];
             const params = tagHandlerMatch[2];
             
+            // Check if this is a tag handler that we've already executed
             if (window.tagHandlers && window.tagHandlers[handlerKey]) {
+                // Skip if this was already handled by the direct tag system
+                const now = Date.now();
+                const lastExecuted = element._lastTagExecution || 0;
+                if (now - lastExecuted < 100) {
+                    console.log('⏭️ Skipping duplicate tag handler execution');
+                    return true;
+                }
+                element._lastTagExecution = now;
+                
                 // Create event object if needed
                 const event = params.includes('event') ? new Event('click') : undefined;
                 window.tagHandlers[handlerKey](event);
@@ -617,6 +638,19 @@ function addColumn(rowNumber) {
 function toggleColumnTag(columnId, tagName, event) {
     console.log(`🏷️ Toggle column tag: ${columnId} -> ${tagName}`);
     
+    // Enhanced duplicate prevention with stronger key and longer timeout
+    const key = `column-${columnId}-${tagName}`;
+    const now = Date.now();
+    if (!window._lastTagExecution) {
+        window._lastTagExecution = {};
+    }
+    
+    if (window._lastTagExecution[key] && now - window._lastTagExecution[key] < 500) {
+        console.log(`⏭️ Skipping duplicate column tag execution (${now - window._lastTagExecution[key]}ms ago)`);
+        return;
+    }
+    window._lastTagExecution[key] = now;
+    
     if (event) {
         event.stopPropagation();
         event.preventDefault();
@@ -649,33 +683,57 @@ function toggleColumnTag(columnId, tagName, event) {
     }
     
     // Update data model but don't trigger re-render
+    const oldTitle = column.title;
     column.title = title;
+    
+    console.log(`🔄 Column data updated:`, {
+        columnId,
+        oldTitle,
+        newTitle: title,
+        wasActive,
+        tagName,
+        board: window.currentBoard ? 'available' : 'missing'
+    });
     
     // Update DOM immediately using unique ID
     updateColumnDisplayImmediate(columnId, title, !wasActive, tagName);
     
-    // Batch save to backend with longer delay to prevent auto-regeneration
-    clearTimeout(window.columnTagUpdateTimeout);
+    // Store pending changes locally instead of sending to backend immediately
+    if (!window.pendingColumnChanges) {
+        window.pendingColumnChanges = new Map();
+    }
     
-    // Show pending changes indicator
-    updateRefreshButtonState('pending');
+    // Store the change locally
+    window.pendingColumnChanges.set(columnId, { title, columnId });
     
-    window.columnTagUpdateTimeout = setTimeout(() => {
-        // Send update with flag to prevent board refresh
-        vscode.postMessage({ 
-            type: 'editColumnTitle', 
-            columnId, 
-            title, 
-            skipRender: true 
-        });
-        
-        // Update button state to saved after a brief delay
-        setTimeout(() => updateRefreshButtonState('saved'), 100);
-    }, 2000); // Increased delay to 2 seconds
+    // Show pending changes indicator with count
+    const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
+    updateRefreshButtonState('pending', totalPending);
+    
+    console.log(`📝 Stored pending column change: ${columnId} -> ${title}`);
+    console.log(`📊 Total pending changes: ${totalPending} (columns: ${window.pendingColumnChanges?.size || 0}, tasks: ${window.pendingTaskChanges?.size || 0})`);
+    
+    // Clear any existing timeout
+    if (window.columnTagUpdateTimeout) {
+        clearTimeout(window.columnTagUpdateTimeout);
+    }
 }
 
 function toggleTaskTag(taskId, columnId, tagName, event) {
     console.log(`🏷️ Toggle task tag: ${taskId} -> ${tagName}`);
+    
+    // Enhanced duplicate prevention with stronger key and longer timeout
+    const key = `task-${taskId}-${tagName}`;
+    const now = Date.now();
+    if (!window._lastTagExecution) {
+        window._lastTagExecution = {};
+    }
+    
+    if (window._lastTagExecution[key] && now - window._lastTagExecution[key] < 500) {
+        console.log(`⏭️ Skipping duplicate task tag execution (${now - window._lastTagExecution[key]}ms ago)`);
+        return;
+    }
+    window._lastTagExecution[key] = now;
     
     if (event) {
         event.stopPropagation();
@@ -704,30 +762,41 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     }
     
     // Update data model but don't trigger re-render
+    const oldTitle = task.title;
     task.title = title;
+    
+    console.log(`🔄 Task data updated:`, {
+        taskId,
+        columnId,
+        oldTitle,
+        newTitle: title,
+        wasActive,
+        tagName,
+        board: window.currentBoard ? 'available' : 'missing'
+    });
     
     // Update DOM immediately using unique ID
     updateTaskDisplayImmediate(taskId, title, !wasActive, tagName);
     
-    // Batch save to backend with longer delay to prevent auto-regeneration
-    clearTimeout(window.taskTagUpdateTimeout);
+    // Store pending changes locally instead of sending to backend immediately
+    if (!window.pendingTaskChanges) {
+        window.pendingTaskChanges = new Map();
+    }
     
-    // Show pending changes indicator
-    updateRefreshButtonState('pending');
+    // Store the change locally
+    window.pendingTaskChanges.set(taskId, { taskId, columnId, taskData: task });
     
-    window.taskTagUpdateTimeout = setTimeout(() => {
-        // Send update with flag to prevent board refresh
-        vscode.postMessage({ 
-            type: 'editTask', 
-            taskId, 
-            columnId, 
-            taskData: task,
-            skipRender: true 
-        });
-        
-        // Update button state to saved after a brief delay
-        setTimeout(() => updateRefreshButtonState('saved'), 100);
-    }, 2000); // Increased delay to 2 seconds
+    // Show pending changes indicator with count
+    const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
+    updateRefreshButtonState('pending', totalPending);
+    
+    console.log(`📝 Stored pending task change: ${taskId} -> ${title}`);
+    console.log(`📊 Total pending changes: ${totalPending} (columns: ${window.pendingColumnChanges?.size || 0}, tasks: ${window.pendingTaskChanges?.size || 0})`);
+    
+    // Clear any existing timeout
+    if (window.taskTagUpdateTimeout) {
+        clearTimeout(window.taskTagUpdateTimeout);
+    }
 }
 
 // Enhanced DOM update functions using unique IDs
@@ -783,11 +852,10 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
         updateTagChipStyle(button, tagName, isActive);
     }
     
-    // Skip style regeneration - styles should already be applied
-    // Only reapply styles if doing a full refresh
-    // if (typeof applyTagStyles === 'function') {
-    //     applyTagStyles();
-    // }
+    // Ensure the style for this specific tag exists without regenerating all styles
+    if (isActive && window.ensureTagStyleExists) {
+        window.ensureTagStyleExists(tagName);
+    }
     
     // Visual confirmation that tag was applied
     if (isActive) {
@@ -850,11 +918,10 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
         updateTagChipStyle(button, tagName, isActive);
     }
     
-    // Skip style regeneration - styles should already be applied
-    // Only reapply styles if doing a full refresh
-    // if (typeof applyTagStyles === 'function') {
-    //     applyTagStyles();
-    // }
+    // Ensure the style for this specific tag exists without regenerating all styles
+    if (isActive && window.ensureTagStyleExists) {
+        window.ensureTagStyleExists(tagName);
+    }
     
     // Visual confirmation that tag was applied
     if (isActive) {
@@ -932,7 +999,9 @@ function showInputModal(title, message, placeholder, onConfirm) {
 
     document.getElementById('input-ok-btn').onclick = confirmAction;
     inputField.onkeydown = e => {
-        if (e.key === 'Enter') confirmAction();
+        if (e.key === 'Enter') {
+            confirmAction();
+        }
     };
 }
 
@@ -951,10 +1020,47 @@ function performSort() {
 
 // Manual refresh function
 function manualRefresh() {
-    console.log('Manual refresh requested');
+    console.log('🔄 Manual refresh requested');
+    console.log('📊 Pending changes before refresh:', {
+        columnChanges: window.pendingColumnChanges?.size || 0,
+        taskChanges: window.pendingTaskChanges?.size || 0
+    });
     
     // First flush any pending tag changes immediately
     flushPendingTagChanges();
+    
+    // Send all pending column changes
+    if (window.pendingColumnChanges && window.pendingColumnChanges.size > 0) {
+        console.log(`📤 Sending ${window.pendingColumnChanges.size} pending column changes`);
+        window.pendingColumnChanges.forEach((change) => {
+            console.log(`  📝 Column: ${change.columnId} -> "${change.title}"`);
+            vscode.postMessage({
+                type: 'editColumnTitle',
+                columnId: change.columnId,
+                title: change.title
+            });
+        });
+        window.pendingColumnChanges.clear();
+    } else {
+        console.log('📤 No pending column changes to send');
+    }
+    
+    // Send all pending task changes
+    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
+        console.log(`📤 Sending ${window.pendingTaskChanges.size} pending task changes`);
+        window.pendingTaskChanges.forEach((change) => {
+            console.log(`  📝 Task: ${change.taskId} -> "${change.taskData.title}"`);
+            vscode.postMessage({
+                type: 'editTask',
+                taskId: change.taskId,
+                columnId: change.columnId,
+                taskData: change.taskData
+            });
+        });
+        window.pendingTaskChanges.clear();
+    } else {
+        console.log('📤 No pending task changes to send');
+    }
     
     // Clear any pending timeouts
     if (window.columnTagUpdateTimeout) {
@@ -966,26 +1072,33 @@ function manualRefresh() {
         window.taskTagUpdateTimeout = null;
     }
     
-    // Force refresh from source
-    vscode.postMessage({ type: 'requestBoardUpdate', force: true });
-    vscode.postMessage({ type: 'showMessage', text: 'Refreshing from source...' });
+    // Update button state to saved
+    updateRefreshButtonState('saved');
+    
+    // Small delay to let changes process, then force refresh from source
+    setTimeout(() => {
+        vscode.postMessage({ type: 'requestBoardUpdate', force: true });
+        vscode.postMessage({ type: 'showMessage', text: 'Refreshing from source...' });
+    }, 100);
 }
 
 // Function to update refresh button state
-function updateRefreshButtonState(state) {
+function updateRefreshButtonState(state, count = 0) {
     const refreshBtn = document.getElementById('refresh-btn');
     const refreshIcon = refreshBtn?.querySelector('.refresh-icon');
     const refreshText = refreshBtn?.querySelector('.refresh-text');
     
-    if (!refreshBtn || !refreshIcon || !refreshText) return;
+    if (!refreshBtn || !refreshIcon || !refreshText) {
+        return;
+    }
     
     switch (state) {
         case 'pending':
             refreshBtn.classList.add('pending');
             refreshBtn.classList.remove('saved');
-            refreshIcon.textContent = '●';
-            refreshText.textContent = 'Pending';
-            refreshBtn.title = 'Changes pending - click to refresh from source';
+            refreshIcon.textContent = count > 0 ? count.toString() : '●';
+            refreshText.textContent = count > 0 ? `Pending (${count})` : 'Pending';
+            refreshBtn.title = `${count} changes pending - click to save and refresh from source`;
             break;
         case 'saved':
             refreshBtn.classList.remove('pending');

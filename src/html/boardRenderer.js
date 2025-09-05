@@ -97,6 +97,90 @@ function applyTagStyles() {
     }
 }
 
+// Function to ensure a specific tag style exists without regenerating all styles
+function ensureTagStyleExists(tagName) {
+    if (!window.tagColors || !window.tagColors[tagName]) {
+        console.log(`No color config for tag: ${tagName}`);
+        return;
+    }
+    
+    const isDarkTheme = document.body.classList.contains('vscode-dark') || 
+                        document.body.classList.contains('vscode-high-contrast');
+    const themeKey = isDarkTheme ? 'dark' : 'light';
+    
+    // Check if style already exists
+    let styleElement = document.getElementById('dynamic-tag-styles');
+    if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = 'dynamic-tag-styles';
+        document.head.appendChild(styleElement);
+    }
+    
+    // Check if this tag's styles already exist
+    const existingStyles = styleElement.textContent || '';
+    if (existingStyles.includes(`[data-column-tag="${tagName}"]`) || 
+        existingStyles.includes(`[data-task-tag="${tagName}"]`)) {
+        console.log(`Styles already exist for tag: ${tagName}`);
+        return;
+    }
+    
+    // Generate styles for this specific tag
+    const tagConfig = window.tagColors[tagName];
+    const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+    let newStyles = '';
+    
+    // Generate column styles for this tag
+    if (tagConfig.column) {
+        const columnColors = tagConfig.column[themeKey] || tagConfig.column.light || {};
+        if (columnColors.background) {
+            const bgDark = columnColors.backgroundDark || columnColors.background;
+            const columnBg = interpolateColor(editorBg, bgDark, 0.15);
+            const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
+            
+            newStyles += `.kanban-column[data-column-tag="${tagName}"] .column-header,
+.kanban-column[data-all-tags~="${tagName}"] .column-header {
+    background-color: ${columnBg} !important;
+}
+.kanban-column[data-column-tag="${tagName}"] .column-content,
+.kanban-column[data-all-tags~="${tagName}"] .column-content {
+    background-color: ${columnBg} !important;
+}
+.kanban-column.collapsed[data-column-tag="${tagName}"] .column-header,
+.kanban-column.collapsed[data-all-tags~="${tagName}"] .column-header {
+    background-color: ${columnCollapsedBg} !important;
+}\n`;
+        }
+    }
+    
+    // Generate card styles for this tag
+    if (tagConfig.card) {
+        const cardColors = tagConfig.card[themeKey] || tagConfig.card.light || {};
+        if (cardColors.background) {
+            const bgDark = cardColors.backgroundDark || cardColors.background;
+            const cardBg = interpolateColor(editorBg, bgDark, 0.25);
+            const cardHoverBg = interpolateColor(editorBg, bgDark, 0.35);
+            
+            newStyles += `.task-item[data-task-tag="${tagName}"],
+.task-item[data-all-tags~="${tagName}"] {
+    background-color: ${cardBg} !important;
+}
+.task-item[data-task-tag="${tagName}"]:hover,
+.task-item[data-all-tags~="${tagName}"]:hover {
+    background-color: ${cardHoverBg} !important;
+}\n`;
+        }
+    }
+    
+    // Append new styles
+    if (newStyles) {
+        styleElement.textContent += newStyles;
+        console.log(`Added styles for tag: ${tagName}`);
+    }
+}
+
+// Make it globally available
+window.ensureTagStyleExists = ensureTagStyleExists;
+
 
 
 // Debounced render function to prevent rapid re-renders
@@ -546,6 +630,8 @@ function generateFlatTagItems(tags, id, type, columnId = null) {
         return `
             <button class="donut-menu-tag-chip ${isActive ? 'active' : ''}" 
                     onclick="${onclick}"
+                    data-element-id="${id}"
+                    data-tag-name="${tagName}"
                     title="${tagName}">
                 <span class="tag-chip-check">${checkbox}</span>
                 <span class="tag-chip-name">${tagName}</span>
