@@ -248,12 +248,19 @@ class TaskEditor {
                         }
                     }
                     
-                    // Send the clean value to backend (backend will add row tag)
-                    vscode.postMessage({
-                        type: 'editColumnTitle',
-                        columnId: columnId,
-                        title: cleanValue
-                    });
+                    // Store pending change locally instead of sending immediately
+                    if (!window.pendingColumnChanges) {
+                        window.pendingColumnChanges = new Map();
+                    }
+                    window.pendingColumnChanges.set(columnId, { columnId, title: cleanValue });
+                    
+                    // Update refresh button state
+                    const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
+                    if (window.updateRefreshButtonState) {
+                        window.updateRefreshButtonState('pending', totalPending);
+                    }
+                    
+                    console.log(`📝 Column title edit pending: ${columnId} -> "${cleanValue}"`);
                 }
             } else if (type === 'task-title' || type === 'task-description') {
                 const column = currentBoard.columns.find(c => c.id === columnId);
@@ -275,13 +282,19 @@ class TaskEditor {
                         }
                     }
                     
-                    // Send to extension
-                    vscode.postMessage({
-                        type: 'editTask',
-                        taskId: taskId,
-                        columnId: columnId,
-                        taskData: task
-                    });
+                    // Store pending change locally instead of sending immediately
+                    if (!window.pendingTaskChanges) {
+                        window.pendingTaskChanges = new Map();
+                    }
+                    window.pendingTaskChanges.set(taskId, { taskId, columnId, taskData: task });
+                    
+                    // Update refresh button state
+                    const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
+                    if (window.updateRefreshButtonState) {
+                        window.updateRefreshButtonState('pending', totalPending);
+                    }
+                    
+                    console.log(`📝 Task edit pending: ${taskId} -> "${value}"`);
                 }
             }
         }
