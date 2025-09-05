@@ -1258,14 +1258,19 @@ button.file-bar-menu-item {
   margin: 0;
   box-sizing: border-box;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: pointer !important;
   font-size: 13px;
   color: var(--vscode-dropdown-foreground);
   transition: background-color 0.2s ease;
-  pointer-events: all;
+  pointer-events: all !important;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  position: relative;
+  z-index: 100002;
+  /* Ensure buttons are always interactive */
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .donut-menu-submenu button.donut-menu-item:hover,
