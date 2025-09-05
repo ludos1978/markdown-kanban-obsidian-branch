@@ -527,6 +527,14 @@ function insertColumnAfter(columnId) {
 
 function moveColumnLeft(columnId) {
     if (!currentBoard?.columns) return;
+    
+    // Flush pending tag changes before moving
+    if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
+        (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)) {
+        console.log('🔄 Flushing pending tag changes before moveColumnLeft');
+        flushPendingTagChanges();
+    }
+    
     const index = currentBoard.columns.findIndex(c => c.id === columnId);
     if (index > 0) {
         const column = currentBoard.columns[index];
@@ -542,6 +550,14 @@ function moveColumnLeft(columnId) {
 
 function moveColumnRight(columnId) {
     if (!currentBoard?.columns) return;
+    
+    // Flush pending tag changes before moving
+    if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
+        (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)) {
+        console.log('🔄 Flushing pending tag changes before moveColumnRight');
+        flushPendingTagChanges();
+    }
+    
     const index = currentBoard.columns.findIndex(c => c.id === columnId);
     if (index < currentBoard.columns.length - 1) {
         const column = currentBoard.columns[index];
@@ -622,22 +638,47 @@ function insertTaskAfter(taskId, columnId) {
 }
 
 function moveTaskToTop(taskId, columnId) {
+    // Flush pending tag changes before moving
+    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
+        console.log('🔄 Flushing pending tag changes before moveTaskToTop');
+        flushPendingTagChanges();
+    }
     vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
 }
 
 function moveTaskUp(taskId, columnId) {
+    // Flush pending tag changes before moving
+    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
+        console.log('🔄 Flushing pending tag changes before moveTaskUp');
+        flushPendingTagChanges();
+    }
     vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
 }
 
 function moveTaskDown(taskId, columnId) {
+    // Flush pending tag changes before moving
+    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
+        console.log('🔄 Flushing pending tag changes before moveTaskDown');
+        flushPendingTagChanges();
+    }
     vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
 }
 
 function moveTaskToBottom(taskId, columnId) {
+    // Flush pending tag changes before moving
+    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
+        console.log('🔄 Flushing pending tag changes before moveTaskToBottom');
+        flushPendingTagChanges();
+    }
     vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
 }
 
 function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
+    // Flush pending tag changes before moving
+    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
+        console.log('🔄 Flushing pending tag changes before moveTaskToColumn');
+        flushPendingTagChanges();
+    }
     vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
 }
 
@@ -1049,17 +1090,32 @@ function updateTagChipStyle(button, tagName, isActive) {
 }
 
 function flushPendingTagChanges() {
-    pendingTagChanges.columns.forEach((title, columnId) => {
-        vscode.postMessage({ type: 'editColumnTitle', columnId, title });
-    });
+    console.log('🔄 Flushing pending tag changes...');
     
-    pendingTagChanges.tasks.forEach(({ columnId, taskData }, taskId) => {
-        vscode.postMessage({ type: 'editTask', taskId, columnId, taskData });
-    });
+    // Flush column changes
+    if (window.pendingColumnChanges && window.pendingColumnChanges.size > 0) {
+        console.log(`📤 Sending ${window.pendingColumnChanges.size} column changes`);
+        window.pendingColumnChanges.forEach(({ title, columnId }) => {
+            console.log(`📤 Column ${columnId}: ${title}`);
+            vscode.postMessage({ type: 'editColumnTitle', columnId, title });
+        });
+        window.pendingColumnChanges.clear();
+    }
     
-    pendingTagChanges.columns.clear();
-    pendingTagChanges.tasks.clear();
-    activeTagMenu = null;
+    // Flush task changes  
+    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
+        console.log(`📤 Sending ${window.pendingTaskChanges.size} task changes`);
+        window.pendingTaskChanges.forEach(({ taskId, columnId, taskData }) => {
+            console.log(`📤 Task ${taskId}: ${taskData.title}`);
+            vscode.postMessage({ type: 'editTask', taskId, columnId, taskData });
+        });
+        window.pendingTaskChanges.clear();
+    }
+    
+    // Update refresh button state
+    updateRefreshButtonState('saved');
+    
+    console.log('✅ All pending tag changes flushed');
 }
 
 // Modal functions

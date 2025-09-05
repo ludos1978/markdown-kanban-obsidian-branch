@@ -991,6 +991,14 @@ function setupTaskDragHandle(handle) {
                     // Calculate the proper index for the data model
                     const dropIndex = finalIndex >= 0 ? finalIndex : 0;
                     
+                    // Flush pending tag changes before moving the task
+                    if (typeof flushPendingTagChanges === 'function' && 
+                        window.pendingTaskChanges && 
+                        window.pendingTaskChanges.size > 0) {
+                        console.log('🔄 Flushing pending tag changes before task move');
+                        flushPendingTagChanges();
+                    }
+                    
                     // Send the command to update the model
                     vscode.postMessage({
                         type: 'moveTask',
@@ -1189,6 +1197,15 @@ function setupColumnDragAndDrop() {
             
             console.log(`Column ${columnId}: DOM index ${targetDOMIndex}, target data index ${targetDataIndex}, row ${newRow}`);
             console.log('New order would be:', newOrder);
+            
+            // Flush pending tag changes before moving columns
+            if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
+                (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)) {
+                console.log('🔄 Flushing pending tag changes before reorderColumns');
+                if (typeof flushPendingTagChanges === 'function') {
+                    flushPendingTagChanges();
+                }
+            }
             
             // Send the new order to backend
             vscode.postMessage({
