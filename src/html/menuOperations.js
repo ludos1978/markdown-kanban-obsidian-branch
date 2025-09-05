@@ -149,7 +149,7 @@ class SimpleMenuManager {
     positionSubmenu(menuItem, submenu) {
         const rect = menuItem.getBoundingClientRect();
         // Reduce gap from 8px to 2px for easier mouse movement
-        const left = Math.min(rect.right - 2, window.innerWidth - 300);
+        const left = Math.min(rect.right - 1, window.innerWidth - 300);
         // Align top exactly with menu item for seamless transition
         const top = Math.min(rect.top, window.innerHeight - 200);
         
