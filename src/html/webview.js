@@ -1002,6 +1002,74 @@ document.addEventListener('DOMContentLoaded', () => {
         await updateClipboardCardSource();
     });
     
+    // Function to auto-save pending changes
+    function autoSavePendingChanges() {
+        const pendingColumnCount = window.pendingColumnChanges?.size || 0;
+        const pendingTaskCount = window.pendingTaskChanges?.size || 0;
+        const totalPending = pendingColumnCount + pendingTaskCount;
+        
+        if (totalPending > 0) {
+            console.log(`Auto-saving ${totalPending} pending changes`);
+            
+            // Send all pending column changes
+            if (window.pendingColumnChanges && window.pendingColumnChanges.size > 0) {
+                window.pendingColumnChanges.forEach((change) => {
+                    vscode.postMessage({
+                        type: 'editColumnTitle',
+                        columnId: change.columnId,
+                        title: change.title
+                    });
+                });
+                window.pendingColumnChanges.clear();
+            }
+            
+            // Send all pending task changes
+            if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
+                window.pendingTaskChanges.forEach((change) => {
+                    vscode.postMessage({
+                        type: 'editTask',
+                        taskId: change.taskId,
+                        columnId: change.columnId,
+                        taskData: change.taskData
+                    });
+                });
+                window.pendingTaskChanges.clear();
+            }
+            
+            // Update button state
+            if (window.updateRefreshButtonState) {
+                window.updateRefreshButtonState('default');
+            }
+            
+            console.log('Pending changes auto-saved successfully');
+        }
+    }
+    
+    // Auto-save pending changes when losing focus
+    window.addEventListener('blur', () => {
+        console.log('Window blur - checking for pending changes');
+        autoSavePendingChanges();
+    });
+    
+    // Also handle visibility change (tab switching)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            console.log('Document hidden - checking for pending changes');
+            autoSavePendingChanges();
+        }
+    });
+    
+    // Handle page unload/refresh
+    window.addEventListener('beforeunload', (e) => {
+        const pendingCount = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
+        if (pendingCount > 0) {
+            console.log('Page unloading with pending changes - attempting to save');
+            autoSavePendingChanges();
+            // Note: We can't reliably prevent unload in VS Code webviews,
+            // but we try to save synchronously before the page closes
+        }
+    });
+    
     // Listen for Cmd/Ctrl+C to update clipboard
     console.log('[CLIPBOARD DEBUG] Setting up keydown event listener');
     document.addEventListener('keydown', async (e) => {

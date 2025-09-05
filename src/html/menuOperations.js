@@ -213,7 +213,12 @@ class SimpleMenuManager {
             display: flex;
         `;
         
-        menuItem.appendChild(submenu);
+        // Append to body to escape any stacking contexts
+        document.body.appendChild(submenu);
+        
+        // Store reference to the menu item for positioning
+        submenu._menuItem = menuItem;
+        
         this.setupSubmenuEvents(submenu);
         this.activeSubmenu = submenu;
         
@@ -297,9 +302,15 @@ class SimpleMenuManager {
             });
         });
 
-        // Hover management
-        submenu.addEventListener('mouseenter', () => this.clearTimeout());
-        submenu.addEventListener('mouseleave', () => this.startHideTimer());
+        // Hover management - track when we're in a submenu
+        submenu.addEventListener('mouseenter', () => {
+            this.clearTimeout();
+            window._inSubmenu = true;
+        });
+        submenu.addEventListener('mouseleave', () => {
+            window._inSubmenu = false;
+            this.startHideTimer();
+        });
     }
 
     // Smart positioning that handles viewport boundaries
@@ -353,7 +364,18 @@ class SimpleMenuManager {
     // Timeout management
     startHideTimer() {
         this.clearTimeout();
-        this.hideTimeout = setTimeout(() => this.hideSubmenu(), 300);
+        this.hideTimeout = setTimeout(() => {
+            this.hideSubmenu();
+            
+            // Also close parent menu if we're not hovering over it
+            setTimeout(() => {
+                if (!window._inDropdown && !window._inSubmenu) {
+                    document.querySelectorAll('.donut-menu.active').forEach(menu => {
+                        menu.classList.remove('active');
+                    });
+                }
+            }, 100);
+        }, 300);
     }
 
     clearTimeout() {
@@ -424,9 +446,18 @@ function setupMenuHoverHandlers(menu, dropdown) {
     });
     
     // Menu-level hover handlers
-    dropdown.addEventListener('mouseenter', () => window.menuManager.clearTimeout());
+    dropdown.addEventListener('mouseenter', () => {
+        window.menuManager.clearTimeout();
+        window._inDropdown = true;
+    });
     dropdown.addEventListener('mouseleave', () => {
+        window._inDropdown = false;
         setTimeout(() => {
+            // Don't close the menu if we're hovering over a submenu
+            if (window._inSubmenu) {
+                return;
+            }
+            
             if (pendingTagChanges.columns.size + pendingTagChanges.tasks.size > 0) {
                 flushPendingTagChanges();
             }
