@@ -1340,6 +1340,14 @@ window.addEventListener('message', event => {
             console.log('Insert file link:', message.fileInfo);
             insertFileLink(message.fileInfo);
             break;
+        case 'saveError':
+            console.log('Save error received:', message.error);
+            if (typeof handleSaveError === 'function') {
+                handleSaveError(message.error);
+            } else {
+                console.error('❌ handleSaveError function not available:', message.error);
+            }
+            break;
     }
 });
 

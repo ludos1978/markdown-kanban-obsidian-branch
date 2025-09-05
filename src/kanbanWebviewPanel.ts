@@ -594,6 +594,7 @@ export class KanbanWebviewPanel {
             return;
         }
 
+        console.log('💾 Starting save operation for:', path.basename(document.fileName));
         this._isUpdatingFromPanel = true;
         
         try {
@@ -631,7 +632,27 @@ export class KanbanWebviewPanel {
             
             const success = await vscode.workspace.applyEdit(edit);
             if (!success) {
-                throw new Error('Failed to apply workspace edit');
+                // VS Code's applyEdit can return false even when successful
+                // Check if the document actually contains our changes before failing
+                console.warn('⚠️ workspace.applyEdit returned false, checking if changes were applied...');
+                
+                // Small delay to let the edit settle
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Check if the document content matches what we tried to write
+                const currentContent = document.getText();
+                const expectedContent = markdown;
+                
+                if (currentContent === expectedContent) {
+                    console.log('✅ Changes were applied despite applyEdit returning false');
+                } else {
+                    console.error('❌ Changes were not applied - this is a real failure');
+                    console.log('Expected length:', expectedContent.length);
+                    console.log('Actual length:', currentContent.length);
+                    console.log('First 100 chars expected:', expectedContent.substring(0, 100));
+                    console.log('First 100 chars actual:', currentContent.substring(0, 100));
+                    throw new Error('Failed to apply workspace edit: Content mismatch detected');
+                }
             }
             
             // Update document version after successful edit
@@ -640,6 +661,7 @@ export class KanbanWebviewPanel {
             // Try to save the document
             try {
                 await document.save();
+                console.log('💾 Document.save() completed successfully');
             } catch (saveError) {
                 // If save fails, it might be because the document was closed
                 console.warn('Failed to save document:', saveError);
@@ -659,13 +681,36 @@ export class KanbanWebviewPanel {
             }
             
             // After successful save, create a backup
-            if (success) {
-                await this._backupManager.createBackup(document);
-            }
+            await this._backupManager.createBackup(document);
+            
+            console.log('✅ Save operation completed successfully for:', path.basename(document.fileName));
                         
         } catch (error) {
             console.error('Error saving to markdown:', error);
-            vscode.window.showErrorMessage(`Failed to save kanban changes: ${error instanceof Error ? error.message : String(error)}`);
+            
+            // Provide more specific error messages based on the error type
+            let errorMessage = 'Failed to save kanban changes';
+            if (error instanceof Error) {
+                if (error.message.includes('Content mismatch detected')) {
+                    errorMessage = 'Failed to save kanban changes: The document content could not be updated properly';
+                } else if (error.message.includes('Failed to apply workspace edit')) {
+                    errorMessage = 'Failed to save kanban changes: Unable to apply changes to the document';
+                } else if (error.message.includes('Failed to reopen document')) {
+                    errorMessage = 'Failed to save kanban changes: The document could not be accessed for writing';
+                } else {
+                    errorMessage = `Failed to save kanban changes: ${error.message}`;
+                }
+            } else {
+                errorMessage = `Failed to save kanban changes: ${String(error)}`;
+            }
+            
+            vscode.window.showErrorMessage(errorMessage);
+            
+            // Also send error to webview for frontend error handling
+            this._panel.webview.postMessage({
+                type: 'saveError',
+                error: error instanceof Error ? error.message : String(error)
+            });
         } finally {
             setTimeout(() => {
                 this._isUpdatingFromPanel = false;
