@@ -81,10 +81,10 @@ class SubmenuGenerator {
     // Create move content
     createMoveContent(taskId, columnId) {
         return `
-            <button class="donut-menu-item" onclick="moveTaskToTop('${taskId}', '${columnId}')">Top</button>
-            <button class="donut-menu-item" onclick="moveTaskUp('${taskId}', '${columnId}')">Up</button>
-            <button class="donut-menu-item" onclick="moveTaskDown('${taskId}', '${columnId}')">Down</button>
-            <button class="donut-menu-item" onclick="moveTaskToBottom('${taskId}', '${columnId}')">Bottom</button>
+            <button class="donut-menu-item" onclick="moveTaskToTop('${taskId}', '${columnId}')" type="button">Top</button>
+            <button class="donut-menu-item" onclick="moveTaskUp('${taskId}', '${columnId}')" type="button">Up</button>
+            <button class="donut-menu-item" onclick="moveTaskDown('${taskId}', '${columnId}')" type="button">Down</button>
+            <button class="donut-menu-item" onclick="moveTaskToBottom('${taskId}', '${columnId}')" type="button">Bottom</button>
         `;
     }
 
@@ -95,15 +95,15 @@ class SubmenuGenerator {
         
         return currentBoard.columns.map(col => 
             col.id !== columnId ? 
-            `<button class="donut-menu-item" onclick="moveTaskToColumn('${taskId}', '${columnId}', '${col.id}')">${window.escapeHtml ? window.escapeHtml(col.title || 'Untitled') : col.title || 'Untitled'}</button>` : ''
+            `<button class="donut-menu-item" onclick="moveTaskToColumn('${taskId}', '${columnId}', '${col.id}')" type="button">${window.escapeHtml ? window.escapeHtml(col.title || 'Untitled') : col.title || 'Untitled'}</button>` : ''
         ).join('');
     }
 
     // Create sort content
     createSortContent(columnId) {
         return `
-            <button class="donut-menu-item" onclick="sortColumn('${columnId}', 'unsorted')">Unsorted</button>
-            <button class="donut-menu-item" onclick="sortColumn('${columnId}', 'title')">Sort by title</button>
+            <button class="donut-menu-item" onclick="sortColumn('${columnId}', 'unsorted')" type="button">Unsorted</button>
+            <button class="donut-menu-item" onclick="sortColumn('${columnId}', 'title')" type="button">Sort by title</button>
         `;
     }
 
@@ -124,9 +124,28 @@ class SubmenuGenerator {
         // Generate content
         submenu.innerHTML = this.createSubmenuContent(menuItem, id, type, columnId);
         
+        // Add event listeners to buttons to ensure they work
+        submenu.querySelectorAll('button.donut-menu-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Execute the onclick if it exists
+                if (button.onclick) {
+                    button.onclick(e);
+                } else if (button.getAttribute('onclick')) {
+                    // Execute inline onclick
+                    try {
+                        eval(button.getAttribute('onclick'));
+                    } catch (error) {
+                        console.error('Error executing onclick:', error);
+                    }
+                }
+            });
+        });
+        
         // Initially hide submenu to prevent flash
         submenu.style.display = 'none';
         submenu.style.visibility = 'hidden';
+        submenu.style.pointerEvents = 'all';
         
         // Add hover handlers to keep submenu visible
         submenu.addEventListener('mouseenter', () => {
@@ -188,8 +207,9 @@ function positionSubmenu(menuItem, submenuElement = null) {
     // Apply simple positioning
     submenu.style.setProperty('left', left + 'px', 'important');
     submenu.style.setProperty('top', top + 'px', 'important');
-    submenu.style.setProperty('z-index', '10001', 'important');
+    submenu.style.setProperty('z-index', '99999', 'important');
     submenu.style.setProperty('visibility', 'visible', 'important');
+    submenu.style.setProperty('pointer-events', 'all', 'important');
 }
 
 
@@ -335,6 +355,7 @@ function toggleDonutMenu(event, button) {
                         positionSubmenu(menuItem, submenu);
                         submenu.style.setProperty('display', 'block', 'important');
                         submenu.style.setProperty('visibility', 'visible', 'important');
+                        submenu.style.setProperty('pointer-events', 'all', 'important');
                     }
                 });
                 

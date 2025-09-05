@@ -36,15 +36,29 @@ export class KanbanWebviewPanel {
     private _lastDocumentVersion: number = -1;  // Track document version
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
+        console.log('🔧 DEBUG: KanbanWebviewPanel.createOrShow called with document:', document?.fileName);
         const column = vscode.window.activeTextEditor?.viewColumn || vscode.ViewColumn.One;
 
-        // If we have a document, check if there's already a panel for it
+        // Clean up any stale panels first
         if (document) {
-            const existingPanel = KanbanWebviewPanel.panels.get(document.uri.toString());
+            const documentKey = document.uri.toString();
+            console.log('🔧 DEBUG: Looking for existing panel with key:', documentKey);
+            console.log('🔧 DEBUG: Current panels map size:', KanbanWebviewPanel.panels.size);
+            console.log('🔧 DEBUG: Current panels keys:', Array.from(KanbanWebviewPanel.panels.keys()));
+            
+            const existingPanel = KanbanWebviewPanel.panels.get(documentKey);
             if (existingPanel) {
-                existingPanel._panel.reveal(column);
-                existingPanel.loadMarkdownFile(document);
-                return;
+                console.log('🔧 DEBUG: Found existing panel, disposing it to create fresh one');
+                // For debugging - always dispose existing panel and create fresh one
+                try {
+                    existingPanel.dispose();
+                } catch (error) {
+                    console.log('🔧 DEBUG: Error disposing existing panel:', error);
+                }
+                KanbanWebviewPanel.panels.delete(documentKey);
+                console.log('🔧 DEBUG: Existing panel disposed and removed from map');
+            } else {
+                console.log('🔧 DEBUG: No existing panel found, will create new one');
             }
         }
 
@@ -75,6 +89,7 @@ export class KanbanWebviewPanel {
         
         // Create panel with file-specific title
         const fileName = document ? path.basename(document.fileName) : 'Markdown Kanban';
+        console.log('🔧 DEBUG: Creating webview panel with title:', `Kanban: ${fileName}`);
         const panel = vscode.window.createWebviewPanel(
             KanbanWebviewPanel.viewType,
             `Kanban: ${fileName}`,
@@ -86,14 +101,18 @@ export class KanbanWebviewPanel {
                 enableCommandUris: true
             }
         );
+        console.log('🔧 DEBUG: Webview panel created successfully');
 
         const kanbanPanel = new KanbanWebviewPanel(panel, extensionUri, context);
+        console.log('🔧 DEBUG: KanbanWebviewPanel instance created');
 
         // Store the panel in the map
         if (document) {
+            console.log('🔧 DEBUG: Storing panel in map and loading document');
             KanbanWebviewPanel.panels.set(document.uri.toString(), kanbanPanel);
             kanbanPanel.loadMarkdownFile(document);
         }
+        console.log('🔧 DEBUG: createOrShow completed successfully');
     }
 
     public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
@@ -129,6 +148,7 @@ export class KanbanWebviewPanel {
     }
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
+        console.log('🔧 DEBUG: KanbanWebviewPanel constructor called');
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._context = context;
@@ -179,7 +199,7 @@ export class KanbanWebviewPanel {
     }
 
     private async handleLinkReplacement(originalPath: string, newPath: string, isImage: boolean) {
-        if (!this._board || !this._board.valid) return;
+        if (!this._board || !this._board.valid) { return; }
 
         this._undoRedoManager.saveStateForUndo(this._board);
         
@@ -187,7 +207,7 @@ export class KanbanWebviewPanel {
 
         // Helper function to replace link in text
         const replaceLink = (text: string): string => {
-            if (!text) return text;
+            if (!text) { return text; }
             // Escape special regex characters in the original path
             const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -370,9 +390,12 @@ export class KanbanWebviewPanel {
     }
 
     private _initialize() {
+        console.log('🔧 DEBUG: _initialize called, isInitialized:', this._isInitialized);
         if (!this._isInitialized) {
+            console.log('🔧 DEBUG: Setting webview HTML');
             this._panel.webview.html = this._getHtmlForWebview();
             this._isInitialized = true;
+            console.log('🔧 DEBUG: Webview HTML set, panel initialized');
         }
     }
 
@@ -499,7 +522,7 @@ export class KanbanWebviewPanel {
     }
 
     private async sendBoardUpdate() {
-        if (!this._panel.webview) return;
+        if (!this._panel.webview) { return; }
 
         let board = this._board || { 
             valid: false, 
@@ -806,9 +829,11 @@ export class KanbanWebviewPanel {
     }
 
     public dispose() {
+        console.log('🔧 DEBUG: Disposing KanbanWebviewPanel');
         // Remove from panels map
         const documentUri = this._fileManager.getDocument()?.uri.toString();
         if (documentUri && KanbanWebviewPanel.panels.get(documentUri) === this) {
+            console.log('🔧 DEBUG: Removing panel from map for URI:', documentUri);
             KanbanWebviewPanel.panels.delete(documentUri);
         }
         
@@ -821,6 +846,7 @@ export class KanbanWebviewPanel {
             const disposable = this._disposables.pop();
             disposable?.dispose();
         }
+        console.log('🔧 DEBUG: Panel disposal completed');
     }
 
     /**

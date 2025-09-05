@@ -995,231 +995,231 @@
               }
             },
             "colors": {
-                "red": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#dc3545"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#ff8787"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
+              "red": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#dc3545"
                 },
-                "green": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#198754"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#8ce99a"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ff8787"
                 },
-                "blue": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#0056b3"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#5a8dee"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "yellow": {
-                    "light": {
-                        "text": "#212529",
-                        "background": "#ffc107"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#ffe066"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "orange": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#fd7e14"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#ffc078"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "purple": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#6f42c1"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#b197fc"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "pink": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#e83e8c"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#fcc2d7"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "cyan": {
-                    "light": {
-                        "text": "#212529",
-                        "background": "#0dcaf0"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#99e9f2"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "magenta": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#d63384"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#f06595"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "brown": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#795548"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#a1887f"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "gray": {
-                    "light": {
-                        "text": "#212529",
-                        "background": "#adb5bd"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#dee2e6"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "teal": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#20c997"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#63e6be"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "indigo": {
-                    "light": {
-                        "text": "#ffffff",
-                        "background": "#6610f2"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#9775fa"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "lime": {
-                    "light": {
-                        "text": "#212529",
-                        "background": "#84cc16"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#a3e635"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
-                },
-                "amber": {
-                    "light": {
-                        "text": "#212529",
-                        "background": "#f59e0b"
-                    },
-                    "dark": {
-                        "text": "#000000",
-                        "background": "#fbbf24"
-                    },
-                    "border": {
-                        "style": "solid",
-                        "width": "5px",
-                        "position": "left"
-                    }
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
                 }
+              },
+              "green": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#198754"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#8ce99a"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "blue": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#0056b3"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#5a8dee"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "yellow": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#ffc107"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ffe066"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "orange": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#fd7e14"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#ffc078"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "purple": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#6f42c1"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#b197fc"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "pink": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#e83e8c"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#fcc2d7"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "cyan": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#0dcaf0"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#99e9f2"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "magenta": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#d63384"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#f06595"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "brown": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#795548"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#a1887f"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "gray": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#adb5bd"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#dee2e6"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "teal": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#20c997"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#63e6be"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "indigo": {
+                "light": {
+                  "text": "#ffffff",
+                  "background": "#6610f2"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#9775fa"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "lime": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#84cc16"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#a3e635"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              },
+              "amber": {
+                "light": {
+                  "text": "#212529",
+                  "background": "#f59e0b"
+                },
+                "dark": {
+                  "text": "#000000",
+                  "background": "#fbbf24"
+                },
+                "border": {
+                  "style": "solid",
+                  "width": "5px",
+                  "position": "left"
+                }
+              }
             }
           },
           "description": "Grouped color and style configuration for tags in kanban boards with various visual indicators."
@@ -1316,14 +1316,15 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/markdown-it": "^12.2.3",
     "@types/node": "16.x",
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^8.40.0",
     "@typescript-eslint/parser": "^8.40.0",
     "esbuild": "^0.25.9",
-    "typescript": "^4.9.4",
     "markdown-it": "^14.0.1",
-    "@types/markdown-it": "^12.2.3"
+    "npm-run-all": "^4.1.5",
+    "typescript": "^4.9.4"
   },
   "dependencies": {
     "markdown-it": "^14.1.0"

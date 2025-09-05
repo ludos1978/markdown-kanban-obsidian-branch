@@ -33,11 +33,20 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register command to open kanban panel
 	const openKanbanCommand = vscode.commands.registerCommand('markdown-kanban.openKanban', async (uri?: vscode.Uri) => {
+		console.log('🔧 DEBUG: openKanban command triggered with URI:', uri?.fsPath || 'no URI provided');
+		console.log('🔧 DEBUG: Active editor:', vscode.window.activeTextEditor?.document.fileName || 'none');
 		let targetUri = uri;
 
 		// If no URI provided, try to get from active editor
 		if (!targetUri && vscode.window.activeTextEditor) {
 			targetUri = vscode.window.activeTextEditor.document.uri;
+			console.log('🔧 DEBUG: Got URI from active editor:', targetUri.fsPath);
+		}
+
+		// If still no URI but we have an active editor, prioritize the active editor's document
+		if (!targetUri && vscode.window.activeTextEditor?.document) {
+			targetUri = vscode.window.activeTextEditor.document.uri;
+			console.log('🔧 DEBUG: Using active editor document as fallback:', targetUri.fsPath);
 		}
 
 		// If still no URI, let user select file
@@ -60,13 +69,18 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// Check if file is markdown
 		if (!targetUri.fsPath.endsWith('.md')) {
+			console.log('🔧 DEBUG: File is not markdown:', targetUri.fsPath);
 			vscode.window.showErrorMessage('Please select a markdown file.');
 			return;
 		}
+		
+		console.log('🔧 DEBUG: Final target URI:', targetUri.fsPath);
 
 		try {
 			// Open document
+			console.log('🔧 DEBUG: Opening document for URI:', targetUri.fsPath);
 			const document = await vscode.workspace.openTextDocument(targetUri);
+			console.log('🔧 DEBUG: Document opened successfully:', document.fileName);
 
 			// ENHANCED: Log workspace information for debugging
 			const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -80,10 +94,13 @@ export function activate(context: vscode.ExtensionContext) {
 			);
 
 			// Create or show kanban panel in center area
+			console.log('🔧 DEBUG: Creating or showing Kanban panel...');
 			KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
+			console.log('🔧 DEBUG: Kanban panel creation completed');
 
 			vscode.window.showInformationMessage(`Kanban loaded from: ${document.fileName}`);
 		} catch (error) {
+			console.error('🔧 DEBUG: Error opening kanban:', error);
 			vscode.window.showErrorMessage(`Failed to open kanban: ${error}`);
 		}
 	});

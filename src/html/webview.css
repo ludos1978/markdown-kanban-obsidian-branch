@@ -1156,6 +1156,8 @@ button.file-bar-menu-item {
   min-width: 180px;
   max-width: 400px;
   max-height: 80vh;
+  z-index: 99999;
+  pointer-events: all;
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
@@ -1249,6 +1251,11 @@ button.file-bar-menu-item {
   margin: 0;
   box-sizing: border-box;
   white-space: nowrap;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--vscode-dropdown-foreground);
+  transition: background-color 0.2s ease;
+  pointer-events: all;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;

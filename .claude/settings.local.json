@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npm run check-types:*)",
+      "Bash(npm run compile:*)",
+      "Bash(code --version)",
+      "Bash(npm install:*)",
+      "Bash(npm run watch:*)",
+      "Bash(pkill:*)",
+      "Bash(code:*)"
     ],
     "deny": [],
     "ask": []
