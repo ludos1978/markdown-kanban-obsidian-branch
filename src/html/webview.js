@@ -206,7 +206,7 @@ async function readClipboardContent() {
     try {
         console.log('[CLIPBOARD DEBUG] Attempting to read clipboard');
         const text = await navigator.clipboard.readText();
-        console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
+        // console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
         
         if (!text || text.trim() === '') {
             console.log('[CLIPBOARD DEBUG] Empty clipboard');
@@ -1086,7 +1086,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[CLIPBOARD DEBUG] Click event - reading clipboard');
             try {
                 const text = await navigator.clipboard.readText();
-                console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
+                // console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
                 if (text && text.trim()) {
                     clipboardCardData = await processClipboardText(text.trim());
                     console.log('[CLIPBOARD DEBUG] Updated clipboardCardData:', clipboardCardData);
@@ -1228,13 +1228,25 @@ window.addEventListener('message', event => {
             // Save folding state before re-render
             saveCurrentFoldingState();
             
-            // Check if we should preserve editing state
+            // Check if we should skip rendering (for direct DOM updates like tag changes)
+            const shouldSkipRender = message.skipRender || message.board?.skipRender;
             const isEditing = window.taskEditor && window.taskEditor.currentEditor;
-            if (!isEditing) {
-                // Only render if not editing
+            
+            console.log('🔄 Board update received:', {
+                skipRender: shouldSkipRender,
+                isEditing,
+                messageType: message.type,
+                hasBoard: !!message.board
+            });
+            
+            if (!isEditing && !shouldSkipRender) {
+                // Only render if not editing and not explicitly skipping
+                console.log('✅ Rendering board update');
                 debouncedRenderBoard();
+            } else if (shouldSkipRender) {
+                console.log('⏭️ Skipping render update - direct DOM update mode');
             } else {
-                console.log('Skipping render update - currently editing');
+                console.log('⏭️ Skipping render update - currently editing');
             }
             break;
         case 'updateFileInfo':

@@ -94,6 +94,7 @@ body {
 .file-info-right .global-fold-btn,
 .file-info-right .sort-btn,
 .file-info-right .font-size-btn,
+.file-info-right .refresh-btn,
 .file-info-right .file-bar-menu-btn {
   border: 1px solid var(--vscode-button-border, transparent);
   padding: 4px 8px;
@@ -120,6 +121,18 @@ body {
 .font-size-icon {
   font-size: 14px;
   font-weight: bold;
+}
+
+.refresh-btn.pending {
+  background: var(--vscode-inputValidation-warningBackground);
+  color: var(--vscode-inputValidation-warningForeground);
+  border-color: var(--vscode-inputValidation-warningBorder);
+}
+
+.refresh-btn.saved {
+  background: var(--vscode-inputValidation-infoBackground);
+  color: var(--vscode-inputValidation-infoForeground);
+  border-color: var(--vscode-inputValidation-infoBorder);
 }
 
 /* Small font mode for cards */
