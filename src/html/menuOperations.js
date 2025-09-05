@@ -353,7 +353,7 @@ function toggleDonutMenu(event, button) {
                     
                     if (submenu) {
                         positionSubmenu(menuItem, submenu);
-                        submenu.style.setProperty('display', 'block', 'important');
+                        submenu.style.setProperty('display', 'flex', 'important');
                         submenu.style.setProperty('visibility', 'visible', 'important');
                         submenu.style.setProperty('pointer-events', 'all', 'important');
                     }
