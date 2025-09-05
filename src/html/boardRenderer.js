@@ -398,15 +398,11 @@ function generateTagMenuItems(id, type, columnId = null) {
             }
             
             if (groupTags.length > 0) {
-                // Capitalize first letter of group name for display
+                // Use dynamic submenu generation - just add placeholder with data attributes
                 const groupLabel = groupKey.charAt(0).toUpperCase() + groupKey.slice(1);
-                
                 menuHtml += `
-                    <div class="donut-menu-item has-submenu">
+                    <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="${groupKey}" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}">
                         ${groupLabel}
-                        <div class="donut-menu-submenu donut-menu-tags-grid">
-                            ${generateGroupTagItems(groupTags, id, type, columnId, true)}
-                        </div>
                     </div>
                 `;
             }
@@ -416,11 +412,8 @@ function generateTagMenuItems(id, type, columnId = null) {
     // Add user-added tags if any exist
     if (userAddedTags.length > 0) {
         menuHtml += `
-            <div class="donut-menu-item has-submenu">
+            <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="custom" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}">
                 Custom Tags
-                <div class="donut-menu-submenu donut-menu-tags-grid">
-                    ${generateGroupTagItems(userAddedTags, id, type, columnId, false)}
-                </div>
             </div>
         `;
     }
@@ -729,6 +722,11 @@ function renderBoard() {
         // Calculate and apply row heights based on tallest columns
         calculateAndApplyRowHeights();
         
+        // Apply user-configured row height if set
+        if (window.currentRowHeight && window.currentRowHeight !== 'auto') {
+            window.applyRowHeight(window.currentRowHeight);
+        }
+        
         // Restore scroll positions
         scrollPositions.forEach((scrollTop, columnId) => {
             const container = document.getElementById(`tasks-${columnId}`);
@@ -948,12 +946,8 @@ function createColumnElement(column, columnIndex) {
                             <button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
                             <button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
                             <div class="donut-menu-divider"></div>
-                            <div class="donut-menu-item has-submenu">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="sort" data-column-id="${column.id}">
                                 Sort by
-                                <div class="donut-menu-submenu">
-                                    <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'unsorted')">Unsorted</button>
-                                    <button class="donut-menu-item" onclick="sortColumn('${column.id}', 'title')">Sort by title</button>
-                                </div>
                             </div>
                             <div class="donut-menu-divider"></div>
                             ${generateTagMenuItems(column.id, 'column')}
@@ -1056,23 +1050,11 @@ function createTaskElement(task, columnId, taskIndex) {
                             <div class="donut-menu-divider"></div>
                             <button class="donut-menu-item" onclick="copyTaskAsMarkdown('${task.id}', '${columnId}')">Copy as markdown</button>
                             <div class="donut-menu-divider"></div>
-                            <div class="donut-menu-item has-submenu">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="move" data-task-id="${task.id}" data-column-id="${columnId}">
                                 Move
-                                <div class="donut-menu-submenu">
-                                    <button class="donut-menu-item" onclick="moveTaskToTop('${task.id}', '${columnId}')">Top</button>
-                                    <button class="donut-menu-item" onclick="moveTaskUp('${task.id}', '${columnId}')">Up</button>
-                                    <button class="donut-menu-item" onclick="moveTaskDown('${task.id}', '${columnId}')">Down</button>
-                                    <button class="donut-menu-item" onclick="moveTaskToBottom('${task.id}', '${columnId}')">Bottom</button>
-                                </div>
                             </div>
-                            <div class="donut-menu-item has-submenu">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="move-to-list" data-task-id="${task.id}" data-column-id="${columnId}">
                                 Move to list
-                                <div class="donut-menu-submenu">
-                                    ${currentBoard && currentBoard.columns ? currentBoard.columns.map(col => 
-                                        col.id !== columnId ? 
-                                        `<button class="donut-menu-item" onclick="moveTaskToColumn('${task.id}', '${columnId}', '${col.id}')">${escapeHtml(col.title || 'Untitled')}</button>` : ''
-                                    ).join('') : ''}
-                                </div>
                             </div>
                             <div class="donut-menu-divider"></div>
                             ${generateTagMenuItems(task.id, 'task', columnId)}

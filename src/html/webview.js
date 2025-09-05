@@ -473,6 +473,38 @@ function initializeClipboardCardSource() {
     });
 }
 
+// Function to position file bar dropdown
+function positionFileBarDropdown(triggerButton, dropdown) {
+    const rect = triggerButton.getBoundingClientRect();
+    const dropdownWidth = 200; // Approximate dropdown width
+    const dropdownHeight = 400; // Approximate dropdown height
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Position below the button and aligned to the right
+    let left = rect.right - dropdownWidth;
+    let top = rect.bottom + 4; // Small margin below button
+    
+    // Adjust if dropdown would go off-screen horizontally
+    if (left < 10) {
+        left = 10; // Minimum left margin
+    }
+    if (left + dropdownWidth > viewportWidth) {
+        left = viewportWidth - dropdownWidth - 10;
+    }
+    
+    // Adjust if dropdown would go off-screen vertically (unlikely for top bar menu)
+    if (top + dropdownHeight > viewportHeight) {
+        top = viewportHeight - dropdownHeight - 10;
+    }
+    
+    // Apply the calculated position
+    dropdown.style.left = left + 'px';
+    dropdown.style.top = top + 'px';
+    dropdown.style.right = 'auto';
+    dropdown.style.bottom = 'auto';
+}
+
 // Function to toggle file bar menu
 function toggleFileBarMenu(event, button) {
     event.stopPropagation();
@@ -490,6 +522,64 @@ function toggleFileBarMenu(event, button) {
     // Toggle this menu
     if (!wasActive) {
         menu.classList.add('active');
+        
+        // Position the file bar dropdown
+        const dropdown = menu.querySelector('.file-bar-menu-dropdown');
+        if (dropdown) {
+            positionFileBarDropdown(button, dropdown);
+            
+            // Set up submenu positioning for file bar items with submenus
+            dropdown.querySelectorAll('.file-bar-menu-item.has-submenu').forEach(menuItem => {
+                // Remove any existing listeners to prevent duplicates
+                if (menuItem._submenuPositionHandler) {
+                    menuItem.removeEventListener('mouseenter', menuItem._submenuPositionHandler);
+                }
+                if (menuItem._submenuHideHandler) {
+                    menuItem.removeEventListener('mouseleave', menuItem._submenuHideHandler);
+                }
+                
+                // Create and store the handlers
+                menuItem._submenuPositionHandler = () => {
+                    // Position immediately when hover starts
+                    if (window.positionSubmenu) {
+                        window.positionSubmenu(menuItem);
+                    }
+                };
+                
+                menuItem._submenuHideHandler = (e) => {
+                    // Don't hide if moving to the submenu itself
+                    const submenu = menuItem.querySelector('.file-bar-menu-submenu');
+                    if (submenu) {
+                        setTimeout(() => {
+                            // Check if mouse is over the submenu
+                            if (!submenu.matches(':hover') && !menuItem.matches(':hover')) {
+                                submenu.style.setProperty('display', 'none', 'important');
+                            }
+                        }, 100);
+                    }
+                };
+                
+                menuItem.addEventListener('mouseenter', menuItem._submenuPositionHandler);
+                menuItem.addEventListener('mouseleave', menuItem._submenuHideHandler);
+                
+                // Add submenu hover handlers to keep it visible
+                const submenu = menuItem.querySelector('.file-bar-menu-submenu');
+                if (submenu) {
+                    submenu.addEventListener('mouseenter', () => {
+                        // Keep submenu visible when hovering over it
+                        submenu.style.setProperty('display', 'block', 'important');
+                    });
+                    submenu.addEventListener('mouseleave', () => {
+                        // Hide when leaving the submenu
+                        setTimeout(() => {
+                            if (!submenu.matches(':hover') && !menuItem.matches(':hover')) {
+                                submenu.style.setProperty('display', 'none', 'important');
+                            }
+                        }, 100);
+                    });
+                }
+            });
+        }
     }
 }
 
@@ -555,6 +645,113 @@ function setLayoutRows(rows) {
     vscode.postMessage({ type: 'showMessage', text: `Layout set to ${rows} row${rows > 1 ? 's' : ''}` });
 }
 
+// Global variable to store current row height
+let currentRowHeight = 'auto';
+
+// Function to apply row height to existing rows
+function applyRowHeight(height) {
+    const rows = document.querySelectorAll('.kanban-row');
+    const boardElement = document.getElementById('kanban-board');
+    const isMultiRow = boardElement && boardElement.classList.contains('multi-row');
+    
+    rows.forEach(row => {
+        if (height === 'auto') {
+            // Auto height - no constraints
+            row.style.height = 'auto';
+            row.style.minHeight = 'auto';
+            row.style.maxHeight = 'none';
+            row.style.overflowY = 'visible';
+            row.style.overflowX = 'visible';
+            
+            // Reset individual columns
+            row.querySelectorAll('.kanban-column .column-content').forEach(content => {
+                content.style.maxHeight = '';
+                content.style.overflowY = 'visible';
+            });
+        } else {
+            // Fixed height - constrain row height but no row scrollbars
+            row.style.height = height;
+            row.style.minHeight = height;
+            row.style.maxHeight = height;
+            row.style.overflowY = 'hidden';  // No row scrollbars
+            row.style.overflowX = 'visible';  // No horizontal scrollbar on row
+            
+            // Apply scrollbars to individual column contents
+            row.querySelectorAll('.kanban-column .column-content').forEach(content => {
+                const column = content.closest('.kanban-column');
+                if (!column.classList.contains('collapsed')) {
+                    // Use CSS calc to determine available height (row height minus estimated header height)
+                    // This avoids relying on offsetHeight during rendering
+                    const availableHeight = `calc(${height} - 60px)`; // Estimated header height
+                    
+                    content.style.maxHeight = availableHeight;
+                    content.style.overflowY = 'auto';  // Individual column vertical scrollbar
+                    content.style.overflowX = 'hidden'; // No horizontal scrollbar on columns
+                }
+            });
+        }
+    });
+    
+    // For single-row layout, also apply height constraints directly to columns
+    if (!isMultiRow) {
+        const columns = document.querySelectorAll('.kanban-column');
+        columns.forEach(column => {
+            const content = column.querySelector('.column-content');
+            if (content && !column.classList.contains('collapsed')) {
+                if (height === 'auto') {
+                    content.style.maxHeight = '';
+                    content.style.overflowY = 'visible';
+                } else {
+                    const availableHeight = `calc(${height} - 60px)`;
+                    content.style.maxHeight = availableHeight;
+                    content.style.overflowY = 'auto';
+                    content.style.overflowX = 'hidden';
+                }
+            }
+        });
+    }
+}
+
+// Function to set row height
+function setRowHeight(height) {
+    console.log(`setRowHeight ${height}`);
+    
+    // Store current height setting
+    currentRowHeight = height;
+    window.currentRowHeight = height;
+    
+    // Apply the height to kanban rows
+    applyRowHeight(height);
+    
+    // Store preference
+    vscode.postMessage({ 
+        type: 'setPreference', 
+        key: 'rowHeight', 
+        value: height 
+    });
+    
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+    
+    // Show user-friendly message
+    let message = 'Row height set to ';
+    switch(height) {
+        case '100vh': message += '100% of screen'; break;
+        case '66vh': message += '66% of screen'; break;
+        case '50vh': message += '50% of screen'; break;
+        case '33vh': message += '33% of screen'; break;
+        case '44em': message += '700px (~44em)'; break;
+        case '31em': message += '500px (~31em)'; break;
+        case '19em': message += '300px (~19em)'; break;
+        case 'auto': message += 'auto height'; break;
+        default: message += height; break;
+    }
+    
+    vscode.postMessage({ type: 'showMessage', text: message });
+}
+
 // Function to detect row tags from board
 function detectRowsFromBoard(board) {
     if (!board || !board.columns) return 1;
@@ -572,7 +769,7 @@ function detectRowsFromBoard(board) {
         }
     });
     
-    return Math.min(maxRow, 4); // Cap at 4 rows
+    return Math.min(maxRow, 6); // Cap at 6 rows
 }
 
 // Function to get column row from title
@@ -585,7 +782,7 @@ function getColumnRow(title) {
         // Get the last match in case there are multiple (shouldn't happen, but just in case)
         const lastMatch = rowMatches[rowMatches.length - 1];
         const rowNum = parseInt(lastMatch.replace(/#row/i, ''));
-        return Math.min(Math.max(rowNum, 1), 4); // Ensure it's between 1 and 4
+        return Math.min(Math.max(rowNum, 1), 6); // Ensure it's between 1 and 6
     }
     return 1;
 }
@@ -1272,66 +1469,14 @@ function updateFileInfoBar() {
     if (!currentFileInfo) return;
 
     const fileNameElement = document.getElementById('file-name');
-    const lockStatusIcon = document.getElementById('lock-status-icon');
-    const lockToggleBtnElement = document.getElementById('lock-toggle-btn');
-    const lockBtnTextElement = document.getElementById('lock-btn-text');
-    const lockMenuIcon = document.getElementById('lock-menu-icon');
 
     if (fileNameElement) {
         fileNameElement.textContent = currentFileInfo.fileName;
         fileNameElement.title = currentFileInfo.filePath || currentFileInfo.fileName;
     }
-
-    if (currentFileInfo.isLocked) {
-        // Update lock icon button
-        if (lockStatusIcon) {
-            const lockIcon = lockStatusIcon.querySelector('.lock-icon');
-            if (lockIcon) {
-                lockIcon.textContent = '🔒';
-            }
-            lockStatusIcon.title = 'File is locked - click to unlock';
-            lockStatusIcon.classList.add('locked');
-        }
-        
-        // Update menu item
-        if (lockBtnTextElement) {
-            lockBtnTextElement.textContent = 'Unlock File';
-        }
-        if (lockMenuIcon) {
-            lockMenuIcon.textContent = '🔒';
-        }
-        if (lockToggleBtnElement) {
-            lockToggleBtnElement.classList.add('locked');
-        }
-    } else {
-        // Update lock icon button
-        if (lockStatusIcon) {
-            const lockIcon = lockStatusIcon.querySelector('.lock-icon');
-            if (lockIcon) {
-                lockIcon.textContent = '🔓';
-            }
-            lockStatusIcon.title = 'File is unlocked - click to lock';
-            lockStatusIcon.classList.remove('locked');
-        }
-        
-        // Update menu item
-        if (lockBtnTextElement) {
-            lockBtnTextElement.textContent = 'Lock File';
-        }
-        if (lockMenuIcon) {
-            lockMenuIcon.textContent = '🔓';
-        }
-        if (lockToggleBtnElement) {
-            lockToggleBtnElement.classList.remove('locked');
-        }
-    }
     
     // Update undo/redo buttons when file info changes
     updateUndoRedoButtons();
-}
-
-function toggleFileLock() {
-    vscode.postMessage({ type: 'toggleFileLock' });
 }
 
 function selectFile() {
@@ -1374,6 +1519,9 @@ window.restoreFoldingState = restoreFoldingState;
 window.toggleFileBarMenu = toggleFileBarMenu;
 window.setColumnWidth = setColumnWidth;
 window.setLayoutRows = setLayoutRows;
+window.setRowHeight = setRowHeight;
+window.applyRowHeight = applyRowHeight;
+window.currentRowHeight = currentRowHeight;
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
 

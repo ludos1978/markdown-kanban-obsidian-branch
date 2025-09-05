@@ -94,7 +94,6 @@ body {
 .file-info-right .global-fold-btn,
 .file-info-right .sort-btn,
 .file-info-right .font-size-btn,
-.file-info-right .lock-status-icon,
 .file-info-right .file-bar-menu-btn {
   border: 1px solid var(--vscode-button-border, transparent);
   padding: 4px 8px;
@@ -110,12 +109,10 @@ body {
 }
 
 /* Text styling for button labels */
-.lock-text,
 .menu-text {
   font-weight: 500;
 }
 
-.lock-icon,
 .menu-icon {
   font-size: 14px;
 }
@@ -136,6 +133,10 @@ body.small-card-fonts .task-description-display {
   line-height: 1.3;
 }
 
+body.small-card-fonts .task-description-placeholder {
+  font-size: 0.75em;
+}
+
 body.small-card-fonts .task-item {
   padding: 6px;
 }
@@ -143,6 +144,21 @@ body.small-card-fonts .task-item {
 body.small-card-fonts .task-header {
   gap: 6px;
   margin-bottom: 3px;
+}
+
+/* Smaller images in small font mode */
+body.small-card-fonts .task-description-container .markdown-content img {
+  max-width: 48%;
+  max-height: 200px;
+  display: inline-block;
+  vertical-align: top;
+  margin: 2px 2px;
+}
+
+body.small-card-fonts .task-title-container .markdown-content img {
+  max-width: 48%;
+  max-height: 30px;
+  margin: 1px 1px;
 }
 
 /* Hide collapsed add task button in column header */
@@ -933,45 +949,6 @@ body.vscode-high-contrast-light .task-count {
   writing-mode: horizontal-tb;
 }
 
-/* Lock status */
-.lock-status {
-  font-size: 12px;
-  cursor: help;
-  flex-shrink: 0;
-  opacity: 0.8;
-  transition: opacity 0.2s;
-}
-
-.lock-status:hover {
-  opacity: 1;
-}
-
-.lock-status.locked {
-  color: var(--vscode-charts-orange);
-}
-
-.lock-status-icon {
-  font-size: 14px;
-  cursor: pointer;
-  flex-shrink: 0;
-  opacity: 0.8;
-  transition: opacity 0.2s;
-  margin-right: 8px;
-  background: none;
-  border: none;
-  color: var(--vscode-titleBar-activeForeground);
-  padding: 2px 4px;
-  border-radius: 3px;
-}
-
-.lock-status-icon:hover {
-  opacity: 1;
-  background-color: var(--vscode-list-hoverBackground);
-}
-
-.lock-status-icon.locked {
-  color: var(--vscode-charts-orange);
-}
 
 /* File control buttons */
 .file-control-btn {
@@ -1004,14 +981,6 @@ body.vscode-high-contrast-light .task-count {
   background: var(--vscode-button-hoverBackground);
 }
 
-.file-control-btn.locked {
-  color: var(--vscode-button-foreground);
-  border: 1px dotted var(--vscode-contrastActiveBorder);
-}
-
-.file-control-btn.locked:hover {
-  border: 1px solid var(--vscode-contrastActiveBorder);
-}
 
 /* Menus */
 .donut-menu,
@@ -1061,32 +1030,23 @@ body.vscode-high-contrast-light .task-count {
 .donut-menu-dropdown,
 .file-bar-menu-dropdown {
   display: none;
-  position: absolute;
+  position: fixed;
   background: var(--vscode-dropdown-background);
   border: 1px solid var(--vscode-dropdown-border);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 1000;
+  z-index: 9999;
 }
 
 .donut-menu-dropdown {
-  right: 0;
-  top: 100%;
   min-width: 150px;
 }
 
 .file-bar-menu-dropdown {
-  right: 0;
-  top: 100%;
   min-width: 180px;
-  margin-top: 4px;
 }
 
-.kanban-column.collapsed .donut-menu-dropdown {
-  left: 100%;
-  right: auto;
-  top: 0;
-}
+/* Collapsed column dropdowns are handled by JavaScript positioning */
 
 .donut-menu.active .donut-menu-dropdown,
 .file-bar-menu.active .file-bar-menu-dropdown {
@@ -1107,6 +1067,10 @@ body.vscode-high-contrast-light .task-count {
   white-space: nowrap;
   display: block;
   position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .file-bar-menu-item {
@@ -1184,29 +1148,88 @@ button.file-bar-menu-item {
 .donut-menu-submenu,
 .file-bar-menu-submenu {
   display: none;
-  position: absolute;
+  position: fixed;
   background: var(--vscode-dropdown-background);
   border: 1px solid var(--vscode-dropdown-border);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   min-width: 120px;
-  z-index: 1001;
+  max-width: 375px;
+  max-height: 80vh;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  word-wrap: break-word;
+  z-index: 10000;
 }
 
-.task-item .donut-menu-submenu {
-  left: 100%;
-  top: 0;
+/* Tag grid submenus need wider width */
+.donut-menu-submenu:has(.donut-menu-tags-grid) {
+  min-width: 250px;
 }
 
-.kanban-column .donut-menu-submenu {
-  right: calc(100% - 2px);
-  top: 0;
-}
+/* Submenus are positioned by JavaScript */
 
 .file-bar-menu-submenu {
-  right: calc(100% - 2px);
-  top: 0;
   min-width: 140px;
+}
+
+/* Ensure all submenu content respects container bounds */
+.donut-menu-submenu *,
+.file-bar-menu-submenu * {
+  max-width: 100%;
+}
+
+/* Tag grids in submenus use flex layout */
+.donut-menu-submenu .donut-menu-tags-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+}
+
+/* Submenu items prevent overflow */
+.donut-menu-submenu .donut-menu-item,
+.file-bar-menu-submenu .file-bar-menu-item {
+  width: calc(100% - 2px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Menu icons don't shrink */
+.donut-menu-submenu .menu-icon,
+.file-bar-menu-submenu .menu-icon {
+  flex-shrink: 0;
+}
+
+/* Tag chips in submenus */
+.donut-menu-submenu .donut-menu-tag-chip {
+  display: flex;
+  align-items: center;
+  min-width: 60px;
+  max-width: calc(50% - 2px);
+  overflow: hidden;
+  gap: 3px;
+  margin: 2px;
+  padding: 3px 6px;
+}
+
+/* Tag chip text truncates */
+.donut-menu-submenu .donut-menu-tag-chip .tag-chip-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+/* Tag chip check icon fixed size */
+.donut-menu-submenu .donut-menu-tag-chip .tag-chip-check {
+  flex: none;
+  width: 12px;
+  height: 12px;
 }
 
 .donut-menu-item.has-submenu:hover .donut-menu-submenu,
@@ -1223,6 +1246,11 @@ button.file-bar-menu-item {
   background: none;
   padding: 8px 12px;
   margin: 0;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .donut-menu-submenu button.donut-menu-item:hover,
@@ -1245,21 +1273,20 @@ button.file-bar-menu-item {
   z-index: 50;
 }
 
-/* Tags menu */
+/* Tags menu - base styles (overridden for submenus) */
 .donut-menu-tags-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   padding: 8px;
-  min-width: 280px;
-  max-width: 400px;
+  box-sizing: border-box;
   background: var(--vscode-menu-background);
   border: 1px solid var(--vscode-menu-border);
   border-radius: 4px;
 }
 
 .donut-menu-tag-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
@@ -1272,7 +1299,12 @@ button.file-bar-menu-item {
   background: transparent;
   color: var(--vscode-menu-foreground);
   white-space: nowrap;
-  min-width: fit-content;
+  flex: 0 0 auto;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  flex-shrink: 1;
 }
 
 .donut-menu-tag-chip:hover {
@@ -1294,47 +1326,21 @@ button.file-bar-menu-item {
 
 .donut-menu-tag-chip .tag-chip-name {
   text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100px;
+  flex: 1;
+  min-width: 0;
 }
 
 .donut-menu-item.has-submenu:hover .donut-menu-tags-grid {
   display: flex;
 }
 
-.donut-menu-item:has(.donut-menu-tags-grid) .donut-menu-submenu {
-  position: absolute;
-  left: 100%;
-  top: 0;
-  margin-left: 4px;
-}
+/* Tag grid submenus are positioned by JavaScript like all other submenus */
 
-/* Ensure tag grids follow normal submenu behavior */
-.donut-menu-item.has-submenu .donut-menu-submenu {
-    display: none;  /* Hidden by default */
-}
-
-.donut-menu-item.has-submenu:hover .donut-menu-submenu {
-    display: block;  /* Show on hover */
-}
-
-/* Special styling for tag grids when shown */
-.donut-menu-item.has-submenu:hover .donut-menu-tags-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 8px;
-}
-
-.donut-menu-tags-grid:has(.donut-menu-tag-chip:nth-child(4):last-child) {
-  max-width: 320px;
-}
-
-.donut-menu-tags-grid:has(.donut-menu-tag-chip:nth-child(8)) {
-  max-width: 350px;
-}
-
-.donut-menu-tags-grid:has(.donut-menu-tag-chip:nth-child(10)) {
-  max-width: 400px;
-}
+/* Removed conflicting max-width rules - using flexible container instead */
 
 .donut-menu-dropdown {
   overflow: visible;

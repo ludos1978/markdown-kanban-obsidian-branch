@@ -47,11 +47,6 @@
                     <span class="font-size-icon">A</span>
                     <span class="font-size-text">Size</span>
                 </button>
-
-                <button id="lock-status-icon" class="lock-status-icon" onclick="toggleFileLock()" title="Click to toggle file lock">
-                    <span class="lock-icon">🔓</span>
-                    <span class="lock-text">Lock</span>
-                </button>
                 
                 <!-- File Bar Burger Menu -->
                 <div class="file-bar-menu">
@@ -67,10 +62,6 @@
                             <span class="menu-icon">↷</span> Redo
                         </button>
                         <div class="file-bar-menu-divider"></div>
-                        <button id="lock-toggle-btn" class="file-bar-menu-item" onclick="toggleFileLock()" title="Toggle file lock">
-                            <span id="lock-menu-icon" class="menu-icon">🔓</span>
-                            <span id="lock-btn-text">Lock File</span>
-                        </button>
                         <button class="file-bar-menu-item" onclick="selectFile()" title="Select different file">
                             <span class="menu-icon">📁</span> Open File
                         </button>
@@ -90,6 +81,23 @@
                                 <button class="file-bar-menu-item" onclick="setLayoutRows(2)">2 Rows</button>
                                 <button class="file-bar-menu-item" onclick="setLayoutRows(3)">3 Rows</button>
                                 <button class="file-bar-menu-item" onclick="setLayoutRows(4)">4 Rows</button>
+                                <button class="file-bar-menu-item" onclick="setLayoutRows(5)">5 Rows</button>
+                                <button class="file-bar-menu-item" onclick="setLayoutRows(6)">6 Rows</button>
+                            </div>
+                        </div>
+                        <div class="file-bar-menu-item has-submenu">
+                            <span class="menu-icon">↕</span> Row Height
+                            <div class="file-bar-menu-submenu">
+                                <button class="file-bar-menu-item" onclick="setRowHeight('100vh')">100% Screen</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('66vh')">66% Screen</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('50vh')">50% Screen</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('33vh')">33% Screen</button>
+                                <div class="file-bar-menu-divider"></div>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('44em')">700px (~44em)</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('31em')">500px (~31em)</button>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('19em')">300px (~19em)</button>
+                                <div class="file-bar-menu-divider"></div>
+                                <button class="file-bar-menu-item" onclick="setRowHeight('auto')">Auto Height</button>
                             </div>
                         </div>
                     </div>
@@ -169,6 +177,7 @@
     <!-- JavaScript modules in dependency order -->
     <script src="markdownRenderer.js"></script>
     <script src="taskEditor.js"></script>
+    <script src="submenuGenerator.js"></script>
     <script src="boardRenderer.js"></script>
     <script src="dragDrop.js"></script>
     <script src="menuOperations.js"></script>

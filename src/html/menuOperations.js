@@ -1,26 +1,144 @@
 // Track menu hover state to prevent premature closing
 let menuHoverTimeout = null;
 
-// Simple submenu positioning
+// Function to prepare submenu for measurement (minimal JS, CSS handles styling)
+function applySubmenuConstraints(submenu) {
+    // CSS handles all styling, this is just for measurement preparation
+}
+
+// Submenu positioning for fixed positioned submenus
 function positionSubmenu(menuItem) {
     const submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
     if (!submenu) return;
     
     const rect = menuItem.getBoundingClientRect();
-    const submenuWidth = 280; // Approximate max width
-    const spaceRight = window.innerWidth - rect.right;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Apply layout constraints first, then measure
+    applySubmenuConstraints(submenu);
+    
+    // Make submenu visible temporarily to measure its actual dimensions
+    submenu.style.visibility = 'hidden';
+    submenu.style.display = 'block';
+    submenu.style.position = 'fixed';
+    submenu.style.left = '0px';
+    submenu.style.top = '0px';
+    
+    // Force layout calculation
+    submenu.offsetHeight;
+    
+    // Get actual dimensions after constraints are applied
+    const submenuRect = submenu.getBoundingClientRect();
+    const submenuWidth = Math.min(submenuRect.width || 250, 250);
+    const submenuHeight = submenuRect.height || 150;
+    
+    let left, top;
+    const margin = 8;
+    
+    // Determine horizontal position
+    const spaceRight = viewportWidth - rect.right;
     const spaceLeft = rect.left;
     
-    // Determine which side has more space
-    if (spaceRight < submenuWidth && spaceLeft > submenuWidth) {
-        // Not enough space on right, but enough on left
-        submenu.style.left = 'auto';
-        submenu.style.right = '100%';
+    if (spaceRight >= submenuWidth + margin) {
+        // Position to the right of menu item
+        left = rect.right + margin;
+    } else if (spaceLeft >= submenuWidth + margin) {
+        // Position to the left of menu item  
+        left = rect.left - submenuWidth - margin;
     } else {
-        // Enough space on right, or default behavior
-        submenu.style.left = '100%';
-        submenu.style.right = 'auto';
+        // Not enough space on either side, position where there's more space
+        if (spaceRight > spaceLeft) {
+            left = rect.right + margin;
+        } else {
+            left = rect.left - submenuWidth - margin;
+        }
     }
+    
+    // Ensure it stays within viewport horizontally
+    if (left < margin) {
+        left = margin;
+    }
+    if (left + submenuWidth > viewportWidth - margin) {
+        left = viewportWidth - submenuWidth - margin;
+    }
+    
+    // Position vertically aligned with menu item
+    top = rect.top;
+    
+    // Adjust if submenu would go off-screen vertically
+    if (top + submenuHeight > viewportHeight - margin) {
+        top = viewportHeight - submenuHeight - margin;
+    }
+    if (top < margin) {
+        top = margin;
+    }
+    
+    // Apply positioning only - CSS handles visibility
+    submenu.style.setProperty('left', left + 'px', 'important');
+    submenu.style.setProperty('top', top + 'px', 'important');
+    submenu.style.setProperty('right', 'auto', 'important');
+    submenu.style.setProperty('bottom', 'auto', 'important');
+    submenu.style.setProperty('position', 'fixed', 'important');
+}
+
+// Function to position fixed dropdowns to avoid clipping
+function positionDropdown(triggerButton, dropdown) {
+    const rect = triggerButton.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const dropdownWidth = 180; // Approximate dropdown width
+    const dropdownHeight = 300; // Approximate dropdown height
+    const margin = 10; // Margin from viewport edges
+    
+    // Check if button is in a collapsed column
+    const isCollapsedColumn = triggerButton.closest('.kanban-column.collapsed');
+    
+    let left, top;
+    
+    if (isCollapsedColumn) {
+        // For collapsed columns, position to the right of the button
+        left = rect.right + 5;
+        top = rect.top;
+        
+        // If no space on the right, position to the left
+        if (left + dropdownWidth > viewportWidth - margin) {
+            left = rect.left - dropdownWidth - 5;
+        }
+    } else {
+        // For normal columns, try different positioning strategies
+        
+        // Strategy 1: Below and right-aligned with button
+        left = rect.right - dropdownWidth;
+        top = rect.bottom + 5;
+        
+        // Strategy 2: If goes off right edge, try left-aligned
+        if (left < margin) {
+            left = rect.left;
+        }
+        
+        // Strategy 3: If still goes off right edge, position at right edge
+        if (left + dropdownWidth > viewportWidth - margin) {
+            left = viewportWidth - dropdownWidth - margin;
+        }
+        
+        // Strategy 4: If goes off bottom, position above button
+        if (top + dropdownHeight > viewportHeight - margin) {
+            top = rect.top - dropdownHeight - 5;
+        }
+    }
+    
+    // Final boundary checks to ensure dropdown is always visible
+    if (left < margin) left = margin;
+    if (left + dropdownWidth > viewportWidth - margin) left = viewportWidth - dropdownWidth - margin;
+    if (top < margin) top = margin;
+    if (top + dropdownHeight > viewportHeight - margin) top = viewportHeight - dropdownHeight - margin;
+    
+    // Apply the calculated position
+    dropdown.style.left = left + 'px';
+    dropdown.style.top = top + 'px';
+    dropdown.style.right = 'auto';
+    dropdown.style.bottom = 'auto';
 }
 
 // donut menu toggle that respects tag interactions
@@ -55,9 +173,89 @@ function toggleDonutMenu(event, button) {
         menu.classList.add('active');
         activeTagMenu = menu;
         
+        // Initialize all submenus as hidden
+        menu.querySelectorAll('.donut-menu-submenu, .file-bar-menu-submenu').forEach(submenu => {
+            submenu.style.setProperty('display', 'none', 'important');
+        });
+        
         // Add hover listeners to keep menu open
         const dropdown = menu.querySelector('.donut-menu-dropdown');
         if (dropdown) {
+            // Position the fixed dropdown correctly
+            positionDropdown(button, dropdown);
+            
+            // Set up submenu positioning for items with submenus
+            dropdown.querySelectorAll('.donut-menu-item.has-submenu').forEach(menuItem => {
+                // Remove any existing listeners to prevent duplicates
+                if (menuItem._submenuPositionHandler) {
+                    menuItem.removeEventListener('mouseenter', menuItem._submenuPositionHandler);
+                }
+                if (menuItem._submenuHideHandler) {
+                    menuItem.removeEventListener('mouseleave', menuItem._submenuHideHandler);
+                }
+                
+                // Create and store the handlers
+                menuItem._submenuPositionHandler = () => {
+                    // Check if this is a dynamic submenu item
+                    if (menuItem.dataset.submenuType) {
+                        // Generate dynamic submenu content
+                        const id = menuItem.dataset.id;
+                        const type = menuItem.dataset.type;
+                        const columnId = menuItem.dataset.columnId;
+                        const submenu = window.submenuGenerator.showSubmenu(menuItem, id, type, columnId);
+                        if (submenu) {
+                            positionSubmenu(menuItem);
+                            submenu.style.setProperty('display', 'block', 'important');
+                        }
+                    } else {
+                        // Handle existing static submenus
+                        const submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
+                        if (submenu) {
+                            positionSubmenu(menuItem);
+                            submenu.style.setProperty('display', 'block', 'important');
+                        }
+                    }
+                };
+                
+                menuItem._submenuHideHandler = (e) => {
+                    // Hide submenu when leaving menu item
+                    setTimeout(() => {
+                        if (!menuItem.matches(':hover')) {
+                            // For dynamic submenus, use the generator's hide method
+                            if (menuItem.dataset.submenuType && window.submenuGenerator) {
+                                window.submenuGenerator.hideSubmenu();
+                            } else {
+                                // For static submenus
+                                const submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
+                                if (submenu && !submenu.matches(':hover')) {
+                                    submenu.style.setProperty('display', 'none', 'important');
+                                }
+                            }
+                        }
+                    }, 150);
+                };
+                
+                menuItem.addEventListener('mouseenter', menuItem._submenuPositionHandler);
+                menuItem.addEventListener('mouseleave', menuItem._submenuHideHandler);
+                
+                // Add submenu hover handlers to keep it visible
+                const submenu = menuItem.querySelector('.donut-menu-submenu, .file-bar-menu-submenu');
+                if (submenu) {
+                    submenu.addEventListener('mouseenter', () => {
+                        // Keep submenu visible when hovering over it
+                        submenu.style.setProperty('display', 'block', 'important');
+                    });
+                    submenu.addEventListener('mouseleave', () => {
+                        // Hide when leaving the submenu
+                        setTimeout(() => {
+                            if (!submenu.matches(':hover') && !menuItem.matches(':hover')) {
+                                submenu.style.setProperty('display', 'none', 'important');
+                            }
+                        }, 150);
+                    });
+                }
+            });
+            
             dropdown.onmouseenter = () => {
                 if (menuHoverTimeout) {
                     clearTimeout(menuHoverTimeout);
@@ -933,6 +1131,7 @@ function performSort() {
 // Make handlers globally available
 window.handleColumnTagClick = handleColumnTagClick;
 window.handleTaskTagClick = handleTaskTagClick;
+window.positionSubmenu = positionSubmenu;
 window.columnTagTimeout = null;
 window.taskTagTimeout = null;
 window.tagHandlers = window.tagHandlers || {};
