@@ -145,14 +145,49 @@ class SimpleMenuManager {
         submenu.addEventListener('mouseleave', () => this.startHideTimer());
     }
 
-    // Simple positioning with minimal gap for easy mouse movement
+    // Smart positioning that handles viewport boundaries
     positionSubmenu(menuItem, submenu) {
         const rect = menuItem.getBoundingClientRect();
-        // Reduce gap from 8px to 2px for easier mouse movement
-        const left = Math.min(rect.right - 1, window.innerWidth - 300);
-        // Align top exactly with menu item for seamless transition
-        const top = Math.min(rect.top, window.innerHeight - 200);
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
         
+        // Get submenu dimensions by temporarily showing it
+        submenu.style.visibility = 'hidden';
+        submenu.style.display = 'flex';
+        const submenuRect = submenu.getBoundingClientRect();
+        const submenuWidth = submenuRect.width || 250;
+        const submenuHeight = submenuRect.height || 300;
+        
+        // Calculate horizontal position
+        let left = rect.right - 1; // 1px overlap for easy mouse movement
+        
+        // If submenu goes off right edge, position to the left of menu item
+        if (left + submenuWidth > viewportWidth - 10) {
+            left = rect.left - submenuWidth + 1; // 1px overlap on left side
+        }
+        
+        // Final horizontal boundary check
+        if (left < 10) {
+            left = 10;
+        }
+        if (left + submenuWidth > viewportWidth - 10) {
+            left = viewportWidth - submenuWidth - 10;
+        }
+        
+        // Calculate vertical position
+        let top = rect.top; // Align with menu item top
+        
+        // If submenu goes off bottom edge, move it up
+        if (top + submenuHeight > viewportHeight - 10) {
+            top = viewportHeight - submenuHeight - 10;
+        }
+        
+        // If still off top edge (very tall submenu), align with viewport top
+        if (top < 10) {
+            top = 10;
+        }
+        
+        // Apply final positioning
         submenu.style.left = left + 'px';
         submenu.style.top = top + 'px';
         submenu.style.visibility = 'visible';
