@@ -486,6 +486,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         // Store the handler in a global object
         if (!window.tagHandlers) window.tagHandlers = {};
         window.tagHandlers[buttonId] = function(event) {
+            console.log('🔍 DEBUG: window.tagHandlers called for:', tagName, 'buttonId:', buttonId);
             event.stopPropagation();
             event.preventDefault();
             if (type === 'column') {
@@ -499,7 +500,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         return `
             <button id="${buttonId}"
                     class="donut-menu-tag-chip ${isActive ? 'active' : ''} ${isConfigured ? '' : 'custom-tag'}" 
-                    onclick="window.tagHandlers['${buttonId}'](event); return false;"
+                    onclick="console.log('🔍 DEBUG: Inline onclick triggered for ${buttonId}'); window.tagHandlers['${buttonId}'](event); return false;"
                     style="background-color: ${isActive ? bgColor : 'transparent'}; 
                            color: ${isActive ? textColor : 'inherit'};
                            border-color: ${bgColor};"

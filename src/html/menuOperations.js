@@ -124,7 +124,14 @@ class SubmenuGenerator {
         // Generate content
         submenu.innerHTML = this.createSubmenuContent(menuItem, id, type, columnId);
         
+        // DEBUG: Add visual debugging for tag chips
+        console.log('🔍 DEBUG: Submenu created:', submenu.className);
+        console.log('🔍 DEBUG: Submenu innerHTML:', submenu.innerHTML.substring(0, 200) + '...');
+        
         // Add event listeners to buttons to ensure they work
+        console.log('🔍 DEBUG: Looking for button.donut-menu-item:', submenu.querySelectorAll('button.donut-menu-item').length);
+        console.log('🔍 DEBUG: Looking for button.donut-menu-tag-chip:', submenu.querySelectorAll('button.donut-menu-tag-chip').length);
+        
         submenu.querySelectorAll('button.donut-menu-item').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -140,6 +147,21 @@ class SubmenuGenerator {
                     }
                 }
             });
+        });
+        
+        // DEBUG: Add event listeners specifically for tag chips
+        submenu.querySelectorAll('button.donut-menu-tag-chip').forEach(button => {
+            console.log('🔍 DEBUG: Adding listeners to tag chip:', button.textContent.trim());
+            button.addEventListener('click', (e) => {
+                console.log('🔍 DEBUG: Tag chip clicked!', button.textContent.trim());
+                e.stopPropagation();
+            });
+            button.addEventListener('mouseenter', (e) => {
+                console.log('🔍 DEBUG: Tag chip hovered!', button.textContent.trim());
+            });
+            // Visual debugging
+            button.style.border = '2px solid red !important';
+            button.style.zIndex = '999999';
         });
         
         // Initially hide submenu to prevent flash

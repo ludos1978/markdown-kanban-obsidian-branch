@@ -1133,7 +1133,7 @@ button.file-bar-menu-item {
   top: 0;
   width: 10px;
   height: 100%;
-  z-index: 1000;
+  z-index: 50;
 }
 
 .donut-menu-item.has-submenu::before {
@@ -1162,7 +1162,6 @@ button.file-bar-menu-item {
   overflow-x: hidden;
   overflow-y: auto;
   word-wrap: break-word;
-  z-index: 10000;
 }
 
 /* Tag grid submenus need wider width */
@@ -1298,13 +1297,13 @@ button.file-bar-menu-item {
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  border: 1px solid;
+  border: 3px solid lime !important;
   border-radius: 12px;
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: transparent;
+  background: rgba(255, 0, 255, 0.3) !important;
   color: var(--vscode-menu-foreground);
   white-space: nowrap;
   flex: 0 0 auto;
@@ -1313,10 +1312,11 @@ button.file-bar-menu-item {
   text-overflow: ellipsis;
   box-sizing: border-box;
   flex-shrink: 1;
+  z-index: 999999 !important;
+  position: relative !important;
 }
 
 .donut-menu-tag-chip:hover {
-  transform: scale(1.05);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
