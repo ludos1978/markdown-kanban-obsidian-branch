@@ -459,6 +459,29 @@ function toggleDonutMenu(event, button) {
 
 // Setup hover handlers for menu items
 function setupMenuHoverHandlers(menu, dropdown) {
+    // Add hover handlers to the menu button itself to maintain hover state
+    const menuButton = menu.querySelector('.donut-menu-btn');
+    if (menuButton) {
+        menuButton.addEventListener('mouseenter', () => {
+            window.menuManager.clearTimeout();
+            window._inDropdown = true;
+        });
+        menuButton.addEventListener('mouseleave', () => {
+            window._inDropdown = false;
+            window.menuManager.startHideTimer();
+        });
+    }
+    
+    // Add hover handlers to the dropdown itself (including padding border area)
+    dropdown.addEventListener('mouseenter', () => {
+        window.menuManager.clearTimeout();
+        window._inDropdown = true;
+    });
+    dropdown.addEventListener('mouseleave', () => {
+        window._inDropdown = false;
+        window.menuManager.startHideTimer();
+    });
+    
     dropdown.querySelectorAll('.donut-menu-item.has-submenu').forEach(menuItem => {
         menuItem.addEventListener('mouseenter', () => {
             window.menuManager.clearTimeout();
@@ -480,7 +503,7 @@ function setupMenuHoverHandlers(menu, dropdown) {
         });
     });
     
-    // Menu-level hover handlers
+    // Menu-level hover handlers for the dropdown
     dropdown.addEventListener('mouseenter', () => {
         window.menuManager.clearTimeout();
         window._inDropdown = true;
@@ -496,7 +519,13 @@ function setupMenuHoverHandlers(menu, dropdown) {
             if (pendingTagChanges.columns.size + pendingTagChanges.tasks.size > 0) {
                 flushPendingTagChanges();
             }
+            
+            // Close the menu and clean up any moved dropdowns
             menu.classList.remove('active');
+            const dropdown = menu.querySelector('.donut-menu-dropdown');
+            if (dropdown) {
+                cleanupDropdown(dropdown);
+            }
             activeTagMenu = null;
         }, 400);
     });

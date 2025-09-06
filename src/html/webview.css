@@ -1055,7 +1055,9 @@ body.vscode-high-contrast-light .task-count {
   border: 1px solid var(--vscode-dropdown-border);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 2147483647;
+  z-index: 2147483640;
+  /* Add hover border for easier targeting */
+  padding: 3px;
 }
 
 .donut-menu-dropdown {
