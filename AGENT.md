@@ -499,3 +499,10 @@ checking for pending changes" and
   problem exists. check static and dynamically generated html. make 
   sure you solve the problem properly the first time by carefully 
   examining the whole code related to the aspect we work on!
+
+---
+
+now, the submenu's of the file-info-menu is broken. it's not opening the menu options with the column width's, layout rows and row heights. think carefully how to solve it. when thinking about a solution, also think about reasons why it could be prevented to work correctly. any think of aspects influencing the way you solve it.
+
+---
+

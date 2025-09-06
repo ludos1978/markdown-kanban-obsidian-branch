@@ -539,46 +539,64 @@ function toggleFileBarMenu(event, button) {
                 }
                 
                 // Create and store the handlers
-                menuItem._submenuPositionHandler = () => {
-                    // Position immediately when hover starts
-                    const submenu = menuItem.querySelector('.file-bar-menu-submenu');
-                    if (submenu && window.positionSubmenu) {
-                        window.positionSubmenu(menuItem, submenu);
-                        submenu.style.setProperty('display', 'block', 'important');
-                        submenu.style.setProperty('visibility', 'visible', 'important');
-                    }
-                };
-                
-                menuItem._submenuHideHandler = (e) => {
-                    // Don't hide if moving to the submenu itself
-                    const submenu = menuItem.querySelector('.file-bar-menu-submenu');
-                    if (submenu) {
-                        setTimeout(() => {
-                            // Check if mouse is over the submenu
-                            if (!submenu.matches(':hover') && !menuItem.matches(':hover')) {
-                                submenu.style.setProperty('display', 'none', 'important');
-                            }
-                        }, 100);
-                    }
-                };
-                
-                menuItem.addEventListener('mouseenter', menuItem._submenuPositionHandler);
-                menuItem.addEventListener('mouseleave', menuItem._submenuHideHandler);
                 
                 // Add submenu hover handlers to keep it visible
                 const submenu = menuItem.querySelector('.file-bar-menu-submenu');
                 if (submenu) {
+                    // Track hover state more reliably
+                    let isSubmenuHovered = false;
+                    let isMenuItemHovered = false;
+                    
+                    const updateSubmenuVisibility = () => {
+                        if (isSubmenuHovered || isMenuItemHovered) {
+                            submenu.style.setProperty('display', 'block', 'important');
+                            submenu.style.setProperty('visibility', 'visible', 'important');
+                        } else {
+                            setTimeout(() => {
+                                if (!isSubmenuHovered && !isMenuItemHovered) {
+                                    submenu.style.setProperty('display', 'none', 'important');
+                                    submenu.style.setProperty('visibility', 'hidden', 'important');
+                                }
+                            }, 150);
+                        }
+                    };
+                    
+                    // Menu item hover tracking
+                    menuItem.addEventListener('mouseenter', () => {
+                        isMenuItemHovered = true;
+                        // Position file bar submenu to the left (it's right-aligned)
+                        const rect = menuItem.getBoundingClientRect();
+                        const submenuWidth = 200; // Approximate width
+                        
+                        // Position to the left of the menu item
+                        let left = rect.left - submenuWidth + 10; // Small overlap
+                        let top = rect.top;
+                        
+                        // Adjust if it would go off-screen
+                        if (left < 10) {
+                            left = 10;
+                        }
+                        
+                        submenu.style.position = 'fixed';
+                        submenu.style.left = left + 'px';
+                        submenu.style.top = top + 'px';
+                        submenu.style.zIndex = '2147483647';
+                        
+                        updateSubmenuVisibility();
+                    });
+                    menuItem.addEventListener('mouseleave', () => {
+                        isMenuItemHovered = false;
+                        updateSubmenuVisibility();
+                    });
+                    
+                    // Submenu hover tracking  
                     submenu.addEventListener('mouseenter', () => {
-                        // Keep submenu visible when hovering over it
-                        submenu.style.setProperty('display', 'block', 'important');
+                        isSubmenuHovered = true;
+                        updateSubmenuVisibility();
                     });
                     submenu.addEventListener('mouseleave', () => {
-                        // Hide when leaving the submenu
-                        setTimeout(() => {
-                            if (!submenu.matches(':hover') && !menuItem.matches(':hover')) {
-                                submenu.style.setProperty('display', 'none', 'important');
-                            }
-                        }, 100);
+                        isSubmenuHovered = false;
+                        updateSubmenuVisibility();
                     });
                 }
             });
@@ -1196,14 +1214,26 @@ document.addEventListener('DOMContentLoaded', () => {
             // Close all menus and clean up moved dropdowns
             document.querySelectorAll('.donut-menu').forEach(menu => {
                 menu.classList.remove('active');
-                const dropdown = menu.querySelector('.donut-menu-dropdown');
+                // Clean up moved dropdowns - check both in menu and moved to body
+                let dropdown = menu.querySelector('.donut-menu-dropdown');
+                if (!dropdown && typeof cleanupDropdown === 'function') {
+                    // Look for moved dropdowns in body that belong to this menu
+                    const movedDropdowns = document.body.querySelectorAll('.donut-menu-dropdown.moved-to-body');
+                    dropdown = Array.from(movedDropdowns).find(d => d._originalParent === menu);
+                }
                 if (dropdown && typeof cleanupDropdown === 'function') {
                     cleanupDropdown(dropdown);
                 }
             });
             document.querySelectorAll('.file-bar-menu').forEach(menu => {
                 menu.classList.remove('active');
-                const dropdown = menu.querySelector('.file-bar-menu-dropdown');
+                // Clean up moved dropdowns - check both in menu and moved to body  
+                let dropdown = menu.querySelector('.file-bar-menu-dropdown');
+                if (!dropdown && typeof cleanupDropdown === 'function') {
+                    // Look for moved dropdowns in body that belong to this menu
+                    const movedDropdowns = document.body.querySelectorAll('.file-bar-menu-dropdown.moved-to-body');
+                    dropdown = Array.from(movedDropdowns).find(d => d._originalParent === menu);
+                }
                 if (dropdown && typeof cleanupDropdown === 'function') {
                     cleanupDropdown(dropdown);
                 }
