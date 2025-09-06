@@ -407,15 +407,42 @@ class SimpleMenuManager {
 // Global menu manager instance
 window.menuManager = new SimpleMenuManager();
 
+// Helper function to clean up moved dropdowns
+function cleanupDropdown(dropdown) {
+    if (dropdown._originalParent && dropdown.parentElement === document.body) {
+        // Restore to original position
+        if (dropdown._originalNextSibling) {
+            dropdown._originalParent.insertBefore(dropdown, dropdown._originalNextSibling);
+        } else {
+            dropdown._originalParent.appendChild(dropdown);
+        }
+        
+        // Clean up tracking properties and CSS classes
+        delete dropdown._originalParent;
+        delete dropdown._originalNextSibling;
+        dropdown.classList.remove('moved-to-body');
+        
+        // Reset styles
+        dropdown.style.position = '';
+        dropdown.style.left = '';
+        dropdown.style.top = '';
+        dropdown.style.zIndex = '';
+    }
+}
+
 // Simplified donut menu toggle
 function toggleDonutMenu(event, button) {
     event.stopPropagation();
     const menu = button.parentElement;
     const wasActive = menu.classList.contains('active');
     
-    // Close all menus
+    // Close all menus and clean up their dropdowns
     document.querySelectorAll('.donut-menu, .file-bar-menu').forEach(m => {
         m.classList.remove('active');
+        const dropdown = m.querySelector('.donut-menu-dropdown, .file-bar-menu-dropdown');
+        if (dropdown) {
+            cleanupDropdown(dropdown);
+        }
     });
     
     if (!wasActive) {
@@ -475,7 +502,7 @@ function setupMenuHoverHandlers(menu, dropdown) {
     });
 }
 
-// Simple dropdown positioning
+// Simple dropdown positioning - move to body to escape stacking contexts
 function positionDropdown(triggerButton, dropdown) {
     const rect = triggerButton.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
@@ -489,8 +516,20 @@ function positionDropdown(triggerButton, dropdown) {
     if (top + 300 > viewportHeight - 10) top = rect.top - 300;
     if (top < 10) top = 10;
     
+    // Move dropdown to body to escape any stacking contexts from parent elements
+    if (dropdown.parentElement !== document.body) {
+        // Store original parent for cleanup later
+        dropdown._originalParent = dropdown.parentElement;
+        dropdown._originalNextSibling = dropdown.nextSibling;
+        document.body.appendChild(dropdown);
+        dropdown.classList.add('moved-to-body');
+    }
+    
+    // Ensure fixed positioning and high z-index
+    dropdown.style.position = 'fixed';
     dropdown.style.left = left + 'px';
     dropdown.style.top = top + 'px';
+    dropdown.style.zIndex = '2147483647';
 }
 
 // File bar menu toggle (similar pattern)
@@ -1546,6 +1585,7 @@ window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(
 window.updateTagChipStyle = updateTagChipStyle;
 window.updateTagButtonAppearance = updateTagButtonAppearance;
 window.unfoldColumnIfCollapsed = unfoldColumnIfCollapsed;
+window.cleanupDropdown = cleanupDropdown;
 window.columnTagUpdateTimeout = null;
 window.taskTagUpdateTimeout = null;
 window.toggleColumnTag = toggleColumnTag;

@@ -869,7 +869,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   border: 1px solid var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
   border-radius: 4px;
-  padding: 2px 2px 2px 6px;
+  padding: 3px 6px 3px 6px;
   font-size: 12px;
   font-weight: 500;
   display: flex;
@@ -1006,6 +1006,13 @@ body.vscode-high-contrast-light .task-count {
   z-index: 200;
 }
 
+/* All active menus need maximum z-index to appear above all interface elements */
+.donut-menu.active,
+.file-bar-menu.active {
+  z-index: 2147483647;
+  isolation: isolate;
+}
+
 .donut-menu-btn {
   background: none;
   border: none;
@@ -1048,7 +1055,7 @@ body.vscode-high-contrast-light .task-count {
   border: 1px solid var(--vscode-dropdown-border);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 9999;
+  z-index: 2147483647;
 }
 
 .donut-menu-dropdown {
@@ -1062,7 +1069,9 @@ body.vscode-high-contrast-light .task-count {
 /* Collapsed column dropdowns are handled by JavaScript positioning */
 
 .donut-menu.active .donut-menu-dropdown,
-.file-bar-menu.active .file-bar-menu-dropdown {
+.file-bar-menu.active .file-bar-menu-dropdown,
+.donut-menu-dropdown.moved-to-body,
+.file-bar-menu-dropdown.moved-to-body {
   display: block;
 }
 
@@ -1170,7 +1179,7 @@ button.file-bar-menu-item {
   max-width: 280px;
 	width: auto;
   max-height: 80vh;
-  z-index: 100000;
+  z-index: 2147483647;
   pointer-events: all !important;
   box-sizing: border-box;
   overflow-x: hidden;

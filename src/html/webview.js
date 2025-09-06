@@ -1193,12 +1193,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 flushPendingTagChanges();
             }
             
-            // Close all menus
+            // Close all menus and clean up moved dropdowns
             document.querySelectorAll('.donut-menu').forEach(menu => {
                 menu.classList.remove('active');
+                const dropdown = menu.querySelector('.donut-menu-dropdown');
+                if (dropdown && typeof cleanupDropdown === 'function') {
+                    cleanupDropdown(dropdown);
+                }
             });
             document.querySelectorAll('.file-bar-menu').forEach(menu => {
                 menu.classList.remove('active');
+                const dropdown = menu.querySelector('.file-bar-menu-dropdown');
+                if (dropdown && typeof cleanupDropdown === 'function') {
+                    cleanupDropdown(dropdown);
+                }
             });
         }
     });
