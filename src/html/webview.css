@@ -1187,8 +1187,6 @@ button.file-bar-menu-item {
   overflow-x: hidden;
   overflow-y: auto;
   word-wrap: break-word;
-  /* Ensure submenus are always on top */
-  isolation: isolate;
 }
 
 /* Tag grid submenus need constrained width for wrapping */

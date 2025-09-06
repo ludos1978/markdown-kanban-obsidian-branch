@@ -214,7 +214,7 @@ class SimpleMenuManager {
         // Style and position of tag submenus
         submenu.style.cssText = `
             position: fixed;
-            z-index: 100000;
+            z-index: 2147483647;
             pointer-events: all;
             visibility: hidden;
             display: flex;
@@ -314,9 +314,13 @@ class SimpleMenuManager {
         submenu.addEventListener('mouseenter', () => {
             this.clearTimeout();
             window._inSubmenu = true;
+            // Also set dropdown state to prevent closing during transition
+            window._inDropdown = true;
         });
         submenu.addEventListener('mouseleave', () => {
             window._inSubmenu = false;
+            // Clear dropdown state when leaving submenu
+            window._inDropdown = false;
             this.startHideTimer();
         });
     }
@@ -380,6 +384,18 @@ class SimpleMenuManager {
                 if (!window._inDropdown && !window._inSubmenu) {
                     document.querySelectorAll('.donut-menu.active').forEach(menu => {
                         menu.classList.remove('active');
+                        
+                        // Clean up any moved dropdowns - check both in menu and moved to body
+                        let dropdown = menu.querySelector('.donut-menu-dropdown, .file-bar-menu-dropdown');
+                        if (!dropdown) {
+                            // Look for moved dropdowns in body that belong to this menu
+                            const movedDropdowns = document.body.querySelectorAll('.donut-menu-dropdown.moved-to-body, .file-bar-menu-dropdown.moved-to-body');
+                            dropdown = Array.from(movedDropdowns).find(d => d._originalParent === menu);
+                        }
+                        
+                        if (dropdown) {
+                            cleanupDropdown(dropdown);
+                        }
                     });
                 }
             }, 100);
@@ -502,33 +518,6 @@ function setupMenuHoverHandlers(menu, dropdown) {
             window.menuManager.startHideTimer();
         });
     });
-    
-    // Menu-level hover handlers for the dropdown
-    dropdown.addEventListener('mouseenter', () => {
-        window.menuManager.clearTimeout();
-        window._inDropdown = true;
-    });
-    dropdown.addEventListener('mouseleave', () => {
-        window._inDropdown = false;
-        setTimeout(() => {
-            // Don't close the menu if we're hovering over a submenu
-            if (window._inSubmenu) {
-                return;
-            }
-            
-            if (pendingTagChanges.columns.size + pendingTagChanges.tasks.size > 0) {
-                flushPendingTagChanges();
-            }
-            
-            // Close the menu and clean up any moved dropdowns
-            menu.classList.remove('active');
-            const dropdown = menu.querySelector('.donut-menu-dropdown');
-            if (dropdown) {
-                cleanupDropdown(dropdown);
-            }
-            activeTagMenu = null;
-        }, 400);
-    });
 }
 
 // Simple dropdown positioning - move to body to escape stacking contexts
@@ -554,11 +543,11 @@ function positionDropdown(triggerButton, dropdown) {
         dropdown.classList.add('moved-to-body');
     }
     
-    // Ensure fixed positioning and high z-index
+    // Ensure fixed positioning and correct z-index
     dropdown.style.position = 'fixed';
     dropdown.style.left = left + 'px';
     dropdown.style.top = top + 'px';
-    dropdown.style.zIndex = '2147483647';
+    dropdown.style.zIndex = '2147483640';
 }
 
 // File bar menu toggle (similar pattern)

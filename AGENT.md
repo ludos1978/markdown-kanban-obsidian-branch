@@ -491,3 +491,11 @@ the gather sorting mechanism must work like this. The sorting is activated by pr
 - - if a card cannot be matched against any rules:
 - - - it first goes into the #ungathered column if it exists
 - - - it stays in it's original column
+
+---
+
+checking for pending changes" and 
+  still not working. from now on allways think very carefully why a 
+  problem exists. check static and dynamically generated html. make 
+  sure you solve the problem properly the first time by carefully 
+  examining the whole code related to the aspect we work on!
