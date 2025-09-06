@@ -999,6 +999,11 @@ function setupTaskDragHandle(handle) {
                         flushPendingTagChanges();
                     }
                     
+                    // Unfold the destination column if it's collapsed
+                    if (typeof unfoldColumnIfCollapsed === 'function') {
+                        unfoldColumnIfCollapsed(finalColumnId);
+                    }
+                    
                     // Send the command to update the model
                     vscode.postMessage({
                         type: 'moveTask',

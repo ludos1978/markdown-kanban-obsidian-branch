@@ -710,6 +710,10 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
         console.log('🔄 Flushing pending tag changes before moveTaskToColumn');
         flushPendingTagChanges();
     }
+    
+    // Unfold the destination column if it's collapsed
+    unfoldColumnIfCollapsed(toColumnId);
+    
     vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
     
     // Update button state to show unsaved changes
@@ -729,11 +733,19 @@ function addTask(columnId) {
     });
 }
 
-function addTaskAndUnfold(columnId) {
+// Helper function to unfold a column if it's collapsed
+function unfoldColumnIfCollapsed(columnId) {
     const column = document.querySelector(`[data-column-id="${columnId}"]`);
     if (column?.classList.contains('collapsed')) {
+        console.log(`📂 Auto-unfolding collapsed column: ${columnId}`);
         toggleColumnCollapse(columnId);
+        return true; // Column was unfolded
     }
+    return false; // Column was already unfolded
+}
+
+function addTaskAndUnfold(columnId) {
+    unfoldColumnIfCollapsed(columnId);
     addTask(columnId);
 }
 
@@ -1533,6 +1545,7 @@ window.handleColumnTagClick = (columnId, tagName, event) => toggleColumnTag(colu
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(taskId, columnId, tagName, event);
 window.updateTagChipStyle = updateTagChipStyle;
 window.updateTagButtonAppearance = updateTagButtonAppearance;
+window.unfoldColumnIfCollapsed = unfoldColumnIfCollapsed;
 window.columnTagUpdateTimeout = null;
 window.taskTagUpdateTimeout = null;
 window.toggleColumnTag = toggleColumnTag;
