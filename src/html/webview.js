@@ -763,20 +763,20 @@ function setRowHeight(height) {
     });
     
     // Show user-friendly message
-    let message = 'Row height set to ';
-    switch(height) {
-        case '100vh': message += '100% of screen'; break;
-        case '66vh': message += '66% of screen'; break;
-        case '50vh': message += '50% of screen'; break;
-        case '33vh': message += '33% of screen'; break;
-        case '44em': message += '700px (~44em)'; break;
-        case '31em': message += '500px (~31em)'; break;
-        case '19em': message += '300px (~19em)'; break;
-        case 'auto': message += 'auto height'; break;
-        default: message += height; break;
-    }
+    // let message = 'Row height set to ';
+    // switch(height) {
+    //     case '100vh': message += '100% of screen'; break;
+    //     case '63vh': message += '2/3 of screen'; break;
+    //     case '44vh': message += '1/2 of screen'; break;
+    //     case '30vh': message += '1/3 of screen'; break;
+    //     case '44em': message += '700px (~44em)'; break;
+    //     case '31em': message += '500px (~31em)'; break;
+    //     case '19em': message += '300px (~19em)'; break;
+    //     case 'auto': message += 'auto height'; break;
+    //     default: message += height; break;
+    // }
     
-    vscode.postMessage({ type: 'showMessage', text: message });
+    // vscode.postMessage({ type: 'showMessage', text: message });
 }
 
 // Function to detect row tags from board

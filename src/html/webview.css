@@ -308,7 +308,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   bottom: 0;
   overflow-x: auto;
   overflow-y: auto;
-  padding: var(--whitespace-div2);
+  /* padding: var(--whitespace-div2); */
   display: flex;
   flex-direction: column;
 }
@@ -317,10 +317,16 @@ body.small-card-fonts .task-title-container .markdown-content img {
 .kanban-board {
   display: flex;
   gap: var(--whitespace-div2);
-  padding-bottom: var(--whitespace);
+  /* padding-bottom: var(--whitespace); */
   flex-wrap: nowrap;
   width: max-content; /* Allow horizontal expansion */
   align-items: flex-start;
+}
+
+
+/* when it has no child - kanban-row */
+.kanban-board:not(:has(.kanban-row)) {
+	padding: var(--whitespace-div2);
 }
 
 .kanban-board.multi-row {
@@ -1629,6 +1635,7 @@ button.file-bar-menu-item {
   display: flex;
   gap: var(--whitespace-div2);
   align-items: flex-start;
+	padding: var(--whitespace-div2);
   width: 100%;
   box-sizing: border-box;
 }
