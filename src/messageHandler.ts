@@ -84,6 +84,10 @@ export class MessageHandler {
             case 'selectFile':
                 await this.handleSelectFile();
                 break;
+            case 'closeWindow':
+                // Close the webview panel
+                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                break;
             case 'requestFileInfo':
                 this._fileManager.sendFileInfo();
                 break;

@@ -566,10 +566,15 @@ function toggleFileBarMenu(event, button) {
                         isMenuItemHovered = true;
                         // Position file bar submenu to the left (it's right-aligned)
                         const rect = menuItem.getBoundingClientRect();
-                        const submenuWidth = 200; // Approximate width
                         
-                        // Position to the left of the menu item
-                        let left = rect.left - submenuWidth + 10; // Small overlap
+                        // Temporarily show submenu to get its actual dimensions
+                        submenu.style.visibility = 'hidden';
+                        submenu.style.display = 'block';
+                        const submenuRect = submenu.getBoundingClientRect();
+                        const submenuWidth = submenuRect.width || 200;
+                        
+                        // Position to the left of the menu item, aligned with its left edge
+                        let left = rect.left - submenuWidth + 1; // 1px overlap for smooth hover
                         let top = rect.top;
                         
                         // Adjust if it would go off-screen
@@ -581,6 +586,7 @@ function toggleFileBarMenu(event, button) {
                         submenu.style.left = left + 'px';
                         submenu.style.top = top + 'px';
                         submenu.style.zIndex = '2147483647';
+                        submenu.style.visibility = 'visible';
                         
                         updateSubmenuVisibility();
                     });
@@ -1493,6 +1499,114 @@ document.addEventListener('keydown', (e) => {
                 flushPendingTagChanges();
             } else {
                 console.warn('flushPendingTagChanges function not available');
+            }
+        }
+        // Meta+W or Ctrl+W to close window - check for unsaved changes first
+        else if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+            const pendingCount = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
+            if (pendingCount > 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Show confirmation dialog
+                const message = `You have ${pendingCount} unsaved change${pendingCount > 1 ? 's' : ''}. What would you like to do?`;
+                
+                // Create a custom modal for save confirmation
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.cssText = `
+                    display: flex;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                `;
+                
+                const dialog = document.createElement('div');
+                dialog.style.cssText = `
+                    background: var(--vscode-dropdown-background);
+                    border: 1px solid var(--vscode-dropdown-border);
+                    border-radius: 8px;
+                    padding: 20px;
+                    max-width: 400px;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+                `;
+                
+                dialog.innerHTML = `
+                    <h3 style="margin: 0 0 15px 0; color: var(--vscode-foreground);">Unsaved Changes</h3>
+                    <p style="margin: 0 0 20px 0; color: var(--vscode-descriptionForeground);">${message}</p>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button id="save-and-close" style="
+                            padding: 6px 12px;
+                            background: var(--vscode-button-background);
+                            color: var(--vscode-button-foreground);
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                        ">Save & Close</button>
+                        <button id="discard-and-close" style="
+                            padding: 6px 12px;
+                            background: var(--vscode-button-secondaryBackground);
+                            color: var(--vscode-button-secondaryForeground);
+                            border: 1px solid var(--vscode-button-border);
+                            border-radius: 4px;
+                            cursor: pointer;
+                        ">Discard & Close</button>
+                        <button id="cancel-close" style="
+                            padding: 6px 12px;
+                            background: transparent;
+                            color: var(--vscode-foreground);
+                            border: 1px solid var(--vscode-panel-border);
+                            border-radius: 4px;
+                            cursor: pointer;
+                        ">Cancel</button>
+                    </div>
+                `;
+                
+                modal.appendChild(dialog);
+                document.body.appendChild(modal);
+                
+                // Handle button clicks
+                document.getElementById('save-and-close').addEventListener('click', () => {
+                    // Save changes first
+                    if (typeof flushPendingTagChanges === 'function') {
+                        flushPendingTagChanges();
+                    }
+                    // Remove modal
+                    modal.remove();
+                    // Let VS Code handle the close
+                    vscode.postMessage({ type: 'closeWindow' });
+                });
+                
+                document.getElementById('discard-and-close').addEventListener('click', () => {
+                    // Clear pending changes
+                    if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
+                    if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
+                    updateRefreshButtonState('saved');
+                    // Remove modal
+                    modal.remove();
+                    // Let VS Code handle the close
+                    vscode.postMessage({ type: 'closeWindow' });
+                });
+                
+                document.getElementById('cancel-close').addEventListener('click', () => {
+                    // Just remove the modal
+                    modal.remove();
+                });
+                
+                // Also close on escape key
+                const escapeHandler = (e) => {
+                    if (e.key === 'Escape') {
+                        modal.remove();
+                        document.removeEventListener('keydown', escapeHandler);
+                    }
+                };
+                document.addEventListener('keydown', escapeHandler);
             }
         }
     }
