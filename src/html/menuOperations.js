@@ -896,7 +896,9 @@ function toggleColumnTag(columnId, tagName, event) {
     let title = column.title || '';
     const wasActive = new RegExp(`#${tagName}\\b`, 'gi').test(title);
     
+    
     if (wasActive) {
+        const beforeRemoval = title;
         title = title.replace(new RegExp(`#${tagName}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
     } else {
         const rowMatch = title.match(/(#row\d+)$/i);
@@ -930,6 +932,9 @@ function toggleColumnTag(columnId, tagName, event) {
     // Update tag category counts in menu
     updateTagCategoryCounts(columnId, 'column');
     
+    // Update corner badges immediately
+    updateCornerBadgesImmediate(columnId, 'column', title);
+    
     // Store pending changes locally instead of sending to backend immediately
     if (!window.pendingColumnChanges) {
         window.pendingColumnChanges = new Map();
@@ -937,6 +942,10 @@ function toggleColumnTag(columnId, tagName, event) {
     
     // Store the change locally
     window.pendingColumnChanges.set(columnId, { title, columnId });
+    
+    // Set flag to skip next board refresh to preserve immediate visual updates
+    window.skipNextBoardRender = true;
+    console.log(`🏁 Set skipNextBoardRender=true to preserve immediate tag updates`);
     
     // Show pending changes indicator with count
     const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
@@ -1014,7 +1023,9 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     let title = task.title || '';
     const wasActive = new RegExp(`#${tagName}\\b`, 'gi').test(title);
     
+    
     if (wasActive) {
+        const beforeRemoval = title;
         title = title.replace(new RegExp(`#${tagName}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
     } else {
         title = `${title} ${tagWithHash}`.trim();
@@ -1043,6 +1054,9 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     // Update tag category counts in menu
     updateTagCategoryCounts(taskId, 'task', columnId);
     
+    // Update corner badges immediately
+    updateCornerBadgesImmediate(taskId, 'task', title);
+    
     // Store pending changes locally instead of sending to backend immediately
     if (!window.pendingTaskChanges) {
         window.pendingTaskChanges = new Map();
@@ -1050,6 +1064,10 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     
     // Store the change locally
     window.pendingTaskChanges.set(taskId, { taskId, columnId, taskData: task });
+    
+    // Set flag to skip next board refresh to preserve immediate visual updates
+    window.skipNextBoardRender = true;
+    console.log(`🏁 Set skipNextBoardRender=true to preserve immediate tag updates`);
     
     // Show pending changes indicator with count
     const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
@@ -1116,6 +1134,9 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
         console.warn('updateVisualTagState function not available');
     }
     
+    // Update corner badges immediately
+    updateCornerBadgesImmediate(columnId, 'column', newTitle);
+    
     // Update tag chip button state using unique identifiers
     const button = document.querySelector(`.donut-menu-tag-chip[data-element-id="${columnId}"][data-tag-name="${tagName}"]`);
     if (button) {
@@ -1128,7 +1149,7 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     }
     
     // Ensure the style for this specific tag exists without regenerating all styles
-    if (isActive && window.ensureTagStyleExists) {
+    if (window.ensureTagStyleExists) {
         window.ensureTagStyleExists(tagName);
     }
     
@@ -1192,6 +1213,9 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
         console.warn('updateVisualTagState function not available');
     }
     
+    // Update corner badges immediately
+    updateCornerBadgesImmediate(taskId, 'task', newTitle);
+    
     // Update tag chip button state using unique identifiers
     const button = document.querySelector(`.donut-menu-tag-chip[data-element-id="${taskId}"][data-tag-name="${tagName}"]`);
     if (button) {
@@ -1204,7 +1228,7 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
     }
     
     // Ensure the style for this specific tag exists without regenerating all styles
-    if (isActive && window.ensureTagStyleExists) {
+    if (window.ensureTagStyleExists) {
         window.ensureTagStyleExists(tagName);
     }
     
@@ -1634,6 +1658,57 @@ function updateTagButtonAppearance(id, type, tagName, isActive) {
     console.log(`✅ Updated tag button ${buttonId}: active=${isActive}, bgColor=${bgColor}, textColor=${textColor}`);
 }
 
+// Update corner badges immediately for an element
+function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
+    console.log(`🏷️ Updating corner badges for ${elementType}: ${elementId}`);
+    
+    // Find the element
+    const selector = elementType === 'column' ? `[data-column-id="${elementId}"]` : `[data-task-id="${elementId}"]`;
+    const element = document.querySelector(selector);
+    if (!element) {
+        console.warn(`❌ Element not found for ${elementType} ID: ${elementId}`);
+        return;
+    }
+    
+    // Get all active tags from the new title
+    const activeTags = getActiveTagsInTitle(newTitle);
+    
+    
+    // Update data-all-tags attribute
+    if (activeTags.length > 0) {
+        element.setAttribute('data-all-tags', activeTags.join(' '));
+    } else {
+        element.removeAttribute('data-all-tags');
+    }
+    
+    // Find existing corner badges container or create one
+    let badgesContainer = element.querySelector('.corner-badges-container');
+    if (!badgesContainer) {
+        badgesContainer = document.createElement('div');
+        badgesContainer.className = 'corner-badges-container';
+        badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
+        element.appendChild(badgesContainer);
+        // Ensure parent has relative positioning
+        if (!element.style.position || element.style.position === 'static') {
+            element.style.position = 'relative';
+        }
+    }
+    
+    // Generate new badges HTML
+    const newBadgesHtml = getAllCornerBadgesHtml(activeTags, elementType);
+    
+    // Clear and update badges
+    badgesContainer.innerHTML = newBadgesHtml;
+    
+    // If no badges, remove container to prevent empty space
+    if (!newBadgesHtml || newBadgesHtml.trim() === '') {
+        console.log(`🗑️ No badges to show, removing container`);
+        badgesContainer.remove();
+    }
+    
+    console.log(`✅ Updated corner badges for ${elementType} ${elementId}: ${activeTags.length} active tags`);
+}
+
 // Update tag category counts in the open dropdown menu
 function updateTagCategoryCounts(id, type, columnId = null) {
     console.log(`🔢 Updating tag category counts for ${type}: ${id}`);
@@ -1783,6 +1858,157 @@ window.handleColumnTagClick = (columnId, tagName, event) => toggleColumnTag(colu
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(taskId, columnId, tagName, event);
 window.updateTagChipStyle = updateTagChipStyle;
 window.updateTagButtonAppearance = updateTagButtonAppearance;
+// Update visual tag state - handles borders and other tag-based styling
+function updateVisualTagState(element, allTags, elementType, isCollapsed) {
+    console.log(`🎨 updateVisualTagState called for ${elementType} with tags:`, allTags);
+    
+    // Update primary tag attribute (for primary styling like borders)
+    const primaryTag = allTags.length > 0 ? allTags[0] : null;
+    const tagAttribute = elementType === 'column' ? 'data-column-tag' : 'data-task-tag';
+    
+    if (primaryTag) {
+        element.setAttribute(tagAttribute, primaryTag);
+        console.log(`✅ Set ${tagAttribute}="${primaryTag}" on element`);
+        
+        // Ensure style exists for the primary tag
+        if (window.ensureTagStyleExists) {
+            window.ensureTagStyleExists(primaryTag);
+        }
+    } else {
+        element.removeAttribute(tagAttribute);
+        console.log(`🗑️ Removed ${tagAttribute} from element`);
+    }
+    
+    // Update all-tags attribute (for multi-tag styling)
+    if (allTags.length > 0) {
+        element.setAttribute('data-all-tags', allTags.join(' '));
+        console.log(`✅ Set data-all-tags="${allTags.join(' ')}" on element`);
+        
+        // Ensure styles exist for all tags
+        if (window.ensureTagStyleExists) {
+            allTags.forEach(tag => {
+                window.ensureTagStyleExists(tag);
+            });
+        }
+    } else {
+        element.removeAttribute('data-all-tags');
+        console.log(`🗑️ Removed data-all-tags from element`);
+    }
+    
+    // Update all visual tag elements immediately (headers, footers, borders, badges)
+    updateAllVisualTagElements(element, allTags, elementType);
+    
+    // Force a style recalculation to ensure CSS changes are applied immediately
+    element.offsetHeight; // Trigger reflow
+    
+    console.log(`✅ Visual tag state updated for ${elementType}`);
+}
+
+// Comprehensive function to update ALL visual tag elements immediately
+function updateAllVisualTagElements(element, allTags, elementType) {
+    console.log(`🎨 Updating all visual elements for ${elementType} with tags:`, allTags);
+    
+    // 1. CLEAN UP - Remove all existing visual tag elements
+    element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container, .corner-badges-container').forEach(el => el.remove());
+    element.classList.remove('has-header-bar', 'has-footer-bar', 'has-header-label', 'has-footer-label');
+    
+    if (allTags.length === 0) {
+        console.log(`🧹 Cleaned up visual elements for ${elementType} - no tags`);
+        return;
+    }
+    
+    // 2. ENSURE STYLES - Make sure CSS exists for all tags
+    allTags.forEach(tag => {
+        if (window.ensureTagStyleExists) {
+            window.ensureTagStyleExists(tag);
+        }
+    });
+    
+    // 3. CORNER BADGES - Update badges immediately
+    let badgesContainer = element.querySelector('.corner-badges-container');
+    if (!badgesContainer && window.getAllCornerBadgesHtml) {
+        const badgesHtml = window.getAllCornerBadgesHtml(allTags, elementType);
+        if (badgesHtml && badgesHtml.trim() !== '') {
+            badgesContainer = document.createElement('div');
+            badgesContainer.className = 'corner-badges-container';
+            badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
+            badgesContainer.innerHTML = badgesHtml;
+            element.appendChild(badgesContainer);
+            // Ensure parent has relative positioning
+            if (!element.style.position || element.style.position === 'static') {
+                element.style.position = 'relative';
+            }
+            console.log(`✅ Added corner badges for ${elementType}`);
+        }
+    }
+    
+    // 4. HEADER BARS - Create header bars for tags that have them
+    const headerBars = [];
+    let hasHeaderLabel = false;
+    allTags.forEach(tag => {
+        if (window.getTagConfig) {
+            const config = window.getTagConfig(tag);
+            if (config && config.headerBar) {
+                const headerBar = document.createElement('div');
+                headerBar.className = `header-bar header-bar-${tag.toLowerCase()}`;
+                headerBars.push(headerBar);
+                if (config.headerBar.label) hasHeaderLabel = true;
+            }
+        }
+    });
+    
+    if (headerBars.length > 0) {
+        const isCollapsed = element.classList.contains('collapsed');
+        if (isCollapsed) {
+            // For collapsed elements, add bars directly
+            headerBars.forEach(bar => element.appendChild(bar));
+        } else {
+            // For expanded elements, use container
+            const headerContainer = document.createElement('div');
+            headerContainer.className = 'header-bars-container';
+            headerBars.forEach(bar => headerContainer.appendChild(bar));
+            element.appendChild(headerContainer);
+        }
+        element.classList.add('has-header-bar');
+        if (hasHeaderLabel) element.classList.add('has-header-label');
+        console.log(`✅ Added ${headerBars.length} header bars for ${elementType}`);
+    }
+    
+    // 5. FOOTER BARS - Create footer bars for tags that have them
+    const footerBars = [];
+    let hasFooterLabel = false;
+    allTags.forEach(tag => {
+        if (window.getTagConfig) {
+            const config = window.getTagConfig(tag);
+            if (config && config.footerBar) {
+                const footerBar = document.createElement('div');
+                footerBar.className = `footer-bar footer-bar-${tag.toLowerCase()}`;
+                footerBars.push(footerBar);
+                if (config.footerBar.label) hasFooterLabel = true;
+            }
+        }
+    });
+    
+    if (footerBars.length > 0) {
+        const isCollapsed = element.classList.contains('collapsed');
+        if (isCollapsed) {
+            // For collapsed elements, add bars directly
+            footerBars.forEach(bar => element.appendChild(bar));
+        } else {
+            // For expanded elements, use container
+            const footerContainer = document.createElement('div');
+            footerContainer.className = 'footer-bars-container';
+            footerBars.forEach(bar => footerContainer.appendChild(bar));
+            element.appendChild(footerContainer);
+        }
+        element.classList.add('has-footer-bar');
+        if (hasFooterLabel) element.classList.add('has-footer-label');
+        console.log(`✅ Added ${footerBars.length} footer bars for ${elementType}`);
+    }
+    
+    console.log(`🎨 Completed visual updates for ${elementType}: ${allTags.length} tags, ${headerBars.length} headers, ${footerBars.length} footers`);
+}
+
 window.updateTagCategoryCounts = updateTagCategoryCounts;
 window.unfoldColumnIfCollapsed = unfoldColumnIfCollapsed;
 window.cleanupDropdown = cleanupDropdown;
@@ -1792,5 +2018,7 @@ window.toggleColumnTag = toggleColumnTag;
 window.toggleTaskTag = toggleTaskTag;
 window.submenuGenerator = window.menuManager; // Compatibility alias
 window.manualRefresh = manualRefresh;
+window.updateVisualTagState = updateVisualTagState;
+window.updateAllVisualTagElements = updateAllVisualTagElements;
 
 console.log('✅ Unified menu system loaded');

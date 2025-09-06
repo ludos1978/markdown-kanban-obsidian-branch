@@ -1322,7 +1322,7 @@ window.addEventListener('message', event => {
             }
 
             // Check if we should skip rendering (for direct DOM updates like tag changes)
-            const shouldSkipRender = message.skipRender || message.board?.skipRender;
+            const shouldSkipRender = message.skipRender || message.board?.skipRender || window.skipNextBoardRender;
 
             // Store tag colors globally - THIS IS CRITICAL
             if (message.tagColors) {
@@ -1346,6 +1346,7 @@ window.addEventListener('message', event => {
             
             console.log('🔄 Board update received:', {
                 skipRender: shouldSkipRender,
+                skipNextBoardRender: window.skipNextBoardRender,
                 isEditing,
                 messageType: message.type,
                 hasBoard: !!message.board
@@ -1357,6 +1358,11 @@ window.addEventListener('message', event => {
                 debouncedRenderBoard();
             } else if (shouldSkipRender) {
                 console.log('⏭️ Skipping render update - direct DOM update mode');
+                // Clear the skip flag after using it
+                if (window.skipNextBoardRender) {
+                    console.log('🏁 Clearing skipNextBoardRender flag');
+                    window.skipNextBoardRender = false;
+                }
             } else {
                 console.log('⏭️ Skipping render update - currently editing');
             }
