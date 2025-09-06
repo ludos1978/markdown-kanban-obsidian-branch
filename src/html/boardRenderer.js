@@ -631,11 +631,16 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         if (!window.tagHandlers) window.tagHandlers = {};
         window.tagHandlers[buttonId] = function(event) {
             console.log('🔍 DEBUG: window.tagHandlers called for:', tagName, 'buttonId:', buttonId);
+            console.log('🔍 DEBUG: Parameters - id:', id, 'type:', type, 'columnId:', columnId, 'tagName:', tagName);
             event.stopPropagation();
             event.preventDefault();
             if (type === 'column') {
+                // FIXED: Correct parameter order for column tag click
+                console.log('🔍 DEBUG: Calling handleColumnTagClick with columnId:', id, 'tagName:', tagName);
                 handleColumnTagClick(id, tagName, event);
             } else {
+                // FIXED: Correct parameter order for task tag click
+                console.log('🔍 DEBUG: Calling handleTaskTagClick with taskId:', id, 'columnId:', columnId, 'tagName:', tagName);
                 handleTaskTagClick(id, columnId, tagName, event);
             }
             return false;

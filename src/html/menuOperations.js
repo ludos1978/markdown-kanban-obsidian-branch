@@ -610,6 +610,9 @@ function moveColumnLeft(columnId) {
             newRow: currentRow
         });
         
+        // Close all menus
+        document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+        
         // Update button state to show unsaved changes
         updateRefreshButtonState('unsaved', 1);
         console.log('📦 Column moved left - showing unsaved state');
@@ -637,6 +640,9 @@ function moveColumnRight(columnId) {
             newRow: currentRow
         });
         
+        // Close all menus
+        document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+        
         // Update button state to show unsaved changes
         updateRefreshButtonState('unsaved', 1);
         console.log('📦 Column moved right - showing unsaved state');
@@ -644,6 +650,9 @@ function moveColumnRight(columnId) {
 }
 
 function deleteColumn(columnId) {
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    
     vscode.postMessage({ type: 'deleteColumn', columnId });
 }
 
@@ -717,6 +726,9 @@ function moveTaskToTop(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
     
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
     console.log('📦 Task moved to top - showing unsaved state');
@@ -729,6 +741,9 @@ function moveTaskUp(taskId, columnId) {
         flushPendingTagChanges();
     }
     vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
+    
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -743,6 +758,9 @@ function moveTaskDown(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
     
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
     console.log('📦 Task moved down - showing unsaved state');
@@ -755,6 +773,9 @@ function moveTaskToBottom(taskId, columnId) {
         flushPendingTagChanges();
     }
     vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
+    
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -773,12 +794,18 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
     
     vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
     
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
     console.log('📦 Task moved to column - showing unsaved state');
 }
 
 function deleteTask(taskId, columnId) {
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    
     vscode.postMessage({ type: 'deleteTask', taskId, columnId });
 }
 
@@ -811,7 +838,9 @@ function addColumn(rowNumber) {
     vscode.postMessage({ type: 'addColumn', title });
 }
 
-// Tag operations - simplified
+// Tag operations - IMPORTANT: Always use unique IDs, never titles!
+// This system correctly uses column.id and task.id for identification
+// to avoid conflicts when multiple items have the same title
 function toggleColumnTag(columnId, tagName, event) {
     console.log(`🏷️ Toggle column tag: ${columnId} -> ${tagName}`);
     console.log(`🔍 DEBUG: Column ID type: ${typeof columnId}, value: "${columnId}"`);
@@ -922,6 +951,8 @@ function toggleColumnTag(columnId, tagName, event) {
     }
 }
 
+// IMPORTANT: This function correctly uses unique task.id and column.id
+// Never modify to use titles - this would break with duplicate titles
 function toggleTaskTag(taskId, columnId, tagName, event) {
     console.log(`🏷️ Toggle task tag: ${taskId} -> ${tagName}`);
     console.log(`🔍 DEBUG: Task ID type: ${typeof taskId}, value: "${taskId}"`);
@@ -1034,8 +1065,9 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
 }
 
 // Enhanced DOM update functions using unique IDs
+// CRITICAL: Always use data-column-id and data-task-id selectors to avoid title conflicts
 function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
-    // Use unique ID to find column element
+    // Use unique ID to find column element - NEVER use titles for selection
     const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
     if (!columnElement) {
         console.warn(`Column element not found for ID: ${columnId}`);
@@ -1112,8 +1144,9 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     console.log(`✅ Updated column ${columnId} DOM directly (tag: ${tagName}, active: ${isActive})`);
 }
 
+// CRITICAL: Always use unique task IDs to prevent targeting wrong tasks with same titles
 function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
-    // Use unique ID to find task element
+    // Use unique ID to find task element - NEVER use titles for selection
     const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
     if (!taskElement) {
         console.warn(`Task element not found for ID: ${taskId}`);
