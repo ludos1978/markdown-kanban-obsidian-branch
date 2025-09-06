@@ -457,7 +457,22 @@ function generateTagMenuItems(id, type, columnId = null) {
     const tagConfig = window.tagColors || {};
     const userAddedTags = getUserAddedTags();
     
+    // Get current title to check which tags are active
+    let currentTitle = '';
+    if (type === 'column') {
+        const column = currentBoard?.columns?.find(c => c.id === id);
+        currentTitle = column?.title || '';
+    } else if (type === 'task' && columnId) {
+        const column = currentBoard?.columns?.find(c => c.id === columnId);
+        const task = column?.tasks?.find(t => t.id === id);
+        currentTitle = task?.title || '';
+    }
+    
+    // Get all active tags
+    const activeTags = getActiveTagsInTitle(currentTitle);
+    
     let menuHtml = '';
+    let hasAnyTags = false;
     
     // Dynamically generate menu for all groups in configuration
     Object.keys(tagConfig).forEach(groupKey => {
@@ -482,11 +497,19 @@ function generateTagMenuItems(id, type, columnId = null) {
             }
             
             if (groupTags.length > 0) {
+                hasAnyTags = true;
+                // Count active tags in this group
+                const activeCount = groupTags.filter(tag => 
+                    activeTags.includes(tag.toLowerCase())
+                ).length;
+                
                 // Use dynamic submenu generation - just add placeholder with data attributes
                 const groupLabel = groupKey.charAt(0).toUpperCase() + groupKey.slice(1);
+                const countBadge = activeCount > 0 ? `<span style="opacity: 0.7; margin-left: auto; padding-left: 10px;">${activeCount}</span>` : '';
                 menuHtml += `
-                    <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="${groupKey}" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}">
-                        ${groupLabel}
+                    <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="${groupKey}" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}" style="display: flex; align-items: center;">
+                        <span>${groupLabel}</span>
+                        ${countBadge}
                     </div>
                 `;
             }
@@ -495,15 +518,31 @@ function generateTagMenuItems(id, type, columnId = null) {
     
     // Add user-added tags if any exist
     if (userAddedTags.length > 0) {
+        hasAnyTags = true;
+        // Count active custom tags
+        const activeCustomCount = userAddedTags.filter(tag => 
+            activeTags.includes(tag.toLowerCase())
+        ).length;
+        const customCountBadge = activeCustomCount > 0 ? `<span style="opacity: 0.7; margin-left: auto; padding-left: 10px;">${activeCustomCount}</span>` : '';
+        
         menuHtml += `
-            <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="custom" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}">
-                Custom Tags
+            <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="custom" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}" style="display: flex; align-items: center;">
+                <span>Custom Tags</span>
+                ${customCountBadge}
             </div>
         `;
     }
     
+    // Add "Remove all tags" option if there are any active tags
+    if (activeTags.length > 0) {
+        if (hasAnyTags) {
+            menuHtml += '<div class="donut-menu-divider"></div>';
+        }
+        menuHtml += `<button class="donut-menu-item" onclick="removeAllTags('${id}', '${type}', ${columnId ? "'" + columnId + "'" : 'null'})">Remove all tags</button>`;
+    }
+    
     // If no tags at all, show a message
-    if (!menuHtml) {
+    if (!hasAnyTags && activeTags.length === 0) {
         menuHtml = '<button class="donut-menu-item" disabled>No tags available</button>';
     }
     
@@ -1996,6 +2035,83 @@ window.getCornerBadgeHtml = getCornerBadgeHtml;
 
 window.getAllCornerBadgesHtml = getAllCornerBadgesHtml;
 window.getTagConfig = getTagConfig;
+
+// Function to remove all tags from a card or column
+function removeAllTags(id, type, columnId = null) {
+    console.log(`🏷️ Removing all tags from ${type}: ${id}`);
+    
+    // Get current title
+    let currentTitle = '';
+    let element = null;
+    
+    if (type === 'column') {
+        const column = currentBoard?.columns?.find(c => c.id === id);
+        if (column) {
+            currentTitle = column.title || '';
+            element = column;
+        }
+    } else if (type === 'task' && columnId) {
+        const column = currentBoard?.columns?.find(c => c.id === columnId);
+        const task = column?.tasks?.find(t => t.id === id);
+        if (task) {
+            currentTitle = task.title || '';
+            element = task;
+        }
+    }
+    
+    if (!element) {
+        console.warn('Element not found for removeAllTags');
+        return;
+    }
+    
+    // Remove all tags from the title (keep everything except tags)
+    // Tags are in format #tagname, but preserve #row tags
+    const newTitle = currentTitle.replace(/#(?!row\d+\b)[a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*/g, '').trim();
+    
+    // Update the element
+    element.title = newTitle;
+    
+    // Store the change in pending changes
+    if (type === 'column') {
+        if (!window.pendingColumnChanges) {
+            window.pendingColumnChanges = new Map();
+        }
+        window.pendingColumnChanges.set(id, newTitle);
+        
+        // Update display immediately
+        if (typeof updateColumnDisplayImmediate === 'function') {
+            updateColumnDisplayImmediate(id, newTitle, false, '');
+        }
+    } else if (type === 'task') {
+        if (!window.pendingTaskChanges) {
+            window.pendingTaskChanges = new Map();
+        }
+        window.pendingTaskChanges.set(id, newTitle);
+        
+        // Update display immediately
+        if (typeof updateTaskDisplayImmediate === 'function') {
+            updateTaskDisplayImmediate(id, newTitle, false, '');
+        }
+    }
+    
+    // Update refresh button state
+    const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
+    if (typeof updateRefreshButtonState === 'function') {
+        updateRefreshButtonState('unsaved', totalPending);
+    }
+    
+    // Update tag category counts if menu is still open
+    if (typeof updateTagCategoryCounts === 'function') {
+        updateTagCategoryCounts(id, type, columnId);
+    }
+    
+    // Close the menu
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    
+    console.log(`✅ Removed all tags, new title: "${newTitle}"`);
+}
+
+window.removeAllTags = removeAllTags;
 
 window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
 window.getAllFooterBarsHtml = getAllFooterBarsHtml;

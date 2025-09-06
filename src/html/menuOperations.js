@@ -898,6 +898,9 @@ function toggleColumnTag(columnId, tagName, event) {
     // Update tag button appearance immediately
     updateTagButtonAppearance(columnId, 'column', tagName, !wasActive);
     
+    // Update tag category counts in menu
+    updateTagCategoryCounts(columnId, 'column');
+    
     // Store pending changes locally instead of sending to backend immediately
     if (!window.pendingColumnChanges) {
         window.pendingColumnChanges = new Map();
@@ -1005,6 +1008,9 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     
     // Update tag button appearance immediately
     updateTagButtonAppearance(taskId, 'task', tagName, !wasActive);
+    
+    // Update tag category counts in menu
+    updateTagCategoryCounts(taskId, 'task', columnId);
     
     // Store pending changes locally instead of sending to backend immediately
     if (!window.pendingTaskChanges) {
@@ -1595,6 +1601,148 @@ function updateTagButtonAppearance(id, type, tagName, isActive) {
     console.log(`✅ Updated tag button ${buttonId}: active=${isActive}, bgColor=${bgColor}, textColor=${textColor}`);
 }
 
+// Update tag category counts in the open dropdown menu
+function updateTagCategoryCounts(id, type, columnId = null) {
+    console.log(`🔢 Updating tag category counts for ${type}: ${id}`);
+    
+    // Get current title to check which tags are active
+    let currentTitle = '';
+    if (type === 'column') {
+        const column = currentBoard?.columns?.find(c => c.id === id);
+        currentTitle = column?.title || '';
+    } else if (type === 'task' && columnId) {
+        const column = currentBoard?.columns?.find(c => c.id === columnId);
+        const task = column?.tasks?.find(t => t.id === id);
+        currentTitle = task?.title || '';
+    }
+    
+    // Get active tags
+    const activeTags = getActiveTagsInTitle(currentTitle);
+    
+    // Find the active dropdown menu that contains category items for this element
+    // First try to find it in the menu, then check if it's been moved to body
+    const activeMenu = document.querySelector('.donut-menu.active');
+    let activeDropdown = activeMenu?.querySelector('.donut-menu-dropdown');
+    
+    if (!activeDropdown) {
+        // Look for moved dropdowns in body that belong to the active menu
+        const movedDropdowns = document.body.querySelectorAll('.donut-menu-dropdown.moved-to-body');
+        activeDropdown = Array.from(movedDropdowns).find(d => d._originalParent === activeMenu);
+    }
+    
+    if (!activeDropdown) {
+        console.log('No active dropdown found');
+        return;
+    }
+    
+    // Update configured tag group counts
+    const tagConfig = window.tagColors || {};
+    Object.keys(tagConfig).forEach(groupKey => {
+        const groupValue = tagConfig[groupKey];
+        
+        if (groupValue && typeof groupValue === 'object') {
+            let groupTags = [];
+            
+            // Check if this is a direct tag configuration or a group
+            if (groupValue.light || groupValue.dark) {
+                groupTags = [groupKey];
+            } else {
+                Object.keys(groupValue).forEach(tagKey => {
+                    const tagValue = groupValue[tagKey];
+                    if (tagValue && typeof tagValue === 'object' && (tagValue.light || tagValue.dark)) {
+                        groupTags.push(tagKey);
+                    }
+                });
+            }
+            
+            if (groupTags.length > 0) {
+                // Find the menu item for this group
+                const menuItem = activeDropdown.querySelector(`[data-group="${groupKey}"]`);
+                if (menuItem) {
+                    // Count active tags in this group
+                    const activeCount = groupTags.filter(tag => 
+                        activeTags.includes(tag.toLowerCase())
+                    ).length;
+                    
+                    // Update or create count badge
+                    let countBadge = menuItem.querySelector('span:last-child');
+                    if (activeCount > 0) {
+                        if (countBadge && countBadge.style.opacity) {
+                            // Update existing badge
+                            countBadge.textContent = activeCount;
+                        } else {
+                            // Create new badge
+                            const badge = document.createElement('span');
+                            badge.style.cssText = 'opacity: 0.7; margin-left: auto; padding-left: 10px;';
+                            badge.textContent = activeCount;
+                            menuItem.appendChild(badge);
+                        }
+                    } else {
+                        // Remove badge if count is 0
+                        if (countBadge && countBadge.style.opacity) {
+                            countBadge.remove();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Update custom tag group count
+    const customMenuItem = activeDropdown.querySelector('[data-group="custom"]');
+    if (customMenuItem) {
+        const userAddedTags = getUserAddedTags();
+        const activeCustomCount = userAddedTags.filter(tag => 
+            activeTags.includes(tag.toLowerCase())
+        ).length;
+        
+        let customCountBadge = customMenuItem.querySelector('span:last-child');
+        if (activeCustomCount > 0) {
+            if (customCountBadge && customCountBadge.style.opacity) {
+                customCountBadge.textContent = activeCustomCount;
+            } else {
+                const badge = document.createElement('span');
+                badge.style.cssText = 'opacity: 0.7; margin-left: auto; padding-left: 10px;';
+                badge.textContent = activeCustomCount;
+                customMenuItem.appendChild(badge);
+            }
+        } else {
+            if (customCountBadge && customCountBadge.style.opacity) {
+                customCountBadge.remove();
+            }
+        }
+    }
+    
+    // Show/hide "Remove all tags" option
+    const removeAllButton = activeDropdown.querySelector('[onclick*="removeAllTags"]');
+    if (activeTags.length > 0) {
+        if (!removeAllButton) {
+            // Add remove all tags option
+            const divider = document.createElement('div');
+            divider.className = 'donut-menu-divider';
+            
+            const button = document.createElement('button');
+            button.className = 'donut-menu-item';
+            button.onclick = () => removeAllTags(id, type, columnId);
+            button.textContent = 'Remove all tags';
+            
+            activeDropdown.appendChild(divider);
+            activeDropdown.appendChild(button);
+        }
+    } else {
+        // Remove "Remove all tags" option if no active tags
+        if (removeAllButton) {
+            const divider = removeAllButton.previousElementSibling;
+            if (divider && divider.classList.contains('donut-menu-divider')) {
+                divider.remove();
+            }
+            removeAllButton.remove();
+        }
+    }
+    
+    console.log(`✅ Updated tag category counts: ${activeTags.length} active tags`);
+}
+
 // Make functions globally available
 window.toggleDonutMenu = toggleDonutMenu;
 window.toggleFileBarMenu = toggleFileBarMenu;
@@ -1602,6 +1750,7 @@ window.handleColumnTagClick = (columnId, tagName, event) => toggleColumnTag(colu
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(taskId, columnId, tagName, event);
 window.updateTagChipStyle = updateTagChipStyle;
 window.updateTagButtonAppearance = updateTagButtonAppearance;
+window.updateTagCategoryCounts = updateTagCategoryCounts;
 window.unfoldColumnIfCollapsed = unfoldColumnIfCollapsed;
 window.cleanupDropdown = cleanupDropdown;
 window.columnTagUpdateTimeout = null;
