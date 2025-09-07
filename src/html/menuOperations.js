@@ -306,9 +306,24 @@ class SimpleMenuManager {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
                 
-                // Tag chips don't close menu, others do
+                // Check if this is a move operation button
+                const onclick = button.getAttribute('onclick');
+                const isMoveOperation = onclick && onclick.includes('moveTask');
+                
+                // Tag chips don't close menu, move operations force close
                 const shouldClose = !button.classList.contains('donut-menu-tag-chip');
-                this.handleButtonClick(button, shouldClose);
+                
+                // For move operations, ensure menu closes immediately
+                if (isMoveOperation) {
+                    this.handleButtonClick(button, true);
+                    // Force immediate menu closure for move operations
+                    setTimeout(() => {
+                        closeAllMenus();
+                        this.hideSubmenu();
+                    }, 10);
+                } else {
+                    this.handleButtonClick(button, shouldClose);
+                }
             });
         });
 
@@ -760,67 +775,109 @@ function insertTaskAfter(taskId, columnId) {
 }
 
 function moveTaskToTop(taskId, columnId) {
-    // Flush pending tag changes before moving
-    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
-        console.log('🔄 Flushing pending tag changes before moveTaskToTop');
-        flushPendingTagChanges();
+    console.log(`📦 Moving task ${taskId} to top in column ${columnId}`);
+    
+    // NEW CACHE SYSTEM: Update cached board directly
+    if (window.cachedBoard) {
+        const column = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (column) {
+            const taskIndex = column.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex > 0) {
+                const task = column.tasks.splice(taskIndex, 1)[0];
+                column.tasks.unshift(task);
+                console.log('💾 Task moved to top in cache');
+                markUnsavedChanges();
+            }
+        }
     }
+    
+    // Update DOM immediately for responsive UI
     vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
     
     // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    closeAllMenus();
     
-    // Update button state to show unsaved changes
-    updateRefreshButtonState('unsaved', 1);
-    console.log('📦 Task moved to top - showing unsaved state');
+    console.log('✅ Task moved to top');
 }
 
 function moveTaskUp(taskId, columnId) {
-    // Flush pending tag changes before moving
-    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
-        console.log('🔄 Flushing pending tag changes before moveTaskUp');
-        flushPendingTagChanges();
+    console.log(`📦 Moving task ${taskId} up in column ${columnId}`);
+    
+    // NEW CACHE SYSTEM: Update cached board directly
+    if (window.cachedBoard) {
+        const column = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (column) {
+            const taskIndex = column.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex > 0) {
+                const task = column.tasks[taskIndex];
+                column.tasks[taskIndex] = column.tasks[taskIndex - 1];
+                column.tasks[taskIndex - 1] = task;
+                console.log('💾 Task moved up in cache');
+                markUnsavedChanges();
+            }
+        }
     }
+    
+    // Update DOM immediately for responsive UI
     vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
     
     // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    closeAllMenus();
     
-    // Update button state to show unsaved changes
-    updateRefreshButtonState('unsaved', 1);
-    console.log('📦 Task moved up - showing unsaved state');
+    console.log('✅ Task moved up');
 }
 
 function moveTaskDown(taskId, columnId) {
-    // Flush pending tag changes before moving
-    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
-        console.log('🔄 Flushing pending tag changes before moveTaskDown');
-        flushPendingTagChanges();
+    console.log(`📦 Moving task ${taskId} down in column ${columnId}`);
+    
+    // NEW CACHE SYSTEM: Update cached board directly
+    if (window.cachedBoard) {
+        const column = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (column) {
+            const taskIndex = column.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex >= 0 && taskIndex < column.tasks.length - 1) {
+                const task = column.tasks[taskIndex];
+                column.tasks[taskIndex] = column.tasks[taskIndex + 1];
+                column.tasks[taskIndex + 1] = task;
+                console.log('💾 Task moved down in cache');
+                markUnsavedChanges();
+            }
+        }
     }
+    
+    // Update DOM immediately for responsive UI
     vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
     
     // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    closeAllMenus();
     
-    // Update button state to show unsaved changes
-    updateRefreshButtonState('unsaved', 1);
-    console.log('📦 Task moved down - showing unsaved state');
+    console.log('✅ Task moved down');
 }
 
 function moveTaskToBottom(taskId, columnId) {
-    // Flush pending tag changes before moving
-    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
-        console.log('🔄 Flushing pending tag changes before moveTaskToBottom');
-        flushPendingTagChanges();
+    console.log(`📦 Moving task ${taskId} to bottom in column ${columnId}`);
+    
+    // NEW CACHE SYSTEM: Update cached board directly
+    if (window.cachedBoard) {
+        const column = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (column) {
+            const taskIndex = column.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex >= 0 && taskIndex < column.tasks.length - 1) {
+                const task = column.tasks.splice(taskIndex, 1)[0];
+                column.tasks.push(task);
+                console.log('💾 Task moved to bottom in cache');
+                markUnsavedChanges();
+            }
+        }
     }
+    
+    // Update DOM immediately for responsive UI
     vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
     
     // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    closeAllMenus();
     
-    // Update button state to show unsaved changes
-    updateRefreshButtonState('unsaved', 1);
-    console.log('📦 Task moved to bottom - showing unsaved state');
+    console.log('✅ Task moved to bottom');
 }
 
 /**
@@ -833,23 +890,34 @@ function moveTaskToBottom(taskId, columnId) {
  * Side effects: Flushes pending changes, unfolds target
  */
 function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
-    // Flush pending tag changes before moving
-    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
-        console.log('🔄 Flushing pending tag changes before moveTaskToColumn');
-        flushPendingTagChanges();
+    console.log(`📦 Moving task ${taskId} from column ${fromColumnId} to ${toColumnId}`);
+    
+    // NEW CACHE SYSTEM: Update cached board directly
+    if (window.cachedBoard) {
+        const fromColumn = window.cachedBoard.columns.find(col => col.id === fromColumnId);
+        const toColumn = window.cachedBoard.columns.find(col => col.id === toColumnId);
+        
+        if (fromColumn && toColumn) {
+            const taskIndex = fromColumn.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex >= 0) {
+                const task = fromColumn.tasks.splice(taskIndex, 1)[0];
+                toColumn.tasks.push(task);
+                console.log('💾 Task moved between columns in cache');
+                markUnsavedChanges();
+            }
+        }
     }
     
     // Unfold the destination column if it's collapsed
     unfoldColumnIfCollapsed(toColumnId);
     
+    // Update DOM immediately for responsive UI
     vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
     
     // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    closeAllMenus();
     
-    // Update button state to show unsaved changes
-    updateRefreshButtonState('unsaved', 1);
-    console.log('📦 Task moved to column - showing unsaved state');
+    console.log('✅ Task moved to column');
 }
 
 function deleteTask(taskId, columnId) {
