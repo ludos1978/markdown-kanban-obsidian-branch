@@ -173,6 +173,142 @@ describe('Save Operations and State Management', () => {
         });
     });
 
+    describe('Apply Pending Changes Locally', () => {
+        test('should apply column changes to local board without sending to backend', () => {
+            window.pendingColumnChanges.set('col_1', { 
+                title: 'Updated Column #urgent', 
+                columnId: 'col_1' 
+            });
+            
+            const messageCountBefore = vscode.postMessage.mock.calls.length;
+            const result = applyPendingChangesLocally();
+            
+            // Should update local board
+            expect(window.currentBoard.columns[0].title).toBe('Updated Column #urgent');
+            
+            // Should NOT send messages to VS Code
+            expect(vscode.postMessage.mock.calls.length).toBe(messageCountBefore);
+            
+            // Should preserve pending changes
+            expect(window.pendingColumnChanges.size).toBe(1);
+            expect(result).toBe(1); // One change applied
+        });
+
+        test('should apply task changes to local board without clearing pending', () => {
+            window.pendingTaskChanges.set('task_1', {
+                taskId: 'task_1',
+                columnId: 'col_1',
+                taskData: {
+                    title: 'Updated Task #bug',
+                    description: 'New description'
+                }
+            });
+            
+            const result = applyPendingChangesLocally();
+            
+            // Should update local board
+            const task = window.currentBoard.columns[0].tasks[0];
+            expect(task.title).toBe('Updated Task #bug');
+            expect(task.description).toBe('New description');
+            
+            // Should preserve pending changes
+            expect(window.pendingTaskChanges.size).toBe(1);
+            expect(result).toBe(2); // Title and description changes
+        });
+
+        test('should handle missing board gracefully', () => {
+            window.currentBoard = null;
+            window.pendingColumnChanges.set('col_1', { title: 'Test', columnId: 'col_1' });
+            
+            const result = applyPendingChangesLocally();
+            
+            expect(result).toBeUndefined();
+            expect(window.pendingColumnChanges.size).toBe(1); // Still preserved
+        });
+
+        test('should skip changes if already applied', () => {
+            window.currentBoard.columns[0].title = 'Already Updated';
+            window.pendingColumnChanges.set('col_1', { 
+                title: 'Already Updated', 
+                columnId: 'col_1' 
+            });
+            
+            const result = applyPendingChangesLocally();
+            
+            expect(result).toBe(0); // No changes needed
+        });
+
+        test('should apply multiple pending changes at once', () => {
+            window.pendingColumnChanges.set('col_1', { 
+                title: 'Column 1 #urgent', 
+                columnId: 'col_1' 
+            });
+            window.pendingColumnChanges.set('col_2', { 
+                title: 'Column 2 #feature', 
+                columnId: 'col_2' 
+            });
+            window.pendingTaskChanges.set('task_1', {
+                taskId: 'task_1',
+                columnId: 'col_1',
+                taskData: { title: 'Task Update' }
+            });
+            
+            const result = applyPendingChangesLocally();
+            
+            expect(result).toBe(3); // Three changes applied
+            expect(window.currentBoard.columns[0].title).toBe('Column 1 #urgent');
+            expect(window.currentBoard.columns[1].title).toBe('Column 2 #feature');
+            expect(window.currentBoard.columns[0].tasks[0].title).toBe('Task Update');
+            
+            // All pending changes preserved
+            expect(window.pendingColumnChanges.size).toBe(2);
+            expect(window.pendingTaskChanges.size).toBe(1);
+        });
+
+        test('should find and apply task changes even after task moves between columns', () => {
+            // Setup: task has pending changes in col_1
+            window.pendingTaskChanges.set('task_1', {
+                taskId: 'task_1',
+                columnId: 'col_1', // Original column
+                taskData: { title: 'Task with #newtag' }
+            });
+            
+            // Simulate: task was moved to col_2 (like after drag & drop)
+            const task = window.currentBoard.columns[0].tasks[0];
+            window.currentBoard.columns[0].tasks = []; // Remove from col_1
+            window.currentBoard.columns[1].tasks.push(task); // Add to col_2
+            
+            // Apply pending changes
+            const result = applyPendingChangesLocally();
+            
+            // Should find task in new location and apply changes
+            expect(result).toBe(1);
+            expect(window.currentBoard.columns[1].tasks[0].title).toBe('Task with #newtag');
+            
+            // Pending changes still preserved
+            expect(window.pendingTaskChanges.size).toBe(1);
+        });
+
+        test('should warn when task cannot be found in any column', () => {
+            const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+            
+            window.pendingTaskChanges.set('nonexistent_task', {
+                taskId: 'nonexistent_task',
+                columnId: 'col_1',
+                taskData: { title: 'Missing Task' }
+            });
+            
+            const result = applyPendingChangesLocally();
+            
+            expect(result).toBe(0);
+            expect(consoleSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Could not find task nonexistent_task')
+            );
+            
+            consoleSpy.mockRestore();
+        });
+    });
+
     describe('Refresh Button State Management', () => {
         test('should update refresh button to pending state', () => {
             updateRefreshButtonState('pending', 3);

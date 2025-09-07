@@ -1350,10 +1350,24 @@ window.addEventListener('message', event => {
     
     switch (message.type) {
         case 'updateBoard':
-            console.log('Updating board with:', message.board);
+            console.log('📥 Received board from VS Code:', message.board);
             const previousBoard = currentBoard;
-            currentBoard = message.board;
-            window.currentBoard = currentBoard;
+            
+            // Initialize cache system - this is the SINGLE source of truth
+            if (!window.cachedBoard) {
+                console.log('🗄️ Initializing cached board (first load)');
+                window.cachedBoard = JSON.parse(JSON.stringify(message.board)); // Deep clone
+                window.currentBoard = window.cachedBoard; // Keep for compatibility
+                window.savedBoardState = JSON.parse(JSON.stringify(message.board)); // Reference for unsaved detection
+                window.hasUnsavedChanges = false;
+            } else {
+                console.log('🔄 VS Code sent updated board');
+                // If this is a save confirmation (no unsaved changes), update the saved reference
+                if (!window.hasUnsavedChanges) {
+                    window.savedBoardState = JSON.parse(JSON.stringify(message.board));
+                }
+            }
+            currentBoard = window.cachedBoard;
 
             // Clean up any duplicate row tags
             cleanupRowTags();
@@ -1551,25 +1565,24 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             redo();
         }
-        // Meta+S or Ctrl+S to apply pending data
+        // Meta+S or Ctrl+S to save cached board to file
         else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            console.log('🎯 Meta+S shortcut pressed - applying pending data');
-            if (typeof flushPendingTagChanges === 'function') {
-                flushPendingTagChanges();
+            console.log('🎯 Cmd+S pressed - saving cached board to file');
+            if (typeof saveCachedBoard === 'function') {
+                saveCachedBoard();
             } else {
-                console.warn('flushPendingTagChanges function not available');
+                console.warn('❌ saveCachedBoard function not available');
             }
         }
         // Meta+W or Ctrl+W to close window - check for unsaved changes first
         else if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
-            const pendingCount = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
-            if (pendingCount > 0) {
+            if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
                 e.preventDefault();
                 e.stopPropagation();
                 
                 // Show confirmation dialog
-                const message = `You have ${pendingCount} unsaved change${pendingCount > 1 ? 's' : ''}. What would you like to do?`;
+                const message = `You have unsaved changes. What would you like to do?`;
                 
                 // Create a custom modal for save confirmation
                 const modal = document.createElement('div');
@@ -1633,10 +1646,12 @@ document.addEventListener('keydown', (e) => {
                 
                 // Handle button clicks
                 document.getElementById('save-and-close').addEventListener('click', () => {
-                    // Save changes first
-                    if (typeof flushPendingTagChanges === 'function') {
-                        flushPendingTagChanges();
+                    // Save changes first using new cache system
+                    if (typeof saveCachedBoard === 'function') {
+                        saveCachedBoard();
                     }
+                    
+                    updateRefreshButtonState('saved');
                     // Remove modal
                     modal.remove();
                     // Let VS Code handle the close
@@ -1644,10 +1659,16 @@ document.addEventListener('keydown', (e) => {
                 });
                 
                 document.getElementById('discard-and-close').addEventListener('click', () => {
-                    // Clear pending changes
+                    // Clear unsaved changes flag - discard all changes
+                    window.hasUnsavedChanges = false;
+                    
+                    // Clear old pending changes (legacy cleanup)
                     if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
                     if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
-                    updateRefreshButtonState('saved');
+                    
+                    updateRefreshButtonState('default');
+                    console.log('🗑️ Unsaved changes discarded');
+                    
                     // Remove modal
                     modal.remove();
                     // Let VS Code handle the close
@@ -1696,6 +1717,38 @@ function redo() {
         vscode.postMessage({ type: 'redo' });
     }
 }
+
+// COMPREHENSIVE CLOSE DETECTION - Prevent data loss
+// Add beforeunload detection for unsaved changes
+window.addEventListener('beforeunload', function(e) {
+    console.log('🚪 Window beforeunload event - checking for unsaved changes');
+    
+    if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
+        console.log('⚠️ Blocking close - unsaved changes detected');
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return 'You have unsaved changes. Are you sure you want to leave?';
+    }
+});
+
+window.addEventListener('unload', function(e) {
+    console.log('🚪 Window unload event');
+    if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
+        console.warn('⚠️ Window closed with unsaved changes!');
+    }
+});
+
+// Add visibility change detection (tab switching, window minimizing, etc)
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        console.log('👁️ Page became hidden');
+        if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
+            console.log('💾 Page hidden with unsaved changes');
+        }
+    } else {
+        console.log('👁️ Page became visible');
+    }
+});
 
 function updateUndoRedoButtons() {
     const undoBtn = document.getElementById('undo-btn');

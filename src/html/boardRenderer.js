@@ -1811,7 +1811,7 @@ function generateTagStyles() {
         return '';
     }
     
-    console.log('Generating tag styles with colors:', window.tagColors);
+    // console.log('Generating tag styles with colors:', window.tagColors); // Removed for cleaner logs
     
     const isDarkTheme = document.body.classList.contains('vscode-dark') || 
                         document.body.classList.contains('vscode-high-contrast');
@@ -1923,7 +1923,7 @@ function generateTagStyles() {
                 const themeColors = config[themeKey] || config.light || {};
                 if (themeColors.text && themeColors.background) {
                     const lowerTagName = tagName.toLowerCase();
-                    console.log(`Generating styles for tag "${lowerTagName}" with colors:`, themeColors);
+                    // console.log(`Generating styles for tag "${lowerTagName}" with colors:`, themeColors); // Removed for cleaner logs
                     
                     // Tag pill styles (the tag text itself)
                     styles += `.kanban-tag[data-tag="${lowerTagName}"] {

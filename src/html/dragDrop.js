@@ -1012,40 +1012,50 @@ function setupTaskDragHandle(handle) {
                     // Calculate the proper index for the data model
                     const dropIndex = finalIndex >= 0 ? finalIndex : 0;
                     
-                    // Check if we need to flush pending changes first
-                    const hasPendingChanges = (typeof flushPendingTagChanges === 'function' && 
-                        ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
-                         (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)));
+                    // Unfold the destination column if it's collapsed
+                    if (typeof unfoldColumnIfCollapsed === 'function') {
+                        unfoldColumnIfCollapsed(finalColumnId);
+                    }
                     
-                    const executeMove = () => {
-                        // Unfold the destination column if it's collapsed
-                        if (typeof unfoldColumnIfCollapsed === 'function') {
-                            unfoldColumnIfCollapsed(finalColumnId);
-                        }
+                    // NEW CACHE SYSTEM: Update cached board directly
+                    if (window.cachedBoard && originalColumnId !== finalColumnId) {
+                        const taskId = taskItem.dataset.taskId;
                         
-                        // Send the command to update the model
-                        vscode.postMessage({
-                            type: 'moveTask',
-                            taskId: taskItem.dataset.taskId,
-                            fromColumnId: originalColumnId,
-                            toColumnId: finalColumnId,
-                            newIndex: dropIndex
-                        });
+                        // Find and remove task from original column
+                        const originalColumn = window.cachedBoard.columns.find(col => col.id === originalColumnId);
+                        const finalColumn = window.cachedBoard.columns.find(col => col.id === finalColumnId);
                         
-                        // Update button state to show unsaved changes
-                        if (typeof updateRefreshButtonState === 'function') {
-                            updateRefreshButtonState('unsaved', 1);
-                            console.log('📦 Task moved via drag - showing unsaved state');
+                        if (originalColumn && finalColumn) {
+                            const taskIndex = originalColumn.tasks.findIndex(t => t.id === taskId);
+                            if (taskIndex >= 0) {
+                                const [task] = originalColumn.tasks.splice(taskIndex, 1);
+                                
+                                // Add task to new column at correct position
+                                const insertIndex = Math.min(dropIndex, finalColumn.tasks.length);
+                                finalColumn.tasks.splice(insertIndex, 0, task);
+                                
+                                console.log(`🗄️ Cached board updated: moved task ${taskId} from ${originalColumnId} to ${finalColumn} at index ${insertIndex}`);
+                                
+                                // Also update currentBoard for compatibility
+                                if (window.currentBoard !== window.cachedBoard) {
+                                    const currentOriginal = window.currentBoard.columns.find(col => col.id === originalColumnId);
+                                    const currentFinal = window.currentBoard.columns.find(col => col.id === finalColumnId);
+                                    if (currentOriginal && currentFinal) {
+                                        const currentTaskIndex = currentOriginal.tasks.findIndex(t => t.id === taskId);
+                                        if (currentTaskIndex >= 0) {
+                                            const [currentTask] = currentOriginal.tasks.splice(currentTaskIndex, 1);
+                                            currentFinal.tasks.splice(insertIndex, 0, currentTask);
+                                        }
+                                    }
+                                }
+                            }
                         }
-                    };
+                    }
                     
-                    if (hasPendingChanges) {
-                        console.log('🔄 Flushing pending tag changes before task move');
-                        flushPendingTagChanges();
-                        // Wait a short time for the flush to complete before moving
-                        setTimeout(executeMove, 100);
-                    } else {
-                        executeMove();
+                    // NEW CACHE SYSTEM: Mark as unsaved  
+                    if (typeof markUnsavedChanges === 'function') {
+                        markUnsavedChanges();
+                        console.log('🗄️ Task moved via drag - cached, use Cmd+S to save');
                     }
                 }
             }
@@ -1252,34 +1262,29 @@ function setupColumnDragAndDrop() {
             console.log(`Column ${columnId}: DOM index ${targetDOMIndex}, target data index ${targetDataIndex}, row ${newRow}`);
             console.log('New order would be:', newOrder);
             
-            // Check if we need to flush pending changes first
-            const hasPendingChanges = (typeof flushPendingTagChanges === 'function' && 
-                ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
-                 (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)));
-            
-            const executeReorder = () => {
-                // Send the new order to backend
-                vscode.postMessage({
-                    type: 'reorderColumns',
-                    newOrder: newOrder,
-                    movedColumnId: columnId,
-                    targetRow: newRow
-                });
+            // NEW CACHE SYSTEM: Update cached board directly
+            if (window.cachedBoard) {
+                // Reorder columns in cached board to match DOM order
+                const reorderedColumns = newOrder.map(colId => 
+                    window.cachedBoard.columns.find(col => col.id === colId)
+                ).filter(Boolean);
                 
-                // Update button state to show unsaved changes
-                if (typeof updateRefreshButtonState === 'function') {
-                    updateRefreshButtonState('unsaved', 1);
-                    console.log('📦 Columns reordered via drag - showing unsaved state');
+                window.cachedBoard.columns = reorderedColumns;
+                console.log(`🗄️ Cached board updated: reordered columns to ${newOrder.join(', ')}`);
+                
+                // Also update currentBoard for compatibility
+                if (window.currentBoard !== window.cachedBoard) {
+                    const currentReordered = newOrder.map(colId => 
+                        window.currentBoard.columns.find(col => col.id === colId)
+                    ).filter(Boolean);
+                    window.currentBoard.columns = currentReordered;
                 }
-            };
+            }
             
-            if (hasPendingChanges) {
-                console.log('🔄 Flushing pending tag changes before reorderColumns');
-                flushPendingTagChanges();
-                // Wait a short time for the flush to complete before reordering
-                setTimeout(executeReorder, 100);
-            } else {
-                executeReorder();
+            // NEW CACHE SYSTEM: Mark as unsaved
+            if (typeof markUnsavedChanges === 'function') {
+                markUnsavedChanges(); 
+                console.log('🗄️ Columns reordered via drag - cached, use Cmd+S to save');
             }
             
             // Reset drag state

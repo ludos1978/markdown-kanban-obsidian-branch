@@ -39,6 +39,7 @@ The codebase now includes comprehensive test coverage for all major functionalit
 #### 4. Save Operations and State Management Tests (`src/test/suite/saveOperations.test.js`)
 - **Pending Changes Management**: Tests for change accumulation and tracking
 - **Flush Operations**: Tests for batch saving, change clearing, retry mechanisms
+- **Apply Pending Changes Locally**: Tests for local board updates without backend saves
 - **Refresh Button State Management**: Tests for visual feedback, auto-reset, error states
 - **Manual Refresh Operations**: Tests for user-initiated saves and backend communication
 - **Error Handling**: Tests for save failures, UI error states, retry functionality
@@ -46,11 +47,14 @@ The codebase now includes comprehensive test coverage for all major functionalit
 - **Board State Validation**: Tests for data integrity, corruption handling, editing detection
 - **Data Integrity**: Tests for consistency maintenance, task ordering, concurrent modifications
 - **Performance/Memory Management**: Tests for cleanup, memory usage, large datasets
+- **No Auto-Save on Drag**: Tests confirming drag operations don't save to original file
 
 #### 5. UI Interactions Tests (`src/test/suite/uiInteractions.test.js`)
 - **Menu System**: Tests for menu visibility, click outside, safe function execution, XSS prevention
 - **Task Editor**: Tests for edit mode activation, keyboard shortcuts, Tab transitions, auto-resize
 - **Drag and Drop**: Tests for drag start/end, drop calculations, external file drops, clipboard cards
+- **Drag with Pending Changes**: Tests for local application without backend saves
+- **Board Update Reapplication**: Tests for preserving pending changes after VS Code updates
 - **Keyboard Navigation**: Tests for global shortcuts, focus management, accessibility
 - **Responsive Interactions**: Tests for viewport resize, touch interactions
 - **Accessibility**: Tests for focus handling, ARIA attributes, screen reader compatibility
@@ -107,12 +111,14 @@ All major JavaScript files now include comprehensive JSDoc-style documentation:
 - `getAllTagsInUse()` / `getUserAddedTags()`: Tag inventory and discovery
 
 ### 2. Menu Operations (`src/html/menuOperations.js`) 
-**20+ documented functions** including:
+**25+ documented functions** including:
 - `SimpleMenuManager` class: Centralized menu interaction system with hover delays
 - `toggleDonutMenu()`: Burger menu activation with dropdown positioning
 - `toggleColumnTag()` / `toggleTaskTag()`: Tag addition/removal with pending state
 - `flushPendingTagChanges()`: Batch save operations (now manual-save only)
+- `applyPendingChangesLocally()`: Updates local board state without saving to backend
 - `updateRefreshButtonState()`: Visual feedback for pending/saved/error states
+- `handleSaveError()`: Error handling with retry capability
 - `closeAllMenus()`: Complete cleanup including repositioned dropdowns
 - `setupMenuHoverHandlers()`: Smooth menu navigation with delay tolerance
 
@@ -142,6 +148,8 @@ All major JavaScript files now include comprehensive JSDoc-style documentation:
 - Clipboard card drops with content formatting
 - Drop indicator management with smart positioning
 - Position calculation utilities for precise insertions
+- **No auto-save during drag**: Applies pending changes locally without saving to file
+- **Preserves unsaved state**: Maintains pending changes through drag operations
 
 ### Documentation Features
 
@@ -199,6 +207,30 @@ Each function includes:
 - Use TypeScript-style JSDoc for better IDE support
 - Implement proper error handling and graceful degradation
 - Optimize for performance with debouncing and efficient DOM updates
+
+## Recent Changes
+
+### Drag & Drop Save Behavior Fix (2025-09-07)
+**Problem**: When dragging cards/columns with pending changes, the system was auto-saving to the original file.
+
+**Solution**: 
+- Created `applyPendingChangesLocally()` function that updates local board state without backend saves
+- Modified drag operations to use local application instead of flushing to VS Code
+- Added automatic reapplication of pending changes after board updates from VS Code
+- **CRITICAL FIX**: Modified `applyPendingChangesLocally()` to search ALL columns for tasks, not just the stored columnId
+- Result: Drag operations no longer auto-save; pending changes are preserved even after task moves
+
+**Root Cause of Task Tag Loss**:
+- When a task with pending changes (like new tags) was dragged to another column
+- `applyPendingChangesLocally()` looked for the task in the OLD column (stored in `pendingTaskChanges`)
+- But the task was now in the NEW column, so pending changes were never applied
+- **Fix**: Search for tasks by ID across ALL columns, regardless of stored columnId
+
+**Files Modified**:
+- `src/html/menuOperations.js`: Added `applyPendingChangesLocally()` function with global task search
+- `src/html/dragDrop.js`: Replaced flush operations with local application
+- `src/html/webview.js`: Added reapplication after board updates
+- Tests updated to verify no auto-save behavior and cross-column task finding
 
 ## Current Request
 

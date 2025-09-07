@@ -969,9 +969,17 @@ function toggleColumnTag(columnId, tagName, event) {
         }
     }
     
-    // Update data model but don't trigger re-render
+    // Update cached board directly - single source of truth
     const oldTitle = column.title;
     column.title = title;
+    
+    // Also update in cached board if different reference
+    if (window.cachedBoard) {
+        const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (cachedColumn) {
+            cachedColumn.title = title;
+        }
+    }
     
     console.log(`🔄 Column data updated:`, {
         columnId,
@@ -994,26 +1002,13 @@ function toggleColumnTag(columnId, tagName, event) {
     // Update corner badges immediately
     updateCornerBadgesImmediate(columnId, 'column', title);
     
-    // Store pending changes locally instead of sending to backend immediately
-    if (!window.pendingColumnChanges) {
-        window.pendingColumnChanges = new Map();
-    }
+    // NEW CACHE SYSTEM: Changes are already in cachedBoard, mark as unsaved
+    console.log(`🗄️ Column change cached: ${columnId} -> ${title}`);
     
-    // Store the change locally
-    window.pendingColumnChanges.set(columnId, { title, columnId });
+    // Mark board as having unsaved changes
+    markUnsavedChanges();
     
-    
-    // Show pending changes indicator with count
-    const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
-    updateRefreshButtonState('pending', totalPending);
-    
-    console.log(`📝 Stored pending column change: ${columnId} -> ${title}`);
-    console.log(`📊 Total pending changes: ${totalPending} (columns: ${window.pendingColumnChanges?.size || 0}, tasks: ${window.pendingTaskChanges?.size || 0})`);
-    
-    // Clear any existing timeout
-    if (window.columnTagUpdateTimeout) {
-        clearTimeout(window.columnTagUpdateTimeout);
-    }
+    console.log('💾 Column changes cached - use Cmd+S to save to file');
 }
 
 // IMPORTANT: This function correctly uses unique task.id and column.id
@@ -1097,9 +1092,20 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
         title = `${title} ${tagWithHash}`.trim();
     }
     
-    // Update data model but don't trigger re-render
+    // Update cached board directly - single source of truth  
     const oldTitle = task.title;
     task.title = title;
+    
+    // Also update in cached board if different reference
+    if (window.cachedBoard) {
+        const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (cachedColumn) {
+            const cachedTask = cachedColumn.tasks.find(t => t.id === taskId);
+            if (cachedTask) {
+                cachedTask.title = title;
+            }
+        }
+    }
     
     console.log(`🔄 Task data updated:`, {
         taskId,
@@ -1123,26 +1129,13 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     // Update corner badges immediately
     updateCornerBadgesImmediate(taskId, 'task', title);
     
-    // Store pending changes locally instead of sending to backend immediately
-    if (!window.pendingTaskChanges) {
-        window.pendingTaskChanges = new Map();
-    }
+    // NEW CACHE SYSTEM: Changes are already in cachedBoard, mark as unsaved
+    console.log(`🗄️ Task change cached: ${taskId} -> ${title}`);
     
-    // Store the change locally
-    window.pendingTaskChanges.set(taskId, { taskId, columnId, taskData: task });
+    // Mark board as having unsaved changes  
+    markUnsavedChanges();
     
-    
-    // Show pending changes indicator with count
-    const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
-    updateRefreshButtonState('pending', totalPending);
-    
-    console.log(`📝 Stored pending task change: ${taskId} -> ${title}`);
-    console.log(`📊 Total pending changes: ${totalPending} (columns: ${window.pendingColumnChanges?.size || 0}, tasks: ${window.pendingTaskChanges?.size || 0})`);
-    
-    // Clear any existing timeout
-    if (window.taskTagUpdateTimeout) {
-        clearTimeout(window.taskTagUpdateTimeout);
-    }
+    console.log('💾 Task changes cached - use Cmd+S to save to file');
 }
 
 // Enhanced DOM update functions using unique IDs
@@ -1347,79 +1340,77 @@ function updateTagChipStyle(button, tagName, isActive) {
 }
 
 /**
- * Sends all pending tag changes to backend
- * Purpose: Batch save of accumulated tag modifications
- * Used by: Manual save (Cmd+S), before operations
- * Side effects: Clears pending changes, triggers document save
- * Note: Now only called on explicit save, not automatically
+ * Marks the cached board as having unsaved changes
+ * Purpose: Track when user makes changes that need saving
+ * Used by: All operations that modify the board
+ * Side effects: Updates unsaved flag and UI state
  */
-function flushPendingTagChanges() {
-    console.log('🔄 Flushing pending tag changes...');
+function markUnsavedChanges() {
+    window.hasUnsavedChanges = true;
+    updateRefreshButtonState('unsaved', 1);
+    console.log('🔄 Board marked as having unsaved changes');
+}
+
+/**
+ * Checks if there are any unsaved changes in the cached board
+ * Purpose: Determine if save confirmation dialog should be shown
+ * Used by: Close/exit handlers
+ * Returns: true if there are unsaved changes
+ */
+function hasUnsavedChanges() {
+    return window.hasUnsavedChanges === true;
+}
+
+/**
+ * NEW CLEAN SAVE SYSTEM: Save complete cached board to markdown file
+ * Purpose: Save all changes (tags, moves, edits) from cache to file
+ * Used by: Manual save (Cmd+S) only
+ * Side effects: Sends board to VS Code for file write
+ * Note: Single source of truth - no more pending changes mess
+ */
+function saveCachedBoard() {
+    console.log('🚨🚨🚨 ===== SAVING CACHED BOARD TO FILE ===== 🚨🚨🚨');
+    console.log('💾 SAVING ALL CACHED CHANGES TO MARKDOWN FILE');
     
-    // Store changes temporarily in case we need to retry
-    const columnChangesToFlush = new Map();
-    const taskChangesToFlush = new Map();
-    
-    // Copy column changes
-    if (window.pendingColumnChanges && window.pendingColumnChanges.size > 0) {
-        console.log(`📤 Preparing to send ${window.pendingColumnChanges.size} column changes`);
-        window.pendingColumnChanges.forEach((value, key) => {
-            columnChangesToFlush.set(key, value);
-        });
-    }
-    
-    // Copy task changes  
-    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
-        console.log(`📤 Preparing to send ${window.pendingTaskChanges.size} task changes`);
-        window.pendingTaskChanges.forEach((value, key) => {
-            taskChangesToFlush.set(key, value);
-        });
-    }
-    
-    // If no changes to flush, return early
-    if (columnChangesToFlush.size === 0 && taskChangesToFlush.size === 0) {
-        console.log('ℹ️ No pending changes to flush');
+    if (!window.cachedBoard) {
+        console.warn('❌ No cached board data to save!');
         return;
     }
     
-    // Clear the pending changes optimistically
+    // Show what we're saving
+    const summary = {
+        columns: window.cachedBoard.columns.length,
+        totalTasks: window.cachedBoard.columns.reduce((sum, col) => sum + col.tasks.length, 0),
+        timestamp: new Date().toISOString()
+    };
+    console.log('📋 Saving cached board:', summary);
+    
+    // Send the complete cached board to VS Code
+    vscode.postMessage({
+        type: 'saveCachedBoard', 
+        board: window.cachedBoard,
+        summary: summary
+    });
+    
+    // Mark as saved - clear unsaved flag
+    window.hasUnsavedChanges = false;
+    window.savedBoardState = JSON.parse(JSON.stringify(window.cachedBoard));
+    
+    // Clear any old pending changes (obsolete system cleanup)
     if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
     if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
     
-    // Send column changes
-    columnChangesToFlush.forEach(({ title, columnId }) => {
-        console.log(`📤 Column ${columnId}: ${title}`);
-        vscode.postMessage({ 
-            type: 'editColumnTitle', 
-            columnId, 
-            title,
-            _flushId: Date.now() // Add ID for tracking
-        });
-    });
+    // Update UI to show saved state
+    updateRefreshButtonState('saved');
     
-    // Send task changes
-    taskChangesToFlush.forEach(({ taskId, columnId, taskData }) => {
-        console.log(`📤 Task ${taskId}: ${taskData.title}`);
-        vscode.postMessage({ 
-            type: 'editTask', 
-            taskId, 
-            columnId, 
-            taskData,
-            _flushId: Date.now() // Add ID for tracking
-        });
-    });
-    
-    // Update refresh button state
-    updateRefreshButtonState('pending', 0); // Show as saved
-    
-    // Store the changes in case we need to retry
-    window._lastFlushedChanges = {
-        columns: columnChangesToFlush,
-        tasks: taskChangesToFlush,
-        timestamp: Date.now()
-    };
-    
-    console.log('✅ All pending tag changes sent to backend');
+    console.log('✅ Cached board sent to VS Code for file write');
+    console.log('🚨🚨🚨 ===== SAVE COMPLETE ===== 🚨🚨🚨');
+}
+
+// Legacy function - redirect to new system
+function flushPendingTagChanges() {
+    console.log('⚠️ Legacy flushPendingTagChanges called - redirecting to new save system');
+    saveCachedBoard();
 }
 
 // Retry function for failed saves
@@ -1469,6 +1460,72 @@ function retryLastFlushedChanges() {
     }, 1000);
     
     return true;
+}
+
+/**
+ * Applies pending changes locally without saving to backend
+ * Purpose: Update local board state before drag operations
+ * Used by: Drag and drop operations that need consistent state
+ * Side effects: Updates currentBoard data, keeps pending changes intact
+ * Note: Does not send messages to VS Code or clear pending changes
+ */
+function applyPendingChangesLocally() {
+    console.log('🔄 Applying pending changes locally (no save to backend)');
+    
+    if (!window.currentBoard) {
+        console.warn('No currentBoard available for local updates');
+        return;
+    }
+    
+    let changesApplied = 0;
+    
+    // Apply column changes locally
+    if (window.pendingColumnChanges && window.pendingColumnChanges.size > 0) {
+        window.pendingColumnChanges.forEach(({ title, columnId }) => {
+            const column = window.currentBoard.columns.find(col => col.id === columnId);
+            if (column && column.title !== title) {
+                console.log(`📝 Locally updating column ${columnId}: "${column.title}" -> "${title}"`);
+                column.title = title;
+                changesApplied++;
+            }
+        });
+    }
+    
+    // Apply task changes locally
+    if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
+        window.pendingTaskChanges.forEach(({ taskId, columnId, taskData }) => {
+            // Search for task in ALL columns, not just the stored columnId
+            // This is critical for drag operations where task moves between columns
+            let task = null;
+            let actualColumn = null;
+            
+            for (const column of window.currentBoard.columns) {
+                task = column.tasks.find(t => t.id === taskId);
+                if (task) {
+                    actualColumn = column;
+                    break;
+                }
+            }
+            
+            if (task && actualColumn) {
+                if (taskData.title !== undefined && task.title !== taskData.title) {
+                    console.log(`📝 Locally updating task ${taskId} title: "${task.title}" -> "${taskData.title}" (now in ${actualColumn.id})`);
+                    task.title = taskData.title;
+                    changesApplied++;
+                }
+                if (taskData.description !== undefined && task.description !== taskData.description) {
+                    console.log(`📝 Locally updating task ${taskId} description (now in ${actualColumn.id})`);
+                    task.description = taskData.description;
+                    changesApplied++;
+                }
+            } else {
+                console.warn(`📝 Could not find task ${taskId} in any column for local update`);
+            }
+        });
+    }
+    
+    console.log(`✅ Applied ${changesApplied} changes locally (pending changes preserved)`);
+    return changesApplied;
 }
 
 // Function to handle save errors from the backend
@@ -1945,6 +2002,16 @@ window.handleColumnTagClick = (columnId, tagName, event) => toggleColumnTag(colu
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(taskId, columnId, tagName, event);
 window.updateTagChipStyle = updateTagChipStyle;
 window.updateTagButtonAppearance = updateTagButtonAppearance;
+// NEW CACHE SYSTEM - Single save function
+window.saveCachedBoard = saveCachedBoard;
+window.markUnsavedChanges = markUnsavedChanges;
+window.hasUnsavedChanges = hasUnsavedChanges;
+window.flushPendingTagChanges = flushPendingTagChanges; // Legacy redirect
+window.updateRefreshButtonState = updateRefreshButtonState;
+window.handleSaveError = handleSaveError;
+
+// Legacy/compatibility functions - marked for removal
+window.applyPendingChangesLocally = applyPendingChangesLocally;
 // Update visual tag state - handles borders and other tag-based styling
 function updateVisualTagState(element, allTags, elementType, isCollapsed) {
     console.log(`🎨 updateVisualTagState called for ${elementType} with tags:`, allTags);

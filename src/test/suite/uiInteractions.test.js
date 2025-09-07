@@ -308,6 +308,86 @@ describe('UI Interactions', () => {
             expect(dropIndex).toBeGreaterThanOrEqual(0);
         });
 
+        test('should apply pending changes locally before drag without auto-save', () => {
+            // Setup pending changes
+            window.pendingColumnChanges = new Map();
+            window.pendingColumnChanges.set('col_1', {
+                title: 'Column with #newtag',
+                columnId: 'col_1'
+            });
+            
+            // Mock applyPendingChangesLocally
+            window.applyPendingChangesLocally = jest.fn(() => 1);
+            
+            const columnHeader = document.querySelector('.column-header');
+            const dragEndEvent = new DragEvent('dragend');
+            
+            // Start drag
+            window.dragState.isDragging = true;
+            window.dragState.draggedColumn = document.querySelector('.kanban-column');
+            
+            // Trigger drag end
+            columnHeader.dispatchEvent(dragEndEvent);
+            
+            // Should NOT flush to backend (no auto-save)
+            expect(vscode.postMessage).not.toHaveBeenCalledWith(
+                expect.objectContaining({ type: 'editColumnTitle' })
+            );
+            
+            // Pending changes should be preserved
+            expect(window.pendingColumnChanges.size).toBe(1);
+        });
+
+        test('should preserve unsaved state after drag with pending changes', () => {
+            window.pendingTaskChanges = new Map();
+            window.pendingTaskChanges.set('task_1', {
+                taskId: 'task_1',
+                columnId: 'col_1',
+                taskData: { title: 'Modified Task' }
+            });
+            
+            window.updateRefreshButtonState = jest.fn();
+            
+            const dragHandle = document.querySelector('.task-drag-handle');
+            const dragEndEvent = new DragEvent('dragend');
+            
+            // Setup drag state
+            window.dragState.isDragging = true;
+            window.dragState.draggedTask = document.querySelector('.task-item');
+            
+            dragHandle.dispatchEvent(dragEndEvent);
+            
+            // Should show unsaved state with correct count
+            expect(window.updateRefreshButtonState).toHaveBeenCalledWith(
+                'unsaved',
+                expect.any(Number)
+            );
+        });
+
+        test('should reapply pending changes after board update from backend', () => {
+            // Setup pending changes
+            window.pendingColumnChanges = new Map();
+            window.pendingColumnChanges.set('col_1', {
+                title: 'Column #tag',
+                columnId: 'col_1'
+            });
+            
+            window.applyPendingChangesLocally = jest.fn();
+            
+            // Simulate board update message from VS Code
+            const messageEvent = new MessageEvent('message', {
+                data: {
+                    type: 'updateBoard',
+                    board: mockBoard
+                }
+            });
+            
+            window.dispatchEvent(messageEvent);
+            
+            // Should reapply pending changes
+            expect(window.applyPendingChangesLocally).toHaveBeenCalled();
+        });
+
         test('should handle external file drops', () => {
             const column = document.querySelector('.kanban-full-height-column');
             const files = [
