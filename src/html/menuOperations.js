@@ -1131,19 +1131,30 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
         title = `${title} ${tagWithHash}`.trim();
     }
     
-    // Update cached board directly - single source of truth  
+    // NEW CACHE SYSTEM: Update cached board first - single source of truth
     const oldTitle = task.title;
-    task.title = title;
     
-    // Also update in cached board if different reference
+    // Update in cached board (primary source of truth for saves)
     if (window.cachedBoard) {
         const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (cachedColumn) {
             const cachedTask = cachedColumn.tasks.find(t => t.id === taskId);
             if (cachedTask) {
                 cachedTask.title = title;
+                console.log(`💾 Updated task in cache: ${taskId} -> "${title}"`);
+            } else {
+                console.warn(`❌ Task ${taskId} not found in cached board column ${columnId}`);
             }
+        } else {
+            console.warn(`❌ Column ${columnId} not found in cached board`);
         }
+    }
+    
+    // Also update currentBoard for compatibility (if it's a different reference)
+    task.title = title; // Update the task we found from currentBoard
+    if (window.currentBoard !== window.cachedBoard) {
+        console.log(`🔄 Also updating currentBoard (different reference)`);
+        // Task is already updated above since 'task' came from currentBoard
     }
     
     console.log(`🔄 Task data updated:`, {

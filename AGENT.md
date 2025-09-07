@@ -232,6 +232,146 @@ Each function includes:
 - `src/html/webview.js`: Added reapplication after board updates
 - Tests updated to verify no auto-save behavior and cross-column task finding
 
+## Runtime-Only UUID ID System
+
+### Overview
+The kanban board extension now implements a **runtime-only UUID-based identification system** for columns and tasks. This system provides unique identification during editing sessions without polluting the markdown files with persistent ID storage.
+
+### How It Works
+
+#### 1. UUID Generation on Load
+Every time a markdown file is opened as a kanban board:
+- **Fresh UUIDs Generated**: Each column and task receives a new UUID
+- **Format**: 
+  - Columns: `col-a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789`
+  - Tasks: `task-f1e2d3c4-b5a6-4987-e210-f3a4b5c6d7e8`
+- **RFC4122 UUID v4**: Ensures maximum uniqueness across all sessions
+
+#### 2. Runtime-Only Storage
+- **Session Scoped**: UUIDs exist only while the kanban board is active
+- **No Markdown Pollution**: Zero traces in saved markdown files
+- **Clean Files**: Markdown remains pure and readable
+- **Fresh Start**: Each board opening generates completely new IDs
+
+#### 3. Precise Identification During Operations
+- **Tag Operations**: Adding/removing tags targets exact cards by UUID
+- **Drag & Drop**: Move operations use UUIDs for precise source/target identification
+- **Menu Actions**: All menu operations reference specific items by UUID
+- **Cache System**: Frontend cache uses UUIDs for reliable state management
+
+### Implementation Components
+
+#### IdGenerator (`src/utils/idGenerator.ts`)
+```typescript
+class IdGenerator {
+  static generateColumnId(): string    // → "col-{uuid}"
+  static generateTaskId(): string      // → "task-{uuid}"
+  static isValidColumnId(id): boolean  // Validation
+  static isValidTaskId(id): boolean    // Validation
+  static getShortId(id): string        // Debug helper
+}
+```
+
+#### Markdown Parser (`src/markdownParser.ts`)
+```typescript
+// Column parsing - fresh UUID every load
+currentColumn = {
+  id: IdGenerator.generateColumnId(),  // Runtime-only
+  title: columnTitle,
+  tasks: []
+};
+
+// Task parsing - fresh UUID every load  
+currentTask = {
+  id: IdGenerator.generateTaskId(),    // Runtime-only
+  title: taskTitle,
+  description: ''
+};
+```
+
+#### Board Operations (`src/boardOperations.ts`)
+```typescript
+// New content creation uses same UUID system
+private generateId(type: 'column' | 'task'): string {
+  if (type === 'column') {
+    return IdGenerator.generateColumnId();
+  } else {
+    return IdGenerator.generateTaskId();
+  }
+}
+```
+
+### Workflow Example
+
+1. **User opens `project.md`**:
+   ```markdown
+   ## TODO
+   - [ ] Fix bug #high
+   - [ ] Add feature
+   
+   ## DONE  
+   - [ ] Review code
+   ```
+
+2. **Parser generates runtime UUIDs**:
+   ```javascript
+   board = {
+     columns: [
+       { id: "col-abc123...", title: "TODO", tasks: [...] },
+       { id: "col-def456...", title: "DONE", tasks: [...] }
+     ]
+   }
+   ```
+
+3. **User adds tag to "Fix bug" card**:
+   - System uses `task-xyz789...` to identify exact card
+   - No confusion with other cards containing "Fix bug"
+   - Tag applied to correct card every time
+
+4. **User saves with Cmd+S**:
+   ```markdown
+   ## TODO
+   - [ ] Fix bug #high #urgent
+   - [ ] Add feature
+   
+   ## DONE
+   - [ ] Review code
+   ```
+   *Note: Only user changes saved, no UUIDs in markdown*
+
+5. **User closes and reopens file**:
+   - Fresh UUIDs generated: `col-ghi999...`, `task-mno888...`
+   - Clean session with new unique identifiers
+   - Previous session's UUIDs are gone
+
+### Benefits
+
+#### ✅ Eliminates Original Problem
+- **Before**: *"changing a tag to a card might change the first tag with the same name"*
+- **After**: Each card has guaranteed unique UUID during session
+- **Result**: Tag operations target exactly intended cards
+
+#### ✅ Clean Architecture  
+- **No Markdown Pollution**: Files stay readable and version-control friendly
+- **Session Isolation**: No cross-session ID conflicts
+- **Simple Workflow**: Fresh start every time
+
+#### ✅ Robust Identification
+- **Content Independent**: IDs don't break when titles change
+- **Position Independent**: IDs persist through drag operations
+- **Collision Proof**: UUID format eliminates duplicate IDs
+- **Frontend/Backend Sync**: Both use identical UUID system
+
+### Technical Details
+
+- **UUID Format**: RFC4122 v4 with cryptographically secure randomness
+- **Memory Only**: IDs stored in JavaScript variables during session
+- **No Persistence**: Markdown writing completely ignores IDs
+- **Cache Reliable**: Consistent identification for cache operations
+- **Performance**: UUID generation is fast and lightweight
+
+This system ensures that the original issue ("changing a tag to a card might change the first tag with the same name") can never occur again, while maintaining clean, readable markdown files without any ID-related pollution.
+
 ## Current Request
 
 

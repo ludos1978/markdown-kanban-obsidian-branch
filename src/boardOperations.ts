@@ -1,16 +1,15 @@
 import { KanbanBoard, KanbanColumn, KanbanTask } from './markdownParser';
+import { IdGenerator } from './utils/idGenerator';
 
 export class BoardOperations {
     private _originalTaskOrder: Map<string, string[]> = new Map();
 
     private generateId(type: 'column' | 'task', parentId?: string): string {
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substr(2, 5);
-        
+        // Use new UUID-based ID system for consistency
         if (type === 'column') {
-            return `col_${timestamp}_${random}`;
+            return IdGenerator.generateColumnId();
         } else {
-            return `task_${parentId}_${timestamp}_${random}`;
+            return IdGenerator.generateTaskId();
         }
     }
 

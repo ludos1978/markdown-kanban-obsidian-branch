@@ -1,3 +1,5 @@
+import { IdGenerator } from './utils/idGenerator';
+
 export interface KanbanTask {
   id: string;
   title: string;
@@ -19,16 +21,7 @@ export interface KanbanBoard {
 }
 
 export class MarkdownKanbanParser {
-  private static generateId(): string {
-    return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-  }
-
-  private static generateStableId(type: string, content: string, index: number): string {
-      // Create a stable ID based on content and position
-      // This ensures the same column/task gets the same ID across parses
-      const cleanContent = content.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 20);
-      return `${type}_${index}_${cleanContent || 'empty'}`;
-  }
+  // Runtime-only ID generation - no persistence to markdown
 
   static parseMarkdown(content: string): KanbanBoard {
       const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
@@ -97,7 +90,7 @@ export class MarkdownKanbanParser {
           continue;
         }
 
-        // Parse column with stable ID
+        // Parse column with runtime UUID generation
         if (line.startsWith('## ')) {
           if (collectingDescription) {
             this.finalizeCurrentTask(currentTask, currentColumn);
@@ -109,17 +102,19 @@ export class MarkdownKanbanParser {
           }
           
           const columnTitle = line.substring(3);
+          
           currentColumn = {
-            id: this.generateStableId('col', columnTitle, columnIndex),  // Stable ID
+            id: IdGenerator.generateColumnId(),
             title: columnTitle,
             tasks: []
           };
+          
           columnIndex++;
           taskIndexInColumn = 0;  // Reset task counter for new column
           continue;
         }
 
-        // Parse task with stable ID
+        // Parse task with runtime UUID generation
         if (line.startsWith('- ')) {
           if (collectingDescription) {
             this.finalizeCurrentTask(currentTask, currentColumn);
@@ -128,11 +123,13 @@ export class MarkdownKanbanParser {
 
           if (currentColumn) {
             const taskTitle = line.substring(6);
+            
             currentTask = {
-              id: this.generateStableId('task', taskTitle, taskIndexInColumn),  // Stable ID
+              id: IdGenerator.generateTaskId(),
               title: taskTitle,
               description: ''
             };
+            
             taskIndexInColumn++;
             collectingDescription = true;
           }
@@ -199,7 +196,7 @@ export class MarkdownKanbanParser {
     //   markdown += `# ${board.title}\n\n`;
     // }
 
-    // Add columns
+    // Add columns (no ID persistence - runtime only)
     for (const column of board.columns) {
       markdown += `## ${column.title}\n`;
 
