@@ -235,6 +235,9 @@ export class MessageHandler {
                     this._boardOperations.performAutomaticSort(this._getCurrentBoard()!)
                 );
                 break;
+            case 'saveBoardState':
+                await this.handleSaveBoardState(message.board);
+                break;
 
                 // case 'replaceLinkInMarkdown':
             //     await this.handleLinkReplacement(message);
@@ -338,6 +341,30 @@ export class MessageHandler {
             // This would need to be handled by the main panel
             console.log('Selected file:', document.fileName);
         }
+    }
+
+    private async handleSaveBoardState(board: any) {
+        console.log('📥 Received complete board state for saving:', board);
+        
+        if (!board) {
+            console.warn('❌ No board data received for saving');
+            return;
+        }
+        
+        // Save current state for undo
+        const currentBoard = this._getCurrentBoard();
+        if (currentBoard) {
+            this._undoRedoManager.saveStateForUndo(currentBoard);
+        }
+        
+        // Replace the current board with the new one
+        this._setBoard(board);
+        
+        // Save to markdown file and update the webview
+        await this._onSaveToMarkdown();
+        await this._onBoardUpdate();
+        
+        console.log('✅ Board state saved successfully');
     }
 
     private async performBoardAction(action: () => boolean, saveUndo: boolean = true) {

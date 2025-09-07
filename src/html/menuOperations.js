@@ -856,7 +856,46 @@ function deleteTask(taskId, columnId) {
     // Close all menus
     document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
-    vscode.postMessage({ type: 'deleteTask', taskId, columnId });
+    // NEW CACHE SYSTEM: Remove task from cached board instead of sending to VS Code immediately
+    if (window.cachedBoard) {
+        const column = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (column) {
+            const taskIndex = column.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex >= 0) {
+                const deletedTask = column.tasks.splice(taskIndex, 1)[0];
+                console.log(`🗑️ Task deleted from cache: ${taskId} ("${deletedTask.title}") from ${columnId}`);
+                
+                // Also update currentBoard for compatibility
+                if (window.currentBoard !== window.cachedBoard) {
+                    const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+                    if (currentColumn) {
+                        const currentTaskIndex = currentColumn.tasks.findIndex(t => t.id === taskId);
+                        if (currentTaskIndex >= 0) {
+                            currentColumn.tasks.splice(currentTaskIndex, 1);
+                        }
+                    }
+                }
+                
+                // Remove task from DOM immediately
+                const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                if (taskElement) {
+                    taskElement.remove();
+                    console.log(`🗑️ Task removed from DOM: ${taskId}`);
+                }
+                
+                // Mark board as having unsaved changes
+                markUnsavedChanges();
+                
+                console.log('💾 Task deletion cached - use Cmd+S to save to file');
+            } else {
+                console.warn(`❌ Task ${taskId} not found in column ${columnId} for deletion`);
+            }
+        } else {
+            console.warn(`❌ Column ${columnId} not found for task deletion`);
+        }
+    } else {
+        console.warn('❌ No cached board available for task deletion');
+    }
 }
 
 function addTask(columnId) {
@@ -1362,6 +1401,111 @@ function hasUnsavedChanges() {
 }
 
 /**
+ * Compares two board states to find what has changed
+ * Purpose: Detect specific changes to send to VS Code
+ * Used by: Save operation to minimize messages sent
+ * Returns: Object with arrays of changes by type
+ */
+function compareBoards(savedBoard, cachedBoard) {
+    const changes = {
+        columnTitleChanges: [],
+        taskChanges: [],
+        taskMoves: [],
+        taskDeletions: [],
+        columnOrderChanged: false
+    };
+    
+    // Check if column order changed
+    const savedOrder = savedBoard.columns.map(col => col.id).join(',');
+    const cachedOrder = cachedBoard.columns.map(col => col.id).join(',');
+    if (savedOrder !== cachedOrder) {
+        changes.columnOrderChanged = true;
+        console.log('🔄 Column order changed:', { savedOrder, cachedOrder });
+    }
+    
+    // Find deleted tasks
+    savedBoard.columns.forEach(savedCol => {
+        savedCol.tasks.forEach(savedTask => {
+            let foundInCached = false;
+            for (const cachedCol of cachedBoard.columns) {
+                if (cachedCol.tasks.find(t => t.id === savedTask.id)) {
+                    foundInCached = true;
+                    break;
+                }
+            }
+            if (!foundInCached) {
+                changes.taskDeletions.push({
+                    taskId: savedTask.id,
+                    columnId: savedCol.id
+                });
+                console.log(`🗑️ Task deleted: ${savedTask.id} from ${savedCol.id}`);
+            }
+        });
+    });
+    
+    // Compare each column
+    cachedBoard.columns.forEach(cachedCol => {
+        const savedCol = savedBoard.columns.find(col => col.id === cachedCol.id);
+        if (!savedCol) return; // New column (shouldn't happen in our cache system)
+        
+        // Check column title changes
+        if (savedCol.title !== cachedCol.title) {
+            changes.columnTitleChanges.push({
+                columnId: cachedCol.id,
+                oldTitle: savedCol.title,
+                newTitle: cachedCol.title
+            });
+        }
+        
+        // Compare each task in this column
+        cachedCol.tasks.forEach((cachedTask, cachedIndex) => {
+            // Find task in saved board (it might be in a different column)
+            let savedTask = null;
+            let savedTaskColumn = null;
+            let savedTaskIndex = -1;
+            
+            for (const savedColumn of savedBoard.columns) {
+                const foundIndex = savedColumn.tasks.findIndex(t => t.id === cachedTask.id);
+                if (foundIndex >= 0) {
+                    savedTask = savedColumn.tasks[foundIndex];
+                    savedTaskColumn = savedColumn.id;
+                    savedTaskIndex = foundIndex;
+                    break;
+                }
+            }
+            
+            if (!savedTask) return; // New task (shouldn't happen in our cache system)
+            
+            // Check if task moved between columns or changed position
+            if (savedTaskColumn !== cachedCol.id || savedTaskIndex !== cachedIndex) {
+                changes.taskMoves.push({
+                    taskId: cachedTask.id,
+                    fromColumn: savedTaskColumn,
+                    toColumn: cachedCol.id,
+                    newIndex: cachedIndex
+                });
+                console.log(`🔄 Task ${cachedTask.id} moved: ${savedTaskColumn}[${savedTaskIndex}] -> ${cachedCol.id}[${cachedIndex}]`);
+            }
+            
+            // Check task content changes
+            if (savedTask.title !== cachedTask.title || savedTask.description !== cachedTask.description) {
+                changes.taskChanges.push({
+                    taskId: cachedTask.id,
+                    columnId: cachedCol.id, // Current column
+                    taskData: {
+                        title: cachedTask.title,
+                        description: cachedTask.description
+                    }
+                });
+                console.log(`📝 Task ${cachedTask.id} content changed`);
+            }
+        });
+    });
+    
+    return changes;
+}
+
+/**
  * NEW CLEAN SAVE SYSTEM: Save complete cached board to markdown file
  * Purpose: Save all changes (tags, moves, edits) from cache to file
  * Used by: Manual save (Cmd+S) only
@@ -1370,40 +1514,37 @@ function hasUnsavedChanges() {
  */
 function saveCachedBoard() {
     console.log('🚨🚨🚨 ===== SAVING CACHED BOARD TO FILE ===== 🚨🚨🚨');
-    console.log('💾 SAVING ALL CACHED CHANGES TO MARKDOWN FILE');
+    console.log('💾 SENDING COMPLETE BOARD STATE TO VS CODE');
     
     if (!window.cachedBoard) {
-        console.warn('❌ No cached board data to save!');
+        console.warn('❌ No cached board data available!');
         return;
     }
     
-    // Show what we're saving
-    const summary = {
-        columns: window.cachedBoard.columns.length,
-        totalTasks: window.cachedBoard.columns.reduce((sum, col) => sum + col.tasks.length, 0),
-        timestamp: new Date().toISOString()
-    };
-    console.log('📋 Saving cached board:', summary);
+    console.log('📋 Board to save:', window.cachedBoard);
     
-    // Send the complete cached board to VS Code
+    // Send the complete board state to VS Code using a simple message
+    // This avoids complex sequential processing that might cause issues
     vscode.postMessage({
-        type: 'saveCachedBoard', 
-        board: window.cachedBoard,
-        summary: summary
+        type: 'saveBoardState',
+        board: window.cachedBoard
     });
+    
+    console.log('✅ Sent complete board state to VS Code');
     
     // Mark as saved - clear unsaved flag
     window.hasUnsavedChanges = false;
-    window.savedBoardState = JSON.parse(JSON.stringify(window.cachedBoard));
+    if (window.cachedBoard) {
+        window.savedBoardState = JSON.parse(JSON.stringify(window.cachedBoard));
+    }
+    
+    // Update UI to show saved state
+    updateRefreshButtonState('saved');
     
     // Clear any old pending changes (obsolete system cleanup)
     if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
     if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
     
-    // Update UI to show saved state
-    updateRefreshButtonState('saved');
-    
-    console.log('✅ Cached board sent to VS Code for file write');
     console.log('🚨🚨🚨 ===== SAVE COMPLETE ===== 🚨🚨🚨');
 }
 
