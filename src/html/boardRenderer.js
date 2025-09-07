@@ -677,13 +677,7 @@ function generateTagMenuItems(id, type, columnId = null) {
         `;
     }
     
-    // Add "Remove all tags" option if there are any active tags
-    if (activeTags.length > 0) {
-        if (hasAnyTags) {
-            menuHtml += '<div class="donut-menu-divider"></div>';
-        }
-        menuHtml += `<button class="donut-menu-item" onclick="removeAllTags('${id}', '${type}', ${columnId ? "'" + columnId + "'" : 'null'})">Remove all tags</button>`;
-    }
+    // Note: "Remove all tags" option is added dynamically by updateTagCategoryCounts() when tags are active
     
     // If no tags at all, show a message
     if (!hasAnyTags && activeTags.length === 0) {
@@ -1733,9 +1727,9 @@ function generateTagStyles() {
         //     const bWidth = b.width || '1px';
         //     const bColor = b.color || 'var(--vscode-panel-border)';
         //     if (b.position === 'left') {
-        //         styles += `.kanban-full-height-column:not([data-column-tag]) { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+        //         styles += `.kanban-full-height-column:not([data-column-tag]) .column-inner { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
         //     } else {
-        //         styles += `.kanban-full-height-column:not([data-column-tag]) { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+        //         styles += `.kanban-full-height-column:not([data-column-tag]) .column-inner { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
         //     }
         // }
 
@@ -1840,24 +1834,17 @@ function generateTagStyles() {
                         const borderStyle = config.border.style || 'solid';
                         
                         if (config.border.position === 'left') {
-                            // Use data-column-tag and data-task-tag for borders (primary tag only)
-                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
-                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                            }\n`;
-                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-content {
+                            // Use data-column-tag for left border on column-inner only
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-inner {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                         } else {
-                            // Full border
-                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
+                            // Full border on column-inner only  
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-inner {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                            }\n`;
-                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-content {
-                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                                border-top: none !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
@@ -2072,22 +2059,25 @@ function injectStackableBars() {
         
         // Handle collapsed columns with flex containers
         if (isCollapsed) {
-            // Create and insert header container at the beginning
-            if (headerBars.length > 0) {
+            // Find the column-inner element to insert bars into
+            const columnInner = element.querySelector('.column-inner');
+            
+            // Create and insert header container at the beginning of column-inner
+            if (headerBars.length > 0 && columnInner) {
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
-                element.insertBefore(headerContainer, element.firstChild);
+                columnInner.insertBefore(headerContainer, columnInner.firstChild);
                 element.classList.add('has-header-bar');
                 if (hasHeaderLabel) element.classList.add('has-header-label');
             }
             
-            // Create and append footer container at the end
-            if (footerBars.length > 0) {
+            // Create and append footer container at the end of column-inner
+            if (footerBars.length > 0 && columnInner) {
                 const footerContainer = document.createElement('div');
                 footerContainer.className = 'footer-bars-container';
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
-                element.appendChild(footerContainer);
+                columnInner.appendChild(footerContainer);
                 element.classList.add('has-footer-bar');
                 if (hasFooterLabel) element.classList.add('has-footer-label');
             }
@@ -2097,41 +2087,60 @@ function injectStackableBars() {
             element.style.paddingBottom = '';
             
         } else {
-            // For non-collapsed elements, use absolute positioning
-            headerBars.forEach(bar => element.appendChild(bar));
-            footerBars.forEach(bar => element.appendChild(bar));
+            // For non-collapsed elements, also use column-inner with flex positioning
+            const columnInner = element.querySelector('.column-inner');
             
-            // Calculate and apply padding for non-collapsed elements
-            if (headerBars.length > 0) {
-                const totalHeight = tags.reduce((sum, tag) => {
-                    const config = getTagConfig(tag);
-                    if (config?.headerBar) {
-                        return sum + (config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px'));
-                    }
-                    return sum;
-                }, 0);
+            if (columnInner) {
+                // Create and insert header container at the beginning of column-inner
+                if (headerBars.length > 0) {
+                    const headerContainer = document.createElement('div');
+                    headerContainer.className = 'header-bars-container';
+                    headerBars.forEach(bar => headerContainer.appendChild(bar));
+                    columnInner.insertBefore(headerContainer, columnInner.firstChild);
+                }
                 
-                element.style.paddingTop = `calc(var(--whitespace-div2) + ${totalHeight}px)`;
-                element.classList.add('has-header-bar');
-                if (hasHeaderLabel) element.classList.add('has-header-label');
+                // Create and append footer container at the end of column-inner
+                if (footerBars.length > 0) {
+                    const footerContainer = document.createElement('div');
+                    footerContainer.className = 'footer-bars-container';
+                    footerBars.forEach(bar => footerContainer.appendChild(bar));
+                    columnInner.appendChild(footerContainer);
+                }
             } else {
-                element.style.paddingTop = '';
+                // For task items, insert header bars at the beginning and footer bars at the end
+                if (element.classList.contains('task-item')) {
+                    // Create header container and insert at the beginning
+                    if (headerBars.length > 0) {
+                        const headerContainer = document.createElement('div');
+                        headerContainer.className = 'header-bars-container';
+                        headerBars.forEach(bar => headerContainer.appendChild(bar));
+                        element.insertBefore(headerContainer, element.firstChild);
+                    }
+                    
+                    // Create footer container and append at the end
+                    if (footerBars.length > 0) {
+                        const footerContainer = document.createElement('div');
+                        footerContainer.className = 'footer-bars-container';
+                        footerBars.forEach(bar => footerContainer.appendChild(bar));
+                        element.appendChild(footerContainer);
+                    }
+                } else {
+                    // Fallback for other elements
+                    headerBars.forEach(bar => element.appendChild(bar));
+                    footerBars.forEach(bar => element.appendChild(bar));
+                }
             }
             
+            // Set CSS classes for header bars (no padding needed with flex layout)
+            if (headerBars.length > 0) {
+                element.classList.add('has-header-bar');
+                if (hasHeaderLabel) element.classList.add('has-header-label');
+            }
+            
+            // Set CSS classes for footer bars (no padding needed with flex layout)
             if (footerBars.length > 0) {
-                const totalHeight = tags.reduce((sum, tag) => {
-                    const config = getTagConfig(tag);
-                    if (config?.footerBar) {
-                        return sum + (config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px'));
-                    }
-                    return sum;
-                }, 0);
-                
-                element.style.paddingBottom = `calc(var(--whitespace-div2) + ${totalHeight}px)`;
                 element.classList.add('has-footer-bar');
                 if (hasFooterLabel) element.classList.add('has-footer-label');
-            } else {
-                element.style.paddingBottom = '';
             }
         }
     });
@@ -2267,7 +2276,11 @@ function removeAllTags(id, type, columnId = null) {
     }
     
     // Close the menu
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    if (typeof closeAllMenus === 'function') {
+        closeAllMenus();
+    } else {
+        document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    }
     
     console.log(`✅ Removed all tags, new title: "${newTitle}"`);
 }

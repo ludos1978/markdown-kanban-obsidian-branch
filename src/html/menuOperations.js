@@ -446,13 +446,9 @@ function cleanupDropdown(dropdown) {
     }
 }
 
-// Simplified donut menu toggle
-function toggleDonutMenu(event, button) {
-    event.stopPropagation();
-    const menu = button.parentElement;
-    const wasActive = menu.classList.contains('active');
-    
-    // Close all menus and clean up their dropdowns
+// Utility function to properly close all menus including moved dropdowns
+function closeAllMenus() {
+    // Close donut menus and clean up their dropdowns
     document.querySelectorAll('.donut-menu, .file-bar-menu').forEach(m => {
         m.classList.remove('active');
         const dropdown = m.querySelector('.donut-menu-dropdown, .file-bar-menu-dropdown');
@@ -460,6 +456,21 @@ function toggleDonutMenu(event, button) {
             cleanupDropdown(dropdown);
         }
     });
+    
+    // Also find and clean up any dropdowns that were moved to body but might be orphaned
+    document.querySelectorAll('.donut-menu-dropdown.moved-to-body, .file-bar-menu-dropdown.moved-to-body').forEach(dropdown => {
+        cleanupDropdown(dropdown);
+    });
+}
+
+// Simplified donut menu toggle
+function toggleDonutMenu(event, button) {
+    event.stopPropagation();
+    const menu = button.parentElement;
+    const wasActive = menu.classList.contains('active');
+    
+    // Close all menus and clean up their dropdowns
+    closeAllMenus();
     
     if (!wasActive) {
         menu.classList.add('active');
@@ -469,6 +480,15 @@ function toggleDonutMenu(event, button) {
         if (dropdown) {
             positionDropdown(button, dropdown);
             setupMenuHoverHandlers(menu, dropdown);
+            
+            // Update tag category counts (including "Remove all tags" button) when menu opens
+            const firstMenuItem = dropdown.querySelector('[data-id][data-type]');
+            if (firstMenuItem) {
+                const id = firstMenuItem.getAttribute('data-id');
+                const type = firstMenuItem.getAttribute('data-type');
+                const columnId = firstMenuItem.getAttribute('data-column-id');
+                updateTagCategoryCounts(id, type, columnId || null);
+            }
         }
     }
 }
@@ -580,12 +600,12 @@ function positionFileBarDropdown(triggerButton, dropdown) {
 
 // Column operations - keep existing functions
 function insertColumnBefore(columnId) {
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    closeAllMenus();
     vscode.postMessage({ type: 'insertColumnBefore', columnId, title: '' });
 }
 
 function insertColumnAfter(columnId) {
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    closeAllMenus();
     vscode.postMessage({ type: 'insertColumnAfter', columnId, title: '' });
 }
 
@@ -650,8 +670,8 @@ function moveColumnRight(columnId) {
 }
 
 function deleteColumn(columnId) {
-    // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly including moved dropdowns
+    closeAllMenus();
     
     vscode.postMessage({ type: 'deleteColumn', columnId });
 }
@@ -677,7 +697,7 @@ function copyColumnAsMarkdown(columnId) {
     });
     
     copyToClipboard(markdown);
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    closeAllMenus();
 }
 
 function copyTaskAsMarkdown(taskId, columnId) {
@@ -694,7 +714,7 @@ function copyTaskAsMarkdown(taskId, columnId) {
     }
     
     copyToClipboard(markdown);
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    closeAllMenus();
 }
 
 function copyToClipboard(text) {
@@ -726,8 +746,8 @@ function moveTaskToTop(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
     
-    // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly including moved dropdowns
+    closeAllMenus();
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -742,8 +762,8 @@ function moveTaskUp(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
     
-    // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly including moved dropdowns
+    closeAllMenus();
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -758,8 +778,8 @@ function moveTaskDown(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
     
-    // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly including moved dropdowns
+    closeAllMenus();
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -774,8 +794,8 @@ function moveTaskToBottom(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
     
-    // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly including moved dropdowns
+    closeAllMenus();
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -794,8 +814,8 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
     
     vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
     
-    // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly including moved dropdowns
+    closeAllMenus();
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -803,8 +823,8 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
 }
 
 function deleteTask(taskId, columnId) {
-    // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly including moved dropdowns
+    closeAllMenus();
     
     vscode.postMessage({ type: 'deleteTask', taskId, columnId });
 }
@@ -1854,6 +1874,7 @@ function updateTagCategoryCounts(id, type, columnId = null) {
 // Make functions globally available
 window.toggleDonutMenu = toggleDonutMenu;
 window.toggleFileBarMenu = toggleFileBarMenu;
+window.closeAllMenus = closeAllMenus;
 window.handleColumnTagClick = (columnId, tagName, event) => toggleColumnTag(columnId, tagName, event);
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(taskId, columnId, tagName, event);
 window.updateTagChipStyle = updateTagChipStyle;

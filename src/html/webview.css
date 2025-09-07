@@ -6,7 +6,7 @@
   --whitespace-div2: calc(var(--whitespace) / 2);
   --whitespace-div4: calc(var(--whitespace) / 4);
   --column-title-width: calc(var(--column-width) - 150px);
-  --task-title-width: calc(var(--column-width) - 110px);
+  --task-title-width: calc(var(--column-width) - 120px);
   --column-width: 350px;
   --collapsed-column-width: 40px;
 }
@@ -357,8 +357,11 @@ body.small-card-fonts .task-title-container .markdown-content img {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+	border: 0.5px solid var(--vscode-panel-border);
+	border-radius: 4px;
   overflow-x: visible;
-  min-height: 100%;
+  /* min-height: 100%; */
+	max-height: min-content;
   background-color: transparent;
 }
 
@@ -369,8 +372,8 @@ body.small-card-fonts .task-title-container .markdown-content img {
   padding: var(--whitespace-div2)  var(--whitespace-div2) var(--whitespace-div2) var(--whitespace-div2);
   flex: 0 0 auto;
   background-color: var(--vscode-editor-background);
-  border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4);
-  border: 0.5px solid var(--vscode-panel-border);
+  /* border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4); */
+  /* border: 0.5px solid var(--vscode-panel-border); */
   border-top: none;
   margin: 0 var(--whitespace-div2) var(--whitespace-div2) var(--whitespace-div2);
 }
@@ -401,6 +404,17 @@ body.small-card-fonts .task-title-container .markdown-content img {
   margin-top: auto;
 }
 
+/* Ensure header/footer bars work in task items */
+.task-item .header-bars-container {
+  order: -1;
+  flex-shrink: 0;
+}
+
+.task-item .footer-bars-container {
+  order: 999;
+  flex-shrink: 0;
+}
+
 .kanban-full-height-column.collapsed {
   /* Use natural sizing for collapsed columns */
   overflow: visible;
@@ -426,8 +440,8 @@ body.small-card-fonts .task-title-container .markdown-content img {
   top: 0px;
   z-index: 10;
   background-color: var(--vscode-editor-background);
-  border-radius: var(--whitespace-div4) var(--whitespace-div4) 0 0;
-  border: 0.5px solid var(--vscode-panel-border);
+  /* border-radius: var(--whitespace-div4) var(--whitespace-div4) 0 0; */
+  border-bottom: 0.5px solid var(--vscode-panel-border);
   /* border-bottom: none; */
   /* margin: 0 var(--whitespace-div2); */
   margin-bottom: 0;
@@ -574,11 +588,23 @@ body.small-card-fonts .task-title-container .markdown-content img {
   background-color: var(--vscode-editor-background);
   border: 1px solid var(--vscode-panel-border);
   border-radius: 4px;
-  padding: 8px;
+	gap: 8px;
   margin-bottom: var(--whitespace-div2);
   transition: all 0.2s ease;
   position: relative;
   overflow: visible;
+  display: flex;
+  flex-direction: column;
+  min-height: auto;
+  align-items: stretch;
+}
+
+.task-item:not(:has(.header-bars-container)) {
+	padding-top: 8px;
+}
+
+.task-item:not(:has(.footer-bars-container)) {
+	padding-bottom: 8px;
 }
 
 .task-item:last-child {
@@ -599,8 +625,13 @@ body.small-card-fonts .task-title-container .markdown-content img {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+	padding-left: 8px;
+	padding-right: 8px;
+	/* padding: 8px; */
+  /* margin-bottom: 4px; */
   margin-left: 0;
+  order: 1;
+  flex-shrink: 0;
 }
 
 /* Drag handles */
@@ -690,8 +721,8 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Task title container */
 .task-title-container {
-  flex: 1;
-  width: 100%;
+  flex: 0 0 auto;
+  /* width: -webkit-fill-available; */
   max-width: var(--task-title-width);
   cursor: pointer;
 }
@@ -704,7 +735,10 @@ body.small-card-fonts .task-title-container .markdown-content img {
   font-size: 14px;
   color: var(--vscode-foreground);
   line-height: 1.4;
+	width: var(--task-title-width);
   word-break: break-word;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
   padding: 2px 0;
   border-radius: 3px;
   cursor: pointer;
@@ -717,7 +751,9 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Task description */
 .task-description-container {
-  margin-top: 4px;
+  /* margin-top: 4px; */
+  order: 3;
+  flex: 1 1 auto;
 }
 
 .task-description-display {
@@ -726,7 +762,11 @@ body.small-card-fonts .task-title-container .markdown-content img {
   line-height: 1.5;
   border-radius: 3px;
   cursor: pointer;
+	padding-left: 8px;
+	padding-right: 8px;
   min-height: 20px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .task-description-display:hover {
@@ -2215,12 +2255,8 @@ h6 .kanban-tag {
 /* Footer bars styling when in column-inner */
 .column-inner > .footer-bars-container {
   position: sticky;
-  bottom: 0;
-  background-color: var(--vscode-editor-background);
-  border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4);
-  border: 0.5px solid var(--vscode-panel-border);
   border-top: none;
-  margin: 0 0 var(--whitespace-div2) 0;
+  /* bottom: 0; */
 }
 
 .kanban-full-height-column:not(.collapsed) .header-bar,
@@ -2250,11 +2286,7 @@ h6 .kanban-tag {
   padding: 0 2px !important;
 }
 
-/* Keep original heights for bars without labels */
-.kanban-full-height-column.collapsed .header-bar:not(:has(::after)),
-.kanban-full-height-column.collapsed .footer-bar:not(:has(::after)) {
-  /* Height will be set by the inline styles from the tag configuration */
-}
+/* Keep original heights for bars without labels - heights set by inline styles from tag configuration */
 
 /* For bars with text content, ensure they have enough height */
 .kanban-full-height-column.collapsed .header-bar:has(::after),
@@ -2274,15 +2306,8 @@ h6 .kanban-tag {
   border-width: 0;
 }
 
-.kanban-full-height-column[data-all-tags~="urgent"][data-all-tags~="blocked"] .column-header,
-.kanban-full-height-column[data-all-tags~="urgent"][data-all-tags~="blocked"] .column-content {
-  border: 3px double #ff0000 !important;
-}
 
-/* Collapsed column bars */
-.kanban-full-height-column.collapsed.has-header-bar {
-  /* Padding set dynamically by JavaScript */
-}
+/* Collapsed column bars - padding set dynamically by JavaScript */
 
 .kanban-full-height-column.collapsed.has-footer-bar .column-controls {
   margin-bottom: 4px;
