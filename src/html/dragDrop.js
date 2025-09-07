@@ -1012,32 +1012,40 @@ function setupTaskDragHandle(handle) {
                     // Calculate the proper index for the data model
                     const dropIndex = finalIndex >= 0 ? finalIndex : 0;
                     
-                    // Flush pending tag changes before moving the task
-                    if (typeof flushPendingTagChanges === 'function' && 
-                        window.pendingTaskChanges && 
-                        window.pendingTaskChanges.size > 0) {
+                    // Check if we need to flush pending changes first
+                    const hasPendingChanges = (typeof flushPendingTagChanges === 'function' && 
+                        ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
+                         (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)));
+                    
+                    const executeMove = () => {
+                        // Unfold the destination column if it's collapsed
+                        if (typeof unfoldColumnIfCollapsed === 'function') {
+                            unfoldColumnIfCollapsed(finalColumnId);
+                        }
+                        
+                        // Send the command to update the model
+                        vscode.postMessage({
+                            type: 'moveTask',
+                            taskId: taskItem.dataset.taskId,
+                            fromColumnId: originalColumnId,
+                            toColumnId: finalColumnId,
+                            newIndex: dropIndex
+                        });
+                        
+                        // Update button state to show unsaved changes
+                        if (typeof updateRefreshButtonState === 'function') {
+                            updateRefreshButtonState('unsaved', 1);
+                            console.log('📦 Task moved via drag - showing unsaved state');
+                        }
+                    };
+                    
+                    if (hasPendingChanges) {
                         console.log('🔄 Flushing pending tag changes before task move');
                         flushPendingTagChanges();
-                    }
-                    
-                    // Unfold the destination column if it's collapsed
-                    if (typeof unfoldColumnIfCollapsed === 'function') {
-                        unfoldColumnIfCollapsed(finalColumnId);
-                    }
-                    
-                    // Send the command to update the model
-                    vscode.postMessage({
-                        type: 'moveTask',
-                        taskId: taskItem.dataset.taskId,
-                        fromColumnId: originalColumnId,
-                        toColumnId: finalColumnId,
-                        newIndex: dropIndex
-                    });
-                    
-                    // Update button state to show unsaved changes
-                    if (typeof updateRefreshButtonState === 'function') {
-                        updateRefreshButtonState('unsaved', 1);
-                        console.log('📦 Task moved via drag - showing unsaved state');
+                        // Wait a short time for the flush to complete before moving
+                        setTimeout(executeMove, 100);
+                    } else {
+                        executeMove();
                     }
                 }
             }
@@ -1244,27 +1252,34 @@ function setupColumnDragAndDrop() {
             console.log(`Column ${columnId}: DOM index ${targetDOMIndex}, target data index ${targetDataIndex}, row ${newRow}`);
             console.log('New order would be:', newOrder);
             
-            // Flush pending tag changes before moving columns
-            if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
-                (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)) {
-                console.log('🔄 Flushing pending tag changes before reorderColumns');
-                if (typeof flushPendingTagChanges === 'function') {
-                    flushPendingTagChanges();
+            // Check if we need to flush pending changes first
+            const hasPendingChanges = (typeof flushPendingTagChanges === 'function' && 
+                ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
+                 (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)));
+            
+            const executeReorder = () => {
+                // Send the new order to backend
+                vscode.postMessage({
+                    type: 'reorderColumns',
+                    newOrder: newOrder,
+                    movedColumnId: columnId,
+                    targetRow: newRow
+                });
+                
+                // Update button state to show unsaved changes
+                if (typeof updateRefreshButtonState === 'function') {
+                    updateRefreshButtonState('unsaved', 1);
+                    console.log('📦 Columns reordered via drag - showing unsaved state');
                 }
-            }
+            };
             
-            // Send the new order to backend
-            vscode.postMessage({
-                type: 'reorderColumns',
-                newOrder: newOrder,
-                movedColumnId: columnId,
-                targetRow: newRow
-            });
-            
-            // Update button state to show unsaved changes
-            if (typeof updateRefreshButtonState === 'function') {
-                updateRefreshButtonState('unsaved', 1);
-                console.log('📦 Columns reordered via drag - showing unsaved state');
+            if (hasPendingChanges) {
+                console.log('🔄 Flushing pending tag changes before reorderColumns');
+                flushPendingTagChanges();
+                // Wait a short time for the flush to complete before reordering
+                setTimeout(executeReorder, 100);
+            } else {
+                executeReorder();
             }
             
             // Reset drag state
