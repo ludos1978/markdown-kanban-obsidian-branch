@@ -84,6 +84,8 @@ body {
   gap: 6px;
   align-items: center;
   flex-shrink: 0;
+  container-type: inline-size;
+	justify-content: flex-end;
 }
 
 /* Consistent styling for all file-info header elements */
@@ -133,6 +135,71 @@ body {
   background: var(--vscode-inputValidation-infoBackground);
   color: var(--vscode-inputValidation-infoForeground);
   border-color: var(--vscode-inputValidation-infoBorder);
+}
+
+/* Responsive file info header - collapse to icons when space is limited */
+@container (max-width: 320px) {
+  /* Hide text labels, show only icons for file info buttons */
+  .global-fold-text,
+  .sort-text,
+  .font-size-text,
+  .refresh-text {
+    display: none;
+  }
+  
+  /* Adjust button sizing for icon-only mode */
+  .file-info-right .global-fold-btn,
+  .file-info-right .sort-btn,
+  .file-info-right .font-size-btn,
+  .file-info-right .refresh-btn {
+    min-width: 28px;
+    padding: 4px;
+    gap: 0;
+  }
+  
+  /* Reduce gap between buttons */
+  .file-info-right {
+    gap: 4px;
+  }
+}
+
+@container (max-width: 240px) {
+  /* Ultra-compact mode - minimal button sizes */
+  .file-info-right .global-fold-btn,
+  .file-info-right .sort-btn,
+  .file-info-right .font-size-btn,
+  .file-info-right .refresh-btn {
+    min-width: 24px;
+    padding: 2px;
+  }
+  
+  /* Even smaller gaps */
+  .file-info-right {
+    gap: 2px;
+  }
+}
+
+/* Fallback media queries for browsers without container query support */
+@media (max-width: 600px) {
+  .global-fold-text,
+  .sort-text,
+  .font-size-text,
+  .refresh-text {
+    display: none;
+  }
+  
+  .file-info-right .global-fold-btn,
+  .file-info-right .sort-btn,
+  .file-info-right .font-size-btn,
+  .file-info-right .refresh-btn {
+    min-width: 28px;
+    padding: 4px;
+    gap: 0;
+  }
+  
+  .file-info-right {
+    gap: 4px;
+  }
 }
 
 /* Small font mode for cards */
@@ -930,6 +997,7 @@ body.vscode-high-contrast-light .task-count {
 .kanban-full-height-column.collapsed .task-count {
   writing-mode: horizontal-tb;
 }
+
 
 /* Fold buttons */
 .fold-all-btn,
