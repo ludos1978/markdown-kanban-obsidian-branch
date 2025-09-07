@@ -549,11 +549,11 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     console.log(`[DROP DEBUG] Content:`, content);
     console.log(`[DROP DEBUG] Drop position:`, dropPosition);
     
-    // Check board availability
-    console.log('[DROP DEBUG] window.currentBoard:', window.currentBoard);
+    // Check board availability - NEW CACHE SYSTEM
+    console.log('[DROP DEBUG] window.cachedBoard:', window.cachedBoard);
     
-    if (!window.currentBoard) {
-        console.error('[DROP DEBUG] No board on window.currentBoard');
+    if (!window.cachedBoard) {
+        console.error('[DROP DEBUG] No board on window.cachedBoard');
         vscode.postMessage({ 
             type: 'showMessage', 
             text: 'Cannot create task: No board loaded' 
@@ -561,7 +561,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         return;
     }
     
-    if (!window.currentBoard.columns || window.currentBoard.columns.length === 0) {
+    if (!window.cachedBoard.columns || window.cachedBoard.columns.length === 0) {
         console.error('[DROP DEBUG] Board has no columns');
         vscode.postMessage({ 
             type: 'showMessage', 
@@ -570,7 +570,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         return;
     }
     
-    console.log(`[DROP DEBUG] Board has ${window.currentBoard.columns.length} columns`);
+    console.log(`[DROP DEBUG] Board has ${window.cachedBoard.columns.length} columns`);
     
     if (recentlyCreatedTasks.has(content)) {
         console.log('[DROP DEBUG] Duplicate prevention - task already created');
@@ -617,8 +617,8 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         }
     }
     
-    if (!targetColumnId && window.currentBoard.columns.length > 0) {
-        const firstNonCollapsed = window.currentBoard.columns.find(col => 
+    if (!targetColumnId && window.cachedBoard.columns.length > 0) {
+        const firstNonCollapsed = window.cachedBoard.columns.find(col => 
             !window.collapsedColumns || !window.collapsedColumns.has(col.id)
         );
         if (firstNonCollapsed) {
@@ -633,6 +633,33 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             title: content,
             description: description
         };
+        
+        // NEW CACHE SYSTEM: Update cached board directly first
+        if (window.cachedBoard) {
+            const targetColumn = window.cachedBoard.columns.find(col => col.id === targetColumnId);
+            if (targetColumn) {
+                const newTask = {
+                    id: `temp-drop-${Date.now()}`,
+                    title: content,
+                    description: description || ''
+                };
+                
+                // Insert task at the correct position
+                if (insertionIndex >= 0 && insertionIndex <= targetColumn.tasks.length) {
+                    targetColumn.tasks.splice(insertionIndex, 0, newTask);
+                } else {
+                    targetColumn.tasks.push(newTask);
+                }
+                
+                console.log(`🗄️ Cached board updated: added task "${content}" to column ${targetColumnId} at index ${insertionIndex}`);
+                
+                // Mark as unsaved
+                if (typeof markUnsavedChanges === 'function') {
+                    markUnsavedChanges();
+                    console.log('🗄️ Task created via drag & drop - cached, use Cmd+S to save');
+                }
+            }
+        }
         
         const message = {
             type: 'addTaskAtPosition',
