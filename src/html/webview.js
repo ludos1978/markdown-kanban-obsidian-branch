@@ -18,12 +18,23 @@ let currentLayoutRows = 1;
 // Clipboard card source functionality
 let clipboardCardData = null;
 
-// Global mousedown handler - no longer needed
+/**
+ * Legacy clipboard mousedown handler (deprecated)
+ * Purpose: Previously handled clipboard interactions
+ * Used by: Clipboard card source (now unused)
+ * @param {MouseEvent} e - Mouse event
+ */
 window.handleClipboardMouseDown = function(e) {
     // Empty - clipboard is read on focus and Cmd/Ctrl+C
 };
 
-// Global drag handler for clipboard card source
+/**
+ * Handles drag start for clipboard card creation
+ * Purpose: Enables dragging clipboard content to create cards
+ * Used by: Clipboard card source UI element
+ * @param {DragEvent} e - Drag event
+ * Side effects: Sets drag state, formats clipboard data
+ */
 window.handleClipboardDragStart = function(e) {
     console.log('[CLIPBOARD DEBUG] Global drag handler fired!');
     console.log('[CLIPBOARD DEBUG] Current clipboardCardData:', clipboardCardData);
@@ -65,6 +76,13 @@ window.handleClipboardDragStart = function(e) {
     e.target.classList.add('dragging');
 };
 
+/**
+ * Handles drag end for clipboard operations
+ * Purpose: Cleanup after clipboard drag operation
+ * Used by: Clipboard card source drag end
+ * @param {DragEvent} e - Drag event
+ * Side effects: Clears drag state and visual feedback
+ */
 window.handleClipboardDragEnd = function(e) {
     console.log('[CLIPBOARD DEBUG] Global drag end handler fired!');
     
@@ -78,6 +96,12 @@ window.handleClipboardDragEnd = function(e) {
     }
 };
 
+/**
+ * Shows preview of clipboard content
+ * Purpose: Display what will be created from clipboard
+ * Used by: Clipboard card source hover/focus
+ * Side effects: Updates preview UI elements
+ */
 window.showClipboardPreview = function() {
     const preview = document.getElementById('clipboard-preview');
     const header = document.getElementById('clipboard-preview-header');
@@ -151,6 +175,12 @@ window.showClipboardPreview = function() {
     preview.classList.add('show');
 };
 
+/**
+ * Hides clipboard content preview
+ * Purpose: Clean up preview display
+ * Used by: Mouse leave, blur events
+ * Side effects: Hides preview element
+ */
 window.hideClipboardPreview = function() {
     const preview = document.getElementById('clipboard-preview');
     if (preview) {
@@ -611,6 +641,13 @@ function toggleFileBarMenu(event, button) {
 }
 
 // Function to set column width
+/**
+ * Sets the width of all kanban columns
+ * Purpose: Adjust column width for different screen sizes
+ * Used by: Column width menu selections
+ * @param {string} size - 'narrow', 'medium', 'wide', 'full'
+ * Side effects: Updates CSS variables, saves preference
+ */
 function setColumnWidth(size) {
     currentColumnWidth = size;
     
@@ -647,6 +684,13 @@ function setColumnWidth(size) {
 
 
 // Function to set layout rows
+/**
+ * Sets the number of rows in the kanban layout
+ * Purpose: Switch between single and multi-row layouts
+ * Used by: Layout menu selections
+ * @param {number} rows - Number of rows (1, 2, or 3)
+ * Side effects: Updates board layout, triggers re-render
+ */
 function setLayoutRows(rows) {
     console.log(`setLayoutRows ${rows}`);
 
@@ -780,6 +824,13 @@ function setRowHeight(height) {
 }
 
 // Function to detect row tags from board
+/**
+ * Auto-detects number of rows from column tags
+ * Purpose: Determine layout from #row tags in columns
+ * Used by: Board initialization and updates
+ * @param {Object} board - Board data object
+ * @returns {number} Detected number of rows
+ */
 function detectRowsFromBoard(board) {
     if (!board || !board.columns) return 1;
     
@@ -927,6 +978,12 @@ function getCurrentDocumentFoldingState() {
 }
 
 // Function to save current folding state to document storage
+/**
+ * Saves current folding state for document persistence
+ * Purpose: Preserve fold states across document switches
+ * Used by: Before document changes, refreshes
+ * Side effects: Updates documentFoldingStates map
+ */
 function saveCurrentFoldingState() {
     if (!currentDocumentUri || !window.collapsedColumns) return;
     
@@ -1210,12 +1267,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         // Check if clicking outside menus
         if (!e.target.closest('.donut-menu') && !e.target.closest('.file-bar-menu')) {
-            // Flush any pending tag changes before closing menus
-            if (typeof flushPendingTagChanges === 'function' && 
-                window.pendingTagChanges && 
-                (window.pendingTagChanges.columns.size + window.pendingTagChanges.tasks.size > 0)) {
-                flushPendingTagChanges();
-            }
+            // Don't automatically flush changes when clicking outside menus
+            // Changes will only be saved when user explicitly saves (Cmd+S)
+            // if (typeof flushPendingTagChanges === 'function') {
+            //     const pendingColumnCount = window.pendingColumnChanges?.size || 0;
+            //     const pendingTaskCount = window.pendingTaskChanges?.size || 0;
+            //     if (pendingColumnCount > 0 || pendingTaskCount > 0) {
+            //         flushPendingTagChanges();
+            //     }
+            // }
             
             // Close all menus and clean up moved dropdowns
             document.querySelectorAll('.donut-menu').forEach(menu => {
@@ -1322,7 +1382,7 @@ window.addEventListener('message', event => {
             }
 
             // Check if we should skip rendering (for direct DOM updates like tag changes)
-            const shouldSkipRender = message.skipRender || message.board?.skipRender || window.skipNextBoardRender;
+            const shouldSkipRender = message.skipRender || message.board?.skipRender;
 
             // Store tag colors globally - THIS IS CRITICAL
             if (message.tagColors) {
@@ -1346,7 +1406,6 @@ window.addEventListener('message', event => {
             
             console.log('🔄 Board update received:', {
                 skipRender: shouldSkipRender,
-                skipNextBoardRender: window.skipNextBoardRender,
                 isEditing,
                 messageType: message.type,
                 hasBoard: !!message.board
@@ -1358,11 +1417,6 @@ window.addEventListener('message', event => {
                 debouncedRenderBoard();
             } else if (shouldSkipRender) {
                 console.log('⏭️ Skipping render update - direct DOM update mode');
-                // Clear the skip flag after using it
-                if (window.skipNextBoardRender) {
-                    console.log('🏁 Clearing skipNextBoardRender flag');
-                    window.skipNextBoardRender = false;
-                }
             } else {
                 console.log('⏭️ Skipping render update - currently editing');
             }
@@ -1619,12 +1673,24 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Undo/Redo functions
+/**
+ * Triggers undo operation
+ * Purpose: Revert last change
+ * Used by: Undo button, Cmd/Ctrl+Z
+ * Side effects: Sends undo message to VS Code
+ */
 function undo() {
     if (canUndo) {
         vscode.postMessage({ type: 'undo' });
     }
 }
 
+/**
+ * Triggers redo operation
+ * Purpose: Reapply undone change
+ * Used by: Redo button, Cmd/Ctrl+Shift+Z
+ * Side effects: Sends redo message to VS Code
+ */
 function redo() {
     if (canRedo) {
         vscode.postMessage({ type: 'redo' });
@@ -1724,6 +1790,12 @@ function insertFileLink(fileInfo) {
     }
 }
 
+/**
+ * Updates the file info bar with current document details
+ * Purpose: Show current file name and path
+ * Used by: Document changes, initialization
+ * Side effects: Updates DOM elements with file info
+ */
 function updateFileInfoBar() {
     if (!currentFileInfo) return;
 

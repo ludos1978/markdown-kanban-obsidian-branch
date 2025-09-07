@@ -1,3 +1,205 @@
+# Kanban Board Extension - Developer Documentation
+
+## Comprehensive Test Suite
+
+### Available Test Suites
+The codebase now includes comprehensive test coverage for all major functionality:
+
+#### 1. Column Operations Tests (`src/test/suite/columnOperations.test.js`)
+- **Column Creation**: Tests for generating column HTML elements with various configurations
+- **Column Editing**: Tests for inline title editing and tag modification
+- **Column Folding**: Tests for collapse/expand functionality and global fold states  
+- **Column Movement**: Tests for left/right movement and position validation
+- **Column Menu Operations**: Tests for menu generation, insertion, and clipboard operations
+- **Column Validation**: Tests for data structure validation and error handling
+
+#### 2. Task/Card Operations Tests (`src/test/suite/taskOperations.test.js`)
+- **Task Creation**: Tests for task HTML generation, tag handling, empty descriptions
+- **Task Editing**: Tests for title/description editing, Tab transitions, auto-save
+- **Task Movement**: Tests for all movement operations (up, down, top, bottom, between columns)
+- **Task Deletion**: Tests for safe task removal
+- **Task Folding**: Tests for task collapse/expand and batch operations
+- **Task Menu Operations**: Tests for menu generation and clipboard functionality
+- **Task Drag & Drop**: Tests for drag start, drop index calculations, position restoration
+- **Task Validation**: Tests for data structure validation, XSS prevention, content sanitization
+- **Task Search/Filtering**: Tests for tag extraction, filtering, and search functionality
+
+#### 3. Tag Operations Tests (`src/test/suite/tagOperations.test.js`)
+- **Tag Extraction/Parsing**: Tests for tag detection, row tag exclusion, gather tag handling
+- **Tag Toggle Operations**: Tests for adding/removing tags on columns and tasks
+- **Tag Menu Generation**: Tests for dynamic menu creation with active state indicators
+- **Tag Styling/CSS Generation**: Tests for dynamic CSS creation, theme switching, color interpolation
+- **Tag Collection/Inventory**: Tests for tag discovery, custom tag detection, categorization
+- **Tag Validation/Sanitization**: Tests for XSS prevention, malformed syntax handling
+- **Tag Removal Operations**: Tests for bulk tag removal while preserving row tags
+- **Tag State Management**: Tests for pending changes tracking, UI state updates
+- **Tag Visual Updates**: Tests for immediate DOM updates and real-time feedback
+- **Tag Configuration**: Tests for config retrieval, fallback handling, default styling
+
+#### 4. Save Operations and State Management Tests (`src/test/suite/saveOperations.test.js`)
+- **Pending Changes Management**: Tests for change accumulation and tracking
+- **Flush Operations**: Tests for batch saving, change clearing, retry mechanisms
+- **Refresh Button State Management**: Tests for visual feedback, auto-reset, error states
+- **Manual Refresh Operations**: Tests for user-initiated saves and backend communication
+- **Error Handling**: Tests for save failures, UI error states, retry functionality
+- **Document State Persistence**: Tests for folding state saves, restoration, URI handling
+- **Board State Validation**: Tests for data integrity, corruption handling, editing detection
+- **Data Integrity**: Tests for consistency maintenance, task ordering, concurrent modifications
+- **Performance/Memory Management**: Tests for cleanup, memory usage, large datasets
+
+#### 5. UI Interactions Tests (`src/test/suite/uiInteractions.test.js`)
+- **Menu System**: Tests for menu visibility, click outside, safe function execution, XSS prevention
+- **Task Editor**: Tests for edit mode activation, keyboard shortcuts, Tab transitions, auto-resize
+- **Drag and Drop**: Tests for drag start/end, drop calculations, external file drops, clipboard cards
+- **Keyboard Navigation**: Tests for global shortcuts, focus management, accessibility
+- **Responsive Interactions**: Tests for viewport resize, touch interactions
+- **Accessibility**: Tests for focus handling, ARIA attributes, screen reader compatibility
+- **Error Handling**: Tests for missing DOM elements, malformed events, drag operation recovery
+- **Performance Considerations**: Tests for update throttling, event listener cleanup
+- **Cross-browser Compatibility**: Tests for different event implementations, feature fallbacks
+
+### Test Configuration
+
+#### Jest Configuration (`jest.config.js`)
+- **Environment**: jsdom for DOM simulation
+- **Coverage**: 70% branch, 80% function/line/statement thresholds
+- **Setup**: Global mocks for VS Code API, DOM APIs, clipboard, drag/drop
+- **Timeout**: 10 second test timeout for complex operations
+
+#### Test Setup Files
+- **`src/test/setup.js`**: Global mocks and utilities for all tests
+- **`src/test/globalSetup.js`**: One-time test environment initialization
+- **`src/test/globalTeardown.js`**: Cleanup after all tests complete
+- **`src/test/suite/index.js`**: Mocha-based test runner for VS Code extension testing
+
+### Running Tests
+
+```bash
+# Run all tests with Jest
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run VS Code extension tests
+npm run pretest && npm run test
+
+# Run specific test suite
+npm test -- columnOperations.test.js
+
+# Debug tests
+npm test -- --verbose
+```
+
+## Comprehensive Function Documentation
+
+All major JavaScript files now include comprehensive JSDoc-style documentation:
+
+### 1. Board Renderer (`src/html/boardRenderer.js`)
+**27+ documented functions** including:
+- `renderBoard()`: Main board rendering engine that converts data to interactive HTML
+- `createColumnElement()` / `createTaskElement()`: HTML generation for columns and tasks
+- `extractFirstTag()`: Extracts primary tag for styling (skips row/gather tags)
+- `generateTagStyles()`: Creates dynamic CSS for all tag-based theming
+- `toggleColumnCollapse()` / `toggleTaskCollapse()`: Folding state management
+- `calculateAndApplyRowHeights()`: Multi-row layout height calculations
+- `applyTagStyles()`: Injects dynamic CSS into document head
+- `getAllTagsInUse()` / `getUserAddedTags()`: Tag inventory and discovery
+
+### 2. Menu Operations (`src/html/menuOperations.js`) 
+**20+ documented functions** including:
+- `SimpleMenuManager` class: Centralized menu interaction system with hover delays
+- `toggleDonutMenu()`: Burger menu activation with dropdown positioning
+- `toggleColumnTag()` / `toggleTaskTag()`: Tag addition/removal with pending state
+- `flushPendingTagChanges()`: Batch save operations (now manual-save only)
+- `updateRefreshButtonState()`: Visual feedback for pending/saved/error states
+- `closeAllMenus()`: Complete cleanup including repositioned dropdowns
+- `setupMenuHoverHandlers()`: Smooth menu navigation with delay tolerance
+
+### 3. Task Editor (`src/html/taskEditor.js`)
+**9 documented functions** including:
+- `TaskEditor` class: Comprehensive inline editing system
+- `startEdit()`: Edit mode activation with focus management
+- `transitionToDescription()`: Smooth Tab navigation between title/description
+- `save()` / `cancel()`: Edit completion with pending changes integration
+- `autoResize()`: Dynamic textarea height adjustment
+- `editTitle()` / `editDescription()` / `editColumnTitle()`: Public editing APIs
+
+### 4. Webview Controller (`src/html/webview.js`)
+**15+ documented functions** including:
+- Clipboard card functionality for drag-to-create workflows
+- Document folding state persistence across file switches
+- Layout and column width controls with CSS variable management
+- Undo/redo operations with VS Code integration
+- File information management and display
+- Row detection from column tags and automatic layout
+
+### 5. Drag & Drop System (`src/html/dragDrop.js`)
+**25+ documented functions** including:
+- `setupDragAndDrop()`: Main initialization for all drag/drop functionality
+- `setupTaskDragAndDrop()` / `setupColumnDragAndDrop()`: Component-specific setup
+- External file drop handling with position indicators
+- Clipboard card drops with content formatting
+- Drop indicator management with smart positioning
+- Position calculation utilities for precise insertions
+
+### Documentation Features
+
+Each function includes:
+- **Purpose**: Clear description of what the function does
+- **Used by**: Which components/events call this function  
+- **Parameters**: Input parameters with types and descriptions
+- **Returns**: Return values and types where applicable
+- **Side effects**: DOM changes, state updates, API calls
+- **Notes**: Special considerations, limitations, performance notes
+
+## Architecture Overview
+
+### Component Structure
+- **boardRenderer.js**: Core rendering engine and HTML generation
+- **menuOperations.js**: User interactions, menus, and tag operations
+- **taskEditor.js**: Inline editing functionality
+- **dragDrop.js**: Drag and drop interactions
+- **webview.js**: Main controller and VS Code integration
+
+### Data Flow
+1. **User Action** → Menu/Editor/Drag system
+2. **State Update** → Pending changes accumulation  
+3. **Visual Feedback** → Immediate DOM updates
+4. **Batch Save** → Manual flush to VS Code API
+5. **Re-render** → Board refresh with preserved state
+
+### State Management
+- **Pending Changes**: `window.pendingColumnChanges` / `window.pendingTaskChanges` Maps
+- **Folding State**: `window.collapsedColumns` / `window.collapsedTasks` Sets
+- **Document State**: Persistent across file switches via VS Code state API
+- **Drag State**: `window.dragState` object for drag/drop coordination
+
+### Security Features
+- **XSS Prevention**: Safe function execution without eval
+- **Content Sanitization**: HTML escaping for user-generated content
+- **Input Validation**: Tag name validation and malformed syntax handling
+
+## Development Guidelines
+
+### Testing
+- All new features must include comprehensive tests
+- Tests should cover happy path, edge cases, and error conditions
+- Mock VS Code API interactions appropriately
+- Maintain coverage thresholds (80% functions/lines, 70% branches)
+
+### Documentation
+- All functions must include JSDoc-style comments
+- Document purpose, usage, parameters, returns, and side effects
+- Update AGENT.md when adding new features or architectural changes
+- Include examples for complex functionality
+
+### Code Quality  
+- Follow existing patterns for consistency
+- Use TypeScript-style JSDoc for better IDE support
+- Implement proper error handling and graceful degradation
+- Optimize for performance with debouncing and efficient DOM updates
+
 ## Current Request
 
 

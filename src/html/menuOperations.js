@@ -10,10 +10,6 @@ if (typeof window !== 'undefined') {
 
 // Global state
 let activeTagMenu = null;
-let pendingTagChanges = {
-    columns: new Map(),
-    tasks: new Map()
-};
 
 // Simple Menu Manager - handles all menu types
 class SimpleMenuManager {
@@ -142,7 +138,13 @@ class SimpleMenuManager {
         return false; // Could not execute
     }
 
-    // Helper method to parse function parameters safely
+    /**
+     * Parses function parameters from string safely
+     * Purpose: Extract arguments without eval
+     * Used by: executeSafeFunction() for parameter extraction
+     * @param {string} paramString - Comma-separated parameters
+     * @returns {Array} Parsed parameter values
+     */
     parseParameters(paramString) {
         if (!paramString || !paramString.trim()) return [];
         
@@ -423,7 +425,13 @@ class SimpleMenuManager {
 // Global menu manager instance
 window.menuManager = new SimpleMenuManager();
 
-// Helper function to clean up moved dropdowns
+/**
+ * Cleans up dropdowns that were moved to document.body
+ * Purpose: Restore dropdowns to original position when closing
+ * Used by: closeAllMenus(), menu close operations
+ * @param {HTMLElement} dropdown - Dropdown element to clean up
+ * Side effects: Restores DOM position, clears positioning styles
+ */
 function cleanupDropdown(dropdown) {
     if (dropdown._originalParent && dropdown.parentElement === document.body) {
         // Restore to original position
@@ -446,30 +454,37 @@ function cleanupDropdown(dropdown) {
     }
 }
 
-// Utility function to properly close all menus including moved dropdowns
+/**
+ * Closes all open menus and cleans up moved dropdowns
+ * Purpose: Complete menu cleanup including repositioned elements
+ * Used by: Click outside, task moves, saves
+ * Side effects: Removes active classes, restores dropdown positions
+ */
 function closeAllMenus() {
-    // Close donut menus and clean up their dropdowns
+    // Close donut menus and only clean up dropdowns that were actually moved to body
     document.querySelectorAll('.donut-menu, .file-bar-menu').forEach(m => {
         m.classList.remove('active');
-        const dropdown = m.querySelector('.donut-menu-dropdown, .file-bar-menu-dropdown');
-        if (dropdown) {
-            cleanupDropdown(dropdown);
-        }
     });
     
-    // Also find and clean up any dropdowns that were moved to body but might be orphaned
+    // Only clean up dropdowns that were actually moved to body
     document.querySelectorAll('.donut-menu-dropdown.moved-to-body, .file-bar-menu-dropdown.moved-to-body').forEach(dropdown => {
         cleanupDropdown(dropdown);
     });
 }
 
-// Simplified donut menu toggle
+/**
+ * Toggles burger/donut menu open/closed state
+ * Purpose: Main menu activation for columns and tasks
+ * Used by: Burger button clicks on columns and tasks
+ * @param {Event} event - Click event
+ * @param {HTMLElement} button - Menu button element
+ */
 function toggleDonutMenu(event, button) {
     event.stopPropagation();
     const menu = button.parentElement;
     const wasActive = menu.classList.contains('active');
     
-    // Close all menus and clean up their dropdowns
+    // Close all menus and clean up their dropdowns (only needed here for moved dropdowns)
     closeAllMenus();
     
     if (!wasActive) {
@@ -493,7 +508,13 @@ function toggleDonutMenu(event, button) {
     }
 }
 
-// Setup hover handlers for menu items
+/**
+ * Sets up hover interactions for menu and submenus
+ * Purpose: Enable smooth menu navigation with hover delays
+ * Used by: toggleDonutMenu() after menu opens
+ * @param {HTMLElement} menu - Menu container
+ * @param {HTMLElement} dropdown - Dropdown container
+ */
 function setupMenuHoverHandlers(menu, dropdown) {
     // Add hover handlers to the menu button itself to maintain hover state
     const menuButton = menu.querySelector('.donut-menu-btn');
@@ -600,12 +621,12 @@ function positionFileBarDropdown(triggerButton, dropdown) {
 
 // Column operations - keep existing functions
 function insertColumnBefore(columnId) {
-    closeAllMenus();
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     vscode.postMessage({ type: 'insertColumnBefore', columnId, title: '' });
 }
 
 function insertColumnAfter(columnId) {
-    closeAllMenus();
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     vscode.postMessage({ type: 'insertColumnAfter', columnId, title: '' });
 }
 
@@ -670,8 +691,8 @@ function moveColumnRight(columnId) {
 }
 
 function deleteColumn(columnId) {
-    // Close all menus properly including moved dropdowns
-    closeAllMenus();
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
     vscode.postMessage({ type: 'deleteColumn', columnId });
 }
@@ -697,7 +718,7 @@ function copyColumnAsMarkdown(columnId) {
     });
     
     copyToClipboard(markdown);
-    closeAllMenus();
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
 }
 
 function copyTaskAsMarkdown(taskId, columnId) {
@@ -714,7 +735,7 @@ function copyTaskAsMarkdown(taskId, columnId) {
     }
     
     copyToClipboard(markdown);
-    closeAllMenus();
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
 }
 
 function copyToClipboard(text) {
@@ -746,8 +767,8 @@ function moveTaskToTop(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
     
-    // Close all menus properly including moved dropdowns
-    closeAllMenus();
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -762,8 +783,8 @@ function moveTaskUp(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
     
-    // Close all menus properly including moved dropdowns
-    closeAllMenus();
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -778,8 +799,8 @@ function moveTaskDown(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
     
-    // Close all menus properly including moved dropdowns
-    closeAllMenus();
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -794,14 +815,23 @@ function moveTaskToBottom(taskId, columnId) {
     }
     vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
     
-    // Close all menus properly including moved dropdowns
-    closeAllMenus();
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
     console.log('📦 Task moved to bottom - showing unsaved state');
 }
 
+/**
+ * Moves a task to a different column
+ * Purpose: Drag and drop or menu-based task relocation
+ * Used by: Move submenu selections
+ * @param {string} taskId - Task to move
+ * @param {string} fromColumnId - Source column
+ * @param {string} toColumnId - Destination column
+ * Side effects: Flushes pending changes, unfolds target
+ */
 function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
     // Flush pending tag changes before moving
     if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
@@ -814,8 +844,8 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
     
     vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
     
-    // Close all menus properly including moved dropdowns
-    closeAllMenus();
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
     // Update button state to show unsaved changes
     updateRefreshButtonState('unsaved', 1);
@@ -823,8 +853,8 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
 }
 
 function deleteTask(taskId, columnId) {
-    // Close all menus properly including moved dropdowns
-    closeAllMenus();
+    // Close all menus
+    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     
     vscode.postMessage({ type: 'deleteTask', taskId, columnId });
 }
@@ -861,6 +891,15 @@ function addColumn(rowNumber) {
 // Tag operations - IMPORTANT: Always use unique IDs, never titles!
 // This system correctly uses column.id and task.id for identification
 // to avoid conflicts when multiple items have the same title
+/**
+ * Toggles a tag on/off for a column
+ * Purpose: Add or remove tags from column titles
+ * Used by: Tag menu clicks for columns
+ * @param {string} columnId - Column to modify
+ * @param {string} tagName - Tag to toggle
+ * @param {Event} event - Click event
+ * Side effects: Updates pending changes, triggers visual updates
+ */
 function toggleColumnTag(columnId, tagName, event) {
     console.log(`🏷️ Toggle column tag: ${columnId} -> ${tagName}`);
     console.log(`🔍 DEBUG: Column ID type: ${typeof columnId}, value: "${columnId}"`);
@@ -963,9 +1002,6 @@ function toggleColumnTag(columnId, tagName, event) {
     // Store the change locally
     window.pendingColumnChanges.set(columnId, { title, columnId });
     
-    // Set flag to skip next board refresh to preserve immediate visual updates
-    window.skipNextBoardRender = true;
-    console.log(`🏁 Set skipNextBoardRender=true to preserve immediate tag updates`);
     
     // Show pending changes indicator with count
     const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
@@ -982,6 +1018,16 @@ function toggleColumnTag(columnId, tagName, event) {
 
 // IMPORTANT: This function correctly uses unique task.id and column.id
 // Never modify to use titles - this would break with duplicate titles
+/**
+ * Toggles a tag on/off for a task
+ * Purpose: Add or remove tags from task titles  
+ * Used by: Tag menu clicks for tasks
+ * @param {string} taskId - Task to modify
+ * @param {string} columnId - Parent column ID
+ * @param {string} tagName - Tag to toggle
+ * @param {Event} event - Click event
+ * Side effects: Updates pending changes, triggers visual updates
+ */
 function toggleTaskTag(taskId, columnId, tagName, event) {
     console.log(`🏷️ Toggle task tag: ${taskId} -> ${tagName}`);
     console.log(`🔍 DEBUG: Task ID type: ${typeof taskId}, value: "${taskId}"`);
@@ -1085,9 +1131,6 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     // Store the change locally
     window.pendingTaskChanges.set(taskId, { taskId, columnId, taskData: task });
     
-    // Set flag to skip next board refresh to preserve immediate visual updates
-    window.skipNextBoardRender = true;
-    console.log(`🏁 Set skipNextBoardRender=true to preserve immediate tag updates`);
     
     // Show pending changes indicator with count
     const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
@@ -1104,6 +1147,15 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
 
 // Enhanced DOM update functions using unique IDs
 // CRITICAL: Always use data-column-id and data-task-id selectors to avoid title conflicts
+/**
+ * Immediately updates column visual state in DOM
+ * Purpose: Real-time visual feedback before save
+ * Used by: Tag toggle operations
+ * @param {string} columnId - Column to update
+ * @param {string} newTitle - New title with tags
+ * @param {boolean} isActive - Whether tag is active
+ * @param {string} tagName - Tag being modified
+ */
 function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     // Use unique ID to find column element - NEVER use titles for selection
     const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
@@ -1294,6 +1346,13 @@ function updateTagChipStyle(button, tagName, isActive) {
     }
 }
 
+/**
+ * Sends all pending tag changes to backend
+ * Purpose: Batch save of accumulated tag modifications
+ * Used by: Manual save (Cmd+S), before operations
+ * Side effects: Clears pending changes, triggers document save
+ * Note: Now only called on explicit save, not automatically
+ */
 function flushPendingTagChanges() {
     console.log('🔄 Flushing pending tag changes...');
     
@@ -1543,6 +1602,13 @@ function manualRefresh() {
 }
 
 // Function to update refresh button state
+/**
+ * Updates the refresh button to show save state
+ * Purpose: Visual feedback for pending/saved changes
+ * Used by: After any change, after saves
+ * @param {string} state - 'pending', 'saved', 'error', etc
+ * @param {number} count - Number of pending changes
+ */
 function updateRefreshButtonState(state, count = 0) {
     const refreshBtn = document.getElementById('refresh-btn');
     const refreshIcon = refreshBtn?.querySelector('.refresh-icon');
@@ -1558,7 +1624,7 @@ function updateRefreshButtonState(state, count = 0) {
             refreshBtn.classList.remove('saved');
             refreshIcon.textContent = count > 0 ? count.toString() : '●';
             refreshText.textContent = count > 0 ? `Pending (${count})` : 'Pending';
-            refreshBtn.title = `${count} changes pending - click to save and refresh from source`;
+            refreshBtn.title = `${count} changes pending - press Cmd+S (or Ctrl+S) to save`;
             break;
         case 'saved':
             refreshBtn.classList.remove('pending');

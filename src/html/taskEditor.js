@@ -1,3 +1,9 @@
+/**
+ * TaskEditor Class - Manages inline editing of titles and descriptions
+ * Purpose: Provides in-place editing functionality for all text fields
+ * Used by: Column titles, task titles, task descriptions
+ * Features: Tab transitions, auto-resize, save/cancel with keyboard
+ */
 class TaskEditor {
     constructor() {
         this.currentEditor = null;
@@ -5,6 +11,12 @@ class TaskEditor {
         this.setupGlobalHandlers();
     }
 
+    /**
+     * Sets up global keyboard and mouse event handlers
+     * Purpose: Handle editing interactions across the entire document
+     * Used by: Constructor on initialization
+     * Handles: Tab, Enter, Escape keys, click outside to save
+     */
     setupGlobalHandlers() {
         console.log(`TaskEditor.setupGlobalHandlers`);
 
@@ -63,6 +75,15 @@ class TaskEditor {
         });
     }
 
+    /**
+     * Starts editing mode for an element
+     * Purpose: Switch from display to edit mode
+     * Used by: Click handlers on editable elements
+     * @param {HTMLElement} element - Element to edit
+     * @param {string} type - 'task-title', 'task-description', 'column-title'
+     * @param {string} taskId - Task ID if editing task
+     * @param {string} columnId - Column ID
+     */
     startEdit(element, type, taskId = null, columnId = null) {
         // If transitioning, don't interfere
         if (this.isTransitioning) return;
@@ -151,6 +172,12 @@ class TaskEditor {
         });
     }
 
+    /**
+     * Transitions from title editing to description editing
+     * Purpose: Smooth Tab key navigation between fields
+     * Used by: Tab key handler when editing title
+     * Side effects: Saves title, starts description edit
+     */
     transitionToDescription() {
         if (!this.currentEditor || this.currentEditor.type !== 'task-title') return;
         
@@ -193,6 +220,12 @@ class TaskEditor {
         }
     }
 
+    /**
+     * Saves current edit and exits edit mode
+     * Purpose: Commit changes to data model
+     * Used by: Enter key, click outside, blur events
+     * Side effects: Updates pending changes, closes editor
+     */
     save() {
         if (!this.currentEditor || this.isTransitioning) return;
         
@@ -329,6 +362,12 @@ class TaskEditor {
         this.currentEditor = null;
     }
 
+    /**
+     * Auto-resizes textarea to fit content
+     * Purpose: Dynamic height adjustment for better UX
+     * Used by: Input events on textareas
+     * @param {HTMLTextAreaElement} textarea - Textarea to resize
+     */
     autoResize(textarea) {
         textarea.style.height = 'auto';
         textarea.style.height = textarea.scrollHeight + 'px';
@@ -339,7 +378,14 @@ class TaskEditor {
 const taskEditor = new TaskEditor();
 window.taskEditor = taskEditor;
 
-// Simplified edit trigger functions
+/**
+ * Triggers title editing for a task
+ * Purpose: Public API for starting task title edit
+ * Used by: onclick handlers in task HTML
+ * @param {HTMLElement} element - Title element
+ * @param {string} taskId - Task ID
+ * @param {string} columnId - Parent column ID
+ */
 function editTitle(element, taskId, columnId) {
     console.log(`editDescription ${element} ${taskId} ${columnId}`);
 
@@ -353,6 +399,14 @@ function editTitle(element, taskId, columnId) {
     taskEditor.startEdit(element, 'task-title', taskId, columnId);
 }
 
+/**
+ * Triggers description editing for a task
+ * Purpose: Public API for starting task description edit
+ * Used by: onclick handlers in task HTML
+ * @param {HTMLElement} element - Description element
+ * @param {string} taskId - Task ID
+ * @param {string} columnId - Parent column ID
+ */
 function editDescription(element, taskId, columnId) {
     console.log(`editDescription ${element} ${taskId} ${columnId}`);
 
@@ -368,6 +422,12 @@ function editDescription(element, taskId, columnId) {
     taskEditor.startEdit(container, 'task-description', taskId, columnId);
 }
 
+/**
+ * Triggers title editing for a column
+ * Purpose: Public API for starting column title edit
+ * Used by: onclick handlers in column HTML
+ * @param {string} columnId - Column ID to edit
+ */
 function editColumnTitle(columnId) {
     console.log(`editColumnTitle ${columnId}`);
 

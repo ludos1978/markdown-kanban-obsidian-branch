@@ -10,8 +10,14 @@ let currentBoard = null;
 // Don't set window.currentBoard here as it will be set when board is loaded
 let renderTimeout = null;
 
-// Helper function to extract first style-tag from text
-// - Skips row tags (#rowN) and gather tags (#gather_...)
+/**
+ * Extracts the first valid style tag from text (e.g., #urgent, #feature)
+ * Purpose: Used to determine primary tag for styling columns and tasks
+ * Used by: renderBoard(), generateTagStyles(), task/column rendering
+ * @param {string} text - Text containing hashtags
+ * @returns {string|null} - Lowercase tag name without # or null if none found
+ * Note: Skips row tags (#rowN) and gather tags (#gather_...)
+ */
 function extractFirstTag(text) {
     if (!text) return null;
     const re = /#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
@@ -27,7 +33,14 @@ function extractFirstTag(text) {
 }
 
 
-// Helper function to convert hex to rgba
+/**
+ * Converts hex color to RGBA format with specified alpha
+ * Purpose: Creates semi-transparent colors for backgrounds and borders
+ * Used by: generateTagStyles() for creating tag-based styling
+ * @param {string} hex - Hex color code (with or without #)
+ * @param {number} alpha - Opacity value (0-1)
+ * @returns {string} - RGBA color string
+ */
 function hexToRgba(hex, alpha) {
     // Remove the # if present
     hex = hex.replace('#', '');
@@ -40,7 +53,13 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Helper function to parse hex color to RGB components
+/**
+ * Parses hex color into RGB components
+ * Purpose: Breaks down colors for interpolation calculations
+ * Used by: interpolateColor() for gradient calculations
+ * @param {string} hex - Hex color code
+ * @returns {Object} - Object with r, g, b numeric values (0-255)
+ */
 function hexToRgb(hex) {
     hex = hex.replace('#', '');
     return {
@@ -50,7 +69,15 @@ function hexToRgb(hex) {
     };
 }
 
-// Helper function to interpolate between two colors
+/**
+ * Interpolates between two colors for gradient effects
+ * Purpose: Creates smooth color transitions for multi-tag combinations
+ * Used by: generateTagStyles() when handling multiple tags
+ * @param {string} color1 - Starting hex color
+ * @param {string} color2 - Ending hex color
+ * @param {number} factor - Interpolation factor (0-1)
+ * @returns {string} - Interpolated hex color
+ */
 function interpolateColor(color1, color2, factor) {
     // Parse colors
     const c1 = hexToRgb(color1);
@@ -66,7 +93,13 @@ function interpolateColor(color1, color2, factor) {
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-// Apply tag styles to the document
+/**
+ * Applies all tag-based CSS styles to the document
+ * Purpose: Injects dynamic CSS for tag colors, borders, and effects
+ * Used by: renderBoard() after board content is rendered
+ * Called when: Board updates, tag configurations change
+ * Side effects: Modifies document.head with style element
+ */
 function applyTagStyles() {
     console.log('Applying tag styles...');
     
@@ -97,7 +130,11 @@ function applyTagStyles() {
     }
 }
 
-// Function to ensure a specific tag style exists without regenerating all styles
+/**
+ * Ensures a specific tag's CSS exists without full regeneration
+ * Purpose: Optimizes performance by adding single tag styles on-demand
+ * Used by: Tag toggle operations, real-time tag updates
+ */
 function ensureTagStyleExists(tagName) {
     const config = getTagConfig(tagName);
     if (!config) {
@@ -327,7 +364,12 @@ window.ensureTagStyleExists = ensureTagStyleExists;
 
 
 
-// Debounced render function to prevent rapid re-renders
+/**
+ * Debounced board rendering to prevent performance issues
+ * Purpose: Prevents rapid re-renders when multiple updates occur
+ * Used by: All board update operations
+ * Delay: 50ms to batch multiple changes
+ */
 function debouncedRenderBoard() {
     if (renderTimeout) {
         clearTimeout(renderTimeout);
@@ -339,7 +381,12 @@ function debouncedRenderBoard() {
     }, 50);
 }
 
-// Global column folding functions
+/**
+ * Determines the global fold state of all columns
+ * Purpose: Controls the fold-all/unfold-all button state
+ * Used by: updateGlobalColumnFoldButton(), toggleAllColumns()
+ * @returns {'fold-expanded'|'fold-collapsed'|'fold-mixed'} Current global state
+ */
 function getGlobalColumnFoldState() {
     if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
         return 'fold-mixed';
@@ -369,6 +416,12 @@ function getGlobalColumnFoldState() {
     }
 }
 
+/**
+ * Toggles all columns between collapsed and expanded states
+ * Purpose: Bulk fold/unfold operation for all columns
+ * Used by: Global fold button in board header
+ * Side effects: Updates collapsedColumns set, re-renders board
+ */
 function toggleAllColumns() {
     if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
     
@@ -437,6 +490,12 @@ function toggleAllColumns() {
     }
 }
 
+/**
+ * Updates the global fold button appearance based on column states
+ * Purpose: Visual feedback for current fold state
+ * Used by: After any column fold/unfold operation
+ * Updates: Button text, title, and data-state attribute
+ */
 function updateGlobalColumnFoldButton() {
     const globalFoldButton = document.getElementById('global-fold-btn');
     const globalFoldIcon = document.getElementById('global-fold-icon');
@@ -464,6 +523,12 @@ function updateGlobalColumnFoldButton() {
 }
 
 // Apply saved or default folding states to rendered elements
+/**
+ * Applies saved folding states to columns and tasks after render
+ * Purpose: Persists fold state across board refreshes
+ * Used by: renderBoard() after DOM creation
+ * Side effects: Adds 'collapsed' class to previously collapsed elements
+ */
 function applyFoldingStates() {
     console.log('Applying folding states to rendered elements');
     
@@ -508,6 +573,13 @@ function applyFoldingStates() {
 }
 
 // Helper function to get active tags in a title
+/**
+ * Extracts all active tag names from text (without # symbol)
+ * Purpose: Identifies which tags are applied to an element
+ * Used by: Tag menu generation, visual tag state updates
+ * @param {string} text - Text containing hashtags
+ * @returns {Array<string>} Lowercase tag names without #
+ */
 function getActiveTagsInTitle(text) {
     if (!text) return [];
     // Match all tags - for gather tags, include the full expression until next space
@@ -525,6 +597,13 @@ function getActiveTagsInTitle(text) {
 }
 
 // Add a new function to get full tag content (including operators)
+/**
+ * Extracts complete tag content including parameters (e.g., #tag=value)
+ * Purpose: Preserves full tag syntax for operations
+ * Used by: Tag manipulation operations
+ * @param {string} text - Text containing tags
+ * @returns {Array<string>} Complete tag strings with parameters
+ */
 function getFullTagContent(text) {
     if (!text) return [];
     // Match tags including full gather expressions
@@ -533,6 +612,12 @@ function getFullTagContent(text) {
 }
 
 // Helper function to collect all tags currently in use across the board
+/**
+ * Collects all unique tags currently used in the board
+ * Purpose: Builds complete tag inventory for menus
+ * Used by: Tag menu generation, available tags display
+ * @returns {Set<string>} Unique lowercase tag names
+ */
 function getAllTagsInUse() {
     const tagsInUse = new Set();
     
@@ -558,6 +643,12 @@ function getAllTagsInUse() {
 }
 
   // Helper function to get user-added tags (not in configuration)
+/**
+ * Gets tags that users added but aren't in configuration
+ * Purpose: Shows custom/unconfigured tags in menus
+ * Used by: Tag menu generation for 'Custom Tags' section
+ * @returns {Array<string>} Sorted array of custom tag names
+ */
 function getUserAddedTags() {
     const allTagsInUse = getAllTagsInUse();
     const configuredTags = new Set();
@@ -597,6 +688,15 @@ function getUserAddedTags() {
 }
 
 // Helper function to generate tag menu items from configuration and user-added tags
+/**
+ * Generates complete HTML for tag selection menu
+ * Purpose: Creates interactive tag toggle menu for columns/tasks
+ * Used by: Column and task burger menus
+ * @param {string} id - Element ID (column or task)
+ * @param {string} type - 'column' or 'task'
+ * @param {string} columnId - Parent column ID for tasks
+ * @returns {string} HTML string for menu items
+ */
 function generateTagMenuItems(id, type, columnId = null) {
     const tagConfig = window.tagColors || {};
     const userAddedTags = getUserAddedTags();
@@ -876,6 +976,13 @@ function getCornerBadgeHtml(tag) {
 }
 
 // Render Kanban board
+/**
+ * Main board rendering function - creates entire kanban UI
+ * Purpose: Converts board data to interactive HTML
+ * Used by: Initial load, board updates, refresh operations
+ * Side effects: Updates DOM, applies styles, restores state
+ * Performance: Debounced to prevent rapid re-renders
+ */
 function renderBoard() {
     console.log('Rendering board:', currentBoard);
     
@@ -1156,6 +1263,14 @@ function updateFoldAllButton(columnId) {
     }
 }
 
+/**
+ * Creates HTML element for a single column
+ * Purpose: Generates column structure with header, tasks, footer
+ * Used by: renderBoard() for each column
+ * @param {Object} column - Column data object
+ * @param {number} columnIndex - Position in column array
+ * @returns {string} Complete HTML for column
+ */
 function createColumnElement(column, columnIndex) {
     if (!column) {
         return document.createElement('div');
@@ -1277,6 +1392,15 @@ function createColumnElement(column, columnIndex) {
     return columnDiv;
 }
 
+/**
+ * Creates HTML element for a single task/card
+ * Purpose: Generates task card with title, description, tags
+ * Used by: createColumnElement() for each task
+ * @param {Object} task - Task data object
+ * @param {string} columnId - Parent column ID
+ * @param {number} taskIndex - Position in task array
+ * @returns {string} Complete HTML for task card
+ */
 function createTaskElement(task, columnId, taskIndex) {
     if (!task) {
         return '';
@@ -1409,6 +1533,13 @@ function updateImageSources() {
 // Make toggle functions globally accessible
 window.toggleAllColumns = toggleAllColumns;
 
+/**
+ * Toggles a column between collapsed and expanded states
+ * Purpose: Show/hide column content for space management
+ * Used by: Column fold button clicks
+ * @param {string} columnId - ID of column to toggle
+ * Side effects: Updates collapsedColumns set, DOM classes
+ */
 function toggleColumnCollapse(columnId) {
     const column = document.querySelector(`[data-column-id="${columnId}"]`);
     const toggle = column.querySelector('.collapse-toggle');
@@ -1450,6 +1581,13 @@ function toggleColumnCollapse(columnId) {
 
 // Removed handleColumnBarsOnToggle - no longer needed since we keep same HTML structure
 
+/**
+ * Toggles a task between collapsed and expanded states
+ * Purpose: Show/hide task description for cleaner view
+ * Used by: Task fold button clicks
+ * @param {string} taskId - ID of task to toggle
+ * Side effects: Updates collapsedTasks set, DOM classes
+ */
 function toggleTaskCollapse(taskId) {
     const task = document.querySelector(`[data-task-id="${taskId}"]`);
     const toggle = task.querySelector('.task-collapse-toggle');
@@ -1660,6 +1798,13 @@ function getTagConfig(tagName) {
 }
 
 // Generate dynamic CSS for tag colors and additional styles
+/**
+ * Generates all CSS styles for tag-based theming
+ * Purpose: Creates dynamic styles for colors, borders, bars
+ * Used by: applyTagStyles() on board render
+ * @returns {string} Complete CSS text for all tag styles
+ * Note: Handles theme detection, color interpolation
+ */
 function generateTagStyles() {
     if (!window.tagColors) {
         console.log('No tag colors configuration found');
@@ -2207,6 +2352,15 @@ window.getAllCornerBadgesHtml = getAllCornerBadgesHtml;
 window.getTagConfig = getTagConfig;
 
 // Function to remove all tags from a card or column
+/**
+ * Removes all tags from a column or task
+ * Purpose: Bulk tag removal operation
+ * Used by: 'Remove all tags' menu option
+ * @param {string} id - Element ID
+ * @param {string} type - 'column' or 'task'
+ * @param {string} columnId - Parent column for tasks
+ * Side effects: Updates pending changes, triggers save
+ */
 function removeAllTags(id, type, columnId = null) {
     console.log(`🏷️ Removing all tags from ${type}: ${id}`);
     
@@ -2246,7 +2400,7 @@ function removeAllTags(id, type, columnId = null) {
         if (!window.pendingColumnChanges) {
             window.pendingColumnChanges = new Map();
         }
-        window.pendingColumnChanges.set(id, newTitle);
+        window.pendingColumnChanges.set(id, { title: newTitle, columnId: id });
         
         // Update display immediately
         if (typeof updateColumnDisplayImmediate === 'function') {
@@ -2256,7 +2410,9 @@ function removeAllTags(id, type, columnId = null) {
         if (!window.pendingTaskChanges) {
             window.pendingTaskChanges = new Map();
         }
-        window.pendingTaskChanges.set(id, newTitle);
+        const task = element; // element is the task object from line 2228
+        task.title = newTitle; // Update the task title
+        window.pendingTaskChanges.set(id, { taskId: id, columnId: columnId, taskData: task });
         
         // Update display immediately
         if (typeof updateTaskDisplayImmediate === 'function') {
@@ -2299,6 +2455,12 @@ window.getUserAddedTags = getUserAddedTags;
 window.handleLinkOrImageOpen = handleLinkOrImageOpen;
 
 // Function to calculate and apply row heights based on tallest column
+/**
+ * Calculates and applies heights for multi-row layouts
+ * Purpose: Ensures rows have equal heights in grid layout
+ * Used by: After board render when multiple rows exist
+ * Side effects: Sets CSS custom properties for row heights
+ */
 function calculateAndApplyRowHeights() {
     const boardElement = document.getElementById('kanban-board');
     if (!boardElement) return;

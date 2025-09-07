@@ -142,6 +142,12 @@ function cleanupExternalDropIndicators() {
     }
 }
 
+/**
+ * Sets up global drag and drop event listeners
+ * Purpose: Handle external file drops and clipboard operations
+ * Used by: Board initialization
+ * Side effects: Adds document-level event listeners
+ */
 function setupGlobalDragAndDrop() {
     console.log(`[DROP DEBUG] setupGlobalDragAndDrop initialized`);
 
@@ -529,6 +535,15 @@ function getActiveTextEditor() {
     return null;
 }
 
+/**
+ * Creates new task from dropped content
+ * Purpose: Convert external drops to tasks
+ * Used by: File drops, clipboard drops, empty card drops
+ * @param {string} content - Task title content
+ * @param {Object} dropPosition - Column and index info
+ * @param {string} description - Optional description
+ * Side effects: Sends create task message to VS Code
+ */
 function createNewTaskWithContent(content, dropPosition, description = '') {
     console.log(`[DROP DEBUG] createNewTaskWithContent called`);
     console.log(`[DROP DEBUG] Content:`, content);
@@ -864,6 +879,12 @@ function calculateColumnDropIndex(boardElement, draggedColumn) {
     return targetIndex;
 }
 
+/**
+ * Sets up drag and drop for task elements
+ * Purpose: Enable dragging tasks between columns
+ * Used by: setupDragAndDrop() after board render
+ * Side effects: Makes tasks draggable, adds drop zones
+ */
 function setupTaskDragAndDrop() {
     console.log(`setupTaskDragAndDrop`);
 
@@ -1086,6 +1107,14 @@ function calculateTaskDropIndex(tasksContainer, draggedTask, event) {
     return currentIndex >= 0 ? currentIndex : 0;
 }
 
+/**
+ * Calculates insertion index based on mouse position
+ * Purpose: Determine where to insert dropped task
+ * Used by: Task drop operations
+ * @param {HTMLElement} tasksContainer - Target container
+ * @param {number} clientY - Mouse Y position
+ * @returns {number} Insertion index
+ */
 function calculateDropIndex(tasksContainer, clientY) {
     console.log(`calculateDropIndex`);
 
@@ -1144,6 +1173,12 @@ function setupDragAndDrop() {
     setupTaskDragAndDrop(); // Then tasks
 }
 
+/**
+ * Sets up drag and drop for column reordering
+ * Purpose: Enable column rearrangement
+ * Used by: setupDragAndDrop() after board render
+ * Side effects: Makes column headers draggable
+ */
 function setupColumnDragAndDrop() {
     console.log(`setupColumnDragAndDrop`);
 
