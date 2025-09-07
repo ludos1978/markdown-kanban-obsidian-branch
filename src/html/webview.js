@@ -691,7 +691,7 @@ function applyRowHeight(height) {
             row.style.overflowX = 'visible';
             
             // Reset individual columns
-            row.querySelectorAll('.kanban-column .column-content').forEach(content => {
+            row.querySelectorAll('.kanban-full-height-column .column-content').forEach(content => {
                 content.style.maxHeight = '';
                 content.style.overflowY = 'visible';
             });
@@ -704,8 +704,8 @@ function applyRowHeight(height) {
             row.style.overflowX = 'visible';  // No horizontal scrollbar on row
             
             // Apply scrollbars to individual column contents
-            row.querySelectorAll('.kanban-column .column-content').forEach(content => {
-                const column = content.closest('.kanban-column');
+            row.querySelectorAll('.kanban-full-height-column .column-content').forEach(content => {
+                const column = content.closest('.kanban-full-height-column');
                 if (!column.classList.contains('collapsed')) {
                     // Use CSS calc to determine available height (row height minus estimated header height)
                     // This avoids relying on offsetHeight during rendering
@@ -721,7 +721,7 @@ function applyRowHeight(height) {
     
     // For single-row layout, also apply height constraints directly to columns
     if (!isMultiRow) {
-        const columns = document.querySelectorAll('.kanban-column');
+        const columns = document.querySelectorAll('.kanban-full-height-column');
         columns.forEach(column => {
             const content = column.querySelector('.column-content');
             if (content && !column.classList.contains('collapsed')) {

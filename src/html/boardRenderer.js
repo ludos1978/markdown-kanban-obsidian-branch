@@ -89,7 +89,7 @@ function applyTagStyles() {
         console.log('Tag styles applied successfully');
         
         // Debug: Check what columns have tags
-        document.querySelectorAll('.kanban-column[data-column-tag]').forEach(col => {
+        document.querySelectorAll('.kanban-full-height-column[data-column-tag]').forEach(col => {
             console.log('Column with tag:', col.getAttribute('data-column-tag'));
         });
     } else {
@@ -138,16 +138,16 @@ function ensureTagStyleExists(tagName) {
             const columnBg = interpolateColor(editorBg, bgDark, 0.15);
             const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
             
-            newStyles += `.kanban-column[data-column-tag="${tagName}"] .column-header,
-.kanban-column[data-all-tags~="${tagName}"] .column-header {
+            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-header,
+.kanban-full-height-column[data-all-tags~="${tagName}"] .column-header {
     background-color: ${columnBg} !important;
 }
-.kanban-column[data-column-tag="${tagName}"] .column-content,
-.kanban-column[data-all-tags~="${tagName}"] .column-content {
+.kanban-full-height-column[data-column-tag="${tagName}"] .column-content,
+.kanban-full-height-column[data-all-tags~="${tagName}"] .column-content {
     background-color: ${columnBg} !important;
 }
-.kanban-column.collapsed[data-column-tag="${tagName}"] .column-header,
-.kanban-column.collapsed[data-all-tags~="${tagName}"] .column-header {
+.kanban-full-height-column.collapsed[data-column-tag="${tagName}"] .column-header,
+.kanban-full-height-column.collapsed[data-all-tags~="${tagName}"] .column-header {
     background-color: ${columnCollapsedBg} !important;
 }\n`;
         }
@@ -179,20 +179,20 @@ function ensureTagStyleExists(tagName) {
         const borderStyle = tagConfig.border.style || 'solid';
         
         if (tagConfig.border.position === 'left') {
-            newStyles += `.kanban-column[data-column-tag="${tagName}"] .column-header {
+            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-header {
                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }
-.kanban-column[data-column-tag="${tagName}"] .column-content {
+.kanban-full-height-column[data-column-tag="${tagName}"] .column-content {
                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }
 .task-item[data-task-tag="${tagName}"] {
                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }\n`;
         } else {
-            newStyles += `.kanban-column[data-column-tag="${tagName}"] .column-header {
+            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-header {
                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }
-.kanban-column[data-column-tag="${tagName}"] .column-content {
+.kanban-full-height-column[data-column-tag="${tagName}"] .column-content {
                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
                 border-top: none !important;
             }
@@ -209,11 +209,10 @@ function ensureTagStyleExists(tagName) {
         const footerText = tagConfig.footerBar.label || '';
         const footerTextColor = tagConfig.footerBar.labelColor || (tagConfig[themeKey]?.text || tagConfig.light?.text);
         
+        // Use relative positioning to work with flex layout (like original system)
         newStyles += `.footer-bar-${tagName.toLowerCase()} {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            position: relative;
+            width: 100%;
             height: ${footerHeight};
             background-color: ${footerColor} !important;
             color: ${footerTextColor} !important;
@@ -223,7 +222,7 @@ function ensureTagStyleExists(tagName) {
             align-items: center;
             justify-content: center;
             text-align: center;
-            z-index: 20;
+            flex-shrink: 0;
             pointer-events: none;
             transition: all 0.2s ease;
         }\n`;
@@ -235,8 +234,16 @@ function ensureTagStyleExists(tagName) {
         }
         
         // Collapsed state styles
-        newStyles += `.kanban-column.collapsed .footer-bar-${tagName.toLowerCase()} {
+        newStyles += `.kanban-full-height-column.collapsed .footer-bar-${tagName.toLowerCase()} {
+            position: relative !important;
+            bottom: auto !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
             height: ${footerText ? '20px' : footerHeight} !important;
+            writing-mode: horizontal-tb !important;
+            transform: none !important;
+            font-size: 9px !important;
             ${footerText ? 'padding: 0 2px !important;' : ''}
         }\n`;
     }
@@ -248,11 +255,10 @@ function ensureTagStyleExists(tagName) {
         const headerText = tagConfig.headerBar.label || '';
         const headerTextColor = tagConfig.headerBar.labelColor || (tagConfig[themeKey]?.text || tagConfig.light?.text);
         
+        // Use relative positioning to work with flex layout (like original system)
         newStyles += `.header-bar-${tagName.toLowerCase()} {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 0;
+            position: relative;
+            width: 100%;
             height: ${headerHeight};
             background-color: ${headerColor} !important;
             color: ${headerTextColor} !important;
@@ -262,7 +268,7 @@ function ensureTagStyleExists(tagName) {
             align-items: center;
             justify-content: center;
             text-align: center;
-            z-index: 20;
+            flex-shrink: 0;
             pointer-events: none;
             transition: all 0.2s ease;
         }\n`;
@@ -272,6 +278,17 @@ function ensureTagStyleExists(tagName) {
                 content: '${headerText}';
             }\n`;
         }
+        
+        // Collapsed state styles
+        newStyles += `.kanban-full-height-column.collapsed .header-bar-${tagName.toLowerCase()} {
+            position: relative !important;
+            width: 100% !important;
+            height: ${headerText ? '20px' : headerHeight} !important;
+            writing-mode: horizontal-tb !important;
+            transform: none !important;
+            font-size: 9px !important;
+            ${headerText ? 'padding: 0 2px !important;' : ''}
+        }\n`;
     }
     
     // Generate corner badge styles for this tag
@@ -1027,7 +1044,7 @@ function renderBoard() {
     setTimeout(() => {
         document.querySelectorAll('[data-all-tags]').forEach(element => {
             const tags = element.getAttribute('data-all-tags').split(' ').filter(tag => tag.trim());
-            const elementType = element.classList.contains('kanban-column') ? 'column' : 'task';
+            const elementType = element.classList.contains('kanban-full-height-column') ? 'column' : 'task';
             if (window.updateAllVisualTagElements) {
                 window.updateAllVisualTagElements(element, tags, elementType);
             }
@@ -1181,7 +1198,7 @@ function createColumnElement(column, columnIndex) {
         if (footerBarsHtml.includes('label')) footerClasses += ' has-footer-label';
     }
     
-    columnDiv.className = `kanban-column ${isCollapsed ? 'collapsed' : ''} ${headerClasses} ${footerClasses}`.trim();
+    columnDiv.className = `kanban-full-height-column ${isCollapsed ? 'collapsed' : ''} ${headerClasses} ${footerClasses}`.trim();
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
     columnDiv.setAttribute('data-row', getColumnRow(column.title));
@@ -1691,19 +1708,19 @@ function generateTagStyles() {
                 const columnBg = interpolateColor(editorBg, bgDark, 0.15);
                 
                 // Default column header background
-                styles += `.kanban-column:not([data-column-tag]) .column-header {
+                styles += `.kanban-full-height-column:not([data-column-tag]) .column-header {
                     background-color: ${columnBg} !important;
                 }\n`;
                 
                 // Default column content background
-                styles += `.kanban-column:not([data-column-tag]) .column-content {
+                styles += `.kanban-full-height-column:not([data-column-tag]) .column-content {
                     background-color: ${columnBg} !important;
                 }\n`;
 
                 const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
                 
                 // Default collapsed column header background
-                styles += `.kanban-column.collapsed:not([data-column-tag]) .column-header {
+                styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-header {
                     background-color: ${columnCollapsedBg} !important;
                 }\n`;
             }
@@ -1716,9 +1733,9 @@ function generateTagStyles() {
         //     const bWidth = b.width || '1px';
         //     const bColor = b.color || 'var(--vscode-panel-border)';
         //     if (b.position === 'left') {
-        //         styles += `.kanban-column:not([data-column-tag]) { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+        //         styles += `.kanban-full-height-column:not([data-column-tag]) { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
         //     } else {
-        //         styles += `.kanban-column:not([data-column-tag]) { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
+        //         styles += `.kanban-full-height-column:not([data-column-tag]) { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
         //     }
         // }
 
@@ -1785,12 +1802,12 @@ function generateTagStyles() {
                     const columnBg = interpolateColor(editorBg, bgDark, 0.15);
                     
                     // Column header background
-                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
+                    styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
                         background-color: ${columnBg} !important;
                     }\n`;
                     
                     // Column content background  
-                    styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-content {
+                    styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-content {
                         background-color: ${columnBg} !important;
                     }\n`;
                     
@@ -1798,7 +1815,7 @@ function generateTagStyles() {
                     const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
                     
                     // Collapsed column header background
-                    styles += `.kanban-column.collapsed[data-column-tag="${lowerTagName}"] .column-header {
+                    styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-header {
                         background-color: ${columnCollapsedBg} !important;
                     }\n`;
                     
@@ -1824,10 +1841,10 @@ function generateTagStyles() {
                         
                         if (config.border.position === 'left') {
                             // Use data-column-tag and data-task-tag for borders (primary tag only)
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-content {
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-content {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
@@ -1835,10 +1852,10 @@ function generateTagStyles() {
                             }\n`;
                         } else {
                             // Full border
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-header {
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
-                            styles += `.kanban-column[data-column-tag="${lowerTagName}"] .column-content {
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-content {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-top: none !important;
                             }\n`;
@@ -1879,13 +1896,13 @@ function generateTagStyles() {
                             }\n`;
                             
                             // Collapsed state with label - needs full height
-                            styles += `.kanban-column.collapsed .header-bar-${lowerTagName} {
+                            styles += `.kanban-full-height-column.collapsed .header-bar-${lowerTagName} {
                                 height: 20px !important;
                                 padding: 0 2px !important;
                             }\n`;
                         } else {
                             // Collapsed state without label - keep original height
-                            styles += `.kanban-column.collapsed .header-bar-${lowerTagName} {
+                            styles += `.kanban-full-height-column.collapsed .header-bar-${lowerTagName} {
                                 height: ${headerHeight} !important;
                             }\n`;
                         }
@@ -1922,13 +1939,13 @@ function generateTagStyles() {
                             }\n`;
                             
                             // Collapsed state with label - needs full height
-                            styles += `.kanban-column.collapsed .footer-bar-${lowerTagName} {
+                            styles += `.kanban-full-height-column.collapsed .footer-bar-${lowerTagName} {
                                 height: 20px !important;
                                 padding: 0 2px !important;
                             }\n`;
                         } else {
                             // Collapsed state without label - keep original height
-                            styles += `.kanban-column.collapsed .footer-bar-${lowerTagName} {
+                            styles += `.kanban-full-height-column.collapsed .footer-bar-${lowerTagName} {
                                 height: ${footerHeight} !important;
                             }\n`;
                         }
@@ -1998,7 +2015,7 @@ function generateTagStyles() {
 function injectStackableBars() {
     document.querySelectorAll('[data-all-tags]').forEach(element => {
         const tags = element.getAttribute('data-all-tags').split(' ');
-        const isColumn = element.classList.contains('kanban-column');
+        const isColumn = element.classList.contains('kanban-full-height-column');
         const isCollapsed = isColumn && element.classList.contains('collapsed');
         
         // Remove existing bars/containers
@@ -2284,7 +2301,7 @@ function calculateAndApplyRowHeights() {
     } else {
         // Single-row layout: let columns use their natural height
         // Reset any previously applied heights
-        const columns = boardElement.querySelectorAll('.kanban-column:not(.collapsed)');
+        const columns = boardElement.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
         columns.forEach(column => {
             column.style.minHeight = '';
             const columnInner = column.querySelector('.column-inner');
@@ -2297,8 +2314,8 @@ function calculateAndApplyRowHeights() {
 }
 
 function calculateRowHeight(containerElement) {
-    const expandedColumns = containerElement.querySelectorAll('.kanban-column:not(.collapsed)');
-    const collapsedColumns = containerElement.querySelectorAll('.kanban-column.collapsed');
+    const expandedColumns = containerElement.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
+    const collapsedColumns = containerElement.querySelectorAll('.kanban-full-height-column.collapsed');
     
     // Reset collapsed columns to natural height first
     collapsedColumns.forEach(column => {

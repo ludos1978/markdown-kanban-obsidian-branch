@@ -9,7 +9,8 @@
       "Bash(npm run watch:*)",
       "Bash(pkill:*)",
       "Bash(code:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []

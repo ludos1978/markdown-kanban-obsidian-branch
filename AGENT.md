@@ -289,7 +289,7 @@ No changes needed - existing functions already:
 
 ```
 /* Border - left only */
-.kanban-column[data-column-tag="urgent"] {
+.kanban-full-height-column[data-column-tag="urgent"] {
   border-left: 3px dashed #ff0000 !important;
 }
 
@@ -299,7 +299,7 @@ No changes needed - existing functions already:
 }
 
 /* Header bar */
-.kanban-column[data-column-tag="urgent"]::before {
+.kanban-full-height-column[data-column-tag="urgent"]::before {
   content: '';
   position: absolute;
   top: 0;
@@ -502,7 +502,10 @@ checking for pending changes" and
 
 ---
 
-now, the submenu's of the file-info-menu is broken. it's not opening the menu options with the column width's, layout rows and row heights. think carefully how to solve it. when thinking about a solution, also think about reasons why it could be prevented to work correctly. any think of aspects influencing the way you solve it.
+now, the submenu's of the file-info-menu is broken. it's not opening the menu options with the column width's, layout rows and row heights. 
+
+think carefully how to solve it. when thinking about a solution, also think about reasons why it could be prevented to work correctly. any think of aspects influencing the way you solve it.
 
 ---
 
+think carefully how to solve each of the problems. when thinking about a solution, also think about reasons why it could be prevented to work correctly. and think of aspects influencing the way you solve it. when implementing new functions, evaluate wether there is a similar function that might well be changed. then consider how complex fixing the other usage os the function would be.

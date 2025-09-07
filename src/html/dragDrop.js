@@ -127,7 +127,7 @@ function hideExternalDropIndicator() {
     }
     
     // Remove highlight from all columns
-    document.querySelectorAll('.kanban-column').forEach(col => {
+    document.querySelectorAll('.kanban-full-height-column').forEach(col => {
         col.classList.remove('external-drag-over');
     });
 }
@@ -310,7 +310,7 @@ function setupGlobalDragAndDrop() {
         if (now - lastIndicatorUpdate >= INDICATOR_UPDATE_THROTTLE) {
             lastIndicatorUpdate = now;
             
-            const column = e.target.closest('.kanban-column');
+            const column = e.target.closest('.kanban-full-height-column');
             if (column && !column.classList.contains('collapsed')) {
                 showExternalDropIndicator(column, e.clientY);
             } else {
@@ -572,7 +572,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     const elementAtPoint = document.elementFromPoint(dropPosition.x, dropPosition.y);
     console.log('[DROP DEBUG] Element at drop point:', elementAtPoint);
     
-    const columnElement = elementAtPoint?.closest('.kanban-column');
+    const columnElement = elementAtPoint?.closest('.kanban-full-height-column');
     
     if (columnElement && !columnElement.classList.contains('collapsed')) {
         targetColumnId = columnElement.dataset.columnId;
@@ -581,7 +581,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     } else {
         console.log('[DROP DEBUG] No column at drop point, finding nearest...');
         
-        const columns = document.querySelectorAll('.kanban-column:not(.collapsed)');
+        const columns = document.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
         let minDistance = Infinity;
         
         columns.forEach(column => {
@@ -670,7 +670,7 @@ function restoreColumnPosition() {
 
     if (dragState.draggedColumn && dragState.originalColumnIndex >= 0) {
         const board = document.getElementById('kanban-board');
-        const columns = Array.from(board.querySelectorAll('.kanban-column'));
+        const columns = Array.from(board.querySelectorAll('.kanban-full-height-column'));
         
         // Remove from current position
         if (dragState.draggedColumn.parentNode === board) {
@@ -738,7 +738,7 @@ function setupRowDragAndDrop() {
             }
             
             // Find insertion point in this row
-            const columnsInRow = Array.from(row.querySelectorAll('.kanban-column:not(.dragging)'));
+            const columnsInRow = Array.from(row.querySelectorAll('.kanban-full-height-column:not(.dragging)'));
             const mouseX = e.clientX;
             
             let targetPosition = null;
@@ -812,14 +812,14 @@ function calculateColumnDropIndexInRow(draggedColumn) {
     const rows = boardElement.querySelectorAll('.kanban-row');
     if (rows.length > 0) {
         rows.forEach(row => {
-            const columnsInRow = row.querySelectorAll('.kanban-column');
+            const columnsInRow = row.querySelectorAll('.kanban-full-height-column');
             columnsInRow.forEach(col => {
                 allColumnsInOrder.push(col.getAttribute('data-column-id'));
             });
         });
     } else {
         // Single row layout
-        const columns = boardElement.querySelectorAll('.kanban-column');
+        const columns = boardElement.querySelectorAll('.kanban-full-height-column');
         columns.forEach(col => {
             allColumnsInOrder.push(col.getAttribute('data-column-id'));
         });
@@ -843,7 +843,7 @@ function calculateColumnDropIndexInRow(draggedColumn) {
 function calculateColumnDropIndex(boardElement, draggedColumn) {
     console.log(`calculateColumnDropIndex`);
 
-    const columns = Array.from(boardElement.querySelectorAll('.kanban-column'));
+    const columns = Array.from(boardElement.querySelectorAll('.kanban-full-height-column'));
     const currentIndex = columns.indexOf(draggedColumn);
     
     if (!currentBoard || !currentBoard.columns) return -1;
@@ -869,7 +869,7 @@ function setupTaskDragAndDrop() {
 
     // Get all columns across all rows
     const boardElement = document.getElementById('kanban-board');
-    const allColumns = boardElement.querySelectorAll('.kanban-column');
+    const allColumns = boardElement.querySelectorAll('.kanban-full-height-column');
     
     allColumns.forEach(columnElement => {
         const columnId = columnElement.dataset.columnId;
@@ -973,11 +973,11 @@ function setupTaskDragHandle(handle) {
             
             // Get the final position
             const finalParent = taskItem.parentNode;
-            const finalColumnElement = finalParent?.closest('.kanban-column');
+            const finalColumnElement = finalParent?.closest('.kanban-full-height-column');
             const finalColumnId = finalColumnElement?.dataset.columnId;
             
             if (finalParent && finalColumnId) {
-                const originalColumnElement = dragState.originalTaskParent?.closest('.kanban-column');
+                const originalColumnElement = dragState.originalTaskParent?.closest('.kanban-full-height-column');
                 const originalColumnId = originalColumnElement?.dataset.columnId;
                 
                 const finalIndex = Array.from(finalParent.children).indexOf(taskItem);
@@ -1148,7 +1148,7 @@ function setupColumnDragAndDrop() {
     console.log(`setupColumnDragAndDrop`);
 
     const boardElement = document.getElementById('kanban-board');
-    const columns = boardElement.querySelectorAll('.kanban-column');
+    const columns = boardElement.querySelectorAll('.kanban-full-height-column');
 
     columns.forEach(column => {
         const dragHandle = column.querySelector('.column-drag-handle');
@@ -1170,7 +1170,7 @@ function setupColumnDragAndDrop() {
             
             // Set drag data
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', `kanban-column:${columnId}`);
+            e.dataTransfer.setData('text/plain', `kanban-full-height-column:${columnId}`);
             
             // Visual feedback
             columnElement.classList.add('dragging', 'drag-preview');
@@ -1186,7 +1186,7 @@ function setupColumnDragAndDrop() {
             
             // Clean up visual feedback
             columnElement.classList.remove('dragging', 'drag-preview');
-            document.querySelectorAll('.kanban-column').forEach(col => {
+            document.querySelectorAll('.kanban-full-height-column').forEach(col => {
                 col.classList.remove('drag-over', 'drag-transitioning');
             });
             document.querySelectorAll('.kanban-row').forEach(row => {
@@ -1194,7 +1194,7 @@ function setupColumnDragAndDrop() {
             });
             
             // Calculate target position based on where the column is in the DOM now
-            const allColumns = Array.from(boardElement.querySelectorAll('.kanban-column'));
+            const allColumns = Array.from(boardElement.querySelectorAll('.kanban-full-height-column'));
             const targetDOMIndex = allColumns.indexOf(columnElement);
             
             // Map DOM position to data model position
@@ -1298,7 +1298,7 @@ function calculateColumnNewPosition(draggedColumn) {
     if (rows.length > 0) {
         // Multi-row layout - collect columns row by row, left to right
         rows.forEach(row => {
-            const columnsInRow = row.querySelectorAll('.kanban-column');
+            const columnsInRow = row.querySelectorAll('.kanban-full-height-column');
             columnsInRow.forEach(col => {
                 const colId = col.getAttribute('data-column-id');
                 if (colId) {
@@ -1308,7 +1308,7 @@ function calculateColumnNewPosition(draggedColumn) {
         });
     } else {
         // Single row layout
-        const columns = boardElement.querySelectorAll('.kanban-column');
+        const columns = boardElement.querySelectorAll('.kanban-full-height-column');
         columns.forEach(col => {
             const colId = col.getAttribute('data-column-id');
             if (colId) {
