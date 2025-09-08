@@ -1706,8 +1706,12 @@ document.addEventListener('keydown', (e) => {
  * Side effects: Sends undo message to VS Code
  */
 function undo() {
+    console.log('🔄 Undo button clicked, canUndo:', canUndo);
     if (canUndo) {
+        console.log('🔄 Sending undo message to VS Code');
         vscode.postMessage({ type: 'undo' });
+    } else {
+        console.log('❌ Undo disabled - no undo history available');
     }
 }
 
@@ -1718,8 +1722,12 @@ function undo() {
  * Side effects: Sends redo message to VS Code
  */
 function redo() {
+    console.log('🔄 Redo button clicked, canRedo:', canRedo);
     if (canRedo) {
+        console.log('🔄 Sending redo message to VS Code');
         vscode.postMessage({ type: 'redo' });
+    } else {
+        console.log('❌ Redo disabled - no redo history available');
     }
 }
 

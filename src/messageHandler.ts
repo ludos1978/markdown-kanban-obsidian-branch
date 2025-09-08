@@ -58,9 +58,11 @@ export class MessageHandler {
         switch (message.type) {
             // Undo/Redo operations
             case 'undo':
+                console.log('🔄 Received UNDO message from webview');
                 await this.handleUndo();
                 break;
             case 'redo':
+                console.log('🔄 Received REDO message from webview');
                 await this.handleRedo();
                 break;
                 
@@ -106,10 +108,13 @@ export class MessageHandler {
                 break;
             case 'saveUndoState':
                 // Save current board state for undo without executing any operation
+                console.log(`🔄 Received saveUndoState message for operation: ${message.operation}`);
                 const currentBoard = this._getCurrentBoard();
                 if (currentBoard) {
                     this._undoRedoManager.saveStateForUndo(currentBoard);
                     console.log(`💾 Saved undo state for cache operation: ${message.operation}`);
+                } else {
+                    console.warn('❌ No current board available for undo state saving');
                 }
                 break;
             case 'pageHiddenWithUnsavedChanges':

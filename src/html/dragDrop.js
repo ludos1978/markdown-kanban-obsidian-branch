@@ -1062,6 +1062,20 @@ function setupTaskDragHandle(handle) {
                         if (originalColumn && finalColumn) {
                             const taskIndex = originalColumn.tasks.findIndex(t => t.id === taskId);
                             if (taskIndex >= 0) {
+                                // SAVE UNDO STATE BEFORE MAKING CHANGES
+                                console.log('🔄 Sending saveUndoState message for moveTaskViaDrag:', { 
+                                    taskId: taskId,
+                                    fromColumnId: originalColumnId,
+                                    toColumnId: finalColumnId
+                                });
+                                vscode.postMessage({ 
+                                    type: 'saveUndoState', 
+                                    operation: 'moveTaskViaDrag', 
+                                    taskId: taskId,
+                                    fromColumnId: originalColumnId,
+                                    toColumnId: finalColumnId
+                                });
+                                
                                 const [task] = originalColumn.tasks.splice(taskIndex, 1);
                                 
                                 // Add task to new column at correct position
@@ -1092,14 +1106,7 @@ function setupTaskDragHandle(handle) {
                         console.log('🗄️ Task moved via drag - cached, use Cmd+S to save');
                     }
                     
-                    // Send message to VS Code for undo tracking only
-                    vscode.postMessage({ 
-                        type: 'saveUndoState', 
-                        operation: 'moveTaskViaDrag', 
-                        taskId: draggedTask.id,
-                        fromColumnId: sourceColumn.id,
-                        toColumnId: targetColumn.id
-                    });
+                    // Undo state already saved before making changes above
                 }
             }
             

@@ -16,8 +16,12 @@ export class UndoRedoManager {
     }
 
     public saveStateForUndo(board: KanbanBoard) {
-        if (!board || !board.valid) return;
+        if (!board || !board.valid) {
+            console.log('❌ Cannot save undo state - invalid board:', board);
+            return;
+        }
         
+        console.log(`💾 Saving undo state - current stack size: ${this._undoStack.length}`);
         this._undoStack.push(deepCloneBoard(board));
         
         if (this._undoStack.length > this._maxUndoStackSize) {
@@ -26,6 +30,7 @@ export class UndoRedoManager {
         
         this._redoStack = [];
         this.sendUndoRedoStatus();
+        console.log(`✅ Undo state saved - new stack size: ${this._undoStack.length}`);
     }
 
     public undo(currentBoard: KanbanBoard | undefined): KanbanBoard | null {
@@ -79,11 +84,15 @@ export class UndoRedoManager {
     }
 
     private sendUndoRedoStatus() {
+        const canUndoState = this.canUndo();
+        const canRedoState = this.canRedo();
+        console.log(`🔄 Sending undo/redo status: canUndo=${canUndoState}, canRedo=${canRedoState}, undoStack=${this._undoStack.length}, redoStack=${this._redoStack.length}`);
+        
         setTimeout(() => {
             this._webview.postMessage({
                 type: 'undoRedoStatus',
-                canUndo: this.canUndo(),
-                canRedo: this.canRedo()
+                canUndo: canUndoState,
+                canRedo: canRedoState
             });
         }, 10);
     }

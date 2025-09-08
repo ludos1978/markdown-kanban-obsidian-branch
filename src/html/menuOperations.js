@@ -903,6 +903,9 @@ function moveTaskToTop(taskId, columnId) {
         if (column) {
             const taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex > 0) {
+                // SAVE UNDO STATE BEFORE MAKING CHANGES
+                vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskToTop', taskId, columnId });
+                
                 const task = column.tasks.splice(taskIndex, 1)[0];
                 column.tasks.unshift(task);
                 console.log('💾 Task moved to top in cache');
@@ -918,8 +921,7 @@ function moveTaskToTop(taskId, columnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // Send message to VS Code for undo tracking only
-    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskToTop', taskId, columnId });
+    // Undo state already saved before making changes above
     
     // Close all menus
     closeAllMenus();
@@ -1085,6 +1087,10 @@ function deleteTask(taskId, columnId) {
         if (column) {
             const taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex >= 0) {
+                // SAVE UNDO STATE BEFORE MAKING CHANGES
+                console.log('🔄 Sending saveUndoState message for deleteTask:', { taskId, columnId });
+                vscode.postMessage({ type: 'saveUndoState', operation: 'deleteTask', taskId, columnId });
+                
                 const deletedTask = column.tasks.splice(taskIndex, 1)[0];
                 console.log(`🗑️ Task deleted from cache: ${taskId} ("${deletedTask.title}") from ${columnId}`);
                 
@@ -1109,8 +1115,7 @@ function deleteTask(taskId, columnId) {
                 // Mark board as having unsaved changes
                 markUnsavedChanges();
                 
-                // Send message to VS Code for undo tracking only (no operation execution)
-                vscode.postMessage({ type: 'saveUndoState', operation: 'deleteTask', taskId, columnId });
+                // Undo state already saved before making changes above
                 
                 console.log('💾 Task deletion cached - use Cmd+S to save to file');
             } else {
