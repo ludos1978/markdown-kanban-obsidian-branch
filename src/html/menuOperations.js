@@ -636,7 +636,8 @@ function positionFileBarDropdown(triggerButton, dropdown) {
 
 // Column operations - keep existing functions
 function insertColumnBefore(columnId) {
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly
+    closeAllMenus();
     
     // Cache-first: Create new column and insert before reference column
     const newColumn = {
@@ -652,7 +653,8 @@ function insertColumnBefore(columnId) {
 }
 
 function insertColumnAfter(columnId) {
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly
+    closeAllMenus();
     
     // Cache-first: Create new column and insert after reference column
     const newColumn = {
@@ -819,6 +821,9 @@ function copyToClipboard(text) {
 
 // Task operations
 function duplicateTask(taskId, columnId) {
+    // Close all menus properly
+    closeAllMenus();
+    
     // Cache-first: Only update cached board, no automatic save
     if (window.cachedBoard) {
         const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
@@ -842,6 +847,9 @@ function duplicateTask(taskId, columnId) {
 }
 
 function insertTaskBefore(taskId, columnId) {
+    // Close all menus properly
+    closeAllMenus();
+    
     // Cache-first: Only update cached board, no automatic save
     if (window.cachedBoard) {
         const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
@@ -863,6 +871,9 @@ function insertTaskBefore(taskId, columnId) {
 }
 
 function insertTaskAfter(taskId, columnId) {
+    // Close all menus properly
+    closeAllMenus();
+    
     // Cache-first: Only update cached board, no automatic save
     if (window.cachedBoard) {
         const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
@@ -1175,6 +1186,9 @@ function updateCacheForNewColumn(newColumn, insertIndex = -1, referenceColumnId 
 }
 
 function addTask(columnId) {
+    // Close all menus properly
+    closeAllMenus();
+    
     // Cache-first: Only update cached board, no automatic save
     const newTask = {
         id: `temp-menu-${Date.now()}`,
