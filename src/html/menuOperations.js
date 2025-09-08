@@ -1069,6 +1069,12 @@ function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
             
             console.log(`🗄️ Cached board updated: added task "${newTask.title || 'empty'}" to column ${columnId}`);
             
+            // Update the UI to reflect the cached changes
+            if (typeof renderBoard === 'function') {
+                renderBoard();
+                console.log('🎨 Board re-rendered after cache update');
+            }
+            
             // Mark as unsaved
             if (typeof markUnsavedChanges === 'function') {
                 markUnsavedChanges();
