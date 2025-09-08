@@ -910,8 +910,13 @@ export class KanbanWebviewPanel {
     public async dispose() {
         console.log('🔧 DEBUG: Disposing KanbanWebviewPanel');
         
-        // Note: Cannot check for unsaved changes here as disposal is already in progress
-        // Unsaved changes prevention is handled by webview's beforeunload event
+        // Check for unsaved changes before disposing
+        // This runs when VS Code closes the panel (X button, etc)
+        try {
+            await this._checkUnsavedChangesBeforeClose();
+        } catch (error) {
+            console.log('🔧 DEBUG: Error checking unsaved changes:', error);
+        }
         
         // Remove from panels map
         const documentUri = this._fileManager.getDocument()?.uri.toString();
@@ -933,9 +938,12 @@ export class KanbanWebviewPanel {
     }
 
     private async _checkUnsavedChangesBeforeClose(): Promise<void> {
+        console.log('🔧 DEBUG: _checkUnsavedChangesBeforeClose called');
+        
         // Ask webview if there are unsaved changes
         return new Promise<void>((resolve) => {
             // Send message to webview to check for unsaved changes
+            console.log('🔧 DEBUG: Sending checkUnsavedChanges message to webview');
             this._panel.webview.postMessage({
                 type: 'checkUnsavedChanges',
                 requestId: Date.now().toString()

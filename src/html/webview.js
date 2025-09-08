@@ -1468,12 +1468,19 @@ window.addEventListener('message', event => {
             break;
         case 'checkUnsavedChanges':
             console.log('🔍 Checking for unsaved changes before close');
+            console.log('🔍 hasUnsavedChanges function available:', typeof hasUnsavedChanges === 'function');
+            console.log('🔍 window.hasUnsavedChanges value:', window.hasUnsavedChanges);
+            
+            const hasChanges = typeof hasUnsavedChanges === 'function' ? hasUnsavedChanges() : false;
+            console.log('🔍 hasUnsavedChanges() returned:', hasChanges);
+            
             // Respond with current unsaved changes status
             vscode.postMessage({
                 type: 'hasUnsavedChangesResponse',
-                hasUnsavedChanges: typeof hasUnsavedChanges === 'function' ? hasUnsavedChanges() : false,
+                hasUnsavedChanges: hasChanges,
                 requestId: message.requestId
             });
+            console.log('🔍 Sent hasUnsavedChangesResponse with:', hasChanges);
             break;
         case 'saveWithConflictFilename':
             console.log('💾 Saving with conflict filename:', message.conflictPath);
@@ -1740,12 +1747,23 @@ function redo() {
 // Add beforeunload detection for unsaved changes
 window.addEventListener('beforeunload', function(e) {
     console.log('🚪 Window beforeunload event - checking for unsaved changes');
+    console.log('🔍 hasUnsavedChanges function available:', typeof hasUnsavedChanges === 'function');
+    console.log('🔍 window.hasUnsavedChanges value:', window.hasUnsavedChanges);
     
-    if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
-        console.log('⚠️ Blocking close - unsaved changes detected');
-        e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        return 'You have unsaved changes. Are you sure you want to leave?';
+    if (typeof hasUnsavedChanges === 'function') {
+        const hasChanges = hasUnsavedChanges();
+        console.log('🔍 hasUnsavedChanges() returned:', hasChanges);
+        
+        if (hasChanges) {
+            console.log('⚠️ Blocking close - unsaved changes detected');
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            return 'You have unsaved changes. Are you sure you want to leave?';
+        } else {
+            console.log('✅ No unsaved changes detected - allowing close');
+        }
+    } else {
+        console.log('❌ hasUnsavedChanges function not available');
     }
 });
 
