@@ -797,14 +797,67 @@ function copyToClipboard(text) {
 
 // Task operations
 function duplicateTask(taskId, columnId) {
+    // Update cached board first - find and duplicate the task
+    if (window.cachedBoard) {
+        const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (targetColumn) {
+            const originalTask = targetColumn.tasks.find(task => task.id === taskId);
+            if (originalTask) {
+                const duplicatedTask = {
+                    id: `temp-duplicate-${Date.now()}`,
+                    title: originalTask.title,
+                    description: originalTask.description
+                };
+                
+                // Insert after the original task
+                const originalIndex = targetColumn.tasks.findIndex(task => task.id === taskId);
+                updateCacheForNewTask(columnId, duplicatedTask, originalIndex + 1);
+            }
+        }
+    }
+    
     vscode.postMessage({ type: 'duplicateTask', taskId, columnId });
 }
 
 function insertTaskBefore(taskId, columnId) {
+    // Update cached board first
+    if (window.cachedBoard) {
+        const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (targetColumn) {
+            const targetIndex = targetColumn.tasks.findIndex(task => task.id === taskId);
+            if (targetIndex >= 0) {
+                const newTask = {
+                    id: `temp-insert-before-${Date.now()}`,
+                    title: '',
+                    description: ''
+                };
+                
+                updateCacheForNewTask(columnId, newTask, targetIndex);
+            }
+        }
+    }
+    
     vscode.postMessage({ type: 'insertTaskBefore', taskId, columnId });
 }
 
 function insertTaskAfter(taskId, columnId) {
+    // Update cached board first
+    if (window.cachedBoard) {
+        const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (targetColumn) {
+            const targetIndex = targetColumn.tasks.findIndex(task => task.id === taskId);
+            if (targetIndex >= 0) {
+                const newTask = {
+                    id: `temp-insert-after-${Date.now()}`,
+                    title: '',
+                    description: ''
+                };
+                
+                updateCacheForNewTask(columnId, newTask, targetIndex + 1);
+            }
+        }
+    }
+    
     vscode.postMessage({ type: 'insertTaskAfter', taskId, columnId });
 }
 
@@ -1003,7 +1056,39 @@ function deleteTask(taskId, columnId) {
     }
 }
 
+// Helper function to update cache when creating tasks
+function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
+    if (window.cachedBoard) {
+        const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+        if (targetColumn) {
+            if (insertIndex >= 0 && insertIndex <= targetColumn.tasks.length) {
+                targetColumn.tasks.splice(insertIndex, 0, newTask);
+            } else {
+                targetColumn.tasks.push(newTask);
+            }
+            
+            console.log(`🗄️ Cached board updated: added task "${newTask.title || 'empty'}" to column ${columnId}`);
+            
+            // Mark as unsaved
+            if (typeof markUnsavedChanges === 'function') {
+                markUnsavedChanges();
+                console.log('🗄️ Task created via menu - cached, use Cmd+S to save');
+            }
+        }
+    }
+}
+
 function addTask(columnId) {
+    // Update cached board first (same pattern as drag & drop)
+    const newTask = {
+        id: `temp-menu-${Date.now()}`,
+        title: '',
+        description: ''
+    };
+    
+    updateCacheForNewTask(columnId, newTask);
+    
+    // Send VS Code message
     vscode.postMessage({
         type: 'addTask',
         columnId,
