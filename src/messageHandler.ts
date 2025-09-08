@@ -15,6 +15,7 @@ export class MessageHandler {
     private _onInitializeFile: () => Promise<void>;
     private _getCurrentBoard: () => KanbanBoard | undefined;
     private _setBoard: (board: KanbanBoard) => void;
+    private _setUndoRedoOperation: (isOperation: boolean) => void;
 
     constructor(
         fileManager: FileManager,
@@ -27,6 +28,7 @@ export class MessageHandler {
             onInitializeFile: () => Promise<void>;
             getCurrentBoard: () => KanbanBoard | undefined;
             setBoard: (board: KanbanBoard) => void;
+            setUndoRedoOperation: (isOperation: boolean) => void;
         }
     ) {
         this._fileManager = fileManager;
@@ -38,6 +40,7 @@ export class MessageHandler {
         this._onInitializeFile = callbacks.onInitializeFile;
         this._getCurrentBoard = callbacks.getCurrentBoard;
         this._setBoard = callbacks.setBoard;
+        this._setUndoRedoOperation = callbacks.setUndoRedoOperation;
     }
 
     public async handleMessage(message: any): Promise<void> {
@@ -316,10 +319,16 @@ export class MessageHandler {
         const restoredBoard = this._undoRedoManager.undo(currentBoard);
         
         if (restoredBoard) {
+            this._setUndoRedoOperation(true);
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
             await this._onSaveToMarkdown();
             await this._onBoardUpdate();
+            
+            // Reset flag after operations complete
+            setTimeout(() => {
+                this._setUndoRedoOperation(false);
+            }, 2000);
         }
     }
 
@@ -328,10 +337,16 @@ export class MessageHandler {
         const restoredBoard = this._undoRedoManager.redo(currentBoard);
         
         if (restoredBoard) {
+            this._setUndoRedoOperation(true);
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
             await this._onSaveToMarkdown();
             await this._onBoardUpdate();
+            
+            // Reset flag after operations complete
+            setTimeout(() => {
+                this._setUndoRedoOperation(false);
+            }, 2000);
         }
     }
 

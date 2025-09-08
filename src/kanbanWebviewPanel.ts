@@ -34,6 +34,7 @@ export class KanbanWebviewPanel {
     private _isInitialized: boolean = false;
     public _isUpdatingFromPanel: boolean = false;  // Made public for external access
     private _lastDocumentVersion: number = -1;  // Track document version
+    private _isUndoRedoOperation: boolean = false;  // Track undo/redo operations
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         console.log('🔧 DEBUG: KanbanWebviewPanel.createOrShow called with document:', document?.fileName);
@@ -180,6 +181,9 @@ export class KanbanWebviewPanel {
                 getCurrentBoard: () => this._board,
                 setBoard: (board: KanbanBoard) => {
                     this._board = board;
+                },
+                setUndoRedoOperation: (isOperation: boolean) => {
+                    this._isUndoRedoOperation = isOperation;
                 }
             }
         );
@@ -453,10 +457,13 @@ export class KanbanWebviewPanel {
         // Check if this is a genuine external change
         const currentVersion = document.version;
         const isExternalChange = this._lastDocumentVersion !== -1 && 
-                                this._lastDocumentVersion !== currentVersion - 1;
+                                this._lastDocumentVersion !== currentVersion - 1 &&
+                                !this._isUndoRedoOperation;
         
         if (isExternalChange) {
             console.log('External change detected - reloading board');
+        } else if (this._isUndoRedoOperation) {
+            console.log('Document change from undo/redo operation - preserving undo history');
         }
         
         this._lastDocumentVersion = currentVersion;
@@ -502,9 +509,12 @@ export class KanbanWebviewPanel {
             
             this._boardOperations.setOriginalTaskOrder(this._board);
             
-            // Only clear undo history on document change or external edit
-            if (documentChanged || isExternalChange) {
+            // Only clear undo history on document change or external edit (not undo/redo operations)
+            if ((documentChanged || isExternalChange) && !this._isUndoRedoOperation) {
                 this._undoRedoManager.clear();
+                console.log('Cleared undo history due to document/external change');
+            } else if (this._isUndoRedoOperation) {
+                console.log('Preserved undo history during undo/redo operation');
             }
         } catch (error) {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
