@@ -14,7 +14,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git checkout:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": []
