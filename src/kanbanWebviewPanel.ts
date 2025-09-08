@@ -40,29 +40,19 @@ export class KanbanWebviewPanel {
     private _isClosingPrevented: boolean = false;  // Flag to prevent recursive closing attempts
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
-        console.log('🔧 DEBUG: KanbanWebviewPanel.createOrShow called with document:', document?.fileName);
         const column = vscode.window.activeTextEditor?.viewColumn || vscode.ViewColumn.One;
 
         // Clean up any stale panels first
         if (document) {
             const documentKey = document.uri.toString();
-            console.log('🔧 DEBUG: Looking for existing panel with key:', documentKey);
-            console.log('🔧 DEBUG: Current panels map size:', KanbanWebviewPanel.panels.size);
-            console.log('🔧 DEBUG: Current panels keys:', Array.from(KanbanWebviewPanel.panels.keys()));
-            
             const existingPanel = KanbanWebviewPanel.panels.get(documentKey);
             if (existingPanel) {
-                console.log('🔧 DEBUG: Found existing panel, disposing it to create fresh one');
-                // For debugging - always dispose existing panel and create fresh one
                 try {
                     existingPanel.dispose();
                 } catch (error) {
-                    console.log('🔧 DEBUG: Error disposing existing panel:', error);
+                    console.log('Error disposing existing panel:', error);
                 }
                 KanbanWebviewPanel.panels.delete(documentKey);
-                console.log('🔧 DEBUG: Existing panel disposed and removed from map');
-            } else {
-                console.log('🔧 DEBUG: No existing panel found, will create new one');
             }
         }
 
@@ -89,11 +79,8 @@ export class KanbanWebviewPanel {
             }
         }
         
-        console.log('Creating webview with localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
-        
         // Create panel with file-specific title
         const fileName = document ? path.basename(document.fileName) : 'Markdown Kanban';
-        console.log('🔧 DEBUG: Creating webview panel with title:', `Kanban: ${fileName}`);
         const panel = vscode.window.createWebviewPanel(
             KanbanWebviewPanel.viewType,
             `Kanban: ${fileName}`,
@@ -105,18 +92,14 @@ export class KanbanWebviewPanel {
                 enableCommandUris: true
             }
         );
-        console.log('🔧 DEBUG: Webview panel created successfully');
 
         const kanbanPanel = new KanbanWebviewPanel(panel, extensionUri, context);
-        console.log('🔧 DEBUG: KanbanWebviewPanel instance created');
 
-        // Store the panel in the map
+        // Store the panel in the map and load document
         if (document) {
-            console.log('🔧 DEBUG: Storing panel in map and loading document');
             KanbanWebviewPanel.panels.set(document.uri.toString(), kanbanPanel);
             kanbanPanel.loadMarkdownFile(document);
         }
-        console.log('🔧 DEBUG: createOrShow completed successfully');
     }
 
     public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
@@ -152,7 +135,6 @@ export class KanbanWebviewPanel {
     }
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
-        console.log('🔧 DEBUG: KanbanWebviewPanel constructor called');
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._context = context;
@@ -400,19 +382,9 @@ export class KanbanWebviewPanel {
     }
 
     private _initialize() {
-        console.log('🔧 DEBUG: _initialize called, isInitialized:', this._isInitialized);
         if (!this._isInitialized) {
-            console.log('🔧 DEBUG: Setting webview HTML');
-            try {
-                const html = this._getHtmlForWebview();
-                this._panel.webview.html = html;
-                this._isInitialized = true;
-                console.log('🔧 DEBUG: Webview HTML set successfully, panel initialized');
-                console.log('🔧 DEBUG: HTML length:', html.length);
-            } catch (error) {
-                console.error('🔧 ERROR: Failed to set webview HTML:', error);
-                throw error;
-            }
+            this._panel.webview.html = this._getHtmlForWebview();
+            this._isInitialized = true;
         }
     }
 
@@ -423,62 +395,23 @@ export class KanbanWebviewPanel {
             this.dispose();
         }, null, this._disposables);
 
-        // Combined view state change handler
-        this._panel.onDidChangeViewState(async (e) => {
-            console.log('🔧 DEBUG: View state changed - visible:', e.webviewPanel.visible, 'active:', e.webviewPanel.active);
-            
-            if (e.webviewPanel.visible) {
-                // Panel became visible - send file info and ensure board
-                console.log('🔧 DEBUG: Panel became visible');
-                this._fileManager.sendFileInfo();
-                
-                // Only ensure board if we don't have one
-                if (!this._board && this._fileManager.getDocument()) {
-                    console.log('🔧 DEBUG: Ensuring board and sending update');
-                    this._ensureBoardAndSendUpdate();
-                } else {
-                    console.log('🔧 DEBUG: Board already exists or no document:', !!this._board, !!this._fileManager.getDocument());
-                }
-            } else {
-                // Panel became invisible - check for unsaved changes only when truly closing
-                // Only check if the panel was previously visible and now completely inactive
-                const isCompletelyHidden = !e.webviewPanel.visible && !e.webviewPanel.active;
-                console.log('🔧 DEBUG: Panel became invisible - completely hidden:', isCompletelyHidden);
-                
-                if (isCompletelyHidden) {
-                    console.log('🔧 DEBUG: Panel completely hidden - checking for unsaved changes');
-                    console.log('🔧 DEBUG: Has unsaved changes:', this._hasUnsavedChanges);
+        // View state change handler
+        this._panel.onDidChangeViewState(
+            e => {
+                if (e.webviewPanel.visible) {
+                    // Panel became visible - send file info and ensure board
+                    this._fileManager.sendFileInfo();
                     
-                    if (this._hasUnsavedChanges && !this._isClosingPrevented) {
-                        this._isClosingPrevented = true;
-                        
-                        // Use a longer delay to ensure the panel state has settled
-                        setTimeout(async () => {
-                            try {
-                                const choice = await vscode.window.showWarningMessage(
-                                    'You have unsaved kanban board changes. Save them now?',
-                                    { modal: true },
-                                    'Save Now',
-                                    'Save with Backup',
-                                    'Don\'t Save'
-                                );
-                                
-                                if (choice === 'Save Now') {
-                                    await this.saveToMarkdown();
-                                    vscode.window.showInformationMessage('Kanban board saved successfully!');
-                                } else if (choice === 'Save with Backup') {
-                                    await this._saveWithConflictBackup();
-                                }
-                            } catch (error) {
-                                console.log('🔧 DEBUG: Error showing unsaved changes dialog:', error);
-                            } finally {
-                                this._isClosingPrevented = false;
-                            }
-                        }, 200);
+                    // Only ensure board if we don't have one
+                    if (!this._board && this._fileManager.getDocument()) {
+                        this._ensureBoardAndSendUpdate();
                     }
                 }
-            }
-        }, null, this._disposables);
+                // Note: Unsaved changes are now handled via page visibility events in webview.js
+            },
+            null,
+            this._disposables
+        );
 
         this._panel.webview.onDidReceiveMessage(
             message => this._messageHandler.handleMessage(message),
@@ -507,9 +440,7 @@ export class KanbanWebviewPanel {
     }
 
     public async loadMarkdownFile(document: vscode.TextDocument) {
-        console.log('🔧 DEBUG: loadMarkdownFile called for:', document.fileName);
         if (this._isUpdatingFromPanel) {
-            console.log('Skipping load - currently updating from panel');
             return;
         }
         
@@ -588,7 +519,6 @@ export class KanbanWebviewPanel {
         
         await this.sendBoardUpdate();
         this._fileManager.sendFileInfo();
-        console.log('🔧 DEBUG: loadMarkdownFile completed successfully for:', document.fileName);
     }
 
     private async sendBoardUpdate() {
