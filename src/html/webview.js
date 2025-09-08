@@ -1466,6 +1466,24 @@ window.addEventListener('message', event => {
                 console.error('❌ handleSaveError function not available:', message.error);
             }
             break;
+        case 'checkUnsavedChanges':
+            console.log('🔍 Checking for unsaved changes before close');
+            // Respond with current unsaved changes status
+            vscode.postMessage({
+                type: 'hasUnsavedChangesResponse',
+                hasUnsavedChanges: typeof hasUnsavedChanges === 'function' ? hasUnsavedChanges() : false,
+                requestId: message.requestId
+            });
+            break;
+        case 'saveWithConflictFilename':
+            console.log('💾 Saving with conflict filename:', message.conflictPath);
+            // Save current cached board to conflict file
+            if (typeof saveCachedBoard === 'function') {
+                saveCachedBoard(message.conflictPath);
+            } else {
+                console.error('❌ saveCachedBoard function not available');
+            }
+            break;
     }
 });
 

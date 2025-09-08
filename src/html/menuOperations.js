@@ -706,10 +706,41 @@ function moveColumnRight(columnId) {
 }
 
 function deleteColumn(columnId) {
-    // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly
+    closeAllMenus();
     
-    vscode.postMessage({ type: 'deleteColumn', columnId });
+    // NEW CACHE SYSTEM: Remove column from cached board first
+    if (window.cachedBoard) {
+        const columnIndex = window.cachedBoard.columns.findIndex(col => col.id === columnId);
+        if (columnIndex >= 0) {
+            const deletedColumn = window.cachedBoard.columns.splice(columnIndex, 1)[0];
+            console.log(`🗑️ Column deleted from cache: ${columnId} ("${deletedColumn.title}")`);
+            
+            // Also update currentBoard for compatibility
+            if (window.currentBoard !== window.cachedBoard) {
+                const currentColumnIndex = window.currentBoard.columns.findIndex(col => col.id === columnId);
+                if (currentColumnIndex >= 0) {
+                    window.currentBoard.columns.splice(currentColumnIndex, 1);
+                }
+            }
+            
+            // Remove column from DOM immediately
+            const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+            if (columnElement) {
+                columnElement.remove();
+                console.log(`🗑️ Column removed from DOM: ${columnId}`);
+            }
+            
+            // Mark board as having unsaved changes
+            markUnsavedChanges();
+            
+            console.log('💾 Column deletion cached - use Cmd+S to save to file');
+        } else {
+            console.warn(`❌ Column ${columnId} not found for deletion`);
+        }
+    } else {
+        console.warn('❌ No cached board available for column deletion');
+    }
 }
 
 function sortColumn(columnId, sortType) {
@@ -921,8 +952,8 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
 }
 
 function deleteTask(taskId, columnId) {
-    // Close all menus
-    document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
+    // Close all menus properly
+    closeAllMenus();
     
     // NEW CACHE SYSTEM: Remove task from cached board instead of sending to VS Code immediately
     if (window.cachedBoard) {

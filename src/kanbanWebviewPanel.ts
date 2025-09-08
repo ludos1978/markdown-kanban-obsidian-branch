@@ -894,8 +894,12 @@ export class KanbanWebviewPanel {
         return text;
     }
 
-    public dispose() {
+    public async dispose() {
         console.log('🔧 DEBUG: Disposing KanbanWebviewPanel');
+        
+        // Check for unsaved changes before disposing
+        await this._checkUnsavedChangesBeforeClose();
+        
         // Remove from panels map
         const documentUri = this._fileManager.getDocument()?.uri.toString();
         if (documentUri && KanbanWebviewPanel.panels.get(documentUri) === this) {
@@ -913,6 +917,77 @@ export class KanbanWebviewPanel {
             disposable?.dispose();
         }
         console.log('🔧 DEBUG: Panel disposal completed');
+    }
+
+    private async _checkUnsavedChangesBeforeClose(): Promise<void> {
+        // Ask webview if there are unsaved changes
+        return new Promise<void>((resolve) => {
+            // Send message to webview to check for unsaved changes
+            this._panel.webview.postMessage({
+                type: 'checkUnsavedChanges',
+                requestId: Date.now().toString()
+            });
+
+            // Set up one-time listener for response
+            const disposable = this._panel.webview.onDidReceiveMessage(async (message) => {
+                if (message.type === 'hasUnsavedChangesResponse') {
+                    disposable.dispose(); // Clean up listener
+                    
+                    if (message.hasUnsavedChanges) {
+                        // Show save confirmation dialog with backup option
+                        const choice = await vscode.window.showWarningMessage(
+                            'You have unsaved changes. What would you like to do?',
+                            { modal: true },
+                            'Save',
+                            'Save with backup filename',
+                            'Don\'t Save'
+                        );
+
+                        if (choice === 'Save') {
+                            await this.saveToMarkdown();
+                        } else if (choice === 'Save with backup filename') {
+                            await this._saveWithConflictBackup();
+                        }
+                        // If 'Don't Save', just continue with dispose
+                    }
+                    
+                    resolve();
+                }
+            });
+
+            // Timeout after 1 second to prevent hanging
+            setTimeout(() => {
+                disposable.dispose();
+                resolve();
+            }, 1000);
+        });
+    }
+
+    private async _saveWithConflictBackup(): Promise<void> {
+        const document = this._fileManager.getDocument();
+        if (!document) return;
+
+        try {
+            // Generate conflict filename
+            const now = new Date();
+            const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '-').slice(0, -5);
+            const originalPath = document.uri.fsPath;
+            const pathParts = originalPath.split('.');
+            const extension = pathParts.pop();
+            const basePath = pathParts.join('.');
+            const conflictPath = `${basePath}-conflict-${timestamp}.${extension}`;
+
+            // Send message to webview to save with conflict filename
+            this._panel.webview.postMessage({
+                type: 'saveWithConflictFilename',
+                originalPath: originalPath,
+                conflictPath: conflictPath
+            });
+
+            vscode.window.showInformationMessage(`Saved with backup filename: ${conflictPath}`);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to save with backup filename: ${error}`);
+        }
     }
 
     /**
