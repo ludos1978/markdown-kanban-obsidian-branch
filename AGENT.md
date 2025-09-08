@@ -1,5 +1,85 @@
 # Kanban Board Extension - Developer Documentation
 
+## Program Architecture Overview
+
+### Core System Design
+
+The Kanban Board Extension transforms markdown files into interactive Kanban boards within VS Code. The system operates on a **cache-first architecture** with session-scoped runtime UUID identification.
+
+### Key Components & Data Flow
+
+#### 1. **Cache System (Frontend)**
+- **`window.cachedBoard`**: Single source of truth for all UI operations
+- **`window.savedBoardState`**: Reference copy for unsaved change detection
+- **`window.hasUnsavedChanges`**: Boolean flag for save state tracking
+- All user interactions update the cache immediately for responsive UI
+
+#### 2. **UUID System (Runtime-Only)**
+- **Column IDs**: `col-{uuid}` format, generated fresh each session
+- **Task IDs**: `task-{uuid}` format, session-scoped unique identification
+- **No persistence**: UUIDs never stored in markdown files
+- **Automatic generation**: New IDs created on board load and content creation
+
+#### 3. **Save Architecture**
+```
+User Action → Update Cache → Mark Unsaved → Manual Save (Cmd+S) → Update Markdown → Sync Backend
+```
+
+#### 4. **Menu System**
+- **Donut Menus**: Burger-style menus for columns and tasks
+- **Smart Positioning**: Dropdowns repositioned to body for viewport constraints
+- **Proper Cleanup**: `closeAllMenus()` handles all menu types and moved elements
+
+#### 5. **Drag & Drop System**
+- **File Info Sources**: Empty cards and clipboard cards from header
+- **Cache Integration**: Updates `window.cachedBoard` before backend sync
+- **Position Detection**: Calculates insertion index from drop coordinates
+- **Immediate Feedback**: DOM updates instantly, markdown saved separately
+
+### User Interaction Flow
+
+#### Normal Operation:
+1. **Load**: Markdown parsed → Board generated with runtime UUIDs → Cache initialized
+2. **Edit**: User interaction → Cache updated → UI reflects change → Unsaved indicator shown
+3. **Save**: Cmd+S pressed → Cache compared to saved state → Changes sent to backend → Markdown written
+4. **Close**: Panel disposal checks unsaved changes → Modal dialog if needed → Save options provided
+
+#### Conflict Resolution:
+1. **Detection**: Underlying markdown changed while unsaved changes exist
+2. **Warning**: Modal shows with save options including conflict backup
+3. **Backup**: Saves to `{filename}-conflict-{timestamp}.md` if requested
+4. **User Choice**: Save normally, save with backup, or discard changes
+
+### Technical Implementation Details
+
+#### Cache-First Benefits:
+- **Instant UI Response**: No waiting for backend operations
+- **Conflict Detection**: Compare cache vs saved state for changes
+- **Batch Operations**: Multiple changes accumulated before save
+- **Undo/Redo Support**: Operations on cache enable full history
+
+#### UUID System Benefits:
+- **No Markdown Pollution**: Clean markdown files without technical IDs
+- **Reliable References**: Consistent identification during session
+- **Move Operations**: Drag/drop works reliably with stable IDs
+- **Menu Targeting**: Precise element identification for operations
+
+#### Save System Features:
+- **Manual Control**: User explicitly saves with Cmd+S
+- **Unsaved Tracking**: Visual indicators for pending changes
+- **Error Handling**: Retry mechanism for failed saves
+- **Conflict Resolution**: Backup options for data safety
+
+### Error Handling & Data Safety
+
+- **Disposal Protection**: Panel closing checks for unsaved changes
+- **Backup System**: Conflict filenames with timestamps
+- **Cache Validation**: Integrity checks prevent data corruption
+- **Menu Cleanup**: Proper DOM cleanup prevents UI artifacts
+- **Drag Validation**: Drop target validation prevents data loss
+
+This architecture ensures reliable, performant Kanban board operations while maintaining clean markdown files and providing robust data safety mechanisms.
+
 ## Comprehensive Test Suite
 
 ### Available Test Suites
@@ -883,3 +963,20 @@ think carefully how to solve it. when thinking about a solution, also think abou
 ---
 
 think carefully how to solve each of the problems. when thinking about a solution, also think about reasons why it could be prevented to work correctly. and think of aspects influencing the way you solve it. when implementing new functions, evaluate wether there is a similar function that might well be changed. then consider how complex fixing the other usage os the function would be.
+
+---
+
+closing without saving doesnt ask me if i want to save    │
+│   the data. it just closes and looses the data. git commit│
+│   these changes as well. if the underlying data is          │
+│   changed and the data has not been saved, a warning        │
+│   should pop up and suggest to save the file with a backup  │
+│   filename (for example                                     │
+│   {filename}-conflict-{dataAndTime}.md . git commit it.     │
+│   deleting a card doesnt properly close the menu (burger    │
+│   menu from cards. the delete list from the column menu     │
+│   doesnt work well with saving, but seems to close          │
+│   properly, maybe only becuase it's reloading the data      │
+│   which it shoudnt. git commit the changes. now write a     │
+│   summary of the changes, such as a description of how the  │
+│   programm is supposed to work into the agent.md.
