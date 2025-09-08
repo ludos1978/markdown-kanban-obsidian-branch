@@ -1036,6 +1036,9 @@ function moveTaskToBottom(taskId, columnId) {
 function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
     console.log(`📦 Moving task ${taskId} from column ${fromColumnId} to ${toColumnId}`);
     
+    // Unfold the destination column if it's collapsed BEFORE any DOM changes
+    unfoldColumnIfCollapsed(toColumnId);
+    
     // NEW CACHE SYSTEM: Update cached board directly
     if (window.cachedBoard) {
         const fromColumn = window.cachedBoard.columns.find(col => col.id === fromColumnId);
@@ -1057,9 +1060,6 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
             }
         }
     }
-    
-    // Unfold the destination column if it's collapsed
-    unfoldColumnIfCollapsed(toColumnId);
     
     // Cache-first: No automatic save, UI updated via cache update above
     // vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
