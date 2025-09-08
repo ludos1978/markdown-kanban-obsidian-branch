@@ -205,9 +205,7 @@ export class KanbanWebviewPanel {
         // Listen for document close events
         this._setupDocumentCloseListener();
         
-        if (this._fileManager.getDocument()) {
-            this.loadMarkdownFile(this._fileManager.getDocument()!);
-        }
+        // Document will be loaded via loadMarkdownFile call from createOrShow
     }
 
     private async handleLinkReplacement(originalPath: string, newPath: string, isImage: boolean) {
@@ -405,9 +403,16 @@ export class KanbanWebviewPanel {
         console.log('🔧 DEBUG: _initialize called, isInitialized:', this._isInitialized);
         if (!this._isInitialized) {
             console.log('🔧 DEBUG: Setting webview HTML');
-            this._panel.webview.html = this._getHtmlForWebview();
-            this._isInitialized = true;
-            console.log('🔧 DEBUG: Webview HTML set, panel initialized');
+            try {
+                const html = this._getHtmlForWebview();
+                this._panel.webview.html = html;
+                this._isInitialized = true;
+                console.log('🔧 DEBUG: Webview HTML set successfully, panel initialized');
+                console.log('🔧 DEBUG: HTML length:', html.length);
+            } catch (error) {
+                console.error('🔧 ERROR: Failed to set webview HTML:', error);
+                throw error;
+            }
         }
     }
 
@@ -428,32 +433,41 @@ export class KanbanWebviewPanel {
                 if (!this._board && this._fileManager.getDocument()) {
                     this._ensureBoardAndSendUpdate();
                 }
-            } else if (!e.webviewPanel.visible && e.webviewPanel.active === false) {
-                // Panel became invisible - check for unsaved changes at panel level
-                console.log('🔧 DEBUG: Panel became invisible - checking for unsaved changes (panel-level tracking)');
-                console.log('🔧 DEBUG: Has unsaved changes:', this._hasUnsavedChanges);
-                
-                if (this._hasUnsavedChanges && !this._isClosingPrevented) {
-                    this._isClosingPrevented = true;
+            } else {
+                // Panel became invisible - check for unsaved changes only when truly closing
+                // Only check if the panel was previously visible and now completely inactive
+                const isCompletelyHidden = !e.webviewPanel.visible && !e.webviewPanel.active;
+                if (isCompletelyHidden) {
+                    console.log('🔧 DEBUG: Panel completely hidden - checking for unsaved changes');
+                    console.log('🔧 DEBUG: Has unsaved changes:', this._hasUnsavedChanges);
                     
-                    setTimeout(async () => {
-                        const choice = await vscode.window.showWarningMessage(
-                            'You have unsaved kanban board changes. Save them now?',
-                            { modal: true },
-                            'Save Now',
-                            'Save with Backup',
-                            'Don\'t Save'
-                        );
+                    if (this._hasUnsavedChanges && !this._isClosingPrevented) {
+                        this._isClosingPrevented = true;
                         
-                        if (choice === 'Save Now') {
-                            await this.saveToMarkdown();
-                            vscode.window.showInformationMessage('Kanban board saved successfully!');
-                        } else if (choice === 'Save with Backup') {
-                            await this._saveWithConflictBackup();
-                        }
-                        
-                        this._isClosingPrevented = false;
-                    }, 50);
+                        // Use a longer delay to ensure the panel state has settled
+                        setTimeout(async () => {
+                            try {
+                                const choice = await vscode.window.showWarningMessage(
+                                    'You have unsaved kanban board changes. Save them now?',
+                                    { modal: true },
+                                    'Save Now',
+                                    'Save with Backup',
+                                    'Don\'t Save'
+                                );
+                                
+                                if (choice === 'Save Now') {
+                                    await this.saveToMarkdown();
+                                    vscode.window.showInformationMessage('Kanban board saved successfully!');
+                                } else if (choice === 'Save with Backup') {
+                                    await this._saveWithConflictBackup();
+                                }
+                            } catch (error) {
+                                console.log('🔧 DEBUG: Error showing unsaved changes dialog:', error);
+                            } finally {
+                                this._isClosingPrevented = false;
+                            }
+                        }, 200);
+                    }
                 }
             }
         }, null, this._disposables);
@@ -485,6 +499,7 @@ export class KanbanWebviewPanel {
     }
 
     public async loadMarkdownFile(document: vscode.TextDocument) {
+        console.log('🔧 DEBUG: loadMarkdownFile called for:', document.fileName);
         if (this._isUpdatingFromPanel) {
             console.log('Skipping load - currently updating from panel');
             return;
@@ -565,6 +580,7 @@ export class KanbanWebviewPanel {
         
         await this.sendBoardUpdate();
         this._fileManager.sendFileInfo();
+        console.log('🔧 DEBUG: loadMarkdownFile completed successfully for:', document.fileName);
     }
 
     private async sendBoardUpdate() {
@@ -976,96 +992,7 @@ export class KanbanWebviewPanel {
     }
 
 
-    private async _performUnsavedChangesCheck(context: string): Promise<void> {
-        return new Promise<void>((resolve) => {
-            console.log(`🔧 DEBUG: Performing unsaved changes check (${context})`);
-            
-            // Send check message
-            this._panel.webview.postMessage({
-                type: 'checkUnsavedChanges',
-                requestId: `final-${Date.now()}`
-            });
-            
-            // Set up one-time listener for response
-            const disposable = this._panel.webview.onDidReceiveMessage(async (message) => {
-                if (message.type === 'hasUnsavedChangesResponse' && message.requestId?.startsWith('final-')) {
-                    disposable.dispose(); // Clean up listener
-                    
-                    console.log(`🔧 DEBUG: Unsaved changes check result: ${message.hasUnsavedChanges}`);
-                    
-                    if (message.hasUnsavedChanges) {
-                        // Show save reminder
-                        const choice = await vscode.window.showWarningMessage(
-                            `${context}: You have unsaved kanban board changes. Save them now?`,
-                            { modal: true },
-                            'Save Now',
-                            'Don\'t Save'
-                        );
-                        
-                        if (choice === 'Save Now') {
-                            await this.saveToMarkdown();
-                            vscode.window.showInformationMessage('Kanban board saved successfully!');
-                        }
-                    }
-                    
-                    resolve();
-                }
-            });
-            
-            // Cleanup listener after timeout
-            setTimeout(() => {
-                disposable.dispose();
-                resolve();
-            }, 2000);
-        });
-    }
 
-    private async _checkUnsavedChangesBeforeClose(): Promise<void> {
-        console.log('🔧 DEBUG: _checkUnsavedChangesBeforeClose called');
-        
-        // Ask webview if there are unsaved changes
-        return new Promise<void>((resolve) => {
-            // Send message to webview to check for unsaved changes
-            console.log('🔧 DEBUG: Sending checkUnsavedChanges message to webview');
-            this._panel.webview.postMessage({
-                type: 'checkUnsavedChanges',
-                requestId: Date.now().toString()
-            });
-
-            // Set up one-time listener for response
-            const disposable = this._panel.webview.onDidReceiveMessage(async (message) => {
-                if (message.type === 'hasUnsavedChangesResponse') {
-                    disposable.dispose(); // Clean up listener
-                    
-                    if (message.hasUnsavedChanges) {
-                        // Show save confirmation dialog with backup option
-                        const choice = await vscode.window.showWarningMessage(
-                            'You have unsaved changes. What would you like to do?',
-                            { modal: true },
-                            'Save',
-                            'Save with backup filename',
-                            'Don\'t Save'
-                        );
-
-                        if (choice === 'Save') {
-                            await this.saveToMarkdown();
-                        } else if (choice === 'Save with backup filename') {
-                            await this._saveWithConflictBackup();
-                        }
-                        // If 'Don't Save', just continue with dispose
-                    }
-                    
-                    resolve();
-                }
-            });
-
-            // Timeout after 1 second to prevent hanging
-            setTimeout(() => {
-                disposable.dispose();
-                resolve();
-            }, 1000);
-        });
-    }
 
     private async _saveWithConflictBackup(): Promise<void> {
         const document = this._fileManager.getDocument();
