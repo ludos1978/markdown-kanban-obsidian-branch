@@ -234,20 +234,14 @@ window.handleEmptyCardDragEnd = function(e) {
 
 async function readClipboardContent() {
     try {
-        console.log('[CLIPBOARD DEBUG] Attempting to read clipboard');
         const text = await navigator.clipboard.readText();
-        // console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
         
         if (!text || text.trim() === '') {
-            console.log('[CLIPBOARD DEBUG] Empty clipboard');
             return null;
         }
         
-        const processed = await processClipboardText(text.trim());
-        console.log('[CLIPBOARD DEBUG] Processed clipboard:', processed);
-        return processed;
+        return await processClipboardText(text.trim());
     } catch (error) {
-        console.error('[CLIPBOARD DEBUG] Failed to read clipboard:', error);
         // Don't return error object, just null
         return null;
     }
@@ -386,9 +380,7 @@ async function fetchUrlTitle(url) {
 }
 
 async function updateClipboardCardSource() {
-    console.log('[CLIPBOARD DEBUG] Updating clipboard card source');
     clipboardCardData = await readClipboardContent();
-    console.log('[CLIPBOARD DEBUG] Read clipboard data:', clipboardCardData);
     const clipboardSource = document.getElementById('clipboard-card-source');
     
     if (clipboardSource) {
@@ -434,21 +426,13 @@ async function updateClipboardCardSource() {
 
 function initializeClipboardCardSource() {
     const clipboardSource = document.getElementById('clipboard-card-source');
-    console.log('[CLIPBOARD DEBUG] Initializing clipboard source:', clipboardSource);
     if (!clipboardSource) {
-        console.error('[CLIPBOARD DEBUG] Clipboard source element not found!');
         return;
     }
     
     clipboardSource.addEventListener('dragstart', (e) => {
-        console.log('[CLIPBOARD DEBUG] Drag start event fired');
-        console.log('[CLIPBOARD DEBUG] e.target:', e.target);
-        console.log('[CLIPBOARD DEBUG] e.currentTarget:', e.currentTarget);
-        console.log('[CLIPBOARD DEBUG] clipboardCardData:', clipboardCardData);
-        
         // For testing - create dummy data if no clipboard data
         if (!clipboardCardData) {
-            console.log('[CLIPBOARD DEBUG] No clipboard data, creating test data');
             clipboardCardData = {
                 title: 'Test Clipboard Card',
                 content: 'This is a test card from clipboard',
@@ -1073,13 +1057,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Theme observer is set up later in the file
     
     // Initialize clipboard card source
-    console.log('[CLIPBOARD DEBUG] Initializing clipboard functionality');
     initializeClipboardCardSource();
     
     // Update clipboard content when window gets focus
-    console.log('[CLIPBOARD DEBUG] Setting up focus event listener');
     window.addEventListener('focus', async () => {
-        console.log('[CLIPBOARD DEBUG] Window focus event fired');
         await updateClipboardCardSource();
     });
     
@@ -1152,15 +1133,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Listen for Cmd/Ctrl+C to update clipboard
-    console.log('[CLIPBOARD DEBUG] Setting up keydown event listener');
     document.addEventListener('keydown', async (e) => {
-        console.log('[CLIPBOARD DEBUG] Keydown detected:', e.key, 'metaKey:', e.metaKey, 'ctrlKey:', e.ctrlKey);
         // Check for Cmd+C (Mac) or Ctrl+C (Windows/Linux)
         if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
-            console.log('[CLIPBOARD DEBUG] Cmd/Ctrl+C detected, waiting for clipboard to update');
             // Wait a bit for the clipboard to be updated
             setTimeout(async () => {
-                console.log('[CLIPBOARD DEBUG] Reading clipboard after copy');
                 try {
                     const text = await navigator.clipboard.readText();
                     console.log('[CLIPBOARD DEBUG] Direct clipboard read result:', text);
