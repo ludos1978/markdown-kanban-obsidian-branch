@@ -104,6 +104,10 @@ export class MessageHandler {
                 // Track unsaved changes at panel level
                 this._markUnsavedChanges(message.hasUnsavedChanges);
                 break;
+            case 'pageHiddenWithUnsavedChanges':
+                // Handle page becoming hidden with unsaved changes
+                await this.handlePageHiddenWithUnsavedChanges();
+                break;
             case 'requestFileInfo':
                 this._fileManager.sendFileInfo();
                 break;
@@ -468,6 +472,32 @@ export class MessageHandler {
         if (success) {
             await this._onSaveToMarkdown();
             await this._onBoardUpdate();
+        }
+    }
+
+    private async handlePageHiddenWithUnsavedChanges(): Promise<void> {
+        console.log('🔧 DEBUG: Page hidden with unsaved changes - showing save dialog');
+        
+        try {
+            const choice = await vscode.window.showWarningMessage(
+                'You have unsaved kanban board changes. Save them now?',
+                { modal: true },
+                'Save Now',
+                'Save with Backup',
+                'Don\'t Save'
+            );
+            
+            if (choice === 'Save Now') {
+                await this._onSaveToMarkdown();
+                vscode.window.showInformationMessage('Kanban board saved successfully!');
+            } else if (choice === 'Save with Backup') {
+                await this._saveWithBackup();
+            }
+            // If 'Don't Save', just continue - the user chose to discard changes
+            
+        } catch (error) {
+            console.error('🔧 ERROR: Failed to handle unsaved changes:', error);
+            vscode.window.showErrorMessage('Failed to save kanban changes: ' + error);
         }
     }
 }

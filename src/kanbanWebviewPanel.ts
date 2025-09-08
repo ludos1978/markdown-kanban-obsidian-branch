@@ -425,18 +425,26 @@ export class KanbanWebviewPanel {
 
         // Combined view state change handler
         this._panel.onDidChangeViewState(async (e) => {
+            console.log('🔧 DEBUG: View state changed - visible:', e.webviewPanel.visible, 'active:', e.webviewPanel.active);
+            
             if (e.webviewPanel.visible) {
                 // Panel became visible - send file info and ensure board
+                console.log('🔧 DEBUG: Panel became visible');
                 this._fileManager.sendFileInfo();
                 
                 // Only ensure board if we don't have one
                 if (!this._board && this._fileManager.getDocument()) {
+                    console.log('🔧 DEBUG: Ensuring board and sending update');
                     this._ensureBoardAndSendUpdate();
+                } else {
+                    console.log('🔧 DEBUG: Board already exists or no document:', !!this._board, !!this._fileManager.getDocument());
                 }
             } else {
                 // Panel became invisible - check for unsaved changes only when truly closing
                 // Only check if the panel was previously visible and now completely inactive
                 const isCompletelyHidden = !e.webviewPanel.visible && !e.webviewPanel.active;
+                console.log('🔧 DEBUG: Panel became invisible - completely hidden:', isCompletelyHidden);
+                
                 if (isCompletelyHidden) {
                     console.log('🔧 DEBUG: Panel completely hidden - checking for unsaved changes');
                     console.log('🔧 DEBUG: Has unsaved changes:', this._hasUnsavedChanges);

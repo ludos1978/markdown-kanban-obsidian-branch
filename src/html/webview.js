@@ -1779,7 +1779,18 @@ document.addEventListener('visibilitychange', function() {
     if (document.hidden) {
         console.log('👁️ Page became hidden');
         if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
-            console.log('💾 Page hidden with unsaved changes');
+            console.log('💾 Page hidden with unsaved changes - notifying backend IMMEDIATELY');
+            
+            // Notify the backend immediately about unsaved changes
+            // Use setTimeout(0) to ensure the message is sent before potential disposal
+            setTimeout(() => {
+                vscode.postMessage({
+                    type: 'pageHiddenWithUnsavedChanges',
+                    hasUnsavedChanges: true
+                });
+            }, 0);
+        } else {
+            console.log('✅ Page hidden but no unsaved changes');
         }
     } else {
         console.log('👁️ Page became visible');
