@@ -637,12 +637,34 @@ function positionFileBarDropdown(triggerButton, dropdown) {
 // Column operations - keep existing functions
 function insertColumnBefore(columnId) {
     document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
-    vscode.postMessage({ type: 'insertColumnBefore', columnId, title: '' });
+    
+    // Cache-first: Create new column and insert before reference column
+    const newColumn = {
+        id: `temp-column-before-${Date.now()}`,
+        title: '',
+        tasks: []
+    };
+    
+    const referenceIndex = window.cachedBoard?.columns.findIndex(col => col.id === columnId) || 0;
+    updateCacheForNewColumn(newColumn, referenceIndex, columnId);
+    
+    // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 function insertColumnAfter(columnId) {
     document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
-    vscode.postMessage({ type: 'insertColumnAfter', columnId, title: '' });
+    
+    // Cache-first: Create new column and insert after reference column
+    const newColumn = {
+        id: `temp-column-after-${Date.now()}`,
+        title: '',
+        tasks: []
+    };
+    
+    const referenceIndex = window.cachedBoard?.columns.findIndex(col => col.id === columnId) || 0;
+    updateCacheForNewColumn(newColumn, referenceIndex + 1, columnId);
+    
+    // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 function moveColumnLeft(columnId) {
@@ -1114,6 +1136,44 @@ function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
     }
 }
 
+// Helper function to update cache when creating columns
+function updateCacheForNewColumn(newColumn, insertIndex = -1, referenceColumnId = null) {
+    if (window.cachedBoard) {
+        if (referenceColumnId) {
+            // Insert relative to reference column
+            const referenceIndex = window.cachedBoard.columns.findIndex(col => col.id === referenceColumnId);
+            if (referenceIndex >= 0) {
+                const actualIndex = insertIndex >= 0 ? insertIndex : referenceIndex + 1;
+                window.cachedBoard.columns.splice(actualIndex, 0, newColumn);
+            } else {
+                // Fallback: add to end
+                window.cachedBoard.columns.push(newColumn);
+            }
+        } else {
+            // Simple insertion
+            if (insertIndex >= 0 && insertIndex <= window.cachedBoard.columns.length) {
+                window.cachedBoard.columns.splice(insertIndex, 0, newColumn);
+            } else {
+                window.cachedBoard.columns.push(newColumn);
+            }
+        }
+        
+        console.log(`🗄️ Cached board updated: added column "${newColumn.title || 'empty'}"`)
+        
+        // Update the UI to reflect the cached changes
+        if (typeof renderBoard === 'function') {
+            renderBoard();
+            console.log('🎨 Board re-rendered after column cache update');
+        }
+        
+        // Mark as unsaved
+        if (typeof markUnsavedChanges === 'function') {
+            markUnsavedChanges();
+            console.log('🗄️ Column created via menu - cached, use Cmd+S to save');
+        }
+    }
+}
+
 function addTask(columnId) {
     // Cache-first: Only update cached board, no automatic save
     const newTask = {
@@ -1144,8 +1204,17 @@ function addTaskAndUnfold(columnId) {
 }
 
 function addColumn(rowNumber) {
+    // Cache-first: Create new column and add to end
     const title = (rowNumber && rowNumber > 1) ? `#row${rowNumber}` : '';
-    vscode.postMessage({ type: 'addColumn', title });
+    const newColumn = {
+        id: `temp-column-${Date.now()}`,
+        title: title,
+        tasks: []
+    };
+    
+    updateCacheForNewColumn(newColumn);
+    
+    // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 // Tag operations - IMPORTANT: Always use unique IDs, never titles!
