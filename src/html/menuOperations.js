@@ -797,7 +797,7 @@ function copyToClipboard(text) {
 
 // Task operations
 function duplicateTask(taskId, columnId) {
-    // Update cached board first - find and duplicate the task
+    // Cache-first: Only update cached board, no automatic save
     if (window.cachedBoard) {
         const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (targetColumn) {
@@ -816,11 +816,11 @@ function duplicateTask(taskId, columnId) {
         }
     }
     
-    vscode.postMessage({ type: 'duplicateTask', taskId, columnId });
+    // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 function insertTaskBefore(taskId, columnId) {
-    // Update cached board first
+    // Cache-first: Only update cached board, no automatic save
     if (window.cachedBoard) {
         const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (targetColumn) {
@@ -837,11 +837,11 @@ function insertTaskBefore(taskId, columnId) {
         }
     }
     
-    vscode.postMessage({ type: 'insertTaskBefore', taskId, columnId });
+    // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 function insertTaskAfter(taskId, columnId) {
-    // Update cached board first
+    // Cache-first: Only update cached board, no automatic save
     if (window.cachedBoard) {
         const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (targetColumn) {
@@ -858,7 +858,7 @@ function insertTaskAfter(taskId, columnId) {
         }
     }
     
-    vscode.postMessage({ type: 'insertTaskAfter', taskId, columnId });
+    // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 function moveTaskToTop(taskId, columnId) {
@@ -873,13 +873,19 @@ function moveTaskToTop(taskId, columnId) {
                 const task = column.tasks.splice(taskIndex, 1)[0];
                 column.tasks.unshift(task);
                 console.log('💾 Task moved to top in cache');
+                
+                // Re-render UI to reflect changes
+                if (typeof renderBoard === 'function') {
+                    renderBoard();
+                }
+                
                 markUnsavedChanges();
             }
         }
     }
     
-    // Update DOM immediately for responsive UI
-    vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
+    // Cache-first: No automatic save, UI updated via cache update above
+    // vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -900,13 +906,19 @@ function moveTaskUp(taskId, columnId) {
                 column.tasks[taskIndex] = column.tasks[taskIndex - 1];
                 column.tasks[taskIndex - 1] = task;
                 console.log('💾 Task moved up in cache');
+                
+                // Re-render UI to reflect changes
+                if (typeof renderBoard === 'function') {
+                    renderBoard();
+                }
+                
                 markUnsavedChanges();
             }
         }
     }
     
-    // Update DOM immediately for responsive UI
-    vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
+    // Cache-first: No automatic save, UI updated via cache update above
+    // vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -927,13 +939,19 @@ function moveTaskDown(taskId, columnId) {
                 column.tasks[taskIndex] = column.tasks[taskIndex + 1];
                 column.tasks[taskIndex + 1] = task;
                 console.log('💾 Task moved down in cache');
+                
+                // Re-render UI to reflect changes
+                if (typeof renderBoard === 'function') {
+                    renderBoard();
+                }
+                
                 markUnsavedChanges();
             }
         }
     }
     
-    // Update DOM immediately for responsive UI
-    vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
+    // Cache-first: No automatic save, UI updated via cache update above
+    // vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -953,13 +971,19 @@ function moveTaskToBottom(taskId, columnId) {
                 const task = column.tasks.splice(taskIndex, 1)[0];
                 column.tasks.push(task);
                 console.log('💾 Task moved to bottom in cache');
+                
+                // Re-render UI to reflect changes
+                if (typeof renderBoard === 'function') {
+                    renderBoard();
+                }
+                
                 markUnsavedChanges();
             }
         }
     }
     
-    // Update DOM immediately for responsive UI
-    vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
+    // Cache-first: No automatic save, UI updated via cache update above
+    // vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -990,6 +1014,12 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
                 const task = fromColumn.tasks.splice(taskIndex, 1)[0];
                 toColumn.tasks.push(task);
                 console.log('💾 Task moved between columns in cache');
+                
+                // Re-render UI to reflect changes
+                if (typeof renderBoard === 'function') {
+                    renderBoard();
+                }
+                
                 markUnsavedChanges();
             }
         }
@@ -998,8 +1028,8 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
     // Unfold the destination column if it's collapsed
     unfoldColumnIfCollapsed(toColumnId);
     
-    // Update DOM immediately for responsive UI
-    vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
+    // Cache-first: No automatic save, UI updated via cache update above
+    // vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
     
     // Close all menus
     closeAllMenus();
@@ -1085,7 +1115,7 @@ function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
 }
 
 function addTask(columnId) {
-    // Update cached board first (same pattern as drag & drop)
+    // Cache-first: Only update cached board, no automatic save
     const newTask = {
         id: `temp-menu-${Date.now()}`,
         title: '',
@@ -1094,12 +1124,7 @@ function addTask(columnId) {
     
     updateCacheForNewTask(columnId, newTask);
     
-    // Send VS Code message
-    vscode.postMessage({
-        type: 'addTask',
-        columnId,
-        taskData: { title: '', description: '' }
-    });
+    // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 // Helper function to unfold a column if it's collapsed
