@@ -111,8 +111,8 @@ export class MessageHandler {
                 // Handle page becoming hidden with unsaved changes
                 await this.handlePageHiddenWithUnsavedChanges();
                 break;
-            case 'webviewReady':
-                // Webview signals it's ready to receive data
+            case 'requestInitialBoard':
+                // Webview requests initial board data
                 await this._onWebviewReady();
                 break;
             case 'requestFileInfo':

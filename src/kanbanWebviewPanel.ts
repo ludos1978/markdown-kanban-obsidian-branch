@@ -38,7 +38,6 @@ export class KanbanWebviewPanel {
     private _unsavedChangesCheckInterval?: NodeJS.Timeout;  // Periodic unsaved changes check
     private _hasUnsavedChanges: boolean = false;  // Track unsaved changes at panel level
     private _isClosingPrevented: boolean = false;  // Flag to prevent recursive closing attempts
-    private _pendingDocument: vscode.TextDocument | null = null;  // Document to load when webview is ready
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn || vscode.ViewColumn.One;
@@ -95,11 +94,11 @@ export class KanbanWebviewPanel {
 
         const kanbanPanel = new KanbanWebviewPanel(panel, extensionUri, context);
 
-        // Store the panel in the map and set pending document
+        // Store the panel in the map and load document
         if (document) {
             KanbanWebviewPanel.panels.set(document.uri.toString(), kanbanPanel);
-            kanbanPanel._pendingDocument = document;
-            // Don't load immediately - wait for webview ready signal
+            // Load immediately - webview will request data when ready
+            kanbanPanel.loadMarkdownFile(document);
         }
     }
 
@@ -384,13 +383,10 @@ export class KanbanWebviewPanel {
     }
 
     private async handleWebviewReady() {
-        console.log('Webview ready signal received');
-        // If we have a pending document, load it now
-        if (this._pendingDocument) {
-            const doc = this._pendingDocument;
-            this._pendingDocument = null; // Clear pending
-            await this.loadMarkdownFile(doc);
-        }
+        console.log('Webview requesting initial board data');
+        // Send current board to webview if we have one
+        await this.sendBoardUpdate();
+        this._fileManager.sendFileInfo();
     }
 
     private _initialize() {
