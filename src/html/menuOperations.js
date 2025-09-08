@@ -1703,6 +1703,14 @@ function markUnsavedChanges() {
     window.hasUnsavedChanges = true;
     updateRefreshButtonState('unsaved', 1);
     console.log('🔄 Board marked as having unsaved changes');
+    
+    // Notify backend about unsaved changes
+    if (typeof vscode !== 'undefined') {
+        vscode.postMessage({
+            type: 'markUnsavedChanges',
+            hasUnsavedChanges: true
+        });
+    }
 }
 
 /**
@@ -1851,6 +1859,14 @@ function saveCachedBoard() {
     window.hasUnsavedChanges = false;
     if (window.cachedBoard) {
         window.savedBoardState = JSON.parse(JSON.stringify(window.cachedBoard));
+    }
+    
+    // Notify backend that changes are now saved
+    if (typeof vscode !== 'undefined') {
+        vscode.postMessage({
+            type: 'markUnsavedChanges',
+            hasUnsavedChanges: false
+        });
     }
     
     // Update UI to show saved state

@@ -18,6 +18,7 @@ export class MessageHandler {
     private _setUndoRedoOperation: (isOperation: boolean) => void;
     private _getWebviewPanel: () => any;
     private _saveWithBackup: () => Promise<void>;
+    private _markUnsavedChanges: (hasChanges: boolean) => void;
 
     constructor(
         fileManager: FileManager,
@@ -33,6 +34,7 @@ export class MessageHandler {
             setUndoRedoOperation: (isOperation: boolean) => void;
             getWebviewPanel: () => any;
             saveWithBackup: () => Promise<void>;
+            markUnsavedChanges: (hasChanges: boolean) => void;
         }
     ) {
         this._fileManager = fileManager;
@@ -47,6 +49,7 @@ export class MessageHandler {
         this._setUndoRedoOperation = callbacks.setUndoRedoOperation;
         this._getWebviewPanel = callbacks.getWebviewPanel;
         this._saveWithBackup = callbacks.saveWithBackup;
+        this._markUnsavedChanges = callbacks.markUnsavedChanges;
     }
 
     public async handleMessage(message: any): Promise<void> {
@@ -96,6 +99,10 @@ export class MessageHandler {
             case 'closeWindow':
                 // Check for unsaved changes before closing
                 await this.handleCloseWindow();
+                break;
+            case 'markUnsavedChanges':
+                // Track unsaved changes at panel level
+                this._markUnsavedChanges(message.hasUnsavedChanges);
                 break;
             case 'requestFileInfo':
                 this._fileManager.sendFileInfo();
@@ -376,7 +383,7 @@ export class MessageHandler {
                 });
 
                 // Set up one-time listener for response
-                const disposable = panel.webview.onDidReceiveMessage(async (message) => {
+                const disposable = panel.webview.onDidReceiveMessage(async (message: any) => {
                     if (message.type === 'hasUnsavedChangesResponse') {
                         disposable.dispose(); // Clean up listener
                         

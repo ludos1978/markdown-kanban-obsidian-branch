@@ -6,20 +6,7 @@ kanban-plugin: board
 
 ## # Title
 
-## F
-
-## TITLE #security #urgent
-- [ ] docs.unity3d.com
-  [docs.unity3d.com](https://docs.unity3d.com/6000.2/Documentation/Manual/InspectorFocused.html)
-
 ## 
-- [ ] 
-- [ ] Minimal Description of Tools #database
-  Minimal Description of Tools
-  - Image Informations (RGBA, CMYK)
-    - Alpha Channel
-    - Different Color Channel Usages
-    - Image size in cm vs size in pixels
 - [ ] Lorem Imspum #bug #urgent #blocked
   setetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
 
@@ -30,7 +17,7 @@ kanban-plugin: board
   Lorem ipsum dolor sit amet,
 - [ ] Test Update
   Testing clipboard update functionality
-- [ ] - Lighting
+- [ ] Lighting
   - Lighting
 - [ ] Lorem Imspum #green
   Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
