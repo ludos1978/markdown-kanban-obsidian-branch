@@ -1339,6 +1339,9 @@ window.addEventListener('message', event => {
                 window.hasUnsavedChanges = false;
             } else {
                 console.log('🔄 VS Code sent updated board');
+                // Always update the cached board when receiving updates from backend
+                window.cachedBoard = JSON.parse(JSON.stringify(message.board)); 
+                
                 // If this is a save confirmation (no unsaved changes), update the saved reference
                 if (!window.hasUnsavedChanges) {
                     window.savedBoardState = JSON.parse(JSON.stringify(message.board));

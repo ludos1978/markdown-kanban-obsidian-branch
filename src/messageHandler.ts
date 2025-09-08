@@ -340,9 +340,9 @@ export class MessageHandler {
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
             
-            // Use cache-first architecture: mark as unsaved instead of direct save
-            this._markUnsavedChanges(true);
+            // Update webview with restored board, then mark as unsaved
             await this._onBoardUpdate();
+            this._markUnsavedChanges(true);
             
             // Reset flag after operations complete
             setTimeout(() => {
@@ -360,9 +360,9 @@ export class MessageHandler {
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
             
-            // Use cache-first architecture: mark as unsaved instead of direct save
-            this._markUnsavedChanges(true);
+            // Update webview with restored board, then mark as unsaved
             await this._onBoardUpdate();
+            this._markUnsavedChanges(true);
             
             // Reset flag after operations complete
             setTimeout(() => {
