@@ -658,6 +658,13 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
                     markUnsavedChanges();
                     console.log('🗄️ Task created via drag & drop - cached, use Cmd+S to save');
                 }
+                
+                // Send message to VS Code for undo tracking only
+                vscode.postMessage({ 
+                    type: 'saveUndoState', 
+                    operation: 'createTaskViaDrag',
+                    columnId: targetColumnId
+                });
             }
         }
         
@@ -1084,6 +1091,15 @@ function setupTaskDragHandle(handle) {
                         markUnsavedChanges();
                         console.log('🗄️ Task moved via drag - cached, use Cmd+S to save');
                     }
+                    
+                    // Send message to VS Code for undo tracking only
+                    vscode.postMessage({ 
+                        type: 'saveUndoState', 
+                        operation: 'moveTaskViaDrag', 
+                        taskId: draggedTask.id,
+                        fromColumnId: sourceColumn.id,
+                        toColumnId: targetColumn.id
+                    });
                 }
             }
             
@@ -1313,6 +1329,13 @@ function setupColumnDragAndDrop() {
                 markUnsavedChanges(); 
                 console.log('🗄️ Columns reordered via drag - cached, use Cmd+S to save');
             }
+            
+            // Send message to VS Code for undo tracking only
+            vscode.postMessage({ 
+                type: 'saveUndoState', 
+                operation: 'reorderColumnsViaDrag',
+                newOrder: newOrder
+            });
             
             // Reset drag state
             dragState.draggedColumn = null;

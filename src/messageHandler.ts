@@ -104,6 +104,14 @@ export class MessageHandler {
                 // Track unsaved changes at panel level
                 this._markUnsavedChanges(message.hasUnsavedChanges);
                 break;
+            case 'saveUndoState':
+                // Save current board state for undo without executing any operation
+                const currentBoard = this._getCurrentBoard();
+                if (currentBoard) {
+                    this._undoRedoManager.saveStateForUndo(currentBoard);
+                    console.log(`💾 Saved undo state for cache operation: ${message.operation}`);
+                }
+                break;
             case 'pageHiddenWithUnsavedChanges':
                 // Handle page becoming hidden with unsaved changes
                 await this.handlePageHiddenWithUnsavedChanges();

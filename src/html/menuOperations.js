@@ -758,8 +758,8 @@ function deleteColumn(columnId) {
             // Mark board as having unsaved changes
             markUnsavedChanges();
             
-            // Send message to VS Code for undo tracking
-            vscode.postMessage({ type: 'deleteColumn', columnId });
+            // Send message to VS Code for undo tracking only (no operation execution)
+            vscode.postMessage({ type: 'saveUndoState', operation: 'deleteColumn', columnId });
             
             console.log('💾 Column deletion cached - use Cmd+S to save to file');
         } else {
@@ -918,7 +918,8 @@ function moveTaskToTop(taskId, columnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
+    // Send message to VS Code for undo tracking only
+    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskToTop', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -951,7 +952,8 @@ function moveTaskUp(taskId, columnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
+    // Send message to VS Code for undo tracking only
+    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskUp', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -984,7 +986,8 @@ function moveTaskDown(taskId, columnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
+    // Send message to VS Code for undo tracking only
+    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskDown', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -1016,7 +1019,8 @@ function moveTaskToBottom(taskId, columnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
+    // Send message to VS Code for undo tracking only
+    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskToBottom', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -1062,7 +1066,8 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
+    // Send message to VS Code for undo tracking only
+    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
     
     // Close all menus
     closeAllMenus();
@@ -1104,8 +1109,8 @@ function deleteTask(taskId, columnId) {
                 // Mark board as having unsaved changes
                 markUnsavedChanges();
                 
-                // Send message to VS Code for undo tracking
-                vscode.postMessage({ type: 'deleteTask', taskId, columnId });
+                // Send message to VS Code for undo tracking only (no operation execution)
+                vscode.postMessage({ type: 'saveUndoState', operation: 'deleteTask', taskId, columnId });
                 
                 console.log('💾 Task deletion cached - use Cmd+S to save to file');
             } else {
