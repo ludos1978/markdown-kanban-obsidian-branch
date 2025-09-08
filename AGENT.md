@@ -966,17 +966,32 @@ think carefully how to solve each of the problems. when thinking about a solutio
 
 ---
 
-closing without saving doesnt ask me if i want to save    │
-│   the data. it just closes and looses the data. git commit│
-│   these changes as well. if the underlying data is          │
-│   changed and the data has not been saved, a warning        │
-│   should pop up and suggest to save the file with a backup  │
-│   filename (for example                                     │
-│   {filename}-conflict-{dataAndTime}.md . git commit it.     │
-│   deleting a card doesnt properly close the menu (burger    │
-│   menu from cards. the delete list from the column menu     │
-│   doesnt work well with saving, but seems to close          │
-│   properly, maybe only becuase it's reloading the data      │
-│   which it shoudnt. git commit the changes. now write a     │
-│   summary of the changes, such as a description of how the  │
-│   programm is supposed to work into the agent.md.
+closing without saving doesnt ask me if i want to save    the data. it just closes and looses the data. git committhese changes as well. if the underlying data is          changed and the data has not been saved, a warning        should pop up and suggest to save the file with a backup  filename (for example                                     {filename}-conflict-{dataAndTime}.md . git commit it.     deleting a card doesnt properly close the menu (burger    menu from cards. the delete list from the column menu     doesnt work well with saving, but seems to close          properly, maybe only becuase it's reloading the data      which it shoudnt. git commit the changes. now write a     summary of the changes, such as a description of how the  programm is supposed to work into the agent.md.
+
+
+---
+
+
+│ > think carefully how to solve each of    │
+│   the problems. when thinking about a     │
+│   solution, also think about reasons why  │
+│   it could be prevented to work           │
+│   correctly. and think of aspects         │
+│   influencing the way you solve it. when  │
+│   implementing new functions, evaluate    │
+│   wether there is a similar function      │
+│   that might well be changed. then        │
+│   consider how complex fixing the other   │
+│   usage os the function would be.         │
+│   allways explain your planned changes    │
+│   first. keep the changes as minimal as   │
+│   possible, but DRY programming should    │
+│   allways be considered first. tell me    │
+│   if you see something that might be      │
+│   reused, or if you see something not     │
+│   being used anymore. also cleaning up    │
+│   and removing is equally important if    │
+│   it does not sacrifice existing          │
+│   functionality. for this allways         │
+│   document the changes, so obsolte        │
+│   functions can easily be detected.  

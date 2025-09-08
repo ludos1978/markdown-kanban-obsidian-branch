@@ -12,7 +12,9 @@
       "Bash(grep:*)",
       "Bash(npm run lint)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": []
