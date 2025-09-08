@@ -339,7 +339,9 @@ export class MessageHandler {
             this._setUndoRedoOperation(true);
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
-            await this._onSaveToMarkdown();
+            
+            // Use cache-first architecture: mark as unsaved instead of direct save
+            this._markUnsavedChanges(true);
             await this._onBoardUpdate();
             
             // Reset flag after operations complete
@@ -357,7 +359,9 @@ export class MessageHandler {
             this._setUndoRedoOperation(true);
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
-            await this._onSaveToMarkdown();
+            
+            // Use cache-first architecture: mark as unsaved instead of direct save
+            this._markUnsavedChanges(true);
             await this._onBoardUpdate();
             
             // Reset flag after operations complete
