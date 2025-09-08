@@ -1056,6 +1056,9 @@ function updateDocumentUri(newUri) {
 document.addEventListener('DOMContentLoaded', () => {
     // Theme observer is set up later in the file
     
+    // Signal to backend that webview is ready
+    vscode.postMessage({ type: 'webviewReady' });
+    
     // Initialize clipboard card source
     initializeClipboardCardSource();
     

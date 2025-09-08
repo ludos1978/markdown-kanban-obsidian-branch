@@ -19,6 +19,7 @@ export class MessageHandler {
     private _getWebviewPanel: () => any;
     private _saveWithBackup: () => Promise<void>;
     private _markUnsavedChanges: (hasChanges: boolean) => void;
+    private _onWebviewReady: () => Promise<void>;
 
     constructor(
         fileManager: FileManager,
@@ -35,6 +36,7 @@ export class MessageHandler {
             getWebviewPanel: () => any;
             saveWithBackup: () => Promise<void>;
             markUnsavedChanges: (hasChanges: boolean) => void;
+            onWebviewReady: () => Promise<void>;
         }
     ) {
         this._fileManager = fileManager;
@@ -50,6 +52,7 @@ export class MessageHandler {
         this._getWebviewPanel = callbacks.getWebviewPanel;
         this._saveWithBackup = callbacks.saveWithBackup;
         this._markUnsavedChanges = callbacks.markUnsavedChanges;
+        this._onWebviewReady = callbacks.onWebviewReady;
     }
 
     public async handleMessage(message: any): Promise<void> {
@@ -107,6 +110,10 @@ export class MessageHandler {
             case 'pageHiddenWithUnsavedChanges':
                 // Handle page becoming hidden with unsaved changes
                 await this.handlePageHiddenWithUnsavedChanges();
+                break;
+            case 'webviewReady':
+                // Webview signals it's ready to receive data
+                await this._onWebviewReady();
                 break;
             case 'requestFileInfo':
                 this._fileManager.sendFileInfo();
