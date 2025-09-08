@@ -16,6 +16,8 @@ export class MessageHandler {
     private _getCurrentBoard: () => KanbanBoard | undefined;
     private _setBoard: (board: KanbanBoard) => void;
     private _setUndoRedoOperation: (isOperation: boolean) => void;
+    private _getWebviewPanel: () => any;
+    private _saveWithBackup: () => Promise<void>;
 
     constructor(
         fileManager: FileManager,
@@ -29,6 +31,8 @@ export class MessageHandler {
             getCurrentBoard: () => KanbanBoard | undefined;
             setBoard: (board: KanbanBoard) => void;
             setUndoRedoOperation: (isOperation: boolean) => void;
+            getWebviewPanel: () => any;
+            saveWithBackup: () => Promise<void>;
         }
     ) {
         this._fileManager = fileManager;
@@ -41,6 +45,8 @@ export class MessageHandler {
         this._getCurrentBoard = callbacks.getCurrentBoard;
         this._setBoard = callbacks.setBoard;
         this._setUndoRedoOperation = callbacks.setUndoRedoOperation;
+        this._getWebviewPanel = callbacks.getWebviewPanel;
+        this._saveWithBackup = callbacks.saveWithBackup;
     }
 
     public async handleMessage(message: any): Promise<void> {
@@ -88,8 +94,8 @@ export class MessageHandler {
                 await this.handleSelectFile();
                 break;
             case 'closeWindow':
-                // Close the webview panel
-                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                // Check for unsaved changes before closing
+                await this.handleCloseWindow();
                 break;
             case 'requestFileInfo':
                 this._fileManager.sendFileInfo();
@@ -356,6 +362,66 @@ export class MessageHandler {
             // This would need to be handled by the main panel
             console.log('Selected file:', document.fileName);
         }
+    }
+
+    private async handleCloseWindow() {
+        // Use the existing unsaved changes check mechanism
+        return new Promise<void>((resolve) => {
+            // Send message to webview to check for unsaved changes
+            const panel = this._getWebviewPanel();
+            if (panel?.webview) {
+                panel.webview.postMessage({
+                    type: 'checkUnsavedChanges',
+                    requestId: Date.now().toString()
+                });
+
+                // Set up one-time listener for response
+                const disposable = panel.webview.onDidReceiveMessage(async (message) => {
+                    if (message.type === 'hasUnsavedChangesResponse') {
+                        disposable.dispose(); // Clean up listener
+                        
+                        if (message.hasUnsavedChanges) {
+                            // Show save confirmation dialog with backup option
+                            const choice = await vscode.window.showWarningMessage(
+                                'You have unsaved changes. What would you like to do?',
+                                { modal: true },
+                                'Save',
+                                'Save with backup filename',
+                                'Don\'t Save'
+                            );
+
+                            if (choice === 'Save') {
+                                await this._onSaveToMarkdown();
+                                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                            } else if (choice === 'Save with backup filename') {
+                                await this._saveWithBackup();
+                                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                            } else if (choice === 'Don\'t Save') {
+                                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                            }
+                            // If user cancels (no choice), don't close
+                        } else {
+                            // No unsaved changes, close immediately
+                            await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                        }
+                        
+                        resolve();
+                    }
+                });
+
+                // Timeout after 1 second to prevent hanging
+                setTimeout(() => {
+                    disposable.dispose();
+                    // If no response, close anyway
+                    vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                    resolve();
+                }, 1000);
+            } else {
+                // No webview available, close immediately
+                vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                resolve();
+            }
+        });
     }
 
     private async handleSaveBoardState(board: any) {

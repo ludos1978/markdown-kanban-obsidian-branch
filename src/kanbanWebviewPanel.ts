@@ -184,7 +184,9 @@ export class KanbanWebviewPanel {
                 },
                 setUndoRedoOperation: (isOperation: boolean) => {
                     this._isUndoRedoOperation = isOperation;
-                }
+                },
+                getWebviewPanel: () => this._panel,
+                saveWithBackup: this._saveWithConflictBackup.bind(this)
             }
         );
 
@@ -404,6 +406,7 @@ export class KanbanWebviewPanel {
     }
 
     private _setupEventListeners() {
+        // Handle panel disposal normally - unsaved changes are handled by webview beforeunload
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
         this._panel.onDidChangeViewState(
@@ -907,8 +910,8 @@ export class KanbanWebviewPanel {
     public async dispose() {
         console.log('🔧 DEBUG: Disposing KanbanWebviewPanel');
         
-        // Check for unsaved changes before disposing
-        await this._checkUnsavedChangesBeforeClose();
+        // Note: Cannot check for unsaved changes here as disposal is already in progress
+        // Unsaved changes prevention is handled by webview's beforeunload event
         
         // Remove from panels map
         const documentUri = this._fileManager.getDocument()?.uri.toString();
