@@ -734,6 +734,9 @@ function deleteColumn(columnId) {
             // Mark board as having unsaved changes
             markUnsavedChanges();
             
+            // Send message to VS Code for undo tracking
+            vscode.postMessage({ type: 'deleteColumn', columnId });
+            
             console.log('💾 Column deletion cached - use Cmd+S to save to file');
         } else {
             console.warn(`❌ Column ${columnId} not found for deletion`);
@@ -984,6 +987,9 @@ function deleteTask(taskId, columnId) {
                 
                 // Mark board as having unsaved changes
                 markUnsavedChanges();
+                
+                // Send message to VS Code for undo tracking
+                vscode.postMessage({ type: 'deleteTask', taskId, columnId });
                 
                 console.log('💾 Task deletion cached - use Cmd+S to save to file');
             } else {
