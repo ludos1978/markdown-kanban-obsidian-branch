@@ -1056,9 +1056,6 @@ function updateDocumentUri(newUri) {
 document.addEventListener('DOMContentLoaded', () => {
     // Theme observer is set up later in the file
     
-    // Request initial board data from backend
-    vscode.postMessage({ type: 'requestInitialBoard' });
-    
     // Initialize clipboard card source
     initializeClipboardCardSource();
     

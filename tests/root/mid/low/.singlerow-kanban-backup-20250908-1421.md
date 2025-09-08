@@ -15,8 +15,6 @@ kanban-plugin: board
 ## TITLE #urgent #blocked
 - [ ] Lorem Imspum #yellow
   Lorem ipsum dolor sit amet,
-- [ ] Test Update
-  Testing clipboard update functionality
 - [ ] Lighting
   - Lighting
 - [ ] Lorem Imspum #green

@@ -42,19 +42,6 @@ export class KanbanWebviewPanel {
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn || vscode.ViewColumn.One;
 
-        // Check if panel already exists and show it
-        if (document) {
-            const documentKey = document.uri.toString();
-            const existingPanel = KanbanWebviewPanel.panels.get(documentKey);
-            if (existingPanel) {
-                // Panel exists - just reveal it instead of recreating
-                existingPanel._panel.reveal(column);
-                // Reload the document to ensure it's up to date
-                existingPanel.loadMarkdownFile(document);
-                return;
-            }
-        }
-
         // Create a new panel
         const localResourceRoots = [extensionUri];
         
@@ -174,8 +161,7 @@ export class KanbanWebviewPanel {
                 saveWithBackup: this._saveWithConflictBackup.bind(this),
                 markUnsavedChanges: (hasChanges: boolean) => {
                     this._hasUnsavedChanges = hasChanges;
-                },
-                onWebviewReady: this.handleWebviewReady.bind(this)
+                }
             }
         );
 
@@ -382,12 +368,6 @@ export class KanbanWebviewPanel {
         return this._fileManager.getCurrentDocumentUri();
     }
 
-    private async handleWebviewReady() {
-        console.log('Webview requesting initial board data');
-        // Send current board to webview if we have one
-        await this.sendBoardUpdate();
-        this._fileManager.sendFileInfo();
-    }
 
     private _initialize() {
         if (!this._isInitialized) {
