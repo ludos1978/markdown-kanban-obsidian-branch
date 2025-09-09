@@ -413,44 +413,25 @@ function applyDefaultFoldingState() {
  * Side effects: Updates collapsedColumns set based on column content
  */
 function setDefaultFoldingState() {
-    console.log('[FOLD DEBUG] setDefaultFoldingState called');
-    
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
-        console.log('[FOLD DEBUG] No board or columns, returning from setDefault');
-        return;
-    }
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
     
     // Ensure folding state variables are initialized
     if (!window.collapsedColumns) window.collapsedColumns = new Set();
     
-    console.log('[FOLD DEBUG] Before setting defaults, collapsedColumns:', Array.from(window.collapsedColumns));
-    
     currentBoard.columns.forEach(column => {
         const hasNoTasks = !column.tasks || column.tasks.length === 0;
         
-        console.log('[FOLD DEBUG] Processing column for default state:', {
-            id: column.id,
-            title: column.title,
-            hasNoTasks,
-            taskCount: column.tasks?.length || 0
-        });
-        
         if (hasNoTasks) {
             // Empty columns should be collapsed by default
-            console.log('[FOLD DEBUG] Adding to collapsed:', column.id);
             window.collapsedColumns.add(column.id);
         } else {
             // Non-empty columns should be expanded by default  
-            console.log('[FOLD DEBUG] Removing from collapsed:', column.id);
             window.collapsedColumns.delete(column.id);
         }
     });
     
-    console.log('[FOLD DEBUG] After setting defaults, collapsedColumns:', Array.from(window.collapsedColumns));
-    
     // Set the global fold state to expanded (the default state)
     window.globalColumnFoldState = 'fold-expanded';
-    console.log('[FOLD DEBUG] Set globalColumnFoldState to fold-expanded');
 }
 
 /**
@@ -590,27 +571,14 @@ function updateGlobalColumnFoldButton() {
  * Side effects: Adds 'collapsed' class to previously collapsed elements
  */
 function applyFoldingStates() {
-    console.log('[FOLD DEBUG] applyFoldingStates called');
-    
     // Ensure folding state variables are initialized
     if (!window.collapsedColumns) window.collapsedColumns = new Set();
     if (!window.collapsedTasks) window.collapsedTasks = new Set();
     if (!window.columnFoldStates) window.columnFoldStates = new Map();
     
     if (!currentBoard || !currentBoard.columns) {
-        console.log('[FOLD DEBUG] No board or columns, returning');
         return;
     }
-    
-    console.log('[FOLD DEBUG] Current state:', {
-        collapsedColumns: Array.from(window.collapsedColumns),
-        globalColumnFoldState: window.globalColumnFoldState,
-        boardColumns: currentBoard.columns.map(col => ({
-            id: col.id,
-            title: col.title,
-            taskCount: col.tasks?.length || 0
-        }))
-    });
     
     // Check if the saved folding state is inconsistent with current board content
     let shouldResetToDefaults = false;
@@ -625,18 +593,8 @@ function applyFoldingStates() {
         // 2. Non-empty column that should be expanded but is in collapsed set
         const shouldBeCollapsed = hasNoTasks;  // Default rule: empty columns collapsed
         
-        console.log('[FOLD DEBUG] Column analysis:', {
-            id: column.id,
-            title: column.title,
-            hasNoTasks,
-            isCurrentlyCollapsed,
-            shouldBeCollapsed,
-            inconsistent: shouldBeCollapsed !== isCurrentlyCollapsed
-        });
-        
         // Check for inconsistencies and reset if found
         if (shouldBeCollapsed !== isCurrentlyCollapsed) {
-            console.log('[FOLD DEBUG] Inconsistency detected, will reset to defaults');
             shouldResetToDefaults = true;
             break;
         }
@@ -644,15 +602,11 @@ function applyFoldingStates() {
     
     // Also reset if we have no global state set (fresh load)
     if (!window.globalColumnFoldState) {
-        console.log('[FOLD DEBUG] No global state, will reset to defaults');
         shouldResetToDefaults = true;
     }
     
-    console.log('[FOLD DEBUG] shouldResetToDefaults:', shouldResetToDefaults);
-    
     // If inconsistencies detected, apply the default folding logic
     if (shouldResetToDefaults) {
-        console.log('[FOLD DEBUG] Calling setDefaultFoldingState');
         setDefaultFoldingState();
     }
     
