@@ -366,6 +366,38 @@ body.small-card-fonts .task-title-container .markdown-content img {
   font-weight: 500;
 }
 
+/* Responsive behavior: hide text when space is limited */
+@media (max-width: 600px) {
+  .clipboard-card-source .clipboard-text,
+  .empty-card-source .empty-card-text {
+    display: none;
+  }
+  
+  .clipboard-card-source,
+  .empty-card-source {
+    padding: 3px;
+    min-width: 20px;
+  }
+}
+
+/* Additional breakpoint for very small screens */
+@media (max-width: 480px) {
+  .file-info-center {
+    gap: 4px;
+  }
+  
+  .clipboard-card-source,
+  .empty-card-source {
+    padding: 2px;
+    font-size: 11px;
+  }
+  
+  .clipboard-card-source .clipboard-icon,
+  .empty-card-source .empty-card-icon {
+    font-size: 12px;
+  }
+}
+
 /* Main container - fills viewport below file bar */
 #kanban-container {
   position: fixed;
