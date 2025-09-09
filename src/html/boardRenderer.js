@@ -373,6 +373,68 @@ function debouncedRenderBoard() {
 }
 
 /**
+ * Applies the default folding state for all columns
+ * Purpose: Empty columns collapsed, non-empty columns expanded (default state)
+ * Used by: applyFoldingStates(), toggleAllColumns() when expanding
+ * Side effects: Updates collapsedColumns set and DOM elements
+ */
+function applyDefaultFoldingState() {
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
+    
+    // Ensure folding state variables are initialized
+    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    
+    currentBoard.columns.forEach(column => {
+        const hasNoTasks = !column.tasks || column.tasks.length === 0;
+        const columnElement = document.querySelector(`[data-column-id="${column.id}"]`);
+        const toggle = columnElement?.querySelector('.collapse-toggle');
+        
+        if (hasNoTasks) {
+            // Empty columns should be collapsed by default
+            window.collapsedColumns.add(column.id);
+            columnElement?.classList.add('collapsed');
+            toggle?.classList.add('rotated');
+        } else {
+            // Non-empty columns should be expanded by default  
+            window.collapsedColumns.delete(column.id);
+            columnElement?.classList.remove('collapsed');
+            toggle?.classList.remove('rotated');
+        }
+    });
+    
+    // Set the global fold state to expanded (the default state)
+    window.globalColumnFoldState = 'fold-expanded';
+}
+
+/**
+ * Sets the default folding state for all columns (data only)
+ * Purpose: Apply default logic without DOM changes (for initialization)
+ * Used by: applyFoldingStates() when detecting fresh load
+ * Side effects: Updates collapsedColumns set based on column content
+ */
+function setDefaultFoldingState() {
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
+    
+    // Ensure folding state variables are initialized
+    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    
+    currentBoard.columns.forEach(column => {
+        const hasNoTasks = !column.tasks || column.tasks.length === 0;
+        
+        if (hasNoTasks) {
+            // Empty columns should be collapsed by default
+            window.collapsedColumns.add(column.id);
+        } else {
+            // Non-empty columns should be expanded by default  
+            window.collapsedColumns.delete(column.id);
+        }
+    });
+    
+    // Set the global fold state to expanded (the default state)
+    window.globalColumnFoldState = 'fold-expanded';
+}
+
+/**
  * Determines the global fold state of all columns
  * Purpose: Controls the fold-all/unfold-all button state
  * Used by: updateGlobalColumnFoldButton(), toggleAllColumns()
@@ -441,33 +503,21 @@ function toggleAllColumns() {
     }
     
     // Apply the action to all columns
-    currentBoard.columns.forEach(column => {
-        const columnElement = document.querySelector(`[data-column-id="${column.id}"]`);
-        const toggle = columnElement?.querySelector('.collapse-toggle');
-        
-        // Check if column has tasks
-        const hasNoTasks = !column.tasks || column.tasks.length === 0;
-        
-        if (shouldCollapse) {
-            // When collapsing, collapse all columns
+    if (shouldCollapse) {
+        // When collapsing, collapse all columns
+        currentBoard.columns.forEach(column => {
+            const columnElement = document.querySelector(`[data-column-id="${column.id}"]`);
+            const toggle = columnElement?.querySelector('.collapse-toggle');
+            
             window.collapsedColumns.add(column.id);
             columnElement?.classList.add('collapsed');
             toggle?.classList.add('rotated');
-        } else {
-            // When expanding, only expand columns with tasks
-            if (hasNoTasks) {
-                // Keep empty columns collapsed
-                window.collapsedColumns.add(column.id);
-                columnElement?.classList.add('collapsed');
-                toggle?.classList.add('rotated');
-            } else {
-                // Expand columns with tasks
-                window.collapsedColumns.delete(column.id);
-                columnElement?.classList.remove('collapsed');
-                toggle?.classList.remove('rotated');
-            }
-        }
-    });
+        });
+    } else {
+        // When expanding, apply the default folding logic (empty collapsed, non-empty expanded)
+        applyDefaultFoldingState();
+        return; // Early return since applyDefaultFoldingState() sets the global state
+    }
     
     // Remember this manual state
     window.globalColumnFoldState = shouldCollapse ? 'fold-collapsed' : 'fold-expanded';
@@ -525,6 +575,21 @@ function applyFoldingStates() {
     if (!window.collapsedColumns) window.collapsedColumns = new Set();
     if (!window.collapsedTasks) window.collapsedTasks = new Set();
     if (!window.columnFoldStates) window.columnFoldStates = new Map();
+    
+    // Check if the current folded columns exist in the new board
+    // If any previously folded columns no longer exist, we likely have a fresh/changed board
+    let hasValidSavedState = false;
+    if (window.collapsedColumns.size > 0 && currentBoard && currentBoard.columns) {
+        const currentColumnIds = new Set(currentBoard.columns.map(col => col.id));
+        hasValidSavedState = Array.from(window.collapsedColumns).some(colId => 
+            currentColumnIds.has(colId)
+        );
+    }
+    
+    // If no valid saved state exists, apply the default folding logic
+    if (!hasValidSavedState && (!window.globalColumnFoldState || window.globalColumnFoldState === 'fold-expanded')) {
+        setDefaultFoldingState();
+    }
     
     // Apply column folding states
     window.collapsedColumns.forEach(columnId => {
