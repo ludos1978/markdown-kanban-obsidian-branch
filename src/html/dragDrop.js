@@ -167,39 +167,6 @@ function setupGlobalDragAndDrop() {
     const INDICATOR_UPDATE_THROTTLE = 100;
     
     // Helper functions
-    function isUnwantedTextDrag(textData) {
-        // Filter out accidental text selections that shouldn't create cards
-        
-        // Check if it contains UI elements
-        if (textData.includes('+ Add Task') || 
-            textData.includes('Add Column') ||
-            textData.includes('▼') ||
-            textData.includes('⋯')) {
-            return true;
-        }
-        
-        // Check if it's very long (likely accidental selection)
-        if (textData.length > 500) {
-            return true;
-        }
-        
-        // Check if it contains Lorem ipsum (test content)
-        if (textData.toLowerCase().includes('lorem ipsum')) {
-            return true;
-        }
-        
-        // Check if it contains multiple lines with UI-like content
-        const lines = textData.split('\n');
-        if (lines.length > 5 && lines.some(line => 
-            line.includes('TITLE') || 
-            line.includes('▼') || 
-            line.includes('⋯')
-        )) {
-            return true;
-        }
-        
-        return false;
-    }
     function isExternalFileDrag(e) {
         const dt = e.dataTransfer;
         if (!dt) {
@@ -332,12 +299,6 @@ function setupGlobalDragAndDrop() {
         console.log('[DROP DEBUG] Text data:', textData);
         
         if (textData) {
-            // Filter out unwanted text selections
-            if (isUnwantedTextDrag(textData)) {
-                console.log('[DROP DEBUG] Ignoring unwanted text drag');
-                return;
-            }
-            
             if (textData.startsWith('CLIPBOARD_CARD:')) {
                 console.log('[DROP DEBUG] Handling clipboard card from text');
                 const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
