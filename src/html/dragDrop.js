@@ -782,7 +782,8 @@ function setupRowDragAndDrop() {
     
     rows.forEach(row => {
         row.addEventListener('dragover', e => {
-            if (!dragState.draggedColumn) return;
+            // Only handle dragover for column dragging, let external drags bubble up  
+            if (!dragState.draggedColumn || dragState.draggedClipboardCard || dragState.draggedEmptyCard) return;
             
             e.preventDefault();
             e.stopPropagation();
@@ -841,13 +842,16 @@ function setupRowDragAndDrop() {
         });
         
         row.addEventListener('drop', e => {
-            e.preventDefault();
-            e.stopPropagation();
-            row.classList.remove('drag-over');
-            
-            // Clear the row tracking
-            dragState.lastRowDropTarget = null;
-            dragState.lastRow = null;
+            // Only handle drops for column dragging, let external drops bubble up
+            if (dragState.draggedColumn && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
+                e.preventDefault();
+                e.stopPropagation();
+                row.classList.remove('drag-over');
+                
+                // Clear the row tracking
+                dragState.lastRowDropTarget = null;
+                dragState.lastRow = null;
+            }
         });
     });
 }
