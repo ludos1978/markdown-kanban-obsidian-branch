@@ -2282,9 +2282,9 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
         badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
         element.appendChild(badgesContainer);
         // Ensure parent has relative positioning
-        if (!element.style.position || element.style.position === 'static') {
-            element.style.position = 'relative';
-        }
+        // if (!element.style.position || element.style.position === 'static') {
+        //     element.style.position = 'relative';
+        // }
     }
     
     // Generate new badges HTML
@@ -2500,8 +2500,8 @@ function updateVisualTagState(element, allTags, elementType, isCollapsed) {
 // Comprehensive function to update ALL visual tag elements immediately
 function updateAllVisualTagElements(element, allTags, elementType) {
     
-    // 1. CLEAN UP - Remove all existing visual tag elements
-    element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container, .corner-badges-container').forEach(el => el.remove());
+    // 1. CLEAN UP - Remove all existing visual tag elements including sticky header groups
+    element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container, .corner-badges-container, .sticky-header-group').forEach(el => el.remove());
     element.classList.remove('has-header-bar', 'has-footer-bar', 'has-header-label', 'has-footer-label');
     
     if (allTags.length === 0) {
@@ -2526,9 +2526,9 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             badgesContainer.innerHTML = badgesHtml;
             element.appendChild(badgesContainer);
             // Ensure parent has relative positioning
-            if (!element.style.position || element.style.position === 'static') {
-                element.style.position = 'relative';
-            }
+            // if (!element.style.position || element.style.position === 'static') {
+            //     element.style.position = 'relative';
+            // }
         }
     }
     
@@ -2556,11 +2556,33 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             // For expanded elements, find column-inner and add container there
             const columnInner = element.querySelector('.column-inner');
             if (columnInner) {
-                const headerContainer = document.createElement('div');
-                headerContainer.className = 'header-bars-container';
-                headerBars.forEach(bar => headerContainer.appendChild(bar));
-                // Header container should be first child, so insert at the beginning
-                columnInner.insertBefore(headerContainer, columnInner.firstChild);
+                const columnHeader = columnInner.querySelector('.column-header');
+                if (columnHeader) {
+                    // Create sticky header group to contain both header-bars and column-header
+                    const stickyHeaderGroup = document.createElement('div');
+                    stickyHeaderGroup.className = 'sticky-header-group';
+                    
+                    // Create header-bars container
+                    const headerContainer = document.createElement('div');
+                    headerContainer.className = 'header-bars-container';
+                    headerBars.forEach(bar => headerContainer.appendChild(bar));
+                    
+                    // Remove column-header from its current position
+                    columnHeader.remove();
+                    
+                    // Add header-bars first, then column-header to sticky group
+                    stickyHeaderGroup.appendChild(headerContainer);
+                    stickyHeaderGroup.appendChild(columnHeader);
+                    
+                    // Insert sticky group at the beginning of column-inner
+                    columnInner.insertBefore(stickyHeaderGroup, columnInner.firstChild);
+                } else {
+                    // Fallback: just add header container if no column-header found
+                    const headerContainer = document.createElement('div');
+                    headerContainer.className = 'header-bars-container';
+                    headerBars.forEach(bar => headerContainer.appendChild(bar));
+                    columnInner.insertBefore(headerContainer, columnInner.firstChild);
+                }
             } else {
                 // Fallback: add directly to element if no column-inner found
                 const headerContainer = document.createElement('div');
@@ -2613,6 +2635,39 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         if (hasFooterLabel) element.classList.add('has-footer-label');
     }
     
+    // 6. ENSURE STICKY HEADERS - Wrap column-header in sticky-header-group if not already done
+    if (elementType === 'column') {
+        ensureColumnHeaderIsSticky(element);
+    }
+    
+}
+
+// Helper function to ensure column headers are properly wrapped in sticky groups
+function ensureColumnHeaderIsSticky(columnElement) {
+    const columnInner = columnElement.querySelector('.column-inner');
+    if (!columnInner) return;
+    
+    const existingStickyGroup = columnInner.querySelector('.sticky-header-group');
+    if (existingStickyGroup) {
+        // Already has sticky group, nothing to do
+        return;
+    }
+    
+    const columnHeader = columnInner.querySelector('.column-header');
+    if (!columnHeader) return;
+    
+    // Column header exists but not in a sticky group - wrap it
+    const stickyHeaderGroup = document.createElement('div');
+    stickyHeaderGroup.className = 'sticky-header-group';
+    
+    // Remove column-header from its current position
+    columnHeader.remove();
+    
+    // Add column-header to sticky group
+    stickyHeaderGroup.appendChild(columnHeader);
+    
+    // Insert sticky group at the beginning of column-inner
+    columnInner.insertBefore(stickyHeaderGroup, columnInner.firstChild);
 }
 
 window.updateTagCategoryCounts = updateTagCategoryCounts;

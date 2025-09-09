@@ -497,6 +497,20 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .header-bars-container {
   order: -1;
+  background-color: inherit;
+}
+
+/* When header-bars is part of sticky group, remove individual sticky positioning */
+.sticky-header-group .header-bars-container {
+  position: static;
+}
+
+/* Fallback: if no sticky group, header-bars-container is sticky on its own */
+.column-inner:not(:has(.sticky-header-group)) .header-bars-container {
+  position: sticky;
+  top: 0px;
+  z-index: 11;
+  background-color: var(--vscode-editor-background);
 }
 
 .footer-bars-container {
@@ -527,27 +541,37 @@ body.small-card-fonts .task-title-container .markdown-content img {
   z-index: 5;
 }
 
+/* Sticky header group - contains both header-bars and column-header */
+.sticky-header-group {
+  position: sticky;
+  top: 0px;
+  z-index: 10;
+  background-color: var(--vscode-editor-background);
+}
+
 /* Column header */
 .column-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--whitespace-div2);
-  /* padding: var(--whitespace-div2); */
-  /* border-bottom: 1px solid var(--vscode-panel-border); */
-  /* min-height: 38px; */
+  border-bottom: 0.5px solid var(--vscode-panel-border);
+  margin-bottom: 0;
+  flex-direction: column;
+  background-color: inherit;
+}
+
+/* When header is part of sticky group, remove individual sticky positioning */
+.sticky-header-group .column-header {
+  position: static;
+}
+
+/* Fallback: if no sticky group, column-header is sticky on its own */
+.column-inner:not(:has(.sticky-header-group)) .column-header {
   position: sticky;
   top: 0px;
   z-index: 10;
   background-color: var(--vscode-editor-background);
-  /* border-radius: var(--whitespace-div4) var(--whitespace-div4) 0 0; */
-  border-bottom: 0.5px solid var(--vscode-panel-border);
-  /* border-bottom: none; */
-  /* margin: 0 var(--whitespace-div2); */
-  margin-bottom: 0;
-  /* margin-top: calc(-1 * var(--whitespace-div2)); */
-  /* border-top: 1px solid var(--vscode-panel-border); */
-  flex-direction: column;
 }
 
 .kanban-full-height-column.collapsed .column-header {
