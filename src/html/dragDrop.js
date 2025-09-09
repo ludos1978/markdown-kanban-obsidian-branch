@@ -144,7 +144,6 @@ function cleanupExternalDropIndicators() {
  * Side effects: Adds document-level event listeners
  */
 function setupGlobalDragAndDrop() {
-    console.log('[DROP DEBUG] setupGlobalDragAndDrop called');
 
     const boardContainer = document.getElementById('kanban-container');
     const dropFeedback = document.getElementById('drop-zone-feedback');
@@ -200,7 +199,6 @@ function setupGlobalDragAndDrop() {
     
     // Main drop handler function
     function handleExternalDrop(e) {
-        console.log('[DROP DEBUG] handleExternalDrop called');
         
         if (!isExternalFileDrag(e)) {
             return;
@@ -214,7 +212,6 @@ function setupGlobalDragAndDrop() {
         hideExternalDropIndicator();
         
         // Remove protections to find root cause
-        console.log('[DROP DEBUG] Processing drop without protections');
         
         const dt = e.dataTransfer;
         if (!dt) {
@@ -223,12 +220,9 @@ function setupGlobalDragAndDrop() {
         }
         
         // Debug all available data transfer types
-        console.log('[DROP DEBUG] DataTransfer types:', Array.from(dt.types));
-        console.log('[DROP DEBUG] DataTransfer files:', dt.files ? dt.files.length : 0);
         
         // Check for clipboard card using dragState first (since dataTransfer might be empty)
         if (dragState.draggedClipboardCard) {
-            console.log('[DROP DEBUG] Taking dragState clipboard path');
             const clipboardData = JSON.stringify({
                 type: 'clipboard-card',
                 task: dragState.draggedClipboardCard
@@ -242,7 +236,6 @@ function setupGlobalDragAndDrop() {
         
         // Check for empty card using dragState
         if (dragState.draggedEmptyCard) {
-            console.log('[DROP DEBUG] Taking dragState empty card path');
             const emptyCardData = JSON.stringify({
                 type: 'empty-card',
                 task: dragState.draggedEmptyCard
@@ -258,26 +251,20 @@ function setupGlobalDragAndDrop() {
         const textData = dt.getData('text/plain');
         
         if (textData && textData.startsWith('CLIPBOARD_CARD:')) {
-            console.log('[DROP DEBUG] Taking fallback clipboard path');
             const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
             handleClipboardCardDrop(e, clipboardData);
         } else if (textData && textData.startsWith('EMPTY_CARD:')) {
-            console.log('[DROP DEBUG] Taking fallback empty card path');
             const emptyCardData = textData.substring('EMPTY_CARD:'.length);
             handleEmptyCardDrop(e, emptyCardData);
         } else if (dt.files && dt.files.length > 0) {
-            console.log('[DROP DEBUG] Taking files path');
             handleVSCodeFileDrop(e, dt.files);
         } else {
-            console.log('[DROP DEBUG] Taking URI/text path');
             const uriList = dt.getData('text/uri-list');
             const textPlain = dt.getData('text/plain');
             
             if (uriList) {
-                console.log('[DROP DEBUG] Taking URI list path');
                 handleVSCodeUriDrop(e, uriList);
             } else if (textPlain && textPlain.includes('/')) {
-                console.log('[DROP DEBUG] Taking text plain path');
                 handleVSCodeUriDrop(e, textPlain);
             }
         }
@@ -308,7 +295,6 @@ function setupGlobalDragAndDrop() {
         }
     }, false);
     
-    console.log('[DROP DEBUG] Adding main drop event listener to boardContainer');
     boardContainer.addEventListener('drop', handleExternalDrop, false);
     
     boardContainer.addEventListener('dragenter', function(e) {
@@ -491,8 +477,6 @@ function getActiveTextEditor() {
  * Side effects: Sends create task message to VS Code
  */
 function createNewTaskWithContent(content, dropPosition, description = '') {
-    console.log('[DROP DEBUG] createNewTaskWithContent called with:', content, dropPosition);
-    console.log('[DROP DEBUG] Call stack:', new Error().stack);
     
     // Check board availability - NEW CACHE SYSTEM
     
@@ -575,11 +559,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             insertionIndex: insertionIndex
         };
         
-        console.log('[DROP DEBUG] Sending message to VS Code:', message);
-        console.log('[DROP DEBUG] Task title:', taskData.title);
-        console.log('[DROP DEBUG] Task description:', taskData.description);
-        console.log('[DROP DEBUG] Target column:', targetColumnId);
-        console.log('[DROP DEBUG] Insertion index:', insertionIndex);
         vscode.postMessage(message);
     } else {
         console.error('[DROP DEBUG] Could not find any suitable column');
@@ -1097,7 +1076,6 @@ function getOriginalColumnIndex(columnId) {
 
 // Drag and drop setup
 function setupDragAndDrop() {
-    console.log('[DROP DEBUG] setupDragAndDrop called');
 
     // Clear any existing drag state when setting up
     dragState = {
@@ -1117,13 +1095,10 @@ function setupDragAndDrop() {
     };
     
     // Only set up global drag/drop once to prevent multiple listeners
-    console.log('[DROP DEBUG] dragDropInitialized =', dragDropInitialized);
     if (!dragDropInitialized) {
-        console.log('[DROP DEBUG] Calling setupGlobalDragAndDrop for first time');
         setupGlobalDragAndDrop();
         dragDropInitialized = true;
     } else {
-        console.log('[DROP DEBUG] Global drag/drop already initialized, skipping');
     }
     
     // Always refresh column, task, and row drag/drop since DOM changes
