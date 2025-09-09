@@ -576,18 +576,39 @@ function applyFoldingStates() {
     if (!window.collapsedTasks) window.collapsedTasks = new Set();
     if (!window.columnFoldStates) window.columnFoldStates = new Map();
     
-    // Check if the current folded columns exist in the new board
-    // If any previously folded columns no longer exist, we likely have a fresh/changed board
-    let hasValidSavedState = false;
-    if (window.collapsedColumns.size > 0 && currentBoard && currentBoard.columns) {
-        const currentColumnIds = new Set(currentBoard.columns.map(col => col.id));
-        hasValidSavedState = Array.from(window.collapsedColumns).some(colId => 
-            currentColumnIds.has(colId)
-        );
+    if (!currentBoard || !currentBoard.columns) {
+        return;
     }
     
-    // If no valid saved state exists, apply the default folding logic
-    if (!hasValidSavedState && (!window.globalColumnFoldState || window.globalColumnFoldState === 'fold-expanded')) {
+    // Check if the saved folding state is inconsistent with current board content
+    let shouldResetToDefaults = false;
+    
+    // Check each column's current state vs. what it should be based on content
+    for (const column of currentBoard.columns) {
+        const hasNoTasks = !column.tasks || column.tasks.length === 0;
+        const isCurrentlyCollapsed = window.collapsedColumns.has(column.id);
+        
+        // Check for inconsistencies:
+        // 1. Empty column that should be collapsed but isn't in collapsed set
+        // 2. Non-empty column that should be expanded but is in collapsed set
+        const shouldBeCollapsed = hasNoTasks;  // Default rule: empty columns collapsed
+        
+        // If we're in the default expanded state and there's inconsistency, reset
+        if (window.globalColumnFoldState === 'fold-expanded' || !window.globalColumnFoldState) {
+            if (shouldBeCollapsed !== isCurrentlyCollapsed) {
+                shouldResetToDefaults = true;
+                break;
+            }
+        }
+    }
+    
+    // Also reset if we have no global state set (fresh load)
+    if (!window.globalColumnFoldState) {
+        shouldResetToDefaults = true;
+    }
+    
+    // If inconsistencies detected, apply the default folding logic
+    if (shouldResetToDefaults) {
         setDefaultFoldingState();
     }
     
