@@ -1400,15 +1400,6 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     // Mark as unsaved since we made a change
     markUnsavedChanges();
     
-        taskId,
-        columnId,
-        oldTitle,
-        newTitle: title,
-        wasActive,
-        tagName,
-        board: window.currentBoard ? 'available' : 'missing'
-    });
-    
     // Update DOM immediately using unique ID
     updateTaskDisplayImmediate(taskId, title, !wasActive, tagName);
     
@@ -1638,10 +1629,6 @@ function markUnsavedChanges() {
     // Always notify backend about unsaved changes state AND send the current cached board data
     if (typeof vscode !== 'undefined') {
         const boardToSend = window.cachedBoard || window.currentBoard;
-            hasBoard: !!boardToSend,
-            columns: boardToSend?.columns?.length,
-            firstTask: boardToSend?.columns?.[0]?.tasks?.[0]?.title
-        });
         
         vscode.postMessage({
             type: 'markUnsavedChanges',
@@ -1999,10 +1986,6 @@ function performSort() {
 
 // Manual refresh function
 function manualRefresh() {
-        columnChanges: window.pendingColumnChanges?.size || 0,
-        taskChanges: window.pendingTaskChanges?.size || 0
-    });
-    
     // First flush any pending tag changes immediately
     flushPendingTagChanges();
     
