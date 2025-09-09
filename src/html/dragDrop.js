@@ -17,9 +17,11 @@ let recentlyCreatedTasks = new Set();
 let dragState = {
     // For columns
     draggedColumn: null,
+    draggedColumnId: null,
     originalColumnIndex: -1,
     originalColumnNextSibling: null,
-    originalColumnParent: null,  // Add this line
+    originalColumnParent: null,
+    originalDataIndex: -1,
     
     // For tasks
     draggedTask: null,
@@ -30,6 +32,12 @@ let dragState = {
     // Common
     isDragging: false,
     lastValidDropTarget: null,
+    lastDropTarget: null,
+    lastRowDropTarget: null,
+    lastRow: null,
+    targetRowNumber: null,
+    targetPosition: null,
+    finalRowNumber: null,
     
     // Clipboard card
     draggedClipboardCard: null,
@@ -160,58 +168,90 @@ function setupGlobalDragAndDrop() {
     // Helper functions
     function isExternalFileDrag(e) {
         const dt = e.dataTransfer;
-        if (!dt) return false;
+        if (!dt) {
+            return false;
+        }
+        
+        // Only log on drop events to reduce spam
+        const isDropEvent = e.type === 'drop';
+        if (isDropEvent) {
+            console.log('[DROP DEBUG] DataTransfer types:', Array.from(dt.types));
+        }
         
         const hasFiles = Array.from(dt.types).some(t => t === 'Files' || t === 'files');
-        if (hasFiles) return true;
+        if (hasFiles) {
+            if (isDropEvent) console.log('[DROP DEBUG] Has Files type');
+            return true;
+        }
         
         // Check for clipboard card type using drag state
         // We can't reliably read data during dragover due to browser security
         const hasClipboardCard = dragState.draggedClipboardCard !== null;
         const hasEmptyCard = dragState.draggedEmptyCard !== null;
-        // Only log once per second to reduce spam
-        const now = Date.now();
-        if (!window.lastClipboardDebugLog || now - window.lastClipboardDebugLog > 1000) {
-            window.lastClipboardDebugLog = now;
+        
+        if (hasClipboardCard || hasEmptyCard) {
+            if (isDropEvent) console.log('[DROP DEBUG] Has clipboard/empty card');
+            return true;
         }
-        if (hasClipboardCard || hasEmptyCard) return true;
         
         if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask) && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
+            if (isDropEvent) console.log('[DROP DEBUG] Internal drag, not external');
             return false;
         }
         
         const hasUriList = Array.from(dt.types).some(t => t.toLowerCase() === 'text/uri-list');
+        if (isDropEvent) console.log('[DROP DEBUG] Has URI list:', hasUriList);
         return hasUriList;
     }
     
-    function showDropFeedback(e) {
+    function showDropFeedback() {
         if (dropFeedback) {
             dropFeedback.classList.add('active');
         }
     }
     
-    function hideDropFeedback(e) {
+    function hideDropFeedback() {
         if (dropFeedback) {
             dropFeedback.classList.remove('active');
         }
         boardContainer.classList.remove('drag-highlight');
     }
     
-    // Main drop handler function
+    // Main drop handler function  
     function handleExternalDrop(e) {
+        console.log('[DROP DEBUG] handleExternalDrop called');
+        console.log('[DROP DEBUG] Event target:', e.target);
+        console.log('[DROP DEBUG] dragState:', {
+            isDragging: dragState.isDragging,
+            draggedColumn: !!dragState.draggedColumn,
+            draggedTask: !!dragState.draggedTask,
+            draggedClipboardCard: !!dragState.draggedClipboardCard,
+            draggedEmptyCard: !!dragState.draggedEmptyCard
+        });
         
-        if (!isExternalFileDrag(e)) {
+        // Prevent default browser behavior
+        e.preventDefault();
+        
+        // Check if this is an internal column/task drag (not clipboard/empty cards)
+        const isInternalDrag = dragState.isDragging && 
+            (dragState.draggedColumn || dragState.draggedTask) && 
+            !dragState.draggedClipboardCard && 
+            !dragState.draggedEmptyCard;
+            
+        if (isInternalDrag) {
+            console.log('[DROP DEBUG] Internal drag detected, skipping external drop handler');
             return;
         }
         
-        e.preventDefault();
+        // Stop event propagation to prevent duplicate handling
         e.stopPropagation();
         
-        
-        hideDropFeedback(e);
+        // Always clean up visual indicators
+        hideDropFeedback();
         hideExternalDropIndicator();
-        
-        // Remove protections to find root cause
+        document.querySelectorAll('.kanban-full-height-column').forEach(col => {
+            col.classList.remove('external-drag-over');
+        });
         
         const dt = e.dataTransfer;
         if (!dt) {
@@ -219,79 +259,129 @@ function setupGlobalDragAndDrop() {
             return;
         }
         
-        // Debug all available data transfer types
+        console.log('[DROP DEBUG] DataTransfer types:', Array.from(dt.types));
         
-        // Check for clipboard card using dragState first (since dataTransfer might be empty)
+        // Priority 1: Check dragState for clipboard/empty cards (most reliable)
         if (dragState.draggedClipboardCard) {
+            console.log('[DROP DEBUG] Processing clipboard card from dragState');
             const clipboardData = JSON.stringify({
                 type: 'clipboard-card',
                 task: dragState.draggedClipboardCard
             });
             handleClipboardCardDrop(e, clipboardData);
-            // Clear the clipboard card from dragState after handling
             dragState.draggedClipboardCard = null;
             dragState.isDragging = false;
-            return; // Exit early since we handled it
+            return;
         }
         
-        // Check for empty card using dragState
         if (dragState.draggedEmptyCard) {
+            console.log('[DROP DEBUG] Processing empty card from dragState');
             const emptyCardData = JSON.stringify({
                 type: 'empty-card',
                 task: dragState.draggedEmptyCard
             });
             handleEmptyCardDrop(e, emptyCardData);
-            // Clear the empty card from dragState after handling
             dragState.draggedEmptyCard = null;
             dragState.isDragging = false;
-            return; // Exit early since we handled it
+            return;
         }
         
-        // Fallback: Check for clipboard card in text/plain
-        const textData = dt.getData('text/plain');
-        
-        if (textData && textData.startsWith('CLIPBOARD_CARD:')) {
-            const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
-            handleClipboardCardDrop(e, clipboardData);
-        } else if (textData && textData.startsWith('EMPTY_CARD:')) {
-            const emptyCardData = textData.substring('EMPTY_CARD:'.length);
-            handleEmptyCardDrop(e, emptyCardData);
-        } else if (dt.files && dt.files.length > 0) {
+        // Priority 2: Check for files
+        if (dt.files && dt.files.length > 0) {
+            console.log('[DROP DEBUG] Handling file drop');
             handleVSCodeFileDrop(e, dt.files);
-        } else {
-            const uriList = dt.getData('text/uri-list');
-            const textPlain = dt.getData('text/plain');
-            
-            if (uriList) {
-                handleVSCodeUriDrop(e, uriList);
-            } else if (textPlain && textPlain.includes('/')) {
-                handleVSCodeUriDrop(e, textPlain);
-            }
+            return;
         }
+        
+        // Priority 3: Check text data for special formats
+        const textData = dt.getData('text/plain');
+        console.log('[DROP DEBUG] Text data:', textData);
+        
+        if (textData) {
+            if (textData.startsWith('CLIPBOARD_CARD:')) {
+                console.log('[DROP DEBUG] Handling clipboard card from text');
+                const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
+                handleClipboardCardDrop(e, clipboardData);
+            } else if (textData.startsWith('EMPTY_CARD:')) {
+                console.log('[DROP DEBUG] Handling empty card from text');
+                const emptyCardData = textData.substring('EMPTY_CARD:'.length);
+                handleEmptyCardDrop(e, emptyCardData);
+            } else if (textData.includes('/')) {
+                // Looks like a file path
+                console.log('[DROP DEBUG] Handling path-like text');
+                handleVSCodeUriDrop(e, textData);
+            } else {
+                // Plain text - create a new card
+                console.log('[DROP DEBUG] Creating new card from plain text');
+                createNewTaskWithContent(
+                    textData,
+                    { x: e.clientX, y: e.clientY },
+                    ''
+                );
+            }
+            return;
+        }
+        
+        // Priority 4: Check for URI list
+        const uriList = dt.getData('text/uri-list');
+        if (uriList) {
+            console.log('[DROP DEBUG] Handling URI list');
+            handleVSCodeUriDrop(e, uriList);
+            return;
+        }
+        
+        console.log('[DROP DEBUG] No suitable data found in drop');
     }
     
-    // Register handlers on the container (works for single row)
+    // Register handlers on the container (works for both single row and multi-row)
     boardContainer.addEventListener('dragover', function(e) {
-        // Skip external file drag handling if we're dragging internal elements
-        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
+        // Always prevent default to allow drops
+        e.preventDefault();
+        
+        // Skip visual indicators for internal column/task drags
+        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask) && 
+            !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
             return; // Don't show external drop indicators during internal drags
         }
         
-        if (!isExternalFileDrag(e)) return;
-        
-        e.preventDefault();
-        
+        // Show drop indicators for external drags
         const now = Date.now();
         if (now - lastIndicatorUpdate >= INDICATOR_UPDATE_THROTTLE) {
             lastIndicatorUpdate = now;
             
+            // Check if we're over a column (works for both single and multi-row layouts)
             const column = e.target.closest('.kanban-full-height-column');
             if (column && !column.classList.contains('collapsed')) {
                 showExternalDropIndicator(column, e.clientY);
             } else {
-                hideExternalDropIndicator();
+                // Check if we're over a row or spacer in multi-row mode
+                const row = e.target.closest('.kanban-row');
+                const spacer = e.target.closest('.row-drop-zone-spacer');
+                if (row || spacer) {
+                    // Try to find the nearest column
+                    const columns = boardContainer.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
+                    let nearestColumn = null;
+                    let minDistance = Infinity;
+                    
+                    columns.forEach(col => {
+                        const rect = col.getBoundingClientRect();
+                        const distance = Math.abs(rect.left + rect.width / 2 - e.clientX);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            nearestColumn = col;
+                        }
+                    });
+                    
+                    if (nearestColumn) {
+                        showExternalDropIndicator(nearestColumn, e.clientY);
+                    } else {
+                        hideExternalDropIndicator();
+                    }
+                } else {
+                    hideExternalDropIndicator();
+                }
             }
-            showDropFeedback(e);
+            showDropFeedback();
         }
     }, false);
     
@@ -305,33 +395,21 @@ function setupGlobalDragAndDrop() {
         
         if (isExternalFileDrag(e)) {
             e.preventDefault();
-            showDropFeedback(e);
+            showDropFeedback();
         }
     }, false);
     
     boardContainer.addEventListener('dragleave', function(e) {
-        if (!boardContainer.contains(e.relatedTarget)) {
-            hideDropFeedback(e);
+        // More robust check for actually leaving the board
+        const rect = boardContainer.getBoundingClientRect();
+        const isReallyLeaving = e.clientX < rect.left || e.clientX > rect.right || 
+                               e.clientY < rect.top || e.clientY > rect.bottom;
+        
+        if (isReallyLeaving || (!boardContainer.contains(e.relatedTarget) && e.relatedTarget !== null)) {
+            hideDropFeedback();
             hideExternalDropIndicator();
         }
-    }, false);
-    
-    // CRITICAL: Also register on row elements for multi-row layout
-    // Use event delegation to handle dynamically created rows
-    boardContainer.addEventListener('dragover', function(e) {
-        // Skip external file drag handling if we're dragging internal elements
-        if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask)) {
-            return; // Don't handle external drops during internal drags
-        }
-        
-        // Check if we're over a row or row-drop-zone-spacer
-        const row = e.target.closest('.kanban-row');
-        const spacer = e.target.closest('.row-drop-zone-spacer');
-        
-        if ((row || spacer) && isExternalFileDrag(e)) {
-            e.preventDefault(); // Enable drop on rows and spacers
-        }
-    }, true); // Use capture phase
+    }, false)
     
     // Removed duplicate drop handler that was causing double card creation
     // The main handler at line 305 already handles all external drops
@@ -346,6 +424,31 @@ function setupGlobalDragAndDrop() {
     document.addEventListener('drop', function(e) {
         if (!boardContainer.contains(e.target)) {
             e.preventDefault();
+            // Clean up indicators if drop happens outside board
+            hideDropFeedback();
+            hideExternalDropIndicator();
+        }
+    }, false);
+    
+    // Global dragend handler to ensure cleanup
+    document.addEventListener('dragend', function(e) {
+        // Clean up any lingering indicators when drag ends
+        hideDropFeedback();
+        hideExternalDropIndicator();
+        
+        // Clean up any lingering drag highlights
+        document.querySelectorAll('.kanban-full-height-column').forEach(col => {
+            col.classList.remove('external-drag-over');
+        });
+        
+        // Reset any clipboard/empty card drag state
+        if (dragState.draggedClipboardCard) {
+            dragState.draggedClipboardCard = null;
+            dragState.isDragging = false;
+        }
+        if (dragState.draggedEmptyCard) {
+            dragState.draggedEmptyCard = null;
+            dragState.isDragging = false;
         }
     }, false);
     
@@ -1080,18 +1183,25 @@ function setupDragAndDrop() {
     // Clear any existing drag state when setting up
     dragState = {
         draggedColumn: null,
+        draggedColumnId: null,
         originalColumnIndex: -1,
         originalColumnNextSibling: null,
         originalColumnParent: null,
+        originalDataIndex: -1,
         draggedTask: null,
         originalTaskIndex: -1,
         originalTaskParent: null,
         originalTaskNextSibling: null,
         isDragging: false,  // This is the key flag
         lastValidDropTarget: null,
+        lastDropTarget: null,
+        lastRowDropTarget: null,
+        lastRow: null,
         targetRowNumber: null,
         targetPosition: null,
-        finalRowNumber: null
+        finalRowNumber: null,
+        draggedClipboardCard: null,
+        draggedEmptyCard: null
     };
     
     // Only set up global drag/drop once to prevent multiple listeners
