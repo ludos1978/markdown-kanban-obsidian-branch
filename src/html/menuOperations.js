@@ -342,6 +342,10 @@ class SimpleMenuManager {
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         
+        // Store original display state
+        const originalDisplay = submenu.style.display;
+        const originalVisibility = submenu.style.visibility;
+        
         // Get submenu dimensions by temporarily showing it
         submenu.style.visibility = 'hidden';
         submenu.style.display = 'flex';
@@ -381,7 +385,10 @@ class SimpleMenuManager {
         // Apply final positioning
         submenu.style.left = left + 'px';
         submenu.style.top = top + 'px';
+        
+        // Restore visibility (but keep display as flex)
         submenu.style.visibility = 'visible';
+        // Note: We keep display as 'flex' since that's what the submenu should be when shown
     }
 
     // Timeout management
@@ -576,15 +583,7 @@ function positionDropdown(triggerButton, dropdown) {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     
-    let left = rect.right - 180;
-    let top = rect.bottom + 5;
-    
-    if (left < 10) left = 10;
-    if (left + 180 > viewportWidth - 10) left = viewportWidth - 190;
-    if (top + 300 > viewportHeight - 10) top = rect.top - 300;
-    if (top < 10) top = 10;
-    
-    // Move dropdown to body to escape any stacking contexts from parent elements
+    // Move dropdown to body first to get accurate measurements
     if (dropdown.parentElement !== document.body) {
         // Store original parent for cleanup later
         dropdown._originalParent = dropdown.parentElement;
@@ -595,9 +594,48 @@ function positionDropdown(triggerButton, dropdown) {
     
     // Ensure fixed positioning and correct z-index
     dropdown.style.position = 'fixed';
+    dropdown.style.zIndex = '2147483640';
+    
+    // Get actual dropdown dimensions by temporarily showing it
+    const originalDisplay = dropdown.style.display;
+    const originalVisibility = dropdown.style.visibility;
+    dropdown.style.visibility = 'hidden';
+    dropdown.style.display = 'block';
+    
+    const dropdownRect = dropdown.getBoundingClientRect();
+    const dropdownWidth = dropdownRect.width || 180;
+    const dropdownHeight = dropdownRect.height || 300;
+    
+    // Calculate horizontal position (prefer right side of trigger)
+    let left = rect.right - dropdownWidth;
+    
+    // Check boundaries and adjust
+    if (left < 10) left = 10;
+    if (left + dropdownWidth > viewportWidth - 10) {
+        left = viewportWidth - dropdownWidth - 10;
+    }
+    
+    // Calculate vertical position (prefer below trigger)
+    let top = rect.bottom + 5;
+    
+    // If dropdown goes off bottom, position above trigger
+    if (top + dropdownHeight > viewportHeight - 10) {
+        top = rect.top - dropdownHeight - 5;
+    }
+    
+    // Final boundary check
+    if (top < 10) top = 10;
+    if (top + dropdownHeight > viewportHeight - 10) {
+        top = viewportHeight - dropdownHeight - 10;
+    }
+    
+    // Apply positioning
     dropdown.style.left = left + 'px';
     dropdown.style.top = top + 'px';
-    dropdown.style.zIndex = '2147483640';
+    
+    // Restore original visibility
+    dropdown.style.visibility = originalVisibility;
+    dropdown.style.display = originalDisplay;
 }
 
 // File bar menu toggle (similar pattern)
@@ -621,11 +659,49 @@ function toggleFileBarMenu(event, button) {
 
 function positionFileBarDropdown(triggerButton, dropdown) {
     const rect = triggerButton.getBoundingClientRect();
-    const left = Math.max(10, rect.right - 200);
-    const top = rect.bottom + 4;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
     
+    // Get actual dropdown dimensions by temporarily showing it
+    const originalDisplay = dropdown.style.display;
+    const originalVisibility = dropdown.style.visibility;
+    dropdown.style.visibility = 'hidden';
+    dropdown.style.display = 'block';
+    
+    const dropdownRect = dropdown.getBoundingClientRect();
+    const dropdownWidth = dropdownRect.width || 200;
+    const dropdownHeight = dropdownRect.height || 150;
+    
+    // Calculate horizontal position (prefer aligned with right edge of trigger)
+    let left = rect.right - dropdownWidth;
+    
+    // Check horizontal boundaries
+    if (left < 10) left = 10;
+    if (left + dropdownWidth > viewportWidth - 10) {
+        left = viewportWidth - dropdownWidth - 10;
+    }
+    
+    // Calculate vertical position (prefer below trigger)
+    let top = rect.bottom + 4;
+    
+    // If dropdown goes off bottom, position above trigger
+    if (top + dropdownHeight > viewportHeight - 10) {
+        top = rect.top - dropdownHeight - 4;
+    }
+    
+    // Final vertical boundary check
+    if (top < 10) top = 10;
+    if (top + dropdownHeight > viewportHeight - 10) {
+        top = viewportHeight - dropdownHeight - 10;
+    }
+    
+    // Apply positioning
     dropdown.style.left = left + 'px';
     dropdown.style.top = top + 'px';
+    
+    // Restore original visibility
+    dropdown.style.visibility = originalVisibility;
+    dropdown.style.display = originalDisplay;
 }
 
 // Column operations - keep existing functions
