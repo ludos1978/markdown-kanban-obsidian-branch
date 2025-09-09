@@ -644,4 +644,6 @@ think carefully how to solve each of the problems. when thinking about a solutio
 
 if a task i give is ambigious, ask me before starting to work on it. for example storing or saving might refer to the filesystem or to the cache.
 
-commit each change with a short description what we worked on into git. 
+commit each change with a short description what we worked on into git. Verify that we work in a branch and ask me to merge back into main when done with a problem.
+
+If you add logs to the project, when finished working on a problem remove them all. Make this a separate git commit.

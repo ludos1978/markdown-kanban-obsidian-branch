@@ -58,6 +58,7 @@ function createExternalDropIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'external-drop-indicator';
     indicator.style.display = 'none';
+    indicator.style.pointerEvents = 'none'; // Ensure it doesn't interfere with drops
     document.body.appendChild(indicator);
     externalDropIndicator = indicator;
     
@@ -580,6 +581,7 @@ function getActiveTextEditor() {
  * Side effects: Sends create task message to VS Code
  */
 function createNewTaskWithContent(content, dropPosition, description = '') {
+    console.log('[DROP DEBUG] createNewTaskWithContent called with:', { content, dropPosition, description });
     
     // Check board availability - NEW CACHE SYSTEM
     
@@ -601,21 +603,42 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         return;
     }
     
-    // Removed duplicate detection to find root cause
-    
     // Find target column
     let targetColumnId = null;
     let insertionIndex = -1;
     
     const elementAtPoint = document.elementFromPoint(dropPosition.x, dropPosition.y);
+    console.log('[DROP DEBUG] Element at drop point:', elementAtPoint);
     
-    const columnElement = elementAtPoint?.closest('.kanban-full-height-column');
+    // Try multiple strategies to find the column
+    let columnElement = elementAtPoint?.closest('.kanban-full-height-column');
+    
+    // If we didn't find a column, try the parent elements
+    if (!columnElement) {
+        // Check if we're on a row
+        const row = elementAtPoint?.closest('.kanban-row');
+        if (row) {
+            console.log('[DROP DEBUG] Found row, looking for column in row');
+            // Find the column that contains this x position
+            const columns = row.querySelectorAll('.kanban-full-height-column');
+            for (const col of columns) {
+                const rect = col.getBoundingClientRect();
+                if (dropPosition.x >= rect.left && dropPosition.x <= rect.right) {
+                    columnElement = col;
+                    break;
+                }
+            }
+        }
+    }
+    
+    console.log('[DROP DEBUG] Column element after strategies:', columnElement);
     
     if (columnElement && !columnElement.classList.contains('collapsed')) {
         targetColumnId = columnElement.dataset.columnId;
         insertionIndex = calculateInsertionIndex(columnElement, dropPosition.y);
+        console.log('[DROP DEBUG] Found column:', targetColumnId, 'at index:', insertionIndex);
     } else {
-        
+        console.log('[DROP DEBUG] No direct column found, searching for nearest');
         const columns = document.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
         let minDistance = Infinity;
         
@@ -637,12 +660,14 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     }
     
     if (!targetColumnId && window.cachedBoard.columns.length > 0) {
+        console.log('[DROP DEBUG] No target column yet, looking for first non-collapsed');
         const firstNonCollapsed = window.cachedBoard.columns.find(col => 
             !window.collapsedColumns || !window.collapsedColumns.has(col.id)
         );
         if (firstNonCollapsed) {
             targetColumnId = firstNonCollapsed.id;
             insertionIndex = -1;
+            console.log('[DROP DEBUG] Using fallback column:', targetColumnId);
         }
     }
     
@@ -652,9 +677,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             description: description
         };
         
-        // Do not update cache directly - let VS Code handle the task creation
-        // and send back the updated board to avoid duplicates
-        
         const message = {
             type: 'addTaskAtPosition',
             columnId: targetColumnId,
@@ -662,6 +684,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             insertionIndex: insertionIndex
         };
         
+        console.log('[DROP DEBUG] Sending message to VS Code:', message);
         vscode.postMessage(message);
     } else {
         console.error('[DROP DEBUG] Could not find any suitable column');
