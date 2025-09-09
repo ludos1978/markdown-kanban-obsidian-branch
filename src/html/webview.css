@@ -456,7 +456,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  /* overflow-y: auto; */ /* must be disabled for sticky childs to work */
 	border: 0.5px solid var(--vscode-panel-border);
 	border-radius: 4px;
   overflow-x: visible;
@@ -497,8 +497,8 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .header-bars-container {
   order: -1;
-  position: sticky;
-  top: 0px;
+  /* position: sticky; */ /* should be sticky, but for the moment we dont implement it as the column header must not be overlapped when scrolling */
+  /* top: 0px; */
   z-index: 11;
   background-color: var(--vscode-editor-background);
 }

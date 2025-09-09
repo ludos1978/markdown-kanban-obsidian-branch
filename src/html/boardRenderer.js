@@ -2252,24 +2252,25 @@ function injectStackableBars() {
         // Handle collapsed columns with flex containers
         if (isCollapsed) {
             // Find the column-inner element to insert bars into
-            const columnInner = element.querySelector('.column-inner');
+            // const columnInner = element.querySelector('.column-inner');
+						const kanbanFullHeight = element.querySelector('.kanban-full-height-column');
             
             // Create and insert header container at the beginning of column-inner
-            if (headerBars.length > 0 && columnInner) {
+            if (headerBars.length > 0 && kanbanFullHeight) {
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
-                columnInner.insertBefore(headerContainer, columnInner.firstChild);
+                kanbanFullHeight.insertBefore(headerContainer, kanbanFullHeight.firstChild);
                 element.classList.add('has-header-bar');
                 if (hasHeaderLabel) element.classList.add('has-header-label');
             }
             
             // Create and append footer container at the end of column-inner
-            if (footerBars.length > 0 && columnInner) {
+            if (footerBars.length > 0 && kanbanFullHeight) {
                 const footerContainer = document.createElement('div');
                 footerContainer.className = 'footer-bars-container';
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
-                columnInner.appendChild(footerContainer);
+                kanbanFullHeight.appendChild(footerContainer);
                 element.classList.add('has-footer-bar');
                 if (hasFooterLabel) element.classList.add('has-footer-label');
             }
@@ -2281,8 +2282,9 @@ function injectStackableBars() {
         } else {
             // For non-collapsed elements, also use column-inner with flex positioning
             const columnInner = element.querySelector('.column-inner');
+						const columnHeader = element.querySelector('.column-header');
             
-            if (columnInner) {
+            if (columnHeader) {
                 // Create and insert header container at the beginning of column-inner
                 if (headerBars.length > 0) {
                     const headerContainer = document.createElement('div');
@@ -2290,7 +2292,9 @@ function injectStackableBars() {
                     headerBars.forEach(bar => headerContainer.appendChild(bar));
                     columnInner.insertBefore(headerContainer, columnInner.firstChild);
                 }
-                
+						}
+            
+						if (columnInner) {
                 // Create and append footer container at the end of column-inner
                 if (footerBars.length > 0) {
                     const footerContainer = document.createElement('div');
@@ -2298,30 +2302,30 @@ function injectStackableBars() {
                     footerBars.forEach(bar => footerContainer.appendChild(bar));
                     columnInner.appendChild(footerContainer);
                 }
-            } else {
-                // For task items, insert header bars at the beginning and footer bars at the end
-                if (element.classList.contains('task-item')) {
-                    // Create header container and insert at the beginning
-                    if (headerBars.length > 0) {
-                        const headerContainer = document.createElement('div');
-                        headerContainer.className = 'header-bars-container';
-                        headerBars.forEach(bar => headerContainer.appendChild(bar));
-                        element.insertBefore(headerContainer, element.firstChild);
-                    }
-                    
-                    // Create footer container and append at the end
-                    if (footerBars.length > 0) {
-                        const footerContainer = document.createElement('div');
-                        footerContainer.className = 'footer-bars-container';
-                        footerBars.forEach(bar => footerContainer.appendChild(bar));
-                        element.appendChild(footerContainer);
-                    }
-                } else {
-                    // Fallback for other elements
-                    headerBars.forEach(bar => element.appendChild(bar));
-                    footerBars.forEach(bar => element.appendChild(bar));
-                }
-            }
+            } 
+						
+						// For task items, insert header bars at the beginning and footer bars at the end
+						if (element.classList.contains('task-item')) {
+								// Create header container and insert at the beginning
+								if (headerBars.length > 0) {
+										const headerContainer = document.createElement('div');
+										headerContainer.className = 'header-bars-container';
+										headerBars.forEach(bar => headerContainer.appendChild(bar));
+										element.insertBefore(headerContainer, element.firstChild);
+								}
+								
+								// Create footer container and append at the end
+								if (footerBars.length > 0) {
+										const footerContainer = document.createElement('div');
+										footerContainer.className = 'footer-bars-container';
+										footerBars.forEach(bar => footerContainer.appendChild(bar));
+										element.appendChild(footerContainer);
+								}
+						} else {
+								// Fallback for other elements
+								headerBars.forEach(bar => element.appendChild(bar));
+								footerBars.forEach(bar => element.appendChild(bar));
+						}
             
             // Set CSS classes for header bars (no padding needed with flex layout)
             if (headerBars.length > 0) {
