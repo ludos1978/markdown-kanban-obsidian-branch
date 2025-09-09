@@ -1,0 +1,66 @@
+{
+  "undoStack": [
+    {
+      "valid": true,
+      "title": "",
+      "columns": [
+        {
+          "id": "col-e1a4a809-7f71-48c9-9239-f31a8a5ebbc5",
+          "title": "# Title",
+          "tasks": []
+        },
+        {
+          "id": "col-7fcb023d-1da6-4a64-9e00-8dd81f99b3d9",
+          "title": "",
+          "tasks": [
+            {
+              "id": "task-97ea2143-2c3d-47fd-a5bc-87d817c582a0",
+              "title": "Lorem Imspum #bug #urgent #blocked",
+              "description": "setetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet."
+            },
+            {
+              "id": "task-c6fe825e-ca37-4611-a5c9-6a4baed2d8f8",
+              "title": "1",
+              "description": "Hello world"
+            },
+            {
+              "id": "task-f4313275-682c-4fae-b168-50e6e169d690",
+              "title": "Now 2 XX",
+              "description": "XX"
+            }
+          ]
+        },
+        {
+          "id": "col-3c0f7548-ea2b-4747-a8d6-6cfe7e9564b1",
+          "title": "TITLE #urgent #blocked",
+          "tasks": [
+            {
+              "id": "task-e702037e-a8e2-4aac-8e4c-b4583030c543",
+              "title": "Lorem Imspum #yellow",
+              "description": "Lorem ipsum dolor sit amet,"
+            },
+            {
+              "id": "task-5d5cd112-9e7e-44b7-99fd-4aafc6de6217",
+              "title": "Lighting",
+              "description": "- Lighting"
+            },
+            {
+              "id": "task-fcec539a-6214-400e-bd77-bad8e478120f",
+              "title": "Lorem Imspum #green",
+              "description": "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet."
+            },
+            {
+              "id": "task-26bdd93f-f301-4186-ae9c-3695ec0bdbfc",
+              "title": "Lorem Imspum",
+              "description": "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam"
+            }
+          ]
+        }
+      ],
+      "yamlHeader": "---\n\nkanban-plugin: board\n\n---",
+      "kanbanFooter": null
+    }
+  ],
+  "redoStack": [],
+  "timestamp": "2025-09-09T07:29:16.469Z"
+}
