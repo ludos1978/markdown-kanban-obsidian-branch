@@ -18,7 +18,7 @@ export class MessageHandler {
     private _setUndoRedoOperation: (isOperation: boolean) => void;
     private _getWebviewPanel: () => any;
     private _saveWithBackup: () => Promise<void>;
-    private _markUnsavedChanges: (hasChanges: boolean) => void;
+    private _markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => void;
 
     constructor(
         fileManager: FileManager,
@@ -34,7 +34,7 @@ export class MessageHandler {
             setUndoRedoOperation: (isOperation: boolean) => void;
             getWebviewPanel: () => any;
             saveWithBackup: () => Promise<void>;
-            markUnsavedChanges: (hasChanges: boolean) => void;
+            markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => void;
         }
     ) {
         this._fileManager = fileManager;
@@ -53,16 +53,13 @@ export class MessageHandler {
     }
 
     public async handleMessage(message: any): Promise<void> {
-        console.log('KanbanWebviewPanel received message:', message.type, message);
         
         switch (message.type) {
             // Undo/Redo operations
             case 'undo':
-                console.log('🔄 Received UNDO message from webview');
                 await this.handleUndo();
                 break;
             case 'redo':
-                console.log('🔄 Received REDO message from webview');
                 await this.handleRedo();
                 break;
                 
@@ -98,21 +95,22 @@ export class MessageHandler {
             case 'selectFile':
                 await this.handleSelectFile();
                 break;
-            case 'closeWindow':
-                // Check for unsaved changes before closing
-                await this.handleCloseWindow();
-                break;
             case 'markUnsavedChanges':
-                // Track unsaved changes at panel level
-                this._markUnsavedChanges(message.hasUnsavedChanges);
+                // Track unsaved changes at panel level and update cached board if provided
+                console.log('📨 Received markUnsavedChanges message:', {
+                    hasUnsavedChanges: message.hasUnsavedChanges,
+                    hasCachedBoard: !!message.cachedBoard,
+                    boardColumns: message.cachedBoard?.columns?.length
+                });
+                this._markUnsavedChanges(message.hasUnsavedChanges, message.cachedBoard);
                 break;
             case 'saveUndoState':
                 // Save current board state for undo without executing any operation
-                console.log(`🔄 Received saveUndoState message for operation: ${message.operation}`);
-                const currentBoard = this._getCurrentBoard();
-                if (currentBoard) {
-                    this._undoRedoManager.saveStateForUndo(currentBoard);
-                    console.log(`💾 Saved undo state for cache operation: ${message.operation}`);
+                // Use the board state from the webview cache if provided, otherwise fallback to backend board
+                const boardToSave = message.currentBoard || this._getCurrentBoard();
+                if (boardToSave) {
+                    this._undoRedoManager.saveStateForUndo(boardToSave);
+                    console.log(`💾 UNDO: Saved state from ${message.currentBoard ? 'webview cache' : 'backend board'} - ${message.operation}`);
                 } else {
                     console.warn('❌ No current board available for undo state saving');
                 }
@@ -271,78 +269,16 @@ export class MessageHandler {
             case 'saveBoardState':
                 await this.handleSaveBoardState(message.board);
                 break;
+            case 'updateTaskInBackend':
+                // Update specific task in backend board
+                this.updateTaskInBackend(message.taskId, message.columnId, message.field, message.value);
+                break;
 
-                // case 'replaceLinkInMarkdown':
-            //     await this.handleLinkReplacement(message);
-            //     break;
             default:
                 console.warn('Unknown message type:', message.type);
                 break;
         }
     }
-
-    // private async handleLinkReplacement(message: any) {
-    //     const board = this._getCurrentBoard();
-    //     if (!board || !board.valid) return;
-
-    //     const { originalPath, newPath, isImage } = message;
-    //     let modified = false;
-
-    //     // Helper function to replace link in text
-    //     const replaceLink = (text: string): string => {
-    //         if (!text) return text;
-            
-    //         // Build the regex patterns
-    //         const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            
-    //         if (isImage) {
-    //             // Image link pattern: ![alt](path)
-    //             const imageRegex = new RegExp(`(!\\[[^\\]]*\\]\\()${escapedPath}(\\))`, 'g');
-    //             if (imageRegex.test(text)) {
-    //                 return text.replace(imageRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
-    //             }
-    //         } else {
-    //             // Regular link pattern: [text](path)
-    //             const linkRegex = new RegExp(`(\\[[^\\]]+\\]\\()${escapedPath}(\\))`, 'g');
-    //             if (linkRegex.test(text)) {
-    //                 return text.replace(linkRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
-    //             }
-    //         }
-            
-    //         return text;
-    //     };
-
-    //     // Search and replace in all columns and tasks
-    //     for (const column of board.columns) {
-    //         const newTitle = replaceLink(column.title);
-    //         if (newTitle !== column.title) {
-    //             column.title = newTitle;
-    //             modified = true;
-    //         }
-
-    //         for (const task of column.tasks) {
-    //             const newTaskTitle = replaceLink(task.title);
-    //             if (newTaskTitle !== task.title) {
-    //                 task.title = newTaskTitle;
-    //                 modified = true;
-    //             }
-
-    //             if (task.description) {
-    //                 const newDescription = replaceLink(task.description);
-    //                 if (newDescription !== task.description) {
-    //                     task.description = newDescription;
-    //                     modified = true;
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     if (modified) {
-    //         this._undoRedoManager.saveStateForUndo(board);
-    //         await this._onSaveToMarkdown();
-    //         await this._onBoardUpdate();
-    //     }
-    // }
 
     private async handleUndo() {
         const currentBoard = this._getCurrentBoard();
@@ -353,9 +289,9 @@ export class MessageHandler {
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
             
-            // Update webview with restored board, then mark as unsaved
-            await this._onBoardUpdate();
+            // Use cache-first architecture: mark as unsaved instead of direct save
             this._markUnsavedChanges(true);
+            await this._onBoardUpdate();
             
             // Reset flag after operations complete
             setTimeout(() => {
@@ -373,9 +309,9 @@ export class MessageHandler {
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
             
-            // Update webview with restored board, then mark as unsaved
-            await this._onBoardUpdate();
+            // Use cache-first architecture: mark as unsaved instead of direct save
             this._markUnsavedChanges(true);
+            await this._onBoardUpdate();
             
             // Reset flag after operations complete
             setTimeout(() => {
@@ -388,68 +324,30 @@ export class MessageHandler {
         const document = await this._fileManager.selectFile();
         if (document) {
             // This would need to be handled by the main panel
-            console.log('Selected file:', document.fileName);
         }
     }
 
-    private async handleCloseWindow() {
-        // Use the existing unsaved changes check mechanism
-        return new Promise<void>((resolve) => {
-            // Send message to webview to check for unsaved changes
-            const panel = this._getWebviewPanel();
-            if (panel?.webview) {
-                panel.webview.postMessage({
-                    type: 'checkUnsavedChanges',
-                    requestId: Date.now().toString()
-                });
-
-                // Set up one-time listener for response
-                const disposable = panel.webview.onDidReceiveMessage(async (message: any) => {
-                    if (message.type === 'hasUnsavedChangesResponse') {
-                        disposable.dispose(); // Clean up listener
-                        
-                        if (message.hasUnsavedChanges) {
-                            // Show save confirmation dialog with backup option
-                            const choice = await vscode.window.showWarningMessage(
-                                'You have unsaved changes. What would you like to do?',
-                                { modal: true },
-                                'Save',
-                                'Save with backup filename',
-                                'Don\'t Save'
-                            );
-
-                            if (choice === 'Save') {
-                                await this._onSaveToMarkdown();
-                                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                            } else if (choice === 'Save with backup filename') {
-                                await this._saveWithBackup();
-                                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                            } else {
-                                // Handle both 'Don't Save' and undefined (dialog closed) as close without saving
-                                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                            }
-                        } else {
-                            // No unsaved changes, close immediately
-                            await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                        }
-                        
-                        resolve();
-                    }
-                });
-
-                // Timeout after 1 second to prevent hanging
-                setTimeout(() => {
-                    disposable.dispose();
-                    // If no response, close anyway
-                    vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                    resolve();
-                }, 1000);
-            } else {
-                // No webview available, close immediately
-                vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                resolve();
+    private updateTaskInBackend(taskId: string, columnId: string, field: string, value: string) {
+        const board = this._getCurrentBoard();
+        if (!board) {
+            console.warn('No board available to update task');
+            return;
+        }
+        
+        // Find and update the task
+        for (const column of board.columns) {
+            if (column.id === columnId) {
+                const task = column.tasks.find((t: any) => t.id === taskId);
+                if (task) {
+                    (task as any)[field] = value;
+                    console.log(`✅ Updated task ${taskId} in backend: ${field} = "${value}"`);
+                    // Update the board reference to ensure it's saved
+                    this._setBoard(board);
+                    return;
+                }
             }
-        });
+        }
+        console.warn(`Task ${taskId} not found in column ${columnId}`);
     }
 
     private async handleSaveBoardState(board: any) {
@@ -460,11 +358,8 @@ export class MessageHandler {
             return;
         }
         
-        // Save current state for undo
-        const currentBoard = this._getCurrentBoard();
-        if (currentBoard) {
-            this._undoRedoManager.saveStateForUndo(currentBoard);
-        }
+        // NOTE: Do not save undo state here - individual operations already saved their undo states
+        // before making changes. Saving here would create duplicate/grouped undo states.
         
         // Replace the current board with the new one
         this._setBoard(board);
@@ -487,13 +382,13 @@ export class MessageHandler {
         const success = action();
         
         if (success) {
-            await this._onSaveToMarkdown();
+            // Use cache-first architecture: mark as unsaved instead of direct save
+            this._markUnsavedChanges(true);
             await this._onBoardUpdate();
         }
     }
 
     private async handlePageHiddenWithUnsavedChanges(): Promise<void> {
-        console.log('🔧 DEBUG: Page hidden with unsaved changes - showing save dialog');
         
         try {
             const choice = await vscode.window.showWarningMessage(
@@ -512,9 +407,19 @@ export class MessageHandler {
             }
             // If 'Don't Save', just continue - the user chose to discard changes
             
+            // Reset the close prompt flag in webview regardless of choice
+            this._getWebviewPanel().webview.postMessage({
+                type: 'resetClosePromptFlag'
+            });
+            
         } catch (error) {
-            console.error('🔧 ERROR: Failed to handle unsaved changes:', error);
+            console.error('Failed to handle unsaved changes:', error);
             vscode.window.showErrorMessage('Failed to save kanban changes: ' + error);
+            
+            // Reset flag even on error
+            this._getWebviewPanel().webview.postMessage({
+                type: 'resetClosePromptFlag'
+            });
         }
     }
 }

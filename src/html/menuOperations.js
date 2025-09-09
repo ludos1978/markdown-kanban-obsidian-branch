@@ -758,8 +758,8 @@ function deleteColumn(columnId) {
             // Mark board as having unsaved changes
             markUnsavedChanges();
             
-            // Send message to VS Code for undo tracking only (no operation execution)
-            vscode.postMessage({ type: 'saveUndoState', operation: 'deleteColumn', columnId });
+            // Send message to VS Code for undo tracking
+            vscode.postMessage({ type: 'deleteColumn', columnId });
             
             console.log('💾 Column deletion cached - use Cmd+S to save to file');
         } else {
@@ -903,9 +903,6 @@ function moveTaskToTop(taskId, columnId) {
         if (column) {
             const taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex > 0) {
-                // SAVE UNDO STATE BEFORE MAKING CHANGES
-                vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskToTop', taskId, columnId });
-                
                 const task = column.tasks.splice(taskIndex, 1)[0];
                 column.tasks.unshift(task);
                 console.log('💾 Task moved to top in cache');
@@ -921,7 +918,7 @@ function moveTaskToTop(taskId, columnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // Undo state already saved before making changes above
+    // vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -954,8 +951,7 @@ function moveTaskUp(taskId, columnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // Send message to VS Code for undo tracking only
-    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskUp', taskId, columnId });
+    // vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -988,8 +984,7 @@ function moveTaskDown(taskId, columnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // Send message to VS Code for undo tracking only
-    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskDown', taskId, columnId });
+    // vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -1021,8 +1016,7 @@ function moveTaskToBottom(taskId, columnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // Send message to VS Code for undo tracking only
-    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskToBottom', taskId, columnId });
+    // vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
     
     // Close all menus
     closeAllMenus();
@@ -1068,8 +1062,7 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
     }
     
     // Cache-first: No automatic save, UI updated via cache update above
-    // Send message to VS Code for undo tracking only
-    vscode.postMessage({ type: 'saveUndoState', operation: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
+    // vscode.postMessage({ type: 'moveTaskToColumn', taskId, fromColumnId, toColumnId });
     
     // Close all menus
     closeAllMenus();
@@ -1087,10 +1080,6 @@ function deleteTask(taskId, columnId) {
         if (column) {
             const taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex >= 0) {
-                // SAVE UNDO STATE BEFORE MAKING CHANGES
-                console.log('🔄 Sending saveUndoState message for deleteTask:', { taskId, columnId });
-                vscode.postMessage({ type: 'saveUndoState', operation: 'deleteTask', taskId, columnId });
-                
                 const deletedTask = column.tasks.splice(taskIndex, 1)[0];
                 console.log(`🗑️ Task deleted from cache: ${taskId} ("${deletedTask.title}") from ${columnId}`);
                 
@@ -1115,7 +1104,8 @@ function deleteTask(taskId, columnId) {
                 // Mark board as having unsaved changes
                 markUnsavedChanges();
                 
-                // Undo state already saved before making changes above
+                // Send message to VS Code for undo tracking
+                vscode.postMessage({ type: 'deleteTask', taskId, columnId });
                 
                 console.log('💾 Task deletion cached - use Cmd+S to save to file');
             } else {
@@ -1142,17 +1132,16 @@ function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
             
             console.log(`🗄️ Cached board updated: added task "${newTask.title || 'empty'}" to column ${columnId}`);
             
+            // Mark as unsaved since we added a task
+            markUnsavedChanges();
+            
             // Update the UI to reflect the cached changes
             if (typeof renderBoard === 'function') {
                 renderBoard();
                 console.log('🎨 Board re-rendered after cache update');
             }
             
-            // Mark as unsaved
-            if (typeof markUnsavedChanges === 'function') {
-                markUnsavedChanges();
-                console.log('🗄️ Task created via menu - cached, use Cmd+S to save');
-            }
+            console.log('🗄️ Task created via menu - cached, use Cmd+S to save');
         }
     }
 }
@@ -1334,6 +1323,9 @@ function toggleColumnTag(columnId, tagName, event) {
         }
     }
     
+    // Mark as unsaved since we made a change
+    markUnsavedChanges();
+    
     console.log(`🔄 Column data updated:`, {
         columnId,
         oldTitle,
@@ -1471,6 +1463,9 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
         // Task is already updated above since 'task' came from currentBoard
     }
     
+    // Mark as unsaved since we made a change
+    markUnsavedChanges();
+    
     console.log(`🔄 Task data updated:`, {
         taskId,
         columnId,
@@ -1555,7 +1550,7 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     }
     
     // Update header bars immediately
-    console.log(`🎨 Updating header bars immediately for column ${columnId} with tags:`, allTags);
+    // console.log(`🎨 Updating header bars immediately for column ${columnId} with tags:`, allTags);
     if (window.updateVisualTagState && typeof window.updateVisualTagState === 'function') {
         const isCollapsed = columnElement.classList.contains('collapsed');
         window.updateVisualTagState(columnElement, allTags, 'column', isCollapsed);
@@ -1591,7 +1586,7 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
         }, 300);
     }
     
-    console.log(`✅ Updated column ${columnId} DOM directly (tag: ${tagName}, active: ${isActive})`);
+    // console.log(`✅ Updated column ${columnId} DOM directly (tag: ${tagName}, active: ${isActive})`);
 }
 
 // CRITICAL: Always use unique task IDs to prevent targeting wrong tasks with same titles
@@ -1634,7 +1629,7 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
     }
     
     // Update header bars immediately
-    console.log(`🎨 Updating header bars immediately for task ${taskId} with tags:`, allTags);
+    // console.log(`🎨 Updating header bars immediately for task ${taskId} with tags:`, allTags);
     if (window.updateVisualTagState && typeof window.updateVisualTagState === 'function') {
         const isCollapsed = taskElement.classList.contains('collapsed');
         window.updateVisualTagState(taskElement, allTags, 'task', isCollapsed);
@@ -1670,7 +1665,7 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
         }, 300);
     }
     
-    console.log(`✅ Updated task ${taskId} DOM directly (tag: ${tagName}, active: ${isActive})`);
+    // console.log(`✅ Updated task ${taskId} DOM directly (tag: ${tagName}, active: ${isActive})`);
 }
 
 function updateTagChipStyle(button, tagName, isActive) {
@@ -1714,12 +1709,42 @@ function markUnsavedChanges() {
     updateRefreshButtonState('unsaved', 1);
     console.log('🔄 Board marked as having unsaved changes');
     
-    // Notify backend about unsaved changes
+    // Always notify backend about unsaved changes state AND send the current cached board data
+    if (typeof vscode !== 'undefined') {
+        const boardToSend = window.cachedBoard || window.currentBoard;
+        console.log('📤 Preparing to send board:', {
+            hasBoard: !!boardToSend,
+            columns: boardToSend?.columns?.length,
+            firstTask: boardToSend?.columns?.[0]?.tasks?.[0]?.title
+        });
+        
+        vscode.postMessage({
+            type: 'markUnsavedChanges',
+            hasUnsavedChanges: true,
+            cachedBoard: boardToSend // Send the current board data
+        });
+        console.log('📤 Sent unsaved=true with cached board data to backend');
+    }
+}
+
+/**
+ * Marks changes as saved and notifies backend
+ * Purpose: Track when changes have been saved successfully
+ * Used by: Save operations and discard operations
+ * Side effects: Clears unsaved flag and updates UI state
+ */
+function markSavedChanges() {
+    window.hasUnsavedChanges = false;
+    updateRefreshButtonState('default');
+    console.log('✅ Board marked as saved');
+    
+    // Always notify backend about saved state immediately
     if (typeof vscode !== 'undefined') {
         vscode.postMessage({
             type: 'markUnsavedChanges',
-            hasUnsavedChanges: true
+            hasUnsavedChanges: false
         });
+        console.log('📤 Sent unsaved=false to backend');
     }
 }
 
@@ -1865,19 +1890,11 @@ function saveCachedBoard() {
     
     console.log('✅ Sent complete board state to VS Code');
     
-    // Mark as saved - clear unsaved flag
-    window.hasUnsavedChanges = false;
+    // Mark as saved and notify backend
     if (window.cachedBoard) {
         window.savedBoardState = JSON.parse(JSON.stringify(window.cachedBoard));
     }
-    
-    // Notify backend that changes are now saved
-    if (typeof vscode !== 'undefined') {
-        vscode.postMessage({
-            type: 'markUnsavedChanges',
-            hasUnsavedChanges: false
-        });
-    }
+    markSavedChanges();
     
     // Update UI to show saved state
     updateRefreshButtonState('saved');
@@ -2364,7 +2381,6 @@ function updateTagCategoryCounts(id, type, columnId = null) {
     }
     
     if (!activeDropdown) {
-        console.log('No active dropdown found');
         return;
     }
     
@@ -2574,7 +2590,7 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             if (!element.style.position || element.style.position === 'static') {
                 element.style.position = 'relative';
             }
-            console.log(`✅ Added corner badges for ${elementType}`);
+            // console.log(`✅ Added corner badges for ${elementType}`);
         }
     }
     
@@ -2607,19 +2623,19 @@ function updateAllVisualTagElements(element, allTags, elementType) {
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
                 // Header container should be first child, so insert at the beginning
                 columnInner.insertBefore(headerContainer, columnInner.firstChild);
-                console.log(`✅ Added header container to .column-inner (first child)`);
+                // console.log(`✅ Added header container to .column-inner (first child)`);
             } else {
                 // Fallback: add directly to element if no column-inner found
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
                 element.appendChild(headerContainer);
-                console.log(`⚠️ Added header container to element (no .column-inner found)`);
+                // console.log(`⚠️ Added header container to element (no .column-inner found)`);
             }
         }
         element.classList.add('has-header-bar');
-        if (hasHeaderLabel) element.classList.add('has-header-label');
-        console.log(`✅ Added ${headerBars.length} header bars for ${elementType}`);
+        // if (hasHeaderLabel) element.classList.add('has-header-label');
+        // console.log(`✅ Added ${headerBars.length} header bars for ${elementType}`);
     }
     
     // 5. FOOTER BARS - Create footer bars for tags that have them
@@ -2650,19 +2666,19 @@ function updateAllVisualTagElements(element, allTags, elementType) {
                 footerContainer.className = 'footer-bars-container';
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
                 columnInner.appendChild(footerContainer);
-                console.log(`✅ Added footer container to .column-inner`);
+                // console.log(`✅ Added footer container to .column-inner`);
             } else {
                 // Fallback: add directly to element if no column-inner found
                 const footerContainer = document.createElement('div');
                 footerContainer.className = 'footer-bars-container';
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
                 element.appendChild(footerContainer);
-                console.log(`⚠️ Added footer container to element (no .column-inner found)`);
+                // console.log(`⚠️ Added footer container to element (no .column-inner found)`);
             }
         }
         element.classList.add('has-footer-bar');
         if (hasFooterLabel) element.classList.add('has-footer-label');
-        console.log(`✅ Added ${footerBars.length} footer bars for ${elementType}`);
+        // console.log(`✅ Added ${footerBars.length} footer bars for ${elementType}`);
     }
     
     console.log(`🎨 Completed visual updates for ${elementType}: ${allTags.length} tags, ${headerBars.length} headers, ${footerBars.length} footers`);

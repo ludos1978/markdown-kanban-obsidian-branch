@@ -1,7 +1,6 @@
 // Dynamic submenu generator for DRY programming
 // Creates submenus on-demand instead of generating all HTML upfront
 
-console.log('submenuGenerator.js file is loading...');
 
 class SubmenuGenerator {
     constructor() {
@@ -211,4 +210,3 @@ class SubmenuGenerator {
 
 // Global instance
 window.submenuGenerator = new SubmenuGenerator();
-console.log('SubmenuGenerator loaded:', window.submenuGenerator);

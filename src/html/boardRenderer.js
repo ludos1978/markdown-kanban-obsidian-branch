@@ -101,13 +101,12 @@ function interpolateColor(color1, color2, factor) {
  * Side effects: Modifies document.head with style element
  */
 function applyTagStyles() {
-    console.log('Applying tag styles...');
     
     // Remove existing dynamic styles
     const existingStyles = document.getElementById('dynamic-tag-styles');
     if (existingStyles) {
         existingStyles.remove();
-        console.log('Removed existing styles');
+        // console.log('Removed existing styles');
     }
     
     // Generate new styles
@@ -119,15 +118,16 @@ function applyTagStyles() {
         styleElement.id = 'dynamic-tag-styles';
         styleElement.textContent = styles;
         document.head.appendChild(styleElement);
-        console.log('Tag styles applied successfully');
+        // console.log('Tag styles applied successfully');
         
         // Debug: Check what columns have tags
         document.querySelectorAll('.kanban-full-height-column[data-column-tag]').forEach(col => {
-            console.log('Column with tag:', col.getAttribute('data-column-tag'));
+            // console.log('Column with tag:', col.getAttribute('data-column-tag'));
         });
-    } else {
-        console.log('No tag styles to apply');
-    }
+    } 
+		// else {
+    //     console.log('No tag styles to apply');
+    // }
 }
 
 /**
@@ -138,7 +138,7 @@ function applyTagStyles() {
 function ensureTagStyleExists(tagName) {
     const config = getTagConfig(tagName);
     if (!config) {
-        console.log(`No color config for tag: ${tagName}`);
+        // console.log(`No color config for tag: ${tagName}`);
         return;
     }
     
@@ -158,7 +158,7 @@ function ensureTagStyleExists(tagName) {
     const existingStyles = styleElement.textContent || '';
     if (existingStyles.includes(`[data-column-tag="${tagName}"]`) || 
         existingStyles.includes(`[data-task-tag="${tagName}"]`)) {
-        console.log(`Styles already exist for tag: ${tagName}`);
+        // console.log(`Styles already exist for tag: ${tagName}`);
         return;
     }
     
@@ -355,7 +355,7 @@ function ensureTagStyleExists(tagName) {
     // Append new styles
     if (newStyles) {
         styleElement.textContent += newStyles;
-        console.log(`Added styles for tag: ${tagName}`);
+        // console.log(`Added styles for tag: ${tagName}`);
     }
 }
 
@@ -530,7 +530,7 @@ function updateGlobalColumnFoldButton() {
  * Side effects: Adds 'collapsed' class to previously collapsed elements
  */
 function applyFoldingStates() {
-    console.log('Applying folding states to rendered elements');
+    // console.log('Applying folding states to rendered elements');
     
     // Ensure folding state variables are initialized
     if (!window.collapsedColumns) window.collapsedColumns = new Set();
@@ -545,7 +545,7 @@ function applyFoldingStates() {
         if (columnElement) {
             columnElement.classList.add('collapsed');
             if (toggle) toggle.classList.add('rotated');
-            console.log(`Applied collapsed state to column: ${columnId}`);
+            // console.log(`Applied collapsed state to column: ${columnId}`);
         }
     });
     
@@ -557,7 +557,7 @@ function applyFoldingStates() {
         if (taskElement) {
             taskElement.classList.add('collapsed');
             if (toggle) toggle.classList.add('rotated');
-            console.log(`Applied collapsed state to task: ${taskId}`);
+            // console.log(`Applied collapsed state to task: ${taskId}`);
         }
     });
     
@@ -868,17 +868,17 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         // Store the handler in a global object
         if (!window.tagHandlers) window.tagHandlers = {};
         window.tagHandlers[buttonId] = function(event) {
-            console.log('🔍 DEBUG: window.tagHandlers called for:', tagName, 'buttonId:', buttonId);
-            console.log('🔍 DEBUG: Parameters - id:', id, 'type:', type, 'columnId:', columnId, 'tagName:', tagName);
+            // console.log('🔍 DEBUG: window.tagHandlers called for:', tagName, 'buttonId:', buttonId);
+            // console.log('🔍 DEBUG: Parameters - id:', id, 'type:', type, 'columnId:', columnId, 'tagName:', tagName);
             event.stopPropagation();
             event.preventDefault();
             if (type === 'column') {
                 // FIXED: Correct parameter order for column tag click
-                console.log('🔍 DEBUG: Calling handleColumnTagClick with columnId:', id, 'tagName:', tagName);
+                // console.log('🔍 DEBUG: Calling handleColumnTagClick with columnId:', id, 'tagName:', tagName);
                 handleColumnTagClick(id, tagName, event);
             } else {
                 // FIXED: Correct parameter order for task tag click
-                console.log('🔍 DEBUG: Calling handleTaskTagClick with taskId:', id, 'columnId:', columnId, 'tagName:', tagName);
+                // console.log('🔍 DEBUG: Calling handleTaskTagClick with taskId:', id, 'columnId:', columnId, 'tagName:', tagName);
                 handleTaskTagClick(id, columnId, tagName, event);
             }
             return false;
@@ -984,14 +984,12 @@ function getCornerBadgeHtml(tag) {
  * Performance: Debounced to prevent rapid re-renders
  */
 function renderBoard() {
-    console.log('Rendering board:', currentBoard);
     
     // Apply tag styles first
     applyTagStyles();
     
     // Check if we're currently editing - if so, skip the render
     if (window.taskEditor && window.taskEditor.currentEditor) {
-        console.log('Skipping render - currently editing');
         return;
     }
     
@@ -1002,7 +1000,6 @@ function renderBoard() {
     }
 
     if (!currentBoard) {
-        console.log('No current board, showing empty state');
         boardElement.innerHTML = `
             <div class="empty-board" style="
                 text-align: center; 
@@ -1016,7 +1013,6 @@ function renderBoard() {
     }
 
     if (!currentBoard.columns) {
-        console.log('No columns in board, initializing empty array');
         currentBoard.columns = [];
     }
     
@@ -1150,7 +1146,7 @@ function renderBoard() {
                 window.updateAllVisualTagElements(element, tags, elementType);
             }
         });
-        console.log('✅ Applied immediate visual updates to all tagged elements');
+        // console.log('✅ Applied immediate visual updates to all tagged elements');
     }, 20);
 }
 
@@ -1285,7 +1281,6 @@ function createColumnElement(column, columnIndex) {
     
     // Use first tag for background color (never stack backgrounds)
     const columnTag = extractFirstTag(column.title);
-    console.log(`Creating column "${column.title}", primary tag: "${columnTag}", all tags:`, allTags);
     
     const columnDiv = document.createElement('div');
     const isCollapsed = window.collapsedColumns.has(column.id);
@@ -1315,7 +1310,6 @@ function createColumnElement(column, columnIndex) {
     // Add primary tag for background color only (ignore row/gather)
     if (columnTag && !columnTag.startsWith('row') && !columnTag.startsWith('gather_')) {
         columnDiv.setAttribute('data-column-tag', columnTag);
-        console.log(`Set data-column-tag="${columnTag}" on column element`);
     }
     
     // Add all tags as a separate attribute for stacking features
@@ -1515,7 +1509,6 @@ function createTaskElement(task, columnId, taskIndex) {
 
 // Update tag styles when theme changes
 function updateTagStylesForTheme() {
-    console.log('Theme changed, updating tag styles');
     applyTagStyles();
 }
 
@@ -1816,7 +1809,6 @@ function generateTagStyles() {
     const isDarkTheme = document.body.classList.contains('vscode-dark') || 
                         document.body.classList.contains('vscode-high-contrast');
     const themeKey = isDarkTheme ? 'dark' : 'light';
-    console.log(`Using theme: ${themeKey}`);
     
     let styles = '';
     
@@ -2138,7 +2130,6 @@ function generateTagStyles() {
         processTags(window.tagColors);
     }
     
-    console.log('Generated CSS length:', styles.length);
     return styles;
 }
 
@@ -2362,7 +2353,6 @@ window.getTagConfig = getTagConfig;
  * Side effects: Updates pending changes, triggers save
  */
 function removeAllTags(id, type, columnId = null) {
-    console.log(`🏷️ Removing all tags from ${type}: ${id}`);
     
     // Get current title
     let currentTitle = '';
@@ -2438,7 +2428,6 @@ function removeAllTags(id, type, columnId = null) {
         document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
     }
     
-    console.log(`✅ Removed all tags, new title: "${newTitle}"`);
 }
 
 window.removeAllTags = removeAllTags;
@@ -2559,7 +2548,7 @@ function calculateRowHeight(containerElement) {
         const columnInner = column.querySelector('.column-inner');
         if (columnInner) {
             // Set the row height
-            columnInner.style.minHeight = finalRowHeight + 'px';
+            // columnInner.style.minHeight = finalRowHeight + 'px';
             column.style.minHeight = finalRowHeight + 'px';
             
             // Enable scrollbars if content exceeds the configured limit

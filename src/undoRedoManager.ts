@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { KanbanBoard } from './markdownParser';
+import { CacheManager } from './cacheManager';
 
 function deepCloneBoard(board: KanbanBoard): KanbanBoard {
     return JSON.parse(JSON.stringify(board));
@@ -8,29 +9,34 @@ function deepCloneBoard(board: KanbanBoard): KanbanBoard {
 export class UndoRedoManager {
     private _undoStack: KanbanBoard[] = [];
     private _redoStack: KanbanBoard[] = [];
-    private readonly _maxUndoStackSize = 50;
+    private readonly _maxUndoStackSize = 100;
     private _webview: vscode.Webview;
+    private _cacheManager?: CacheManager;
+    private _document?: vscode.TextDocument;
 
     constructor(webview: vscode.Webview) {
         this._webview = webview;
     }
 
+    public setCacheManager(cacheManager: CacheManager, document: vscode.TextDocument) {
+        this._cacheManager = cacheManager;
+        this._document = document;
+    }
+
     public saveStateForUndo(board: KanbanBoard) {
-        if (!board || !board.valid) {
-            console.log('❌ Cannot save undo state - invalid board:', board);
-            return;
-        }
+        if (!board || !board.valid) return;
         
-        console.log(`💾 Saving undo state - current stack size: ${this._undoStack.length}`);
         this._undoStack.push(deepCloneBoard(board));
-        
         if (this._undoStack.length > this._maxUndoStackSize) {
             this._undoStack.shift();
         }
-        
         this._redoStack = [];
         this.sendUndoRedoStatus();
-        console.log(`✅ Undo state saved - new stack size: ${this._undoStack.length}`);
+        
+        // Save undo cache for crash recovery
+        if (this._cacheManager && this._document) {
+            this._cacheManager.createUndoCacheFile(this._document, this._undoStack, this._redoStack);
+        }
     }
 
     public undo(currentBoard: KanbanBoard | undefined): KanbanBoard | null {
@@ -45,6 +51,11 @@ export class UndoRedoManager {
         
         const restoredBoard = this._undoStack.pop()!;
         this.sendUndoRedoStatus();
+        
+        // Update undo cache after undo operation
+        if (this._cacheManager && this._document) {
+            this._cacheManager.createUndoCacheFile(this._document, this._undoStack, this._redoStack);
+        }
         
         this.disableFileListenerTemporarily();
         
@@ -63,6 +74,11 @@ export class UndoRedoManager {
         
         const restoredBoard = this._redoStack.pop()!;
         this.sendUndoRedoStatus();
+        
+        // Update undo cache after redo operation
+        if (this._cacheManager && this._document) {
+            this._cacheManager.createUndoCacheFile(this._document, this._undoStack, this._redoStack);
+        }
         
         this.disableFileListenerTemporarily();
         
@@ -84,15 +100,11 @@ export class UndoRedoManager {
     }
 
     private sendUndoRedoStatus() {
-        const canUndoState = this.canUndo();
-        const canRedoState = this.canRedo();
-        console.log(`🔄 Sending undo/redo status: canUndo=${canUndoState}, canRedo=${canRedoState}, undoStack=${this._undoStack.length}, redoStack=${this._redoStack.length}`);
-        
         setTimeout(() => {
             this._webview.postMessage({
                 type: 'undoRedoStatus',
-                canUndo: canUndoState,
-                canRedo: canRedoState
+                canUndo: this.canUndo(),
+                canRedo: this.canRedo()
             });
         }, 10);
     }

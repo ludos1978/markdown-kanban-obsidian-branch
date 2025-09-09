@@ -9,6 +9,7 @@ import { BoardOperations } from './boardOperations';
 import { LinkHandler } from './linkHandler';
 import { MessageHandler } from './messageHandler';
 import { BackupManager } from './backupManager';
+import { CacheManager } from './cacheManager';
 
 export class KanbanWebviewPanel {
     private static panels: Map<string, KanbanWebviewPanel> = new Map();
@@ -28,6 +29,7 @@ export class KanbanWebviewPanel {
     private _messageHandler: MessageHandler;
 
     private _backupManager: BackupManager;
+    private _cacheManager: CacheManager;
     
     // State
     private _board?: KanbanBoard;
@@ -37,10 +39,28 @@ export class KanbanWebviewPanel {
     private _isUndoRedoOperation: boolean = false;  // Track undo/redo operations
     private _unsavedChangesCheckInterval?: NodeJS.Timeout;  // Periodic unsaved changes check
     private _hasUnsavedChanges: boolean = false;  // Track unsaved changes at panel level
+    private _cachedBoardFromWebview: any = null;  // Store the latest cached board from webview
     private _isClosingPrevented: boolean = false;  // Flag to prevent recursive closing attempts
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn || vscode.ViewColumn.One;
+
+        // Check if a panel already exists for this document
+        if (document) {
+            const existingPanel = KanbanWebviewPanel.panels.get(document.uri.toString());
+            if (existingPanel && existingPanel._panel) {
+                // Panel exists, just reveal it
+                existingPanel._panel.reveal(column);
+                console.log(`Revealing existing panel for: ${path.basename(document.fileName)}`);
+                
+                // Update the file info to ensure context is maintained
+                existingPanel._fileManager.sendFileInfo();
+                
+                // Ensure the board is up to date
+                existingPanel.loadMarkdownFile(document);
+                return;
+            }
+        }
 
         // Create a new panel
         const localResourceRoots = [extensionUri];
@@ -105,7 +125,6 @@ export class KanbanWebviewPanel {
             localResourceRoots: localResourceRoots,
         };
         
-        console.log('Reviving webview with localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
         
         const kanbanPanel = new KanbanWebviewPanel(panel, extensionUri, context);
         // Don't store in map yet - will be stored when document is loaded
@@ -131,6 +150,7 @@ export class KanbanWebviewPanel {
         this._undoRedoManager = new UndoRedoManager(this._panel.webview);
         this._boardOperations = new BoardOperations();
         this._backupManager = new BackupManager();
+        this._cacheManager = new CacheManager();
 
         
         // REPLACE this line:
@@ -159,8 +179,29 @@ export class KanbanWebviewPanel {
                 },
                 getWebviewPanel: () => this._panel,
                 saveWithBackup: this._saveWithConflictBackup.bind(this),
-                markUnsavedChanges: (hasChanges: boolean) => {
+                markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => {
                     this._hasUnsavedChanges = hasChanges;
+                    if (cachedBoard) {
+                        // CRITICAL: Store the cached board data immediately for saving
+                        // This ensures we always have the latest data even if webview is disposed
+                        this._board = cachedBoard;
+                        this._cachedBoardFromWebview = cachedBoard; // Keep a separate reference
+                        console.log('💾 Updated backend board with cached data from webview');
+                        console.log('📋 Cached board structure:', {
+                            valid: cachedBoard.valid,
+                            columns: cachedBoard.columns?.length,
+                            firstColumnTitle: cachedBoard.columns?.[0]?.title,
+                            firstTaskTitle: cachedBoard.columns?.[0]?.tasks?.[0]?.title
+                        });
+                        // Log a specific task to verify content
+                        if (cachedBoard.columns?.[0]?.tasks?.[0]) {
+                            console.log('🔍 First task details:', {
+                                id: cachedBoard.columns[0].tasks[0].id,
+                                title: cachedBoard.columns[0].tasks[0].title,
+                                description: cachedBoard.columns[0].tasks[0].description?.substring(0, 50)
+                            });
+                        }
+                    }
                 }
             }
         );
@@ -288,8 +329,7 @@ export class KanbanWebviewPanel {
     private _setupWorkspaceChangeListener() {
         // Listen for workspace folder changes
         const workspaceChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(event => {
-            console.log('Workspace folders changed, updating webview permissions');
-            this._updateWebviewPermissions();
+                this._updateWebviewPermissions();
         });
         
         this._disposables.push(workspaceChangeListener);
@@ -329,7 +369,6 @@ export class KanbanWebviewPanel {
             enableCommandUris: true
         };
         
-        console.log('Updated webview localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
         
         // Refresh the webview HTML to apply new permissions
         if (this._isInitialized) {
@@ -377,10 +416,9 @@ export class KanbanWebviewPanel {
     }
 
     private _setupEventListeners() {
-        // Handle panel disposal - at this point it's too late for unsaved changes check
-        this._panel.onDidDispose(() => {
-            console.log('🚪 Panel onDidDispose - immediate cleanup without unsaved check (too late)');
-            this.dispose();
+        // Handle panel disposal - check for unsaved changes first
+        this._panel.onDidDispose(async () => {
+            await this._handlePanelClose();
         }, null, this._disposables);
 
         // View state change handler
@@ -427,21 +465,67 @@ export class KanbanWebviewPanel {
         await this.sendBoardUpdate();
     }
 
-    public async loadMarkdownFile(document: vscode.TextDocument) {
+    private async createBackupBeforeExternalReload(document: vscode.TextDocument) {
+        if (!this._board || !this._fileManager.getDocument()) return;
+        
+        try {
+            // Get current document content as the backup (this includes any unsaved changes)
+            const currentDocument = this._fileManager.getDocument();
+            if (!currentDocument) return;
+            
+            // Create backup filename with timestamp
+            const originalPath = document.uri.fsPath;
+            const pathParts = originalPath.split('.');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '-').split('Z')[0];
+            const backupPath = `${pathParts.slice(0, -1).join('.')}-backup-${timestamp}.${pathParts[pathParts.length - 1]}`;
+            
+            // Write backup file with current document content
+            const backupUri = vscode.Uri.file(backupPath);
+            await vscode.workspace.fs.writeFile(backupUri, Buffer.from(currentDocument.getText(), 'utf8'));
+            
+            // Show success message with option to open backup
+            const openBackup = await vscode.window.showInformationMessage(
+                `Current state backed up as: ${backupPath.split('/').pop()}`,
+                'Open backup file'
+            );
+            
+            if (openBackup === 'Open backup file') {
+                const backupDocument = await vscode.workspace.openTextDocument(backupUri);
+                await vscode.window.showTextDocument(backupDocument);
+            }
+            
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to create backup: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    public async loadMarkdownFile(document: vscode.TextDocument, isFromEditorFocus: boolean = false) {
         if (this._isUpdatingFromPanel) {
             return;
         }
         
         // Check if this is a genuine external change
         const currentVersion = document.version;
-        const isExternalChange = this._lastDocumentVersion !== -1 && 
-                                this._lastDocumentVersion !== currentVersion - 1 &&
-                                !this._isUndoRedoOperation;
+        // Don't treat editor focus as external change, and be more lenient with version jumps from auto-save
+        const isExternalChange = !isFromEditorFocus &&
+                                this._lastDocumentVersion !== -1 && 
+                                this._lastDocumentVersion < currentVersion &&
+                                !this._isUndoRedoOperation &&
+                                !this._isUpdatingFromPanel;
         
         if (isExternalChange) {
-            console.log('External change detected - reloading board');
+            console.log(`External change detected - version jumped from ${this._lastDocumentVersion} to ${currentVersion}`);
         } else if (this._isUndoRedoOperation) {
             console.log('Document change from undo/redo operation - preserving undo history');
+        } else if (isFromEditorFocus) {
+            console.log('Document loaded from editor focus - not treating as external change');
+            // Check if this is the same document that's already loaded
+            const currentDocumentUri = this._fileManager.getDocument()?.uri.toString();
+            if (currentDocumentUri === document.uri.toString()) {
+                console.log('Same document already loaded - skipping reload to preserve unsaved changes');
+                this._lastDocumentVersion = currentVersion;
+                return; // Don't reload the board, preserve all unsaved changes and folding state
+            }
         }
         
         this._lastDocumentVersion = currentVersion;
@@ -487,12 +571,45 @@ export class KanbanWebviewPanel {
             
             this._boardOperations.setOriginalTaskOrder(this._board);
             
-            // Only clear undo history on document change or external edit (not undo/redo operations)
-            if ((documentChanged || isExternalChange) && !this._isUndoRedoOperation) {
+            // Handle undo history based on change type
+            if (isExternalChange && this._board) {
+                // Ask user what to do with external changes
+                const choice = await vscode.window.showWarningMessage(
+                    'The markdown file has been modified externally. Your current kanban changes may be lost if you reload the file.',
+                    { modal: true },
+                    'Discard changes and reload',
+                    'Save as backup and reload', 
+                    'Ignore external changes'
+                );
+
+                if (choice === 'Ignore external changes') {
+                    // User wants to keep working with current state - don't reload
+                    console.log('User chose to ignore external changes - keeping current board state');
+                    return;
+                } else if (choice === 'Save as backup and reload') {
+                    // Save current board state as backup before reloading
+                    await this.createBackupBeforeExternalReload(document);
+                    console.log('Created backup before loading external changes');
+                    // Save current state to undo history before reloading
+                    this._undoRedoManager.saveStateForUndo(this._board);
+                } else if (choice === 'Discard changes and reload') {
+                    // User explicitly chose to discard - continue with reload
+                    console.log('User chose to discard changes and reload from file');
+                    // Save current state to undo history before reloading
+                    this._undoRedoManager.saveStateForUndo(this._board);
+                } else {
+                    // User cancelled or closed dialog - don't reload
+                    console.log('User cancelled external change dialog - keeping current state');
+                    return;
+                }
+            } else if (documentChanged && !this._isUndoRedoOperation && !this._isUpdatingFromPanel) {
+                // Only clear history when switching to completely different documents
                 this._undoRedoManager.clear();
-                console.log('Cleared undo history due to document/external change');
+                console.log('Cleared undo history due to document change');
             } else if (this._isUndoRedoOperation) {
                 console.log('Preserved undo history during undo/redo operation');
+            } else if (this._isUpdatingFromPanel) {
+                console.log('Preserved undo history during save operation');
             }
         } catch (error) {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
@@ -505,11 +622,14 @@ export class KanbanWebviewPanel {
             };
         }
         
-        await this.sendBoardUpdate();
+        // Connect UndoRedoManager with CacheManager for undo cache persistence
+        this._undoRedoManager.setCacheManager(this._cacheManager, document);
+        
+        await this.sendBoardUpdate(isExternalChange);
         this._fileManager.sendFileInfo();
     }
 
-    private async sendBoardUpdate() {
+    private async sendBoardUpdate(applyDefaultFolding: boolean = false) {
         if (!this._panel.webview) { return; }
 
         let board = this._board || { 
@@ -540,9 +660,18 @@ export class KanbanWebviewPanel {
                 tagColors: tagColors,
                 whitespace: whitespace,
                 showRowTags: showRowTags,
-                maxRowHeight: maxRowHeight
+                maxRowHeight: maxRowHeight,
+                applyDefaultFolding: applyDefaultFolding
             });
         }, 10);
+
+        // Create cache file for crash recovery (only for valid boards with actual content)
+        if (board.valid && board.columns && board.columns.length > 0) {
+            const document = this._fileManager.getDocument();
+            if (document) {
+                await this._cacheManager.createCacheFile(document, board);
+            }
+        }
     }
 
 
@@ -588,6 +717,14 @@ export class KanbanWebviewPanel {
             columnsCount: this._board.columns?.length, 
             tasksCount: this._board.columns?.reduce((sum, col) => sum + col.tasks.length, 0) 
         });
+        
+        // Debug: Log sample task to verify content
+        if (this._board.columns?.length > 0 && this._board.columns[0].tasks?.length > 0) {
+            console.log('🔍 Sample task from board:', {
+                title: this._board.columns[0].tasks[0].title,
+                description: this._board.columns[0].tasks[0].description
+            });
+        }
         this._isUpdatingFromPanel = true;
         
         try {
@@ -671,6 +808,9 @@ export class KanbanWebviewPanel {
             try {
                 await document.save();
                 console.log('💾 Document.save() completed successfully');
+                
+                // Clean up cache files after successful save
+                await this._cacheManager.cleanupCacheFiles(document);
             } catch (saveError) {
                 // If save fails, it might be because the document was closed
                 console.warn('Failed to save document:', saveError);
@@ -847,7 +987,6 @@ export class KanbanWebviewPanel {
             localResourceRoots: localResourceRoots
         };
         
-        console.log('Webview localResourceRoots:', localResourceRoots.map(uri => uri.fsPath));
         
         const webviewDir = this._panel.webview.asWebviewUri(
             vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html'))
@@ -885,8 +1024,61 @@ export class KanbanWebviewPanel {
         return text;
     }
 
+    private async _handlePanelClose() {
+        // Check if there are unsaved changes before closing
+        if (this._hasUnsavedChanges && !this._isClosingPrevented) {
+            this._isClosingPrevented = true;
+            
+            // Use the cached board that was already sent when changes were made
+            if (this._cachedBoardFromWebview) {
+                console.log('Using cached board from webview for save dialog');
+                this._board = this._cachedBoardFromWebview;
+            }
+            
+            const choice = await vscode.window.showWarningMessage(
+                'You have unsaved changes in the kanban board. Do you want to save before closing?',
+                { modal: true },
+                { title: 'Save and close' },
+                { title: 'Close without saving', isCloseAffordance: true }
+            );
+						
+            if (choice && (choice.title === 'Save and close')) {
+                try {
+                    // Save the changes before closing
+                    console.log('User chose to save before closing');
+                    console.log('Current board state before save:', {
+                        valid: this._board?.valid,
+                        columns: this._board?.columns?.length,
+                        firstTask: this._board?.columns?.[0]?.tasks?.[0]?.title,
+                        usingCachedBoard: this._cachedBoardFromWebview !== null
+                    });
+                    
+                    await this.saveToMarkdown();
+                    this._hasUnsavedChanges = false;
+                    this._cachedBoardFromWebview = null; // Clear after save
+                    // Allow disposal to continue
+                    this.dispose();
+                } catch (error) {
+                    // If save fails, show error and prevent closing
+                    vscode.window.showErrorMessage(`Failed to save changes: ${error instanceof Error ? error.message : String(error)}`);
+                    this._isClosingPrevented = false;
+                    // Try to reopen the panel (though it may already be disposed)
+                    return;
+                }
+            } else {
+                // Handle both 'Close without saving' and undefined (dialog closed) as close without saving
+                console.log('User chose to close without saving (or closed dialog)');
+                this._hasUnsavedChanges = false;
+                this._cachedBoardFromWebview = null; // Clear cached board
+                this.dispose();
+            }
+        } else {
+            // No unsaved changes, proceed with normal disposal
+            this.dispose();
+        }
+    }
+
     public async dispose() {
-        console.log('🔧 DEBUG: Disposing KanbanWebviewPanel - webview already disposed, cleanup only');
         
         // Clear unsaved changes flag and prevent closing flags
         this._hasUnsavedChanges = false;
@@ -901,12 +1093,12 @@ export class KanbanWebviewPanel {
         // Remove from panels map
         const documentUri = this._fileManager.getDocument()?.uri.toString();
         if (documentUri && KanbanWebviewPanel.panels.get(documentUri) === this) {
-            console.log('🔧 DEBUG: Removing panel from map for URI:', documentUri);
             KanbanWebviewPanel.panels.delete(documentUri);
         }
         
         // Stop backup timer
         this._backupManager.dispose();
+        this._cacheManager.dispose();
         
         this._panel.dispose();
 
@@ -914,7 +1106,6 @@ export class KanbanWebviewPanel {
             const disposable = this._disposables.pop();
             disposable?.dispose();
         }
-        console.log('🔧 DEBUG: Panel disposal completed');
     }
 
 
@@ -965,54 +1156,6 @@ export class KanbanWebviewPanel {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const currentDocument = this._fileManager.getDocument();
         
-        console.log('=== WEBVIEW PERMISSIONS DEBUG ===');
-        
-        console.log('Workspace folders:');
-        workspaceFolders?.forEach((folder, i) => {
-            console.log(`  ${i + 1}. ${folder.name}: ${folder.uri.fsPath}`);
-        });
-        
-        console.log('Current document:', currentDocument?.uri.fsPath || 'None');
-        
-        console.log('Webview localResourceRoots:');
-        const options = this._panel.webview.options as any;
-        options?.localResourceRoots?.forEach((root: vscode.Uri, i: number) => {
-            console.log(`  ${i + 1}. ${root.fsPath}`);
-        });
-        
-        console.log('Current board images:');
-        if (this._board?.valid) {
-            this._board.columns.forEach(column => {
-                column.tasks.forEach(task => {
-                    const imageMatches = [
-                        ...(task.title?.match(/!\[([^\]]*)\]\(([^)]+)\)/g) || []),
-                        ...(task.description?.match(/!\[([^\]]*)\]\(([^)]+)\)/g) || [])
-                    ];
-                    
-                    imageMatches.forEach(match => {
-                        const src = match.match(/\(([^)]+)\)/)?.[1];
-                        if (src) {
-                            console.log(`  Image: ${src}`);
-                            
-                            // Test if this image would be accessible
-                            this._fileManager.resolveFilePath(src).then(resolution => {
-                                if (resolution?.exists) {
-                                    const webviewUri = this._panel.webview.asWebviewUri(
-                                        vscode.Uri.file(resolution.resolvedPath)
-                                    );
-                                    console.log(`    Resolved: ${resolution.resolvedPath}`);
-                                    console.log(`    Webview URI: ${webviewUri.toString()}`);
-                                } else {
-                                    console.log(`    NOT FOUND - attempted paths:`, resolution?.attemptedPaths);
-                                }
-                            });
-                        }
-                    });
-                });
-            });
-        }
-        
-        console.log('=== END DEBUG ===');
     }
 
     private async _getShowRowTagsConfiguration(): Promise<boolean> {

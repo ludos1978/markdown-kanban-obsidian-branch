@@ -43,7 +43,6 @@ window.dragState = dragState;
 
 // External file drop location indicators
 function createExternalDropIndicator() {
-    // Remove console.log from here since it's called frequently
     if (externalDropIndicator) {
         return externalDropIndicator;
     }
@@ -55,7 +54,6 @@ function createExternalDropIndicator() {
     externalDropIndicator = indicator;
     
     if (DEBUG_DROP) {
-        console.log('[DROP DEBUG] External drop indicator created');
     }
     
     return indicator;
@@ -63,7 +61,6 @@ function createExternalDropIndicator() {
 
 function showExternalDropIndicator(column, clientY) {
     if (DEBUG_DROP && currentExternalDropColumn !== column) {
-        console.log('[DROP DEBUG] Showing indicator for column:', column.dataset.columnId);
     }
     const indicator = createExternalDropIndicator();
     const tasksContainer = column.querySelector('.tasks-container');
@@ -114,7 +111,6 @@ function showExternalDropIndicator(column, clientY) {
 }
 
 function hideExternalDropIndicator() {
-    console.log(`hideExternalDropIndicator`);
 
     if (externalDropIndicator) {
         externalDropIndicator.classList.remove('active');
@@ -133,7 +129,6 @@ function hideExternalDropIndicator() {
 }
 
 function cleanupExternalDropIndicators() {
-    console.log(`cleanupExternalDropIndicators`);
 
     hideExternalDropIndicator();
     if (externalDropIndicator) {
@@ -149,7 +144,6 @@ function cleanupExternalDropIndicators() {
  * Side effects: Adds document-level event listeners
  */
 function setupGlobalDragAndDrop() {
-    console.log(`[DROP DEBUG] setupGlobalDragAndDrop initialized`);
 
     const boardContainer = document.getElementById('kanban-container');
     const dropFeedback = document.getElementById('drop-zone-feedback');
@@ -178,13 +172,11 @@ function setupGlobalDragAndDrop() {
         // Only log once per second to reduce spam
         const now = Date.now();
         if (!window.lastClipboardDebugLog || now - window.lastClipboardDebugLog > 1000) {
-            console.log('[DROP DEBUG] Has clipboard card:', hasClipboardCard, 'Has empty card:', hasEmptyCard, 'dragState:', dragState);
             window.lastClipboardDebugLog = now;
         }
         if (hasClipboardCard || hasEmptyCard) return true;
         
         if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask) && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
-            console.log('[DROP DEBUG] Internal drag detected, ignoring external');
             return false;
         }
         
@@ -207,24 +199,19 @@ function setupGlobalDragAndDrop() {
     
     // Main drop handler function
     function handleExternalDrop(e) {
-        console.log('[DROP DEBUG] ============ DROP EVENT FIRED ============');
-        console.log('[DROP DEBUG] Target:', e.target.className);
         
         if (!isExternalFileDrag(e)) {
-            console.log('[DROP DEBUG] Not an external file drag, ignoring');
             return;
         }
         
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('[DROP DEBUG] Processing external file drop');
         
         hideDropFeedback(e);
         hideExternalDropIndicator();
         
         if (isProcessingDrop) {
-            console.log('[DROP DEBUG] Already processing a drop');
             return;
         }
         
@@ -240,12 +227,9 @@ function setupGlobalDragAndDrop() {
         }
         
         // Debug all available data transfer types
-        console.log('[DROP DEBUG] Available data transfer types:', Array.from(dt.types));
         
         // Check for clipboard card using dragState first (since dataTransfer might be empty)
-        console.log('[DROP DEBUG] Checking dragState.draggedClipboardCard:', dragState.draggedClipboardCard);
         if (dragState.draggedClipboardCard) {
-            console.log('[DROP DEBUG] Handling clipboard card drop from dragState');
             const clipboardData = JSON.stringify({
                 type: 'clipboard-card',
                 task: dragState.draggedClipboardCard
@@ -258,9 +242,7 @@ function setupGlobalDragAndDrop() {
         }
         
         // Check for empty card using dragState
-        console.log('[DROP DEBUG] Checking dragState.draggedEmptyCard:', dragState.draggedEmptyCard);
         if (dragState.draggedEmptyCard) {
-            console.log('[DROP DEBUG] Handling empty card drop from dragState');
             const emptyCardData = JSON.stringify({
                 type: 'empty-card',
                 task: dragState.draggedEmptyCard
@@ -274,28 +256,22 @@ function setupGlobalDragAndDrop() {
         
         // Fallback: Check for clipboard card in text/plain
         const textData = dt.getData('text/plain');
-        console.log('[DROP DEBUG] text/plain data:', textData);
         
         if (textData && textData.startsWith('CLIPBOARD_CARD:')) {
-            console.log('[DROP DEBUG] Handling clipboard card drop from text data');
             const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
             handleClipboardCardDrop(e, clipboardData);
         } else if (textData && textData.startsWith('EMPTY_CARD:')) {
-            console.log('[DROP DEBUG] Handling empty card drop from text data');
             const emptyCardData = textData.substring('EMPTY_CARD:'.length);
             handleEmptyCardDrop(e, emptyCardData);
         } else if (dt.files && dt.files.length > 0) {
-            console.log('[DROP DEBUG] Handling file drop:', dt.files[0].name);
             handleVSCodeFileDrop(e, dt.files);
         } else {
             const uriList = dt.getData('text/uri-list');
             const textPlain = dt.getData('text/plain');
             
             if (uriList) {
-                console.log('[DROP DEBUG] Handling URI list');
                 handleVSCodeUriDrop(e, uriList);
             } else if (textPlain && textPlain.includes('/')) {
-                console.log('[DROP DEBUG] Handling text as path');
                 handleVSCodeUriDrop(e, textPlain);
             }
         }
@@ -375,7 +351,6 @@ function setupGlobalDragAndDrop() {
         const spacer = e.target.closest('.row-drop-zone-spacer');
         
         if ((row || spacer) && isExternalFileDrag(e)) {
-            console.log('[DROP DEBUG] Drop on row/spacer, handling...');
             handleExternalDrop(e);
         }
     }, true); // Use capture phase
@@ -390,29 +365,23 @@ function setupGlobalDragAndDrop() {
     document.addEventListener('drop', function(e) {
         if (!boardContainer.contains(e.target)) {
             e.preventDefault();
-            console.log('[DROP DEBUG] Drop outside board, prevented');
         }
     }, false);
     
-    console.log('[DROP DEBUG] All handlers registered (including multi-row support)');
 }
 
 
 function handleClipboardCardDrop(e, clipboardData) {
-    console.log(`[DROP DEBUG] handleClipboardCardDrop called with data:`, clipboardData);
     
     try {
         const parsedData = JSON.parse(clipboardData);
-        console.log('[DROP DEBUG] Parsed clipboard card data:', parsedData);
         
         // Extract the task data
         const taskData = parsedData.task || parsedData;
-        console.log('[DROP DEBUG] Task data:', taskData);
         
         const title = taskData.title || taskData.content || parsedData.content || 'New Card';
         const description = taskData.description || taskData.content || '';
         
-        console.log('[DROP DEBUG] Creating task with title:', title, 'description:', description);
         
         createNewTaskWithContent(
             title,
@@ -423,7 +392,6 @@ function handleClipboardCardDrop(e, clipboardData) {
         console.error('[DROP DEBUG] Failed to parse clipboard card data:', error);
         console.error('[DROP DEBUG] Raw data was:', clipboardData);
         // Fallback: treat as plain text
-        console.log('[DROP DEBUG] Using fallback - creating with raw data as title');
         createNewTaskWithContent(
             'Clipboard Content',
             { x: e.clientX, y: e.clientY },
@@ -433,14 +401,11 @@ function handleClipboardCardDrop(e, clipboardData) {
 }
 
 function handleEmptyCardDrop(e, emptyCardData) {
-    console.log(`[DROP DEBUG] handleEmptyCardDrop called with data:`, emptyCardData);
     
     try {
         const parsedData = JSON.parse(emptyCardData);
-        console.log('[DROP DEBUG] Parsed empty card data:', parsedData);
         
         // Create empty task
-        console.log('[DROP DEBUG] Creating empty task');
         
         createNewTaskWithContent(
             '',
@@ -451,7 +416,6 @@ function handleEmptyCardDrop(e, emptyCardData) {
         console.error('[DROP DEBUG] Failed to parse empty card data:', error);
         console.error('[DROP DEBUG] Raw data was:', emptyCardData);
         // Fallback: create empty task anyway
-        console.log('[DROP DEBUG] Using fallback - creating empty task');
         createNewTaskWithContent(
             '',
             { x: e.clientX, y: e.clientY },
@@ -461,21 +425,11 @@ function handleEmptyCardDrop(e, emptyCardData) {
 }
 
 function handleVSCodeFileDrop(e, files) {
-    console.log(`[DROP DEBUG] handleVSCodeFileDrop called with ${files.length} files`);
     
     const file = files[0];
     const fileName = file.name;
     
-    console.log(`[DROP DEBUG] File details:`, {
-        name: fileName,
-        type: file.type,
-        size: file.size,
-        clientX: e.clientX,
-        clientY: e.clientY
-    });
-    
     const activeEditor = getActiveTextEditor();
-    console.log('[DROP DEBUG] Active editor:', activeEditor);
     
     const message = {
         type: 'handleFileDrop',
@@ -487,13 +441,11 @@ function handleVSCodeFileDrop(e, files) {
         activeEditor: activeEditor
     };
     
-    console.log('[DROP DEBUG] Sending message to VSCode:', message);
     vscode.postMessage(message);
 }
 
 
 function handleVSCodeUriDrop(e, uriData) {
-    console.log(`handleVSCodeUriDrop`);
 
     const uris = uriData.split('\n').filter(uri => uri.trim()).filter(uri => {
         const isFile = uri.startsWith('file://') || (uri.includes('/') && !uri.includes('task_') && !uri.includes('col_'));
@@ -519,7 +471,6 @@ function handleVSCodeUriDrop(e, uriData) {
 }
 
 function getActiveTextEditor() {
-    console.log(`getActiveTextEditor`);
 
     if (taskEditor.currentEditor) {
         const editor = taskEditor.currentEditor;
@@ -545,12 +496,8 @@ function getActiveTextEditor() {
  * Side effects: Sends create task message to VS Code
  */
 function createNewTaskWithContent(content, dropPosition, description = '') {
-    console.log(`[DROP DEBUG] createNewTaskWithContent called`);
-    console.log(`[DROP DEBUG] Content:`, content);
-    console.log(`[DROP DEBUG] Drop position:`, dropPosition);
     
     // Check board availability - NEW CACHE SYSTEM
-    console.log('[DROP DEBUG] window.cachedBoard:', window.cachedBoard);
     
     if (!window.cachedBoard) {
         console.error('[DROP DEBUG] No board on window.cachedBoard');
@@ -570,10 +517,8 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         return;
     }
     
-    console.log(`[DROP DEBUG] Board has ${window.cachedBoard.columns.length} columns`);
     
     if (recentlyCreatedTasks.has(content)) {
-        console.log('[DROP DEBUG] Duplicate prevention - task already created');
         return;
     }
     
@@ -585,16 +530,13 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     let insertionIndex = -1;
     
     const elementAtPoint = document.elementFromPoint(dropPosition.x, dropPosition.y);
-    console.log('[DROP DEBUG] Element at drop point:', elementAtPoint);
     
     const columnElement = elementAtPoint?.closest('.kanban-full-height-column');
     
     if (columnElement && !columnElement.classList.contains('collapsed')) {
         targetColumnId = columnElement.dataset.columnId;
         insertionIndex = calculateInsertionIndex(columnElement, dropPosition.y);
-        console.log(`[DROP DEBUG] Found column at drop point: ${targetColumnId}, insertion index: ${insertionIndex}`);
     } else {
-        console.log('[DROP DEBUG] No column at drop point, finding nearest...');
         
         const columns = document.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
         let minDistance = Infinity;
@@ -613,7 +555,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         });
         
         if (targetColumnId) {
-            console.log(`[DROP DEBUG] Found nearest column: ${targetColumnId} at distance ${minDistance}`);
         }
     }
     
@@ -624,7 +565,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         if (firstNonCollapsed) {
             targetColumnId = firstNonCollapsed.id;
             insertionIndex = -1;
-            console.log(`[DROP DEBUG] Using first non-collapsed column: ${targetColumnId}`);
         }
     }
     
@@ -651,20 +591,11 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
                     targetColumn.tasks.push(newTask);
                 }
                 
-                console.log(`🗄️ Cached board updated: added task "${content}" to column ${targetColumnId} at index ${insertionIndex}`);
                 
                 // Mark as unsaved
                 if (typeof markUnsavedChanges === 'function') {
                     markUnsavedChanges();
-                    console.log('🗄️ Task created via drag & drop - cached, use Cmd+S to save');
                 }
-                
-                // Send message to VS Code for undo tracking only
-                vscode.postMessage({ 
-                    type: 'saveUndoState', 
-                    operation: 'createTaskViaDrag',
-                    columnId: targetColumnId
-                });
             }
         }
         
@@ -675,7 +606,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             insertionIndex: insertionIndex
         };
         
-        console.log('[DROP DEBUG] Sending addTaskAtPosition message:', message);
         vscode.postMessage(message);
     } else {
         console.error('[DROP DEBUG] Could not find any suitable column');
@@ -688,7 +618,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
 
 
 function calculateInsertionIndex(column, clientY) {
-    console.log(`calculateInsertionIndex`);
 
     const tasksContainer = column.querySelector('.tasks-container');
     if (!tasksContainer) {
@@ -715,7 +644,6 @@ function calculateInsertionIndex(column, clientY) {
 
 // Helper function to restore original column position
 function restoreColumnPosition() {
-    console.log(`restoreColumnPosition`);
 
     if (dragState.draggedColumn && dragState.originalColumnIndex >= 0) {
         const board = document.getElementById('kanban-board');
@@ -751,7 +679,6 @@ function restoreColumnPosition() {
 
 // Helper function to restore original task position
 function restoreTaskPosition() {
-    console.log(`restoreTaskPosition`);
 
     if (dragState.draggedTask && dragState.originalTaskParent) {
         // Remove from current position
@@ -847,7 +774,6 @@ function setupRowDragAndDrop() {
 }
 
 function calculateColumnDropIndexInRow(draggedColumn) {
-    console.log(`calculateColumnDropIndexInRow`);
 
     if (!currentBoard || !currentBoard.columns) return -1;
     
@@ -890,7 +816,6 @@ function calculateColumnDropIndexInRow(draggedColumn) {
 }
 
 function calculateColumnDropIndex(boardElement, draggedColumn) {
-    console.log(`calculateColumnDropIndex`);
 
     const columns = Array.from(boardElement.querySelectorAll('.kanban-full-height-column'));
     const currentIndex = columns.indexOf(draggedColumn);
@@ -920,7 +845,6 @@ function calculateColumnDropIndex(boardElement, draggedColumn) {
  * Side effects: Makes tasks draggable, adds drop zones
  */
 function setupTaskDragAndDrop() {
-    console.log(`setupTaskDragAndDrop`);
 
     // Get all columns across all rows
     const boardElement = document.getElementById('kanban-board');
@@ -981,7 +905,6 @@ function setupTaskDragAndDrop() {
 }
 
 function setupTaskDragHandle(handle) {
-    console.log(`setupTaskDragHandle`);
 
     handle.draggable = true;
     
@@ -1008,12 +931,10 @@ function setupTaskDragHandle(handle) {
             // Make the task semi-transparent
             taskItem.classList.add('dragging', 'drag-preview');
             
-            console.log(`dragstart task ${taskId}, dragState.isDragging = ${dragState.isDragging}`);
         }
     });
 
     handle.addEventListener('dragend', e => {
-        console.log(`dragend for task, clearing drag state`);
 
         const taskItem = e.target.closest('.task-item');
         if (taskItem) {
@@ -1052,8 +973,18 @@ function setupTaskDragHandle(handle) {
                     }
                     
                     // NEW CACHE SYSTEM: Update cached board directly
-                    if (window.cachedBoard && originalColumnId !== finalColumnId) {
+                    if (window.cachedBoard) {
                         const taskId = taskItem.dataset.taskId;
+                        
+                        // SAVE UNDO STATE BEFORE MAKING CHANGES (for both same-column and cross-column moves)
+                        vscode.postMessage({ 
+                            type: 'saveUndoState', 
+                            operation: originalColumnId !== finalColumnId ? 'moveTaskViaDrag' : 'reorderTaskViaDrag', 
+                            taskId: taskId,
+                            fromColumnId: originalColumnId,
+                            toColumnId: finalColumnId,
+                            currentBoard: window.cachedBoard
+                        });
                         
                         // Find and remove task from original column
                         const originalColumn = window.cachedBoard.columns.find(col => col.id === originalColumnId);
@@ -1062,27 +993,15 @@ function setupTaskDragHandle(handle) {
                         if (originalColumn && finalColumn) {
                             const taskIndex = originalColumn.tasks.findIndex(t => t.id === taskId);
                             if (taskIndex >= 0) {
-                                // SAVE UNDO STATE BEFORE MAKING CHANGES
-                                console.log('🔄 Sending saveUndoState message for moveTaskViaDrag:', { 
-                                    taskId: taskId,
-                                    fromColumnId: originalColumnId,
-                                    toColumnId: finalColumnId
-                                });
-                                vscode.postMessage({ 
-                                    type: 'saveUndoState', 
-                                    operation: 'moveTaskViaDrag', 
-                                    taskId: taskId,
-                                    fromColumnId: originalColumnId,
-                                    toColumnId: finalColumnId
-                                });
-                                
                                 const [task] = originalColumn.tasks.splice(taskIndex, 1);
                                 
                                 // Add task to new column at correct position
                                 const insertIndex = Math.min(dropIndex, finalColumn.tasks.length);
                                 finalColumn.tasks.splice(insertIndex, 0, task);
                                 
-                                console.log(`🗄️ Cached board updated: moved task ${taskId} from ${originalColumnId} to ${finalColumn} at index ${insertIndex}`);
+                                if (originalColumnId !== finalColumnId) {
+                                } else {
+                                }
                                 
                                 // Also update currentBoard for compatibility
                                 if (window.currentBoard !== window.cachedBoard) {
@@ -1103,10 +1022,7 @@ function setupTaskDragHandle(handle) {
                     // NEW CACHE SYSTEM: Mark as unsaved  
                     if (typeof markUnsavedChanges === 'function') {
                         markUnsavedChanges();
-                        console.log('🗄️ Task moved via drag - cached, use Cmd+S to save');
                     }
-                    
-                    // Undo state already saved before making changes above
                 }
             }
             
@@ -1139,7 +1055,6 @@ function setupTaskDragHandle(handle) {
 }
 
 function getDragAfterTaskElement(container, y) {
-    console.log(`getDragAfterTaskElement`);
 
     const draggableElements = [...container.querySelectorAll('.task-item')].filter(el => el !== dragState.draggedTask);
     const addButton = container.querySelector('.add-task-btn');
@@ -1166,7 +1081,6 @@ function getDragAfterTaskElement(container, y) {
 }
 
 function calculateTaskDropIndex(tasksContainer, draggedTask, event) {
-    console.log(`calculateTaskDropIndex`);
 
     const tasks = Array.from(tasksContainer.children);
     const currentIndex = tasks.indexOf(draggedTask);
@@ -1184,7 +1098,6 @@ function calculateTaskDropIndex(tasksContainer, draggedTask, event) {
  * @returns {number} Insertion index
  */
 function calculateDropIndex(tasksContainer, clientY) {
-    console.log(`calculateDropIndex`);
 
     const tasks = Array.from(tasksContainer.children);
     let dropIndex = tasks.length;
@@ -1210,7 +1123,6 @@ function getOriginalColumnIndex(columnId) {
 
 // Drag and drop setup
 function setupDragAndDrop() {
-    console.log(`setupDragAndDrop`);
 
     // Clear any existing drag state when setting up
     dragState = {
@@ -1248,7 +1160,6 @@ function setupDragAndDrop() {
  * Side effects: Makes column headers draggable
  */
 function setupColumnDragAndDrop() {
-    console.log(`setupColumnDragAndDrop`);
 
     const boardElement = document.getElementById('kanban-board');
     const columns = boardElement.querySelectorAll('.kanban-full-height-column');
@@ -1278,11 +1189,9 @@ function setupColumnDragAndDrop() {
             // Visual feedback
             columnElement.classList.add('dragging', 'drag-preview');
             
-            console.log(`Started dragging column ${columnId} from data position ${originalIndex}`);
         });
 
         dragHandle.addEventListener('dragend', e => {
-            console.log(`dragend for column`);
             
             const columnElement = column;
             const columnId = dragState.draggedColumnId;
@@ -1309,8 +1218,6 @@ function setupColumnDragAndDrop() {
             const parentRow = columnElement.closest('.kanban-row');
             const newRow = parentRow ? parseInt(parentRow.getAttribute('data-row-number') || '1') : 1;
             
-            console.log(`Column ${columnId}: DOM index ${targetDOMIndex}, target data index ${targetDataIndex}, row ${newRow}`);
-            console.log('New order would be:', newOrder);
             
             // NEW CACHE SYSTEM: Update cached board directly
             if (window.cachedBoard) {
@@ -1320,7 +1227,6 @@ function setupColumnDragAndDrop() {
                 ).filter(Boolean);
                 
                 window.cachedBoard.columns = reorderedColumns;
-                console.log(`🗄️ Cached board updated: reordered columns to ${newOrder.join(', ')}`);
                 
                 // Also update currentBoard for compatibility
                 if (window.currentBoard !== window.cachedBoard) {
@@ -1334,15 +1240,7 @@ function setupColumnDragAndDrop() {
             // NEW CACHE SYSTEM: Mark as unsaved
             if (typeof markUnsavedChanges === 'function') {
                 markUnsavedChanges(); 
-                console.log('🗄️ Columns reordered via drag - cached, use Cmd+S to save');
             }
-            
-            // Send message to VS Code for undo tracking only
-            vscode.postMessage({ 
-                type: 'saveUndoState', 
-                operation: 'reorderColumnsViaDrag',
-                newOrder: newOrder
-            });
             
             // Reset drag state
             dragState.draggedColumn = null;
@@ -1395,7 +1293,6 @@ function setupColumnDragAndDrop() {
 }
 
 function calculateColumnNewPosition(draggedColumn) {
-    console.log(`calculateColumnNewPosition for column:`, draggedColumn);
 
     if (!currentBoard || !currentBoard.columns) return 0;
     
@@ -1432,9 +1329,6 @@ function calculateColumnNewPosition(draggedColumn) {
     // Find where our dragged column should be in the final order
     const targetPosition = desiredOrder.indexOf(columnId);
     
-    console.log(`Column ${columnId} should be at position ${targetPosition}`);
-    console.log('Desired final order:', desiredOrder);
-    console.log('Current data model order:', currentBoard.columns.map(c => c.id));
     
     return targetPosition >= 0 ? targetPosition : 0;
 }

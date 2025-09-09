@@ -8,6 +8,8 @@ class TaskEditor {
     constructor() {
         this.currentEditor = null;
         this.isTransitioning = false;
+        this.keystrokeTimeout = null;
+        this.lastEditContext = null; // Track what was last being edited
         this.setupGlobalHandlers();
     }
 
@@ -18,7 +20,6 @@ class TaskEditor {
      * Handles: Tab, Enter, Escape keys, click outside to save
      */
     setupGlobalHandlers() {
-        console.log(`TaskEditor.setupGlobalHandlers`);
 
         // Single global keydown handler
         document.addEventListener('keydown', (e) => {
@@ -144,6 +145,17 @@ class TaskEditor {
             columnId: columnId || editElement.dataset.columnId,
             originalValue: editElement.value
         };
+        
+        
+        // Reset edit context when starting a new edit session on a different field
+        const newEditContext = type === 'column-title' 
+            ? `column-title-${columnId}` 
+            : `${type}-${taskId || editElement.dataset.taskId}-${columnId}`;
+            
+        console.log(`🎯 UNDO: Starting edit "${newEditContext}", last: "${this.lastEditContext}"`);
+        
+        // Don't reset context here - let saveCurrentField determine if it's different
+        // This was the bug: resetting to null made every save think it was a new field
 
         // Set up input handler for auto-resize
         editElement.oninput = () => this.autoResize(editElement);
@@ -187,7 +199,7 @@ class TaskEditor {
         const columnId = this.currentEditor.columnId;
         const taskItem = this.currentEditor.element.closest('.task-item');
         
-        // DON'T SAVE YET - just update local state
+        // Update local state (undo state will be saved when editing completes)
         const value = this.currentEditor.element.value;
         if (currentBoard && currentBoard.columns) {
             const column = currentBoard.columns.find(c => c.id === columnId);
@@ -196,6 +208,11 @@ class TaskEditor {
                 task.title = value;
                 if (this.currentEditor.displayElement) {
                     this.currentEditor.displayElement.innerHTML = renderMarkdown(value);
+                }
+                
+                // Mark as unsaved since we made a change
+                if (typeof markUnsavedChanges === 'function') {
+                    markUnsavedChanges();
                 }
             }
         }
@@ -229,6 +246,7 @@ class TaskEditor {
     save() {
         if (!this.currentEditor || this.isTransitioning) return;
         
+        console.log(`💾 UNDO: Starting save for current edit session`);
         this.saveCurrentField();
         this.closeEditor();
     }
@@ -263,11 +281,32 @@ class TaskEditor {
                         .replace(/\s{2,}/g, ' ')
                         .trim();
                     
-                    // Re-add row tag if needed
-                    if (currentRow > 1) {
-                        column.title = cleanValue + ` #row${currentRow}`;
-                    } else {
-                        column.title = cleanValue;
+                    // Check if the title actually changed
+                    const oldCleanTitle = column.title.replace(/#row\d+/gi, '').trim();
+                    if (oldCleanTitle !== cleanValue) {
+                        // Create context for this edit to determine if it's the same column being edited
+                        const editContext = `column-title-${columnId}`;
+                        
+                        console.log(`🔍 UNDO: Column title changing from "${oldCleanTitle}" to "${cleanValue}"`);
+                        
+                        // CRITICAL FIX: Save undo state BEFORE making the change
+                        console.log(`🚀 UNDO: Saving column state BEFORE change for ${editContext}`);
+                        this.saveUndoStateImmediately('editColumnTitle', null, columnId);
+                        
+                        this.lastEditContext = editContext;
+                        
+                        // Now make the change AFTER saving the undo state
+                        // Re-add row tag if needed
+                        if (currentRow > 1) {
+                            column.title = cleanValue + ` #row${currentRow}`;
+                        } else {
+                            column.title = cleanValue;
+                        }
+                        
+                        // Mark as unsaved since we made a change
+                        if (typeof markUnsavedChanges === 'function') {
+                            markUnsavedChanges();
+                        }
                     }
                     
                     if (this.currentEditor.displayElement) {
@@ -301,7 +340,47 @@ class TaskEditor {
                 
                 if (task) {
                     const field = type === 'task-title' ? 'title' : 'description';
-                    task[field] = value;
+                    
+                    // Only save undo state if the value actually changed
+                    if (task[field] !== value) {
+                        // Create context for this edit to determine if it's the same field being edited
+                        const editContext = `${type}-${taskId}-${columnId}`;
+                        
+                        console.log(`🔍 UNDO: Edit context "${editContext}", last: "${this.lastEditContext}"`);
+                        console.log(`🔍 UNDO: Context comparison: "${this.lastEditContext}" === "${editContext}" = ${this.lastEditContext === editContext}`);
+                        console.log(`🔍 UNDO: Task field changing from "${task[field]}" to "${value}"`);
+                        
+                        // CRITICAL FIX: Save undo state BEFORE making the change
+                        console.log(`🚀 UNDO: Saving state BEFORE change for ${editContext} (debugging mode)`);
+                        this.saveUndoStateImmediately(
+                            type === 'task-title' ? 'editTaskTitle' : 'editTaskDescription',
+                            taskId,
+                            columnId
+                        );
+                        
+                        console.log(`🏷️ UNDO: Setting lastEditContext to "${editContext}"`);
+                        this.lastEditContext = editContext;
+                        
+                        // Now make the change AFTER saving the undo state
+                        task[field] = value;
+                        
+                        // Mark as unsaved and send the specific change to backend
+                        if (typeof markUnsavedChanges === 'function') {
+                            markUnsavedChanges();
+                        }
+                        
+                        // Send specific task update to backend
+                        if (typeof vscode !== 'undefined') {
+                            vscode.postMessage({
+                                type: 'updateTaskInBackend',
+                                taskId: taskId,
+                                columnId: columnId,
+                                field: field,
+                                value: value
+                            });
+                            console.log(`📤 Sent task update to backend: ${field} = "${value}"`);
+                        }
+                    }
                     
                     if (this.currentEditor.displayElement) {
                         if (value.trim()) {
@@ -362,6 +441,62 @@ class TaskEditor {
         this.currentEditor = null;
     }
 
+
+    /**
+     * Saves undo state immediately for different operations
+     * Purpose: Immediate undo state for switching between different cards/columns
+     * @param {string} operation - The operation type
+     * @param {string} taskId - Task ID (null for column operations)
+     * @param {string} columnId - Column ID
+     */
+    saveUndoStateImmediately(operation, taskId, columnId) {
+        // Clear any pending keystroke timeout since this is a different operation
+        if (this.keystrokeTimeout) {
+            clearTimeout(this.keystrokeTimeout);
+            this.keystrokeTimeout = null;
+            console.log(`🚫 UNDO: Cancelled pending keystroke timeout`);
+        }
+        
+        console.log(`💾 UNDO: Immediate save - ${operation} (task:${taskId}, column:${columnId})`);
+        vscode.postMessage({ 
+            type: 'saveUndoState', 
+            operation: operation,
+            taskId: taskId,
+            columnId: columnId,
+            currentBoard: window.cachedBoard
+        });
+    }
+
+    /**
+     * Schedules undo state saving with debouncing for same-field keystrokes
+     * Purpose: Group keystrokes within the same field to avoid excessive undo states
+     * @param {string} operation - The operation type
+     * @param {string} taskId - Task ID (null for column operations)
+     * @param {string} columnId - Column ID
+     */
+    scheduleKeystrokeUndoSave(operation, taskId, columnId) {
+        // Clear existing timeout to debounce keystrokes
+        if (this.keystrokeTimeout) {
+            clearTimeout(this.keystrokeTimeout);
+            console.log(`🔄 UNDO: Rescheduling keystroke timeout`);
+        }
+        
+        console.log(`⏰ UNDO: Scheduling keystroke save in 500ms - ${operation}`);
+        
+        // Schedule undo state saving after keystroke delay
+        this.keystrokeTimeout = setTimeout(() => {
+            console.log(`💾 UNDO: Debounced save - ${operation} (task:${taskId}, column:${columnId})`);
+            vscode.postMessage({ 
+                type: 'saveUndoState', 
+                operation: operation,
+                taskId: taskId,
+                columnId: columnId,
+                currentBoard: window.cachedBoard
+            });
+            this.keystrokeTimeout = null;
+        }, 500); // 500ms delay to group keystrokes within same field
+    }
+
     /**
      * Auto-resizes textarea to fit content
      * Purpose: Dynamic height adjustment for better UX
@@ -387,8 +522,6 @@ window.taskEditor = taskEditor;
  * @param {string} columnId - Parent column ID
  */
 function editTitle(element, taskId, columnId) {
-    console.log(`editDescription ${element} ${taskId} ${columnId}`);
-
     // Don't start editing if we're already editing this field
     if (taskEditor.currentEditor && 
         taskEditor.currentEditor.type === 'task-title' &&
@@ -408,8 +541,6 @@ function editTitle(element, taskId, columnId) {
  * @param {string} columnId - Parent column ID
  */
 function editDescription(element, taskId, columnId) {
-    console.log(`editDescription ${element} ${taskId} ${columnId}`);
-
     // Don't start editing if we're already editing this field
     if (taskEditor.currentEditor && 
         taskEditor.currentEditor.type === 'task-description' &&
@@ -429,8 +560,6 @@ function editDescription(element, taskId, columnId) {
  * @param {string} columnId - Column ID to edit
  */
 function editColumnTitle(columnId) {
-    console.log(`editColumnTitle ${columnId}`);
-
     // Don't start editing if we're already editing this column
     if (taskEditor.currentEditor && 
         taskEditor.currentEditor.type === 'column-title' &&

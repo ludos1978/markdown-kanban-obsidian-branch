@@ -33,20 +33,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register command to open kanban panel
 	const openKanbanCommand = vscode.commands.registerCommand('markdown-kanban.openKanban', async (uri?: vscode.Uri) => {
-		console.log('🔧 DEBUG: openKanban command triggered with URI:', uri?.fsPath || 'no URI provided');
-		console.log('🔧 DEBUG: Active editor:', vscode.window.activeTextEditor?.document.fileName || 'none');
 		let targetUri = uri;
 
 		// If no URI provided, try to get from active editor
 		if (!targetUri && vscode.window.activeTextEditor) {
 			targetUri = vscode.window.activeTextEditor.document.uri;
-			console.log('🔧 DEBUG: Got URI from active editor:', targetUri.fsPath);
 		}
 
 		// If still no URI but we have an active editor, prioritize the active editor's document
 		if (!targetUri && vscode.window.activeTextEditor?.document) {
 			targetUri = vscode.window.activeTextEditor.document.uri;
-			console.log('🔧 DEBUG: Using active editor document as fallback:', targetUri.fsPath);
 		}
 
 		// If still no URI, let user select file
@@ -69,38 +65,21 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// Check if file is markdown
 		if (!targetUri.fsPath.endsWith('.md')) {
-			console.log('🔧 DEBUG: File is not markdown:', targetUri.fsPath);
 			vscode.window.showErrorMessage('Please select a markdown file.');
 			return;
 		}
 		
-		console.log('🔧 DEBUG: Final target URI:', targetUri.fsPath);
 
 		try {
 			// Open document
-			console.log('🔧 DEBUG: Opening document for URI:', targetUri.fsPath);
 			const document = await vscode.workspace.openTextDocument(targetUri);
-			console.log('🔧 DEBUG: Document opened successfully:', document.fileName);
 
-			// ENHANCED: Log workspace information for debugging
-			const workspaceFolders = vscode.workspace.workspaceFolders;
-			console.log('Opening Kanban with workspace folders:', 
-				workspaceFolders?.map(f => `${f.name}: ${f.uri.fsPath}`) || 'None'
-			);
-			
-			const documentWorkspace = vscode.workspace.getWorkspaceFolder(targetUri);
-			console.log('Document workspace folder:', 
-				documentWorkspace ? `${documentWorkspace.name}: ${documentWorkspace.uri.fsPath}` : 'None'
-			);
 
 			// Create or show kanban panel in center area
-			console.log('🔧 DEBUG: Creating or showing Kanban panel...');
 			KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
-			console.log('🔧 DEBUG: Kanban panel creation completed');
 
 			vscode.window.showInformationMessage(`Kanban loaded from: ${document.fileName}`);
 		} catch (error) {
-			console.error('🔧 DEBUG: Error opening kanban:', error);
 			vscode.window.showErrorMessage(`Failed to open kanban: ${error}`);
 		}
 	});
@@ -221,27 +200,26 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// Listen for document changes to automatically update kanban (real-time sync)
+	// Disabled automatic document change listener to prevent losing kanban changes
+	// Only the save listener will update the kanban board now
 	const documentChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {
-		if (event.document.languageId === 'markdown' && fileListenerEnabled) {
+		// Document change listener disabled - we only respond to saves and editor focus
+		// This prevents automatic reloading that loses unsaved kanban changes
+		return;
+	});
+
+	// Listen for document saves to update kanban with saved changes
+	const documentSaveListener = vscode.workspace.onDidSaveTextDocument((document) => {
+		if (document.languageId === 'markdown' && fileListenerEnabled) {
 			// Check if a Kanban panel exists for this document
-			const panel = KanbanWebviewPanel.getPanelForDocument(event.document.uri.toString());
+			const panel = KanbanWebviewPanel.getPanelForDocument(document.uri.toString());
 			if (panel) {
 				// Check if the change is from the Kanban panel itself
 				const isUpdatingFromPanel = (panel as any)._isUpdatingFromPanel;
-				if (isUpdatingFromPanel) {
-					console.log('Skipping auto-reload - change is from Kanban panel');
-					return;
+				if (!isUpdatingFromPanel) {
+					// Load the saved content into kanban
+					panel.loadMarkdownFile(document);
 				}
-				
-				// Delay update to avoid frequent refresh
-				setTimeout(() => {
-					// Double-check the panel isn't updating now
-					const isStillUpdating = (panel as any)?._isUpdatingFromPanel;
-					if (!isStillUpdating) {
-						panel.loadMarkdownFile(event.document);
-					}
-				}, 500);
 			}
 		}
 	});
@@ -253,7 +231,7 @@ export function activate(context: vscode.ExtensionContext) {
 			// If panel exists for this document and not locked, reload
 			const panel = KanbanWebviewPanel.getPanelForDocument(editor.document.uri.toString());
 			if (panel && !panel.isFileLocked()) {
-				panel.loadMarkdownFile(editor.document);
+				panel.loadMarkdownFile(editor.document, true); // isFromEditorFocus = true
 			}
 		} else {
 			vscode.commands.executeCommand('setContext', 'markdownKanbanActive', false);
@@ -270,6 +248,7 @@ export function activate(context: vscode.ExtensionContext) {
 		switchFileCommand,
 		debugPermissionsCommand,  // Add this line
 		documentChangeListener,
+		documentSaveListener,
 		activeEditorChangeListener,
 	);
 

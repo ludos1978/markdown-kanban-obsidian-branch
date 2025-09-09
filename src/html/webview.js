@@ -36,12 +36,9 @@ window.handleClipboardMouseDown = function(e) {
  * Side effects: Sets drag state, formats clipboard data
  */
 window.handleClipboardDragStart = function(e) {
-    console.log('[CLIPBOARD DEBUG] Global drag handler fired!');
-    console.log('[CLIPBOARD DEBUG] Current clipboardCardData:', clipboardCardData);
     
     // Create default data if no clipboard data
     if (!clipboardCardData) {
-        console.log('[CLIPBOARD DEBUG] No clipboard data available, using default');
         clipboardCardData = {
             title: 'Clipboard Content',
             content: 'Drag to create card from clipboard',
@@ -61,7 +58,6 @@ window.handleClipboardDragStart = function(e) {
     if (window.dragState) {
         window.dragState.isDragging = true;
         window.dragState.draggedClipboardCard = tempTask;
-        console.log('[CLIPBOARD DEBUG] Set dragState.draggedClipboardCard:', tempTask);
     }
     
     // Set drag data
@@ -84,7 +80,6 @@ window.handleClipboardDragStart = function(e) {
  * Side effects: Clears drag state and visual feedback
  */
 window.handleClipboardDragEnd = function(e) {
-    console.log('[CLIPBOARD DEBUG] Global drag end handler fired!');
     
     // Clear visual feedback
     e.target.classList.remove('dragging');
@@ -190,7 +185,6 @@ window.hideClipboardPreview = function() {
 
 // Empty card drag handlers
 window.handleEmptyCardDragStart = function(e) {
-    console.log('[EMPTY CARD DEBUG] Global drag handler fired!');
     
     // Create empty task data
     const tempTask = {
@@ -204,7 +198,6 @@ window.handleEmptyCardDragStart = function(e) {
     if (window.dragState) {
         window.dragState.isDragging = true;
         window.dragState.draggedEmptyCard = tempTask;
-        console.log('[EMPTY CARD DEBUG] Set dragState.draggedEmptyCard:', tempTask);
     }
     
     // Set drag data
@@ -220,7 +213,6 @@ window.handleEmptyCardDragStart = function(e) {
 };
 
 window.handleEmptyCardDragEnd = function(e) {
-    console.log('[EMPTY CARD DEBUG] Global drag end handler fired!');
     
     // Clear visual feedback
     e.target.classList.remove('dragging');
@@ -448,7 +440,6 @@ function initializeClipboardCardSource() {
             isFromClipboard: true
         };
         
-        console.log('[CLIPBOARD DEBUG] Setting drag data:', tempTask);
         
         // Store in drag data
         const dragData = JSON.stringify({
@@ -461,16 +452,12 @@ function initializeClipboardCardSource() {
         e.dataTransfer.setData('text/plain', `CLIPBOARD_CARD:${dragData}`);
         e.dataTransfer.effectAllowed = 'copy';
         
-        console.log('[CLIPBOARD DEBUG] Drag data set:', dragData);
         
         // Set drag state to prevent interference with internal drag detection
-        console.log('[CLIPBOARD DEBUG] window.dragState before setting:', window.dragState);
         if (window.dragState) {
             window.dragState.isDragging = true;
             window.dragState.draggedClipboardCard = tempTask;
-            console.log('[CLIPBOARD DEBUG] window.dragState after setting:', window.dragState);
         } else {
-            console.error('[CLIPBOARD DEBUG] window.dragState is not available!');
         }
         
         clipboardSource.classList.add('dragging');
@@ -676,7 +663,6 @@ function setColumnWidth(size) {
  * Side effects: Updates board layout, triggers re-render
  */
 function setLayoutRows(rows) {
-    console.log(`setLayoutRows ${rows}`);
 
     currentLayoutRows = rows;
     
@@ -769,7 +755,6 @@ function applyRowHeight(height) {
 
 // Function to set row height
 function setRowHeight(height) {
-    console.log(`setRowHeight ${height}`);
     
     // Store current height setting
     currentRowHeight = height;
@@ -1108,16 +1093,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Auto-save pending changes when losing focus
+    // But delay to avoid saving when just switching views briefly
     window.addEventListener('blur', () => {
-        console.log('Window blur - checking for pending changes');
-        autoSavePendingChanges();
+        console.log('Window blur - scheduling pending changes check');
+        
+        // Wait a bit to see if focus returns quickly (view switching)
+        setTimeout(() => {
+            if (document.hidden || !document.hasFocus()) {
+                console.log('Window still unfocused - checking for pending changes');
+                autoSavePendingChanges();
+            } else {
+                console.log('Focus returned - skipping auto-save');
+            }
+        }, 100);
     });
     
     // Also handle visibility change (tab switching)
+    // Use same delayed approach to avoid auto-save during quick view switches
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
-            console.log('Document hidden - checking for pending changes');
-            autoSavePendingChanges();
+            console.log('Document hidden - scheduling pending changes check');
+            
+            // Wait a bit to see if visibility returns quickly (view switching)
+            setTimeout(() => {
+                if (document.hidden && !closePromptActive) {
+                    console.log('Document still hidden - checking for pending changes');
+                    autoSavePendingChanges();
+                } else if (closePromptActive) {
+                    console.log('Close prompt active - skipping auto-save');
+                } else {
+                    console.log('Document visible again - skipping auto-save');
+                }
+            }, 100);
         }
     });
     
@@ -1140,18 +1147,15 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(async () => {
                 try {
                     const text = await navigator.clipboard.readText();
-                    console.log('[CLIPBOARD DEBUG] Direct clipboard read result:', text);
                     if (text && text.trim()) {
                         clipboardCardData = {
                             title: text.trim().substring(0, 50),
                             content: text.trim(),
                             isLink: false
                         };
-                        console.log('[CLIPBOARD DEBUG] Set clipboardCardData from Ctrl+C:', clipboardCardData);
                         updateClipboardCardSource();
                     }
                 } catch (error) {
-                    console.error('[CLIPBOARD DEBUG] Failed to read clipboard after Ctrl+C:', error);
                     // Try fallback - set dummy content to test the UI
                     clipboardCardData = {
                         title: 'Test Content',
@@ -1166,16 +1170,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initial clipboard check
     setTimeout(async () => {
-        console.log('[CLIPBOARD DEBUG] Initial clipboard check');
         await updateClipboardCardSource();
     }, 1000); // Delay to ensure everything is initialized
     
     // Add a simple test to verify clipboard functionality is working
     setTimeout(() => {
-        console.log('[CLIPBOARD DEBUG] Testing clipboard functionality...');
         const clipboardSource = document.getElementById('clipboard-card-source');
         if (clipboardSource) {
-            console.log('[CLIPBOARD DEBUG] Clipboard source found, testing update');
             // Force update with test data
             clipboardCardData = {
                 title: 'Test Update',
@@ -1198,10 +1199,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 textSpan.textContent = preview;
                 clipboardSource.style.opacity = '1';
                 clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
-                console.log('[CLIPBOARD DEBUG] Updated button text to:', preview);
             }
         } else {
-            console.error('[CLIPBOARD DEBUG] Clipboard source not found!');
         }
     }, 2000);
     
@@ -1209,17 +1208,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const clipboardSource = document.getElementById('clipboard-card-source');
     if (clipboardSource) {
         clipboardSource.addEventListener('click', async () => {
-            console.log('[CLIPBOARD DEBUG] Click event - reading clipboard');
             try {
                 const text = await navigator.clipboard.readText();
-                // console.log('[CLIPBOARD DEBUG] Successfully read clipboard:', text);
                 if (text && text.trim()) {
                     clipboardCardData = await processClipboardText(text.trim());
-                    console.log('[CLIPBOARD DEBUG] Updated clipboardCardData:', clipboardCardData);
                     await updateClipboardCardSource();
                 }
             } catch (error) {
-                console.error('[CLIPBOARD DEBUG] Failed to read clipboard on click:', error);
             }
         });
     }
@@ -1312,13 +1307,8 @@ function isCurrentlyEditing() {
            window.taskEditor.currentEditor.element.style.display !== 'none';
 }
 
-// Also request update when window becomes visible again
-window.addEventListener('focus', () => {
-    // Only request update if not currently editing
-    if (!isCurrentlyEditing() && (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0)) {
-        vscode.postMessage({ type: 'requestBoardUpdate' });
-    }
-});
+// REMOVED: Focus handler that was causing board refresh and losing folding state
+// The panel reuse mechanism now handles board updates properly
 
 // Listen for messages from the extension
 window.addEventListener('message', event => {
@@ -1407,12 +1397,17 @@ window.addEventListener('message', event => {
             
             if (!isEditing && !shouldSkipRender) {
                 // Only render if not editing and not explicitly skipping
-                console.log('✅ Rendering board update');
                 debouncedRenderBoard();
+                
+                // Apply default folding if this is from an external change
+                if (message.applyDefaultFolding) {
+                    console.log('Applying default folding for external change');
+                    setTimeout(() => {
+                        applyDefaultFoldingToNewDocument();
+                    }, 100); // Wait for render to complete
+                }
             } else if (shouldSkipRender) {
-                console.log('⏭️ Skipping render update - direct DOM update mode');
             } else {
-                console.log('⏭️ Skipping render update - currently editing');
             }
             break;
         case 'updateFileInfo':
@@ -1427,6 +1422,10 @@ window.addEventListener('message', event => {
             }
             
             updateFileInfoBar();
+            break;
+        case 'resetClosePromptFlag':
+            console.log('🚪 Resetting close prompt flag - auto-save can resume');
+            closePromptActive = false;
             break;
         case 'undoRedoStatus':
             console.log('Undo/Redo status:', message);
@@ -1471,6 +1470,20 @@ window.addEventListener('message', event => {
                 console.error('❌ saveCachedBoard function not available');
             }
             break;
+        case 'requestCachedBoard':
+            console.log('📤 Backend requested cached board - sending current state');
+            // Send the current cached board back to the backend
+            if (window.cachedBoard || window.currentBoard) {
+                vscode.postMessage({
+                    type: 'markUnsavedChanges',
+                    hasUnsavedChanges: window.hasUnsavedChanges || false,
+                    cachedBoard: window.cachedBoard || window.currentBoard
+                });
+                console.log('✅ Sent cached board to backend for saving');
+            } else {
+                console.warn('❌ No cached board available to send');
+            }
+            break;
     }
 });
 
@@ -1494,12 +1507,8 @@ if (typeof MutationObserver !== 'undefined') {
     }
 }
 
-// Also request update when window becomes visible again
-window.addEventListener('focus', () => {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
-        vscode.postMessage({ type: 'requestBoardUpdate' });
-    }
-});
+// REMOVED: Duplicate focus handler that was causing board refresh and losing folding state
+// The panel reuse mechanism now handles board updates properly
 
 // Keyboard shortcuts for search
 document.addEventListener('keydown', (e) => {
@@ -1665,13 +1674,22 @@ document.addEventListener('keydown', (e) => {
                 
                 document.getElementById('discard-and-close').addEventListener('click', () => {
                     // Clear unsaved changes flag - discard all changes
-                    window.hasUnsavedChanges = false;
+                    if (typeof markSavedChanges === 'function') {
+                        markSavedChanges();
+                    } else {
+                        // Fallback if function not available
+                        window.hasUnsavedChanges = false;
+                        updateRefreshButtonState('default');
+                        vscode.postMessage({
+                            type: 'markUnsavedChanges',
+                            hasUnsavedChanges: false
+                        });
+                    }
                     
                     // Clear old pending changes (legacy cleanup)
                     if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
                     if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
                     
-                    updateRefreshButtonState('default');
                     console.log('🗑️ Unsaved changes discarded');
                     
                     // Remove modal
@@ -1706,12 +1724,8 @@ document.addEventListener('keydown', (e) => {
  * Side effects: Sends undo message to VS Code
  */
 function undo() {
-    console.log('🔄 Undo button clicked, canUndo:', canUndo);
     if (canUndo) {
-        console.log('🔄 Sending undo message to VS Code');
         vscode.postMessage({ type: 'undo' });
-    } else {
-        console.log('❌ Undo disabled - no undo history available');
     }
 }
 
@@ -1722,12 +1736,8 @@ function undo() {
  * Side effects: Sends redo message to VS Code
  */
 function redo() {
-    console.log('🔄 Redo button clicked, canRedo:', canRedo);
     if (canRedo) {
-        console.log('🔄 Sending redo message to VS Code');
         vscode.postMessage({ type: 'redo' });
-    } else {
-        console.log('❌ Redo disabled - no redo history available');
     }
 }
 
@@ -1763,25 +1773,31 @@ window.addEventListener('unload', function(e) {
 });
 
 // Add visibility change detection (tab switching, window minimizing, etc)
+// Global flag to prevent auto-save when close prompt is active
+let closePromptActive = false;
+
 document.addEventListener('visibilitychange', function() {
     if (document.hidden) {
         console.log('👁️ Page became hidden');
-        if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
-            console.log('💾 Page hidden with unsaved changes - notifying backend IMMEDIATELY');
-            
-            // Notify the backend immediately about unsaved changes
-            // Use setTimeout(0) to ensure the message is sent before potential disposal
-            setTimeout(() => {
-                vscode.postMessage({
-                    type: 'pageHiddenWithUnsavedChanges',
-                    hasUnsavedChanges: true
-                });
-            }, 0);
-        } else {
-            console.log('✅ Page hidden but no unsaved changes');
-        }
+        
+        // Always notify backend about page becoming hidden
+        // Backend will check its own unsaved changes state and handle accordingly
+        console.log('📤 Notifying backend: page hidden');
+        
+        // Set flag to prevent auto-save while close prompt might be active
+        closePromptActive = true;
+        
+        // Let backend decide what to do based on its own unsaved changes state
+        setTimeout(() => {
+            vscode.postMessage({
+                type: 'pageHiddenWithUnsavedChanges',
+                hasUnsavedChanges: true // Backend will use its own state, not this value
+            });
+        }, 0);
     } else {
         console.log('👁️ Page became visible');
+        // Reset flag when page becomes visible again
+        closePromptActive = false;
     }
 });
 
@@ -1801,12 +1817,10 @@ function updateUndoRedoButtons() {
 }
 
 function insertFileLink(fileInfo) {
-    console.log('[DROP DEBUG] insertFileLink called with:', fileInfo);
     
     const { fileName, relativePath, isImage } = fileInfo;
     let activeEditor = getActiveTextEditor();
     
-    console.log('[DROP DEBUG] Current active editor:', activeEditor);
 
     // Create markdown link with ORIGINAL relative path
     let markdownLink;
@@ -1950,7 +1964,6 @@ window.performSort = performSort;
 let isSmallFont = false;
 
 function toggleCardFontSize() {
-    console.log('[FONT DEBUG] Toggling card font size. Current:', isSmallFont);
     
     isSmallFont = !isSmallFont;
     
@@ -1977,7 +1990,6 @@ function toggleCardFontSize() {
         }
     }
     
-    console.log('[FONT DEBUG] Font size toggled. New state:', isSmallFont);
 }
 
 // Make function globally available

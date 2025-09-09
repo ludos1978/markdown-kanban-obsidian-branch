@@ -361,7 +361,6 @@ export class BoardOperations {
         // Replace the columns array
         board.columns = reorderedColumns;
         
-        console.log('Reordered columns to:', reorderedColumns.map(c => c.id));
         
         return true;
     }

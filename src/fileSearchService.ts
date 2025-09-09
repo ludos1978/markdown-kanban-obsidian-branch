@@ -26,12 +26,10 @@ export class FileSearchService {
             const patterns = [`**/${nameRoot}`, `**/${nameRoot}.*`];
             let total = 0;
             for (const pattern of patterns) {
-                console.log(`[FileSearchService] Searching for: ${pattern}`);
                 const workspaceResults = await vscode.workspace.findFiles(pattern, excludePattern, 100);
                 workspaceResults.forEach(addResult);
                 total += workspaceResults.length;
             }
-            console.log(`[FileSearchService] Workspace found ${total} files (unique: ${results.size})`);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.warn('[FileSearchService] Workspace search failed:', errorMessage);
@@ -79,7 +77,6 @@ export class FileSearchService {
 
                 // Start scanning from the provided base directory
                 await scan(baseDir);
-                console.log(`[FileSearchService] BaseDir scan completed. Total unique results: ${results.size}`);
             } catch (error) {
                 console.warn('[FileSearchService] BaseDir scan failed:', error);
             }
