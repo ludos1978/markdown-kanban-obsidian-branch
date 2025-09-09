@@ -5,6 +5,12 @@ import { LinkHandler } from './linkHandler';
 import { KanbanBoard } from './markdownParser';
 import * as vscode from 'vscode';
 
+interface FocusTarget {
+    type: 'task' | 'column';
+    id: string;
+    operation: 'created' | 'modified' | 'deleted' | 'moved';
+}
+
 export class MessageHandler {
     private _fileManager: FileManager;
     private _undoRedoManager: UndoRedoManager;
@@ -19,6 +25,7 @@ export class MessageHandler {
     private _getWebviewPanel: () => any;
     private _saveWithBackup: () => Promise<void>;
     private _markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => void;
+    private _previousBoardForFocus?: KanbanBoard;
 
     constructor(
         fileManager: FileManager,
@@ -279,6 +286,10 @@ export class MessageHandler {
         const restoredBoard = this._undoRedoManager.undo(currentBoard);
         
         if (restoredBoard) {
+            // Detect changes for focusing
+            const focusTargets = this.detectBoardChanges(currentBoard, restoredBoard);
+            this._previousBoardForFocus = JSON.parse(JSON.stringify(currentBoard));
+            
             this._setUndoRedoOperation(true);
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
@@ -286,6 +297,11 @@ export class MessageHandler {
             // Use cache-first architecture: mark as unsaved instead of direct save
             this._markUnsavedChanges(true);
             await this._onBoardUpdate();
+            
+            // Send focus information to webview after board update
+            if (focusTargets.length > 0) {
+                this.sendFocusTargets(focusTargets);
+            }
             
             // Reset flag after operations complete
             setTimeout(() => {
@@ -294,11 +310,92 @@ export class MessageHandler {
         }
     }
 
+    private detectBoardChanges(oldBoard: KanbanBoard | undefined, newBoard: KanbanBoard): FocusTarget[] {
+        if (!oldBoard) return [];
+        
+        const focusTargets: FocusTarget[] = [];
+        
+        // Create maps for efficient lookup
+        const oldColumns = new Map(oldBoard.columns.map(col => [col.id, col]));
+        const newColumns = new Map(newBoard.columns.map(col => [col.id, col]));
+        
+        const oldTasks = new Map();
+        const newTasks = new Map();
+        
+        // Build task maps
+        oldBoard.columns.forEach(col => {
+            col.tasks.forEach(task => {
+                oldTasks.set(task.id, { task, columnId: col.id });
+            });
+        });
+        
+        newBoard.columns.forEach(col => {
+            col.tasks.forEach(task => {
+                newTasks.set(task.id, { task, columnId: col.id });
+            });
+        });
+        
+        // Check for column changes
+        for (const [columnId, newColumn] of newColumns) {
+            const oldColumn = oldColumns.get(columnId);
+            if (!oldColumn) {
+                focusTargets.push({ type: 'column', id: columnId, operation: 'created' });
+            } else if (JSON.stringify(oldColumn) !== JSON.stringify(newColumn)) {
+                focusTargets.push({ type: 'column', id: columnId, operation: 'modified' });
+            }
+        }
+        
+        // Check for deleted columns
+        for (const columnId of oldColumns.keys()) {
+            if (!newColumns.has(columnId)) {
+                focusTargets.push({ type: 'column', id: columnId, operation: 'deleted' });
+            }
+        }
+        
+        // Check for task changes
+        for (const [taskId, newTaskData] of newTasks) {
+            const oldTaskData = oldTasks.get(taskId);
+            if (!oldTaskData) {
+                focusTargets.push({ type: 'task', id: taskId, operation: 'created' });
+            } else if (oldTaskData.columnId !== newTaskData.columnId) {
+                focusTargets.push({ type: 'task', id: taskId, operation: 'moved' });
+            } else if (JSON.stringify(oldTaskData.task) !== JSON.stringify(newTaskData.task)) {
+                focusTargets.push({ type: 'task', id: taskId, operation: 'modified' });
+            }
+        }
+        
+        // Check for deleted tasks
+        for (const taskId of oldTasks.keys()) {
+            if (!newTasks.has(taskId)) {
+                focusTargets.push({ type: 'task', id: taskId, operation: 'deleted' });
+            }
+        }
+        
+        return focusTargets;
+    }
+
+    private sendFocusTargets(focusTargets: FocusTarget[]) {
+        const webviewPanel = this._getWebviewPanel();
+        if (webviewPanel && webviewPanel.webview) {
+            // Send focus message to webview with a slight delay to ensure board is updated first
+            setTimeout(() => {
+                webviewPanel.webview.postMessage({
+                    type: 'focusAfterUndoRedo',
+                    focusTargets: focusTargets
+                });
+            }, 100);
+        }
+    }
+
     private async handleRedo() {
         const currentBoard = this._getCurrentBoard();
         const restoredBoard = this._undoRedoManager.redo(currentBoard);
         
         if (restoredBoard) {
+            // Detect changes for focusing
+            const focusTargets = this.detectBoardChanges(currentBoard, restoredBoard);
+            this._previousBoardForFocus = JSON.parse(JSON.stringify(currentBoard));
+            
             this._setUndoRedoOperation(true);
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
@@ -306,6 +403,11 @@ export class MessageHandler {
             // Use cache-first architecture: mark as unsaved instead of direct save
             this._markUnsavedChanges(true);
             await this._onBoardUpdate();
+            
+            // Send focus information to webview after board update
+            if (focusTargets.length > 0) {
+                this.sendFocusTargets(focusTargets);
+            }
             
             // Reset flag after operations complete
             setTimeout(() => {

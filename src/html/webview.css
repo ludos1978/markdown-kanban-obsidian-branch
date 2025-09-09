@@ -1779,7 +1779,12 @@ button.file-bar-menu-item {
 	padding: var(--whitespace-div2);
   width: 100%;
   box-sizing: border-box;
-	overflow: auto;
+	/* overflow: auto; */
+	
+	height: auto; 
+	min-height: auto; 
+	max-height: none; 
+	overflow: visible;
 }
 
 .kanban-board.multi-row .kanban-row {
@@ -2696,4 +2701,24 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 
 .sort-icon {
     font-size: 14px;
+}
+
+/* Focus highlight animation for undo/redo */
+.focus-highlight {
+    animation: focusHighlight 2s ease-out;
+    position: relative;
+}
+
+@keyframes focusHighlight {
+    0% {
+        box-shadow: 0 0 0 4px var(--vscode-focusBorder);
+        background-color: var(--vscode-list-activeSelectionBackground);
+    }
+    50% {
+        box-shadow: 0 0 0 8px var(--vscode-focusBorder);
+    }
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+        background-color: transparent;
+    }
 }

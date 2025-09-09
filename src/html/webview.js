@@ -688,21 +688,31 @@ function setLayoutRows(rows) {
 
 // Global variable to store current row height
 let currentRowHeight = 'auto';
+console.log('[ROW HEIGHT DEBUG] Initial currentRowHeight set to:', currentRowHeight);
 
 // Function to apply row height to existing rows
 function applyRowHeight(height) {
+    console.log('[ROW HEIGHT DEBUG] applyRowHeight called with:', height);
     const rows = document.querySelectorAll('.kanban-row');
     const boardElement = document.getElementById('kanban-board');
     const isMultiRow = boardElement && boardElement.classList.contains('multi-row');
+    console.log('[ROW HEIGHT DEBUG] Found', rows.length, 'rows, isMultiRow:', isMultiRow);
     
-    rows.forEach(row => {
+    rows.forEach((row, index) => {
         if (height === 'auto') {
+            console.log(`[ROW HEIGHT DEBUG] Setting row ${index} to auto mode`);
             // Auto height - no constraints
             row.style.height = 'auto';
             row.style.minHeight = 'auto';
             row.style.maxHeight = 'none';
             row.style.overflowY = 'visible';
             row.style.overflowX = 'visible';
+            console.log(`[ROW HEIGHT DEBUG] Row ${index} styles after auto:`, {
+                height: row.style.height,
+                minHeight: row.style.minHeight,
+                maxHeight: row.style.maxHeight,
+                overflowY: row.style.overflowY
+            });
             
             // Reset individual columns
             row.querySelectorAll('.kanban-full-height-column .column-content').forEach(content => {
@@ -1284,6 +1294,38 @@ function isCurrentlyEditing() {
 // REMOVED: Focus handler that was causing board refresh and losing folding state
 // The panel reuse mechanism now handles board updates properly
 
+// Function to handle focusing on objects after undo/redo
+function handleFocusAfterUndoRedo(focusTargets) {
+    if (!focusTargets || focusTargets.length === 0) return;
+    
+    // Focus on the first target (could be extended to handle multiple targets)
+    const target = focusTargets[0];
+    let element = null;
+    
+    if (target.type === 'column') {
+        element = document.querySelector(`[data-column-id="${target.id}"]`);
+    } else if (target.type === 'task') {
+        element = document.querySelector(`[data-task-id="${target.id}"]`);
+    }
+    
+    if (element) {
+        // Scroll to element
+        element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+        });
+        
+        // Add highlight effect
+        element.classList.add('focus-highlight');
+        
+        // Remove highlight after animation
+        setTimeout(() => {
+            element.classList.remove('focus-highlight');
+        }, 2000);
+    }
+}
+
 // Listen for messages from the extension
 window.addEventListener('message', event => {
     const message = event.data;
@@ -1430,6 +1472,9 @@ window.addEventListener('message', event => {
             } else {
                 console.warn('❌ No cached board available to send');
             }
+            break;
+        case 'focusAfterUndoRedo':
+            handleFocusAfterUndoRedo(message.focusTargets);
             break;
     }
 });
@@ -1887,6 +1932,7 @@ window.setLayoutRows = setLayoutRows;
 window.setRowHeight = setRowHeight;
 window.applyRowHeight = applyRowHeight;
 window.currentRowHeight = currentRowHeight;
+console.log('[ROW HEIGHT DEBUG] window.currentRowHeight set to:', window.currentRowHeight);
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
 

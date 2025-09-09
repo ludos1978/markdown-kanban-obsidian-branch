@@ -1180,13 +1180,68 @@ function renderBoard() {
     setTimeout(() => {
         applyFoldingStates();
         
-        // Calculate and apply row heights based on tallest columns
-        calculateAndApplyRowHeights();
-        
         // Apply user-configured row height if set
+        console.log('[ROW HEIGHT DEBUG] Current row height setting:', window.currentRowHeight);
         if (window.currentRowHeight && window.currentRowHeight !== 'auto') {
+            console.log('[ROW HEIGHT DEBUG] Applying user-defined height:', window.currentRowHeight);
             window.applyRowHeight(window.currentRowHeight);
+        } else {
+            console.log('[ROW HEIGHT DEBUG] Using auto mode - CSS handles layout');
+            // Debug: Check what actual styles are applied
+            const boardEl = document.getElementById('kanban-board');
+            const isMultiRow = boardEl && boardEl.classList.contains('multi-row');
+            console.log('[ROW HEIGHT DEBUG] Board is multi-row:', isMultiRow);
+            
+            const firstColumn = document.querySelector('.kanban-full-height-column');
+            if (firstColumn) {
+                const computedStyle = window.getComputedStyle(firstColumn);
+                console.log('[ROW HEIGHT DEBUG] First column computed styles:', {
+                    height: computedStyle.height,
+                    minHeight: computedStyle.minHeight,
+                    maxHeight: computedStyle.maxHeight,
+                    alignSelf: computedStyle.alignSelf
+                });
+                
+                const columnInner = firstColumn.querySelector('.column-inner');
+                if (columnInner) {
+                    const innerStyle = window.getComputedStyle(columnInner);
+                    console.log('[ROW HEIGHT DEBUG] Column-inner computed styles:', {
+                        height: innerStyle.height,
+                        minHeight: innerStyle.minHeight,
+                        maxHeight: innerStyle.maxHeight,
+                        flex: innerStyle.flex,
+                        overflowY: innerStyle.overflowY
+                    });
+                    console.log('[ROW HEIGHT DEBUG] Column-inner inline styles:', {
+                        height: columnInner.style.height,
+                        minHeight: columnInner.style.minHeight,
+                        maxHeight: columnInner.style.maxHeight,
+                        flex: columnInner.style.flex,
+                        overflowY: columnInner.style.overflowY
+                    });
+                }
+                
+                console.log('[ROW HEIGHT DEBUG] First column inline styles:', {
+                    height: firstColumn.style.height,
+                    minHeight: firstColumn.style.minHeight,
+                    maxHeight: firstColumn.style.maxHeight,
+                    alignSelf: firstColumn.style.alignSelf
+                });
+            }
+            
+            const firstRow = document.querySelector('.kanban-row');
+            if (firstRow) {
+                const rowStyle = window.getComputedStyle(firstRow);
+                console.log('[ROW HEIGHT DEBUG] Row computed styles:', {
+                    height: rowStyle.height,
+                    minHeight: rowStyle.minHeight,
+                    maxHeight: rowStyle.maxHeight,
+                    alignItems: rowStyle.alignItems,
+                    display: rowStyle.display
+                });
+            }
         }
+        // For 'auto' mode, CSS handles the layout naturally without any JS intervention
         
         // Restore scroll positions
         scrollPositions.forEach((scrollTop, columnId) => {
@@ -1631,8 +1686,11 @@ function toggleColumnCollapse(columnId) {
     // Update global fold button after individual column toggle
     setTimeout(() => {
         updateGlobalColumnFoldButton();
-        // Recalculate row heights when columns are collapsed/expanded
-        calculateAndApplyRowHeights();
+        // Re-apply user's fixed height setting after column state change (if not auto)
+        if (window.currentRowHeight && window.currentRowHeight !== 'auto') {
+            window.applyRowHeight(window.currentRowHeight);
+        }
+        // For 'auto' mode, CSS handles the layout naturally
     }, 10);
 }
 
@@ -2491,121 +2549,7 @@ window.getUserAddedTags = getUserAddedTags;
 window.handleLinkOrImageOpen = handleLinkOrImageOpen;
 
 // Function to calculate and apply row heights based on tallest column
-/**
- * Calculates and applies heights for multi-row layouts
- * Purpose: Ensures rows have equal heights in grid layout
- * Used by: After board render when multiple rows exist
- * Side effects: Sets CSS custom properties for row heights
- */
-function calculateAndApplyRowHeights() {
-    const boardElement = document.getElementById('kanban-board');
-    if (!boardElement) return;
-    
-    const isMultiRow = boardElement.classList.contains('multi-row');
-    
-    if (isMultiRow) {
-        // Multi-row layout: calculate height for each row
-        const rows = boardElement.querySelectorAll('.kanban-row');
-        rows.forEach(row => {
-            calculateRowHeight(row);
-        });
-    } else {
-        // Single-row layout: let columns use their natural height
-        // Reset any previously applied heights
-        const columns = boardElement.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
-        columns.forEach(column => {
-            column.style.minHeight = '';
-            const columnInner = column.querySelector('.column-inner');
-            if (columnInner) {
-                columnInner.style.minHeight = '';
-                columnInner.style.overflowY = 'visible';
-            }
-        });
-    }
-}
-
-function calculateRowHeight(containerElement) {
-    const expandedColumns = containerElement.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
-    const collapsedColumns = containerElement.querySelectorAll('.kanban-full-height-column.collapsed');
-    
-    // Reset collapsed columns to natural height first
-    collapsedColumns.forEach(column => {
-        column.style.minHeight = '';
-        const columnInner = column.querySelector('.column-inner');
-        if (columnInner) {
-            columnInner.style.minHeight = '';
-            columnInner.style.overflowY = 'visible';
-        }
-    });
-    
-    if (expandedColumns.length === 0) return;
-    
-    // Let expanded columns determine their natural height first
-    expandedColumns.forEach(column => {
-        column.style.minHeight = '';
-        const columnInner = column.querySelector('.column-inner');
-        if (columnInner) {
-            columnInner.style.minHeight = '';
-            columnInner.style.overflowY = 'visible';
-        }
-    });
-    
-    // Force reflow to get natural heights
-    containerElement.offsetHeight;
-    
-    // Find the tallest column's natural content height by measuring the combined height
-    // of header + content, since they're now separate
-    let maxNaturalHeight = 0;
-    expandedColumns.forEach(column => {
-        const columnHeader = column.querySelector('.column-header');
-        const columnContent = column.querySelector('.column-content');
-        
-        if (columnHeader && columnContent) {
-            // Calculate total content height
-            const headerHeight = columnHeader.scrollHeight;
-            const contentHeight = columnContent.scrollHeight;
-            const totalHeight = headerHeight + contentHeight;
-            maxNaturalHeight = Math.max(maxNaturalHeight, totalHeight);
-        }
-    });
-    
-    // Check if there's a configured max-row-height limit
-    const maxRowHeightCSS = getComputedStyle(document.documentElement).getPropertyValue('--max-row-height');
-    let configuredMaxHeight = null;
-    if (maxRowHeightCSS && maxRowHeightCSS.trim() !== '') {
-        configuredMaxHeight = parseInt(maxRowHeightCSS);
-    }
-    
-    // Determine the final row height
-    let finalRowHeight;
-    let needsScrollbars = false;
-    
-    if (configuredMaxHeight && maxNaturalHeight > configuredMaxHeight) {
-        // Content exceeds configured limit - use limit and enable scrollbars
-        finalRowHeight = configuredMaxHeight;
-        needsScrollbars = true;
-    } else {
-        // Use natural height of tallest column
-        finalRowHeight = maxNaturalHeight;
-        needsScrollbars = false;
-    }
-    
-    // Apply the height to all expanded columns in this row
-    expandedColumns.forEach(column => {
-        const columnInner = column.querySelector('.column-inner');
-        if (columnInner) {
-            // Set the row height
-            // columnInner.style.minHeight = finalRowHeight + 'px';
-            column.style.minHeight = finalRowHeight + 'px';
-            
-            // Enable scrollbars if content exceeds the configured limit
-            if (needsScrollbars) {
-                columnInner.style.overflowY = 'auto';
-                columnInner.style.maxHeight = finalRowHeight + 'px';
-            } else {
-                columnInner.style.overflowY = 'visible';
-                columnInner.style.maxHeight = '';
-            }
-        }
-    });
-}
+// Removed calculateAndApplyRowHeights and calculateRowHeight functions
+// Height management is now handled by:
+// 1. CSS flexbox for 'auto' mode (natural layout)
+// 2. applyRowHeight() for user-defined heights (vh, px, em)
