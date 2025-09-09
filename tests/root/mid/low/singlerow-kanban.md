@@ -4,7 +4,7 @@ kanban-plugin: board
 
 ---
 
-## # Title x a s x a
+## # Title
 
 ## 
 - [ ] Lorem Imspum #bug #urgent #blocked
