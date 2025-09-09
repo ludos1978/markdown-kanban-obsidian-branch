@@ -16,10 +16,23 @@ export class BackupManager {
         try {
             const config = vscode.workspace.getConfiguration('markdown-kanban');
             const enableBackups = config.get<boolean>('enableBackups', true);
+            const intervalMinutes = config.get<number>('backupInterval', 15);
             
             if (!enableBackups) {
                 console.log('Backups are disabled');
                 return false;
+            }
+
+            // Check if enough time has passed since last backup
+            if (this._lastBackupTime) {
+                const now = new Date();
+                const timeSinceLastBackup = now.getTime() - this._lastBackupTime.getTime();
+                const intervalMs = intervalMinutes * 60 * 1000;
+                
+                if (timeSinceLastBackup < intervalMs) {
+                    console.log(`Backup skipped - only ${Math.round(timeSinceLastBackup / 60000)} minutes since last backup (minimum: ${intervalMinutes} minutes)`);
+                    return false;
+                }
             }
 
             const content = document.getText();

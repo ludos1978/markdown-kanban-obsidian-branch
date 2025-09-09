@@ -1318,6 +1318,19 @@ window.addEventListener('message', event => {
     switch (message.type) {
         case 'updateBoard':
             console.log('📥 Received board from VS Code:', message.board);
+            console.log('[BOARD DEBUG] Board has', message.board?.columns?.length || 0, 'columns');
+            if (message.board?.columns) {
+                message.board.columns.forEach((col, colIndex) => {
+                    console.log(`[BOARD DEBUG] Column ${colIndex} (${col?.title || 'untitled'}) has ${col.tasks?.length || 0} tasks`);
+                    if (col.tasks) {
+                        col.tasks.forEach((task, taskIndex) => {
+                            const content = (task?.content || '').toString();
+                            const preview = content.length > 50 ? content.substring(0, 50) + '...' : content;
+                            console.log(`[BOARD DEBUG]   Task ${taskIndex}: "${preview}"`);
+                        });
+                    }
+                });
+            }
             const previousBoard = currentBoard;
             
             // Initialize cache system - this is the SINGLE source of truth

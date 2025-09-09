@@ -400,6 +400,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   display: flex;
   flex-direction: column;
   width: 100%;
+	overflow: auto;
 }
 
 /* Kanban columns - Full height wrapper for sticky positioning */
@@ -1746,6 +1747,7 @@ button.file-bar-menu-item {
 	padding: var(--whitespace-div2);
   width: 100%;
   box-sizing: border-box;
+	overflow: auto;
 }
 
 .kanban-board.multi-row .kanban-row {
