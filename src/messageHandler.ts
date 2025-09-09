@@ -424,10 +424,10 @@ export class MessageHandler {
                             } else if (choice === 'Save with backup filename') {
                                 await this._saveWithBackup();
                                 await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                            } else if (choice === 'Don\'t Save') {
+                            } else {
+                                // Handle both 'Don't Save' and undefined (dialog closed) as close without saving
                                 await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
                             }
-                            // If user cancels (no choice), don't close
                         } else {
                             // No unsaved changes, close immediately
                             await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
