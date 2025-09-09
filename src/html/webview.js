@@ -1564,6 +1564,16 @@ window.addEventListener('message', event => {
                 console.warn('❌ No cached board available to send');
             }
             break;
+        case 'unfoldColumnsBeforeUpdate':
+            // Unfold columns immediately before board update happens
+            console.log('[FOCUS DEBUG] Received unfold request for columns:', message.columnIds);
+            if (typeof unfoldColumnIfCollapsed === 'function') {
+                message.columnIds.forEach(columnId => {
+                    console.log('[FOCUS DEBUG] Unfolding column before board update:', columnId);
+                    unfoldColumnIfCollapsed(columnId);
+                });
+            }
+            break;
         case 'focusAfterUndoRedo':
             // Store focus targets to be processed after rendering completes
             console.log('[FOCUS DEBUG] Received focus message with targets:', message.focusTargets);

@@ -296,6 +296,11 @@ export class MessageHandler {
             const focusTargets = this.detectBoardChanges(currentBoard, restoredBoard);
             this._previousBoardForFocus = JSON.parse(JSON.stringify(currentBoard));
             
+            // Unfold columns BEFORE board update if cards are being added to collapsed columns
+            if (focusTargets.length > 0) {
+                await this.unfoldColumnsForFocusTargets(focusTargets, restoredBoard);
+            }
+            
             this._setUndoRedoOperation(true);
             this._setBoard(restoredBoard);
             this._boardOperations.setOriginalTaskOrder(restoredBoard);
@@ -388,6 +393,41 @@ export class MessageHandler {
         return focusTargets;
     }
 
+    private async unfoldColumnsForFocusTargets(focusTargets: FocusTarget[], restoredBoard: KanbanBoard) {
+        console.log('[FOCUS DEBUG] Checking focus targets for columns that need unfolding');
+        const columnsToUnfold = new Set<string>();
+        
+        focusTargets.forEach(target => {
+            if (target.type === 'task' && (target.operation === 'created' || target.operation === 'moved')) {
+                // For task operations, check the restored board to find which column the task will be in
+                for (const column of restoredBoard.columns) {
+                    if (column.tasks.some(task => task.id === target.id)) {
+                        columnsToUnfold.add(column.id);
+                        console.log('[FOCUS DEBUG] Task', target.id, 'will be in column', column.id);
+                        break;
+                    }
+                }
+            } else if (target.type === 'column' && target.operation === 'created') {
+                columnsToUnfold.add(target.id);
+                console.log('[FOCUS DEBUG] Column', target.id, 'is being created');
+            }
+        });
+        
+        if (columnsToUnfold.size > 0) {
+            console.log('[FOCUS DEBUG] Sending unfold message for columns:', Array.from(columnsToUnfold));
+            const webviewPanel = this._getWebviewPanel();
+            if (webviewPanel && webviewPanel.webview) {
+                webviewPanel.webview.postMessage({
+                    type: 'unfoldColumnsBeforeUpdate',
+                    columnIds: Array.from(columnsToUnfold)
+                });
+                
+                // Wait a bit for the unfolding to happen before proceeding
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+    }
+
     private sendFocusTargets(focusTargets: FocusTarget[]) {
         console.log('[FOCUS DEBUG] Sending focus targets:', focusTargets);
         const webviewPanel = this._getWebviewPanel();
@@ -411,6 +451,11 @@ export class MessageHandler {
             // Detect changes for focusing
             const focusTargets = this.detectBoardChanges(currentBoard, restoredBoard);
             this._previousBoardForFocus = JSON.parse(JSON.stringify(currentBoard));
+            
+            // Unfold columns BEFORE board update if cards are being added to collapsed columns
+            if (focusTargets.length > 0) {
+                await this.unfoldColumnsForFocusTargets(focusTargets, restoredBoard);
+            }
             
             this._setUndoRedoOperation(true);
             this._setBoard(restoredBoard);
