@@ -1181,65 +1181,8 @@ function renderBoard() {
         applyFoldingStates();
         
         // Apply user-configured row height if set
-        console.log('[ROW HEIGHT DEBUG] Current row height setting:', window.currentRowHeight);
         if (window.currentRowHeight && window.currentRowHeight !== 'auto') {
-            console.log('[ROW HEIGHT DEBUG] Applying user-defined height:', window.currentRowHeight);
             window.applyRowHeight(window.currentRowHeight);
-        } else {
-            console.log('[ROW HEIGHT DEBUG] Using auto mode - CSS handles layout');
-            // Debug: Check what actual styles are applied
-            const boardEl = document.getElementById('kanban-board');
-            const isMultiRow = boardEl && boardEl.classList.contains('multi-row');
-            console.log('[ROW HEIGHT DEBUG] Board is multi-row:', isMultiRow);
-            
-            const firstColumn = document.querySelector('.kanban-full-height-column');
-            if (firstColumn) {
-                const computedStyle = window.getComputedStyle(firstColumn);
-                console.log('[ROW HEIGHT DEBUG] First column computed styles:', {
-                    height: computedStyle.height,
-                    minHeight: computedStyle.minHeight,
-                    maxHeight: computedStyle.maxHeight,
-                    alignSelf: computedStyle.alignSelf
-                });
-                
-                const columnInner = firstColumn.querySelector('.column-inner');
-                if (columnInner) {
-                    const innerStyle = window.getComputedStyle(columnInner);
-                    console.log('[ROW HEIGHT DEBUG] Column-inner computed styles:', {
-                        height: innerStyle.height,
-                        minHeight: innerStyle.minHeight,
-                        maxHeight: innerStyle.maxHeight,
-                        flex: innerStyle.flex,
-                        overflowY: innerStyle.overflowY
-                    });
-                    console.log('[ROW HEIGHT DEBUG] Column-inner inline styles:', {
-                        height: columnInner.style.height,
-                        minHeight: columnInner.style.minHeight,
-                        maxHeight: columnInner.style.maxHeight,
-                        flex: columnInner.style.flex,
-                        overflowY: columnInner.style.overflowY
-                    });
-                }
-                
-                console.log('[ROW HEIGHT DEBUG] First column inline styles:', {
-                    height: firstColumn.style.height,
-                    minHeight: firstColumn.style.minHeight,
-                    maxHeight: firstColumn.style.maxHeight,
-                    alignSelf: firstColumn.style.alignSelf
-                });
-            }
-            
-            const firstRow = document.querySelector('.kanban-row');
-            if (firstRow) {
-                const rowStyle = window.getComputedStyle(firstRow);
-                console.log('[ROW HEIGHT DEBUG] Row computed styles:', {
-                    height: rowStyle.height,
-                    minHeight: rowStyle.minHeight,
-                    maxHeight: rowStyle.maxHeight,
-                    alignItems: rowStyle.alignItems,
-                    display: rowStyle.display
-                });
-            }
         }
         // For 'auto' mode, CSS handles the layout naturally without any JS intervention
         

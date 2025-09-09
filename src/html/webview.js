@@ -688,31 +688,21 @@ function setLayoutRows(rows) {
 
 // Global variable to store current row height
 let currentRowHeight = 'auto';
-console.log('[ROW HEIGHT DEBUG] Initial currentRowHeight set to:', currentRowHeight);
 
 // Function to apply row height to existing rows
 function applyRowHeight(height) {
-    console.log('[ROW HEIGHT DEBUG] applyRowHeight called with:', height);
     const rows = document.querySelectorAll('.kanban-row');
     const boardElement = document.getElementById('kanban-board');
     const isMultiRow = boardElement && boardElement.classList.contains('multi-row');
-    console.log('[ROW HEIGHT DEBUG] Found', rows.length, 'rows, isMultiRow:', isMultiRow);
     
     rows.forEach((row, index) => {
         if (height === 'auto') {
-            console.log(`[ROW HEIGHT DEBUG] Setting row ${index} to auto mode`);
             // Auto height - no constraints
             row.style.height = 'auto';
             row.style.minHeight = 'auto';
             row.style.maxHeight = 'none';
             row.style.overflowY = 'visible';
             row.style.overflowX = 'visible';
-            console.log(`[ROW HEIGHT DEBUG] Row ${index} styles after auto:`, {
-                height: row.style.height,
-                minHeight: row.style.minHeight,
-                maxHeight: row.style.maxHeight,
-                overflowY: row.style.overflowY
-            });
             
             // Reset individual columns
             row.querySelectorAll('.kanban-full-height-column .column-content').forEach(content => {
@@ -1932,7 +1922,6 @@ window.setLayoutRows = setLayoutRows;
 window.setRowHeight = setRowHeight;
 window.applyRowHeight = applyRowHeight;
 window.currentRowHeight = currentRowHeight;
-console.log('[ROW HEIGHT DEBUG] window.currentRowHeight set to:', window.currentRowHeight);
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
 

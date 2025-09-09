@@ -13,3 +13,4 @@ src/extension.js.map
 src/extension.js
 src/test/extension.test.js.map
 src/test/extension.test.js
+.*.md
