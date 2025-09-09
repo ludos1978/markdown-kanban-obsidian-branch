@@ -1323,6 +1323,45 @@ function handleFocusAfterUndoRedo(focusTargets) {
         return;
     }
     
+    // First pass: Check for any columns that need unfolding
+    const columnsToUnfold = new Set();
+    focusTargets.forEach(target => {
+        if (target.type === 'task') {
+            const taskElement = document.querySelector(`[data-task-id="${target.id}"]`);
+            if (taskElement) {
+                const columnElement = taskElement.closest('[data-column-id]');
+                if (columnElement && columnElement.classList.contains('collapsed')) {
+                    const columnId = columnElement.getAttribute('data-column-id');
+                    columnsToUnfold.add(columnId);
+                    console.log('[FOCUS DEBUG] Task', target.id, 'is in collapsed column:', columnId);
+                }
+            }
+        }
+    });
+
+    // Unfold any collapsed columns first
+    if (columnsToUnfold.size > 0) {
+        console.log('[FOCUS DEBUG] Unfolding columns before focus:', Array.from(columnsToUnfold));
+        if (typeof unfoldColumnIfCollapsed === 'function') {
+            columnsToUnfold.forEach(columnId => {
+                unfoldColumnIfCollapsed(columnId);
+            });
+        }
+        
+        // Wait for unfolding animation to complete before focusing
+        setTimeout(() => {
+            performFocusActions(focusTargets);
+        }, 300); // Allow time for unfolding animation
+    } else {
+        // No unfolding needed, focus immediately
+        performFocusActions(focusTargets);
+    }
+}
+
+// Helper function to perform the actual focus actions
+function performFocusActions(focusTargets) {
+    console.log('[FOCUS DEBUG] Performing focus actions on targets:', focusTargets);
+    
     // Process all focus targets to handle multiple changes
     focusTargets.forEach((target, index) => {
         console.log(`[FOCUS DEBUG] Processing target ${index + 1}/${focusTargets.length}:`, target);
@@ -1334,22 +1373,6 @@ function handleFocusAfterUndoRedo(focusTargets) {
         } else if (target.type === 'task') {
             element = document.querySelector(`[data-task-id="${target.id}"]`);
             console.log('[FOCUS DEBUG] Looking for task element with selector [data-task-id="' + target.id + '"]');
-            
-            // For tasks, unfold the parent column if it's collapsed
-            const taskElement = element;
-            if (taskElement) {
-                const columnElement = taskElement.closest('[data-column-id]');
-                if (columnElement) {
-                    const columnId = columnElement.getAttribute('data-column-id');
-                    console.log('[FOCUS DEBUG] Task is in column:', columnId);
-                    if (typeof unfoldColumnIfCollapsed === 'function') {
-                        const wasUnfolded = unfoldColumnIfCollapsed(columnId);
-                        if (wasUnfolded) {
-                            console.log('[FOCUS DEBUG] Unfolded column', columnId, 'for task focus');
-                        }
-                    }
-                }
-            }
         }
         
         console.log('[FOCUS DEBUG] Found element:', element);
