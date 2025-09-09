@@ -352,15 +352,16 @@ function setupGlobalDragAndDrop() {
             
             // Check if we're over a column (works for both single and multi-row layouts)
             const column = e.target && e.target.closest ? e.target.closest('.kanban-full-height-column') : null;
-            if (column && !column.classList.contains('collapsed')) {
+            if (column) {
+                // Allow drops on collapsed columns - they will be unfolded on drop
                 showExternalDropIndicator(column, e.clientY);
             } else {
                 // Check if we're over a row or spacer in multi-row mode
                 const row = e.target && e.target.closest ? e.target.closest('.kanban-row') : null;
                 const spacer = e.target && e.target.closest ? e.target.closest('.row-drop-zone-spacer') : null;
                 if (row || spacer) {
-                    // Try to find the nearest column
-                    const columns = boardContainer.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
+                    // Try to find the nearest column (include collapsed columns)
+                    const columns = boardContainer.querySelectorAll('.kanban-full-height-column');
                     let nearestColumn = null;
                     let minDistance = Infinity;
                     
@@ -655,13 +656,22 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     
     console.log('[DROP DEBUG] Column element after strategies:', columnElement);
     
-    if (columnElement && !columnElement.classList.contains('collapsed')) {
+    if (columnElement) {
         targetColumnId = columnElement.dataset.columnId;
+        
+        // Unfold the column if it's collapsed
+        if (columnElement.classList.contains('collapsed')) {
+            console.log('[DROP DEBUG] Column is collapsed, unfolding before drop');
+            if (typeof unfoldColumnIfCollapsed === 'function') {
+                unfoldColumnIfCollapsed(targetColumnId);
+            }
+        }
+        
         insertionIndex = calculateInsertionIndex(columnElement, dropPosition.y);
         console.log('[DROP DEBUG] Found column:', targetColumnId, 'at index:', insertionIndex);
     } else {
         console.log('[DROP DEBUG] No direct column found, searching for nearest');
-        const columns = document.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
+        const columns = document.querySelectorAll('.kanban-full-height-column'); // Allow collapsed columns
         let minDistance = Infinity;
         
         columns.forEach(column => {
@@ -673,21 +683,45 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             if (distance < minDistance) {
                 minDistance = distance;
                 targetColumnId = column.dataset.columnId;
+                
+                // Unfold the nearest column if it's collapsed
+                if (column.classList.contains('collapsed')) {
+                    console.log('[DROP DEBUG] Nearest column is collapsed, unfolding');
+                    if (typeof unfoldColumnIfCollapsed === 'function') {
+                        unfoldColumnIfCollapsed(targetColumnId);
+                    }
+                }
+                
                 insertionIndex = calculateInsertionIndex(column, dropPosition.y);
             }
         });
         
         if (targetColumnId) {
+            console.log('[DROP DEBUG] Using nearest column:', targetColumnId);
         }
     }
     
     if (!targetColumnId && window.cachedBoard.columns.length > 0) {
-        console.log('[DROP DEBUG] No target column yet, looking for first non-collapsed');
-        const firstNonCollapsed = window.cachedBoard.columns.find(col => 
+        console.log('[DROP DEBUG] No target column yet, using first available column');
+        // Try non-collapsed first, then any column
+        let fallbackColumn = window.cachedBoard.columns.find(col => 
             !window.collapsedColumns || !window.collapsedColumns.has(col.id)
         );
-        if (firstNonCollapsed) {
-            targetColumnId = firstNonCollapsed.id;
+        
+        if (!fallbackColumn) {
+            // If all columns are collapsed, use the first one and unfold it
+            fallbackColumn = window.cachedBoard.columns[0];
+            console.log('[DROP DEBUG] All columns collapsed, using first column and unfolding');
+        }
+        
+        if (fallbackColumn) {
+            targetColumnId = fallbackColumn.id;
+            
+            // Unfold if collapsed
+            if (typeof unfoldColumnIfCollapsed === 'function') {
+                unfoldColumnIfCollapsed(targetColumnId);
+            }
+            
             insertionIndex = -1;
             console.log('[DROP DEBUG] Using fallback column:', targetColumnId);
         }

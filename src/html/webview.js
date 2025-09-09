@@ -1323,47 +1323,74 @@ function handleFocusAfterUndoRedo(focusTargets) {
         return;
     }
     
-    // Focus on the first target (could be extended to handle multiple targets)
-    const target = focusTargets[0];
-    console.log('[FOCUS DEBUG] Focusing on target:', target);
-    let element = null;
-    
-    if (target.type === 'column') {
-        element = document.querySelector(`[data-column-id="${target.id}"]`);
-        console.log('[FOCUS DEBUG] Looking for column element with selector [data-column-id="' + target.id + '"]');
-    } else if (target.type === 'task') {
-        element = document.querySelector(`[data-task-id="${target.id}"]`);
-        console.log('[FOCUS DEBUG] Looking for task element with selector [data-task-id="' + target.id + '"]');
-    }
-    
-    console.log('[FOCUS DEBUG] Found element:', element);
-    
-    if (element) {
-        console.log('[FOCUS DEBUG] Scrolling to element and adding highlight');
-        // Scroll to element
-        element.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center',
-            inline: 'nearest'
-        });
+    // Process all focus targets to handle multiple changes
+    focusTargets.forEach((target, index) => {
+        console.log(`[FOCUS DEBUG] Processing target ${index + 1}/${focusTargets.length}:`, target);
+        let element = null;
         
-        // Add highlight effect
-        element.classList.add('focus-highlight');
-        console.log('[FOCUS DEBUG] Added focus-highlight class');
+        if (target.type === 'column') {
+            element = document.querySelector(`[data-column-id="${target.id}"]`);
+            console.log('[FOCUS DEBUG] Looking for column element with selector [data-column-id="' + target.id + '"]');
+        } else if (target.type === 'task') {
+            element = document.querySelector(`[data-task-id="${target.id}"]`);
+            console.log('[FOCUS DEBUG] Looking for task element with selector [data-task-id="' + target.id + '"]');
+            
+            // For tasks, unfold the parent column if it's collapsed
+            const taskElement = element;
+            if (taskElement) {
+                const columnElement = taskElement.closest('[data-column-id]');
+                if (columnElement) {
+                    const columnId = columnElement.getAttribute('data-column-id');
+                    console.log('[FOCUS DEBUG] Task is in column:', columnId);
+                    if (typeof unfoldColumnIfCollapsed === 'function') {
+                        const wasUnfolded = unfoldColumnIfCollapsed(columnId);
+                        if (wasUnfolded) {
+                            console.log('[FOCUS DEBUG] Unfolded column', columnId, 'for task focus');
+                        }
+                    }
+                }
+            }
+        }
         
-        // Remove highlight after animation
-        setTimeout(() => {
-            element.classList.remove('focus-highlight');
-            console.log('[FOCUS DEBUG] Removed focus-highlight class');
-        }, 2000);
-    } else {
-        console.log('[FOCUS DEBUG] Element not found - target may not exist in DOM');
-        // Debug: List all available elements
-        console.log('[FOCUS DEBUG] Available column elements:', 
-            Array.from(document.querySelectorAll('[data-column-id]')).map(el => el.getAttribute('data-column-id')));
-        console.log('[FOCUS DEBUG] Available task elements:', 
-            Array.from(document.querySelectorAll('[data-task-id]')).map(el => el.getAttribute('data-task-id')));
-    }
+        console.log('[FOCUS DEBUG] Found element:', element);
+        
+        if (element && index === 0) {
+            // Only scroll to and highlight the first target to avoid jarring jumps
+            console.log('[FOCUS DEBUG] Scrolling to element and adding highlight');
+            // Scroll to element with proper horizontal scrolling for right-side elements
+            element.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center',
+                inline: 'center'  // Changed from 'nearest' to 'center' for better right-side visibility
+            });
+            
+            // Add highlight effect
+            element.classList.add('focus-highlight');
+            console.log('[FOCUS DEBUG] Added focus-highlight class');
+            
+            // Remove highlight after animation
+            setTimeout(() => {
+                element.classList.remove('focus-highlight');
+                console.log('[FOCUS DEBUG] Removed focus-highlight class');
+            }, 2000);
+        } else if (element) {
+            // For additional targets, just add highlight without scrolling
+            console.log('[FOCUS DEBUG] Adding highlight to additional target');
+            element.classList.add('focus-highlight');
+            setTimeout(() => {
+                element.classList.remove('focus-highlight');
+            }, 2000);
+        } else {
+            console.log('[FOCUS DEBUG] Element not found - target may not exist in DOM');
+            if (index === 0) {
+                // Only debug for first target to avoid spam
+                console.log('[FOCUS DEBUG] Available column elements:', 
+                    Array.from(document.querySelectorAll('[data-column-id]')).map(el => el.getAttribute('data-column-id')));
+                console.log('[FOCUS DEBUG] Available task elements:', 
+                    Array.from(document.querySelectorAll('[data-task-id]')).map(el => el.getAttribute('data-task-id')));
+            }
+        }
+    });
 }
 
 // Listen for messages from the extension
