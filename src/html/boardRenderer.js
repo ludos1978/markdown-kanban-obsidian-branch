@@ -1196,6 +1196,14 @@ function renderBoard() {
         
         // Update image sources after rendering
         updateImageSources();
+        
+        // Notify that rendering is complete (for focus functionality)
+        console.log('[FOCUS DEBUG] Board rendering complete - calling callback');
+        if (window.onBoardRenderingComplete) {
+            window.onBoardRenderingComplete();
+        } else {
+            console.log('[FOCUS DEBUG] No onBoardRenderingComplete callback registered');
+        }
     }, 10);
 
     setupDragAndDrop();

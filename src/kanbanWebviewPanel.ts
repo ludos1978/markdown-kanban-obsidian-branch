@@ -409,7 +409,26 @@ export class KanbanWebviewPanel {
         );
 
         this._panel.webview.onDidReceiveMessage(
-            message => this._messageHandler.handleMessage(message),
+            async (message) => {
+                console.log('[WEBVIEW PANEL DEBUG] Raw message received:', JSON.stringify(message));
+                console.log('[WEBVIEW PANEL DEBUG] Message type:', message.type);
+                console.log('[WEBVIEW PANEL DEBUG] Message handler exists:', !!this._messageHandler);
+                
+                if (message.type === 'undo' || message.type === 'redo') {
+                    console.log('[WEBVIEW PANEL DEBUG] Processing undo/redo message:', message.type);
+                }
+                
+                try {
+                    console.log('[WEBVIEW PANEL DEBUG] About to call messageHandler.handleMessage');
+                    await this._messageHandler.handleMessage(message);
+                    console.log('[WEBVIEW PANEL DEBUG] messageHandler.handleMessage completed');
+                } catch (error) {
+                    console.error('[WEBVIEW PANEL ERROR] Error handling message:', error);
+                    if (error instanceof Error) {
+                        console.error('[WEBVIEW PANEL ERROR] Stack trace:', error.stack);
+                    }
+                }
+            },
             null,
             this._disposables
         );

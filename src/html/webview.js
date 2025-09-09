@@ -1284,21 +1284,62 @@ function isCurrentlyEditing() {
 // REMOVED: Focus handler that was causing board refresh and losing folding state
 // The panel reuse mechanism now handles board updates properly
 
+// Callback for when board rendering is complete
+window.onBoardRenderingComplete = function() {
+    console.log('[FOCUS DEBUG] Board rendering complete callback fired');
+    if (window.pendingFocusTargets && window.pendingFocusTargets.length > 0) {
+        console.log('[FOCUS DEBUG] Processing pending focus targets:', window.pendingFocusTargets);
+        
+        // Try to find the first target element
+        const target = window.pendingFocusTargets[0];
+        let element = null;
+        
+        if (target.type === 'column') {
+            element = document.querySelector(`[data-column-id="${target.id}"]`);
+        } else if (target.type === 'task') {
+            element = document.querySelector(`[data-task-id="${target.id}"]`);
+        }
+        
+        console.log('[FOCUS DEBUG] Checking if target element exists:', element ? 'FOUND' : 'NOT FOUND');
+        
+        if (element) {
+            // Element exists - process focus targets and clear them
+            handleFocusAfterUndoRedo(window.pendingFocusTargets);
+            window.pendingFocusTargets = null;
+        } else {
+            // Element not found yet - keep targets for next render completion
+            console.log('[FOCUS DEBUG] Element not ready yet, keeping targets for next render');
+        }
+    } else {
+        console.log('[FOCUS DEBUG] No pending focus targets to process');
+    }
+};
+
 // Function to handle focusing on objects after undo/redo
 function handleFocusAfterUndoRedo(focusTargets) {
-    if (!focusTargets || focusTargets.length === 0) return;
+    console.log('[FOCUS DEBUG] handleFocusAfterUndoRedo called with:', focusTargets);
+    if (!focusTargets || focusTargets.length === 0) {
+        console.log('[FOCUS DEBUG] No focus targets provided');
+        return;
+    }
     
     // Focus on the first target (could be extended to handle multiple targets)
     const target = focusTargets[0];
+    console.log('[FOCUS DEBUG] Focusing on target:', target);
     let element = null;
     
     if (target.type === 'column') {
         element = document.querySelector(`[data-column-id="${target.id}"]`);
+        console.log('[FOCUS DEBUG] Looking for column element with selector [data-column-id="' + target.id + '"]');
     } else if (target.type === 'task') {
         element = document.querySelector(`[data-task-id="${target.id}"]`);
+        console.log('[FOCUS DEBUG] Looking for task element with selector [data-task-id="' + target.id + '"]');
     }
     
+    console.log('[FOCUS DEBUG] Found element:', element);
+    
     if (element) {
+        console.log('[FOCUS DEBUG] Scrolling to element and adding highlight');
         // Scroll to element
         element.scrollIntoView({ 
             behavior: 'smooth', 
@@ -1308,11 +1349,20 @@ function handleFocusAfterUndoRedo(focusTargets) {
         
         // Add highlight effect
         element.classList.add('focus-highlight');
+        console.log('[FOCUS DEBUG] Added focus-highlight class');
         
         // Remove highlight after animation
         setTimeout(() => {
             element.classList.remove('focus-highlight');
+            console.log('[FOCUS DEBUG] Removed focus-highlight class');
         }, 2000);
+    } else {
+        console.log('[FOCUS DEBUG] Element not found - target may not exist in DOM');
+        // Debug: List all available elements
+        console.log('[FOCUS DEBUG] Available column elements:', 
+            Array.from(document.querySelectorAll('[data-column-id]')).map(el => el.getAttribute('data-column-id')));
+        console.log('[FOCUS DEBUG] Available task elements:', 
+            Array.from(document.querySelectorAll('[data-task-id]')).map(el => el.getAttribute('data-task-id')));
     }
 }
 
@@ -1418,6 +1468,7 @@ window.addEventListener('message', event => {
             closePromptActive = false;
             break;
         case 'undoRedoStatus':
+            console.log('[UNDO DEBUG] Received undo/redo status - canUndo:', message.canUndo, 'canRedo:', message.canRedo);
             canUndo = message.canUndo;
             canRedo = message.canRedo;
             updateUndoRedoButtons();
@@ -1464,7 +1515,9 @@ window.addEventListener('message', event => {
             }
             break;
         case 'focusAfterUndoRedo':
-            handleFocusAfterUndoRedo(message.focusTargets);
+            // Store focus targets to be processed after rendering completes
+            console.log('[FOCUS DEBUG] Received focus message with targets:', message.focusTargets);
+            window.pendingFocusTargets = message.focusTargets;
             break;
     }
 });
@@ -1554,6 +1607,7 @@ document.addEventListener('keydown', (e) => {
     // Original undo/redo shortcuts (keep these)
     if (!isEditing && !isInSearchInput) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            console.log('[KEYBOARD DEBUG] Ctrl+Z detected in webview');
             e.preventDefault();
             undo();
         }
@@ -1703,8 +1757,23 @@ document.addEventListener('keydown', (e) => {
  * Side effects: Sends undo message to VS Code
  */
 function undo() {
+    console.log('[UNDO DEBUG] Undo function called, canUndo:', canUndo);
     if (canUndo) {
-        vscode.postMessage({ type: 'undo' });
+        console.log('[UNDO DEBUG] Sending undo message to backend');
+        console.log('[UNDO DEBUG] vscode object available:', typeof vscode !== 'undefined');
+        console.log('[UNDO DEBUG] vscode.postMessage available:', typeof vscode.postMessage === 'function');
+        
+        try {
+            const message = { type: 'undo' };
+            console.log('[UNDO DEBUG] About to send message:', message);
+            const result = vscode.postMessage(message);
+            console.log('[UNDO DEBUG] vscode.postMessage returned:', result);
+            console.log('[UNDO DEBUG] Message sent successfully');
+        } catch (error) {
+            console.error('[UNDO DEBUG] Error sending message:', error);
+        }
+    } else {
+        console.log('[UNDO DEBUG] Cannot undo - canUndo is false');
     }
 }
 
