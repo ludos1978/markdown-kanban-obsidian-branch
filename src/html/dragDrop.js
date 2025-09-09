@@ -167,6 +167,39 @@ function setupGlobalDragAndDrop() {
     const INDICATOR_UPDATE_THROTTLE = 100;
     
     // Helper functions
+    function isUnwantedTextDrag(textData) {
+        // Filter out accidental text selections that shouldn't create cards
+        
+        // Check if it contains UI elements
+        if (textData.includes('+ Add Task') || 
+            textData.includes('Add Column') ||
+            textData.includes('▼') ||
+            textData.includes('⋯')) {
+            return true;
+        }
+        
+        // Check if it's very long (likely accidental selection)
+        if (textData.length > 500) {
+            return true;
+        }
+        
+        // Check if it contains Lorem ipsum (test content)
+        if (textData.toLowerCase().includes('lorem ipsum')) {
+            return true;
+        }
+        
+        // Check if it contains multiple lines with UI-like content
+        const lines = textData.split('\n');
+        if (lines.length > 5 && lines.some(line => 
+            line.includes('TITLE') || 
+            line.includes('▼') || 
+            line.includes('⋯')
+        )) {
+            return true;
+        }
+        
+        return false;
+    }
     function isExternalFileDrag(e) {
         const dt = e.dataTransfer;
         if (!dt) {
@@ -299,6 +332,12 @@ function setupGlobalDragAndDrop() {
         console.log('[DROP DEBUG] Text data:', textData);
         
         if (textData) {
+            // Filter out unwanted text selections
+            if (isUnwantedTextDrag(textData)) {
+                console.log('[DROP DEBUG] Ignoring unwanted text drag');
+                return;
+            }
+            
             if (textData.startsWith('CLIPBOARD_CARD:')) {
                 console.log('[DROP DEBUG] Handling clipboard card from text');
                 const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
@@ -351,13 +390,13 @@ function setupGlobalDragAndDrop() {
             lastIndicatorUpdate = now;
             
             // Check if we're over a column (works for both single and multi-row layouts)
-            const column = e.target.closest('.kanban-full-height-column');
+            const column = e.target && e.target.closest ? e.target.closest('.kanban-full-height-column') : null;
             if (column && !column.classList.contains('collapsed')) {
                 showExternalDropIndicator(column, e.clientY);
             } else {
                 // Check if we're over a row or spacer in multi-row mode
-                const row = e.target.closest('.kanban-row');
-                const spacer = e.target.closest('.row-drop-zone-spacer');
+                const row = e.target && e.target.closest ? e.target.closest('.kanban-row') : null;
+                const spacer = e.target && e.target.closest ? e.target.closest('.row-drop-zone-spacer') : null;
                 if (row || spacer) {
                     // Try to find the nearest column
                     const columns = boardContainer.querySelectorAll('.kanban-full-height-column:not(.collapsed)');
@@ -433,6 +472,8 @@ function setupGlobalDragAndDrop() {
     
     // Global dragend handler to ensure cleanup
     document.addEventListener('dragend', function(e) {
+        console.log('[DROP DEBUG] Global dragend - cleaning up all drag states');
+        
         // Clean up any lingering indicators when drag ends
         hideDropFeedback();
         hideExternalDropIndicator();
@@ -442,15 +483,35 @@ function setupGlobalDragAndDrop() {
             col.classList.remove('external-drag-over');
         });
         
-        // Reset any clipboard/empty card drag state
+        // Reset ALL drag states to ensure clean state
         if (dragState.draggedClipboardCard) {
             dragState.draggedClipboardCard = null;
-            dragState.isDragging = false;
         }
         if (dragState.draggedEmptyCard) {
             dragState.draggedEmptyCard = null;
-            dragState.isDragging = false;
         }
+        if (dragState.draggedTask) {
+            dragState.draggedTask = null;
+            dragState.originalTaskParent = null;
+            dragState.originalTaskNextSibling = null;
+            dragState.originalTaskIndex = -1;
+        }
+        if (dragState.draggedColumn) {
+            dragState.draggedColumn = null;
+            dragState.draggedColumnId = null;
+            dragState.originalDataIndex = -1;
+        }
+        
+        // Always reset the main flags
+        dragState.isDragging = false;
+        
+        console.log('[DROP DEBUG] Drag state after cleanup:', {
+            isDragging: dragState.isDragging,
+            draggedColumn: !!dragState.draggedColumn,
+            draggedTask: !!dragState.draggedTask,
+            draggedClipboardCard: !!dragState.draggedClipboardCard,
+            draggedEmptyCard: !!dragState.draggedEmptyCard
+        });
     }, false);
     
 }
@@ -992,7 +1053,7 @@ function setupTaskDragHandle(handle) {
     handle.draggable = true;
     
     handle.addEventListener('dragstart', e => {
-        const taskItem = e.target.closest('.task-item');
+        const taskItem = e.target && e.target.closest ? e.target.closest('.task-item') : null;
         if (taskItem) {
             e.stopPropagation();
             const taskId = taskItem.dataset.taskId;
@@ -1019,7 +1080,7 @@ function setupTaskDragHandle(handle) {
 
     handle.addEventListener('dragend', e => {
 
-        const taskItem = e.target.closest('.task-item');
+        const taskItem = e.target && e.target.closest ? e.target.closest('.task-item') : null;
         if (taskItem) {
             // Clean up drag state FIRST
             dragState.isDragging = false;
