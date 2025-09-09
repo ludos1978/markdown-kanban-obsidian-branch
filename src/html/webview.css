@@ -497,6 +497,10 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .header-bars-container {
   order: -1;
+  position: sticky;
+  top: 0px;
+  z-index: 11;
+  background-color: var(--vscode-editor-background);
 }
 
 .footer-bars-container {
