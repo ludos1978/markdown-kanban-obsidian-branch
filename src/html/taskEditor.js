@@ -152,7 +152,6 @@ class TaskEditor {
             ? `column-title-${columnId}` 
             : `${type}-${taskId || editElement.dataset.taskId}-${columnId}`;
             
-        console.log(`🎯 UNDO: Starting edit "${newEditContext}", last: "${this.lastEditContext}"`);
         
         // Don't reset context here - let saveCurrentField determine if it's different
         // This was the bug: resetting to null made every save think it was a new field
@@ -246,7 +245,6 @@ class TaskEditor {
     save() {
         if (!this.currentEditor || this.isTransitioning) return;
         
-        console.log(`💾 UNDO: Starting save for current edit session`);
         this.saveCurrentField();
         this.closeEditor();
     }
@@ -287,10 +285,8 @@ class TaskEditor {
                         // Create context for this edit to determine if it's the same column being edited
                         const editContext = `column-title-${columnId}`;
                         
-                        console.log(`🔍 UNDO: Column title changing from "${oldCleanTitle}" to "${cleanValue}"`);
                         
                         // CRITICAL FIX: Save undo state BEFORE making the change
-                        console.log(`🚀 UNDO: Saving column state BEFORE change for ${editContext}`);
                         this.saveUndoStateImmediately('editColumnTitle', null, columnId);
                         
                         this.lastEditContext = editContext;
@@ -332,7 +328,6 @@ class TaskEditor {
                         window.updateRefreshButtonState('pending', totalPending);
                     }
                     
-                    console.log(`📝 Column title edit pending: ${columnId} -> "${cleanValue}"`);
                 }
             } else if (type === 'task-title' || type === 'task-description') {
                 const column = currentBoard.columns.find(c => c.id === columnId);
@@ -346,19 +341,14 @@ class TaskEditor {
                         // Create context for this edit to determine if it's the same field being edited
                         const editContext = `${type}-${taskId}-${columnId}`;
                         
-                        console.log(`🔍 UNDO: Edit context "${editContext}", last: "${this.lastEditContext}"`);
-                        console.log(`🔍 UNDO: Context comparison: "${this.lastEditContext}" === "${editContext}" = ${this.lastEditContext === editContext}`);
-                        console.log(`🔍 UNDO: Task field changing from "${task[field]}" to "${value}"`);
                         
                         // CRITICAL FIX: Save undo state BEFORE making the change
-                        console.log(`🚀 UNDO: Saving state BEFORE change for ${editContext} (debugging mode)`);
                         this.saveUndoStateImmediately(
                             type === 'task-title' ? 'editTaskTitle' : 'editTaskDescription',
                             taskId,
                             columnId
                         );
                         
-                        console.log(`🏷️ UNDO: Setting lastEditContext to "${editContext}"`);
                         this.lastEditContext = editContext;
                         
                         // Now make the change AFTER saving the undo state
@@ -378,7 +368,6 @@ class TaskEditor {
                                 field: field,
                                 value: value
                             });
-                            console.log(`📤 Sent task update to backend: ${field} = "${value}"`);
                         }
                     }
                     
@@ -406,7 +395,6 @@ class TaskEditor {
                         window.updateRefreshButtonState('pending', totalPending);
                     }
                     
-                    console.log(`📝 Task edit pending: ${taskId} -> "${value}"`);
                 }
             }
         }
@@ -454,10 +442,8 @@ class TaskEditor {
         if (this.keystrokeTimeout) {
             clearTimeout(this.keystrokeTimeout);
             this.keystrokeTimeout = null;
-            console.log(`🚫 UNDO: Cancelled pending keystroke timeout`);
         }
         
-        console.log(`💾 UNDO: Immediate save - ${operation} (task:${taskId}, column:${columnId})`);
         vscode.postMessage({ 
             type: 'saveUndoState', 
             operation: operation,
@@ -478,14 +464,11 @@ class TaskEditor {
         // Clear existing timeout to debounce keystrokes
         if (this.keystrokeTimeout) {
             clearTimeout(this.keystrokeTimeout);
-            console.log(`🔄 UNDO: Rescheduling keystroke timeout`);
         }
         
-        console.log(`⏰ UNDO: Scheduling keystroke save in 500ms - ${operation}`);
         
         // Schedule undo state saving after keystroke delay
         this.keystrokeTimeout = setTimeout(() => {
-            console.log(`💾 UNDO: Debounced save - ${operation} (task:${taskId}, column:${columnId})`);
             vscode.postMessage({ 
                 type: 'saveUndoState', 
                 operation: operation,

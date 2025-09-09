@@ -19,7 +19,6 @@ export class BackupManager {
             const intervalMinutes = config.get<number>('backupInterval', 15);
             
             if (!enableBackups) {
-                console.log('Backups are disabled');
                 return false;
             }
 
@@ -30,7 +29,6 @@ export class BackupManager {
                 const intervalMs = intervalMinutes * 60 * 1000;
                 
                 if (timeSinceLastBackup < intervalMs) {
-                    console.log(`Backup skipped - only ${Math.round(timeSinceLastBackup / 60000)} minutes since last backup (minimum: ${intervalMinutes} minutes)`);
                     return false;
                 }
             }
@@ -40,7 +38,6 @@ export class BackupManager {
             
             // Skip backup if content hasn't changed
             if (this._lastContentHash === contentHash) {
-                console.log('Content unchanged, skipping backup');
                 return false;
             }
 
@@ -190,8 +187,6 @@ export class BackupManager {
         this._backupTimer = setInterval(async () => {
             await this.createBackup(document);
         }, intervalMs);
-        
-        console.log(`Started periodic backup timer (every ${intervalMinutes} minutes)`);
     }
 
     /**
@@ -201,7 +196,6 @@ export class BackupManager {
         if (this._backupTimer) {
             clearInterval(this._backupTimer);
             this._backupTimer = null;
-            console.log('Stopped periodic backup timer');
         }
     }
 

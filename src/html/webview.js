@@ -857,8 +857,6 @@ function updateColumnRowTag(columnId, newRow) {
         column.title = cleanTitle;
     }
     
-    console.log(`Updated column "${columnId}" from "${column.title}" to row ${newRow}. New title: "${column.title}"`);
-    
     // Update the visual element immediately
     const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
     if (columnElement) {
@@ -901,9 +899,6 @@ function cleanupRowTags() {
         const rowTags = column.title.match(/#row\d+\b/gi) || [];
         
         if (rowTags.length > 1) {
-            // Multiple row tags found - keep only the last one
-            console.log(`Cleaning up multiple row tags in column "${column.id}": ${rowTags.join(', ')}`);
-            
             // Remove all row tags first
             let cleanTitle = column.title;
             rowTags.forEach(tag => {
@@ -917,7 +912,6 @@ function cleanupRowTags() {
             
             if (column.title !== originalTitle) {
                 needsUpdate = true;
-                console.log(`Cleaned column title from "${originalTitle}" to "${column.title}"`);
             }
         }
     });
@@ -966,7 +960,6 @@ function saveCurrentFoldingState() {
     state.globalColumnFoldState = window.globalColumnFoldState;
     state.isInitialized = true;
     
-    console.log(`Saved folding state for document: ${currentDocumentUri}`, state);
 }
 
 // Function to restore folding state from document storage
@@ -989,7 +982,6 @@ function restoreFoldingState() {
         window.columnFoldStates = new Map(state.columnFoldStates);
         window.globalColumnFoldState = state.globalColumnFoldState;
         
-        console.log(`Restored folding state for document: ${currentDocumentUri}`, state);
         return true;
     }
     
@@ -1000,13 +992,10 @@ function restoreFoldingState() {
 function applyDefaultFoldingToNewDocument() {
     if (!currentBoard || !currentBoard.columns) return;
     
-    console.log('Applying default folding for new document - empty columns will be collapsed');
-    
     // Don't reset existing state, just add empty columns to collapsed set
     currentBoard.columns.forEach(column => {
         if (!column.tasks || column.tasks.length === 0) {
             window.collapsedColumns.add(column.id);
-            console.log(`Auto-folding empty column: ${column.title} (${column.id})`);
         }
     });
     
@@ -1026,7 +1015,6 @@ function updateDocumentUri(newUri) {
         }
         
         currentDocumentUri = newUri;
-        console.log(`Switched to document: ${currentDocumentUri}`);
         
         // Try to restore state for the new document
         const hadSavedState = restoreFoldingState();
@@ -1056,7 +1044,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalPending = pendingColumnCount + pendingTaskCount;
         
         if (totalPending > 0) {
-            console.log(`Auto-saving ${totalPending} pending changes`);
             
             // Send all pending column changes
             if (window.pendingColumnChanges && window.pendingColumnChanges.size > 0) {
@@ -1087,23 +1074,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.updateRefreshButtonState) {
                 window.updateRefreshButtonState('default');
             }
-            
-            console.log('Pending changes auto-saved successfully');
         }
     }
     
     // Auto-save pending changes when losing focus
     // But delay to avoid saving when just switching views briefly
     window.addEventListener('blur', () => {
-        console.log('Window blur - scheduling pending changes check');
         
         // Wait a bit to see if focus returns quickly (view switching)
         setTimeout(() => {
             if (document.hidden || !document.hasFocus()) {
-                console.log('Window still unfocused - checking for pending changes');
                 autoSavePendingChanges();
             } else {
-                console.log('Focus returned - skipping auto-save');
             }
         }, 100);
     });
@@ -1112,17 +1094,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use same delayed approach to avoid auto-save during quick view switches
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
-            console.log('Document hidden - scheduling pending changes check');
-            
             // Wait a bit to see if visibility returns quickly (view switching)
             setTimeout(() => {
                 if (document.hidden && !closePromptActive) {
-                    console.log('Document still hidden - checking for pending changes');
                     autoSavePendingChanges();
-                } else if (closePromptActive) {
-                    console.log('Close prompt active - skipping auto-save');
-                } else {
-                    console.log('Document visible again - skipping auto-save');
                 }
             }, 100);
         }
@@ -1132,7 +1107,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('beforeunload', (e) => {
         const pendingCount = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
         if (pendingCount > 0) {
-            console.log('Page unloading with pending changes - attempting to save');
             autoSavePendingChanges();
             // Note: We can't reliably prevent unload in VS Code webviews,
             // but we try to save synchronously before the page closes
@@ -1313,35 +1287,18 @@ function isCurrentlyEditing() {
 // Listen for messages from the extension
 window.addEventListener('message', event => {
     const message = event.data;
-    console.log('Received message:', message);
     
     switch (message.type) {
         case 'updateBoard':
-            console.log('📥 Received board from VS Code:', message.board);
-            console.log('[BOARD DEBUG] Board has', message.board?.columns?.length || 0, 'columns');
-            if (message.board?.columns) {
-                message.board.columns.forEach((col, colIndex) => {
-                    console.log(`[BOARD DEBUG] Column ${colIndex} (${col?.title || 'untitled'}) has ${col.tasks?.length || 0} tasks`);
-                    if (col.tasks) {
-                        col.tasks.forEach((task, taskIndex) => {
-                            const content = (task?.content || '').toString();
-                            const preview = content.length > 50 ? content.substring(0, 50) + '...' : content;
-                            console.log(`[BOARD DEBUG]   Task ${taskIndex}: "${preview}"`);
-                        });
-                    }
-                });
-            }
             const previousBoard = currentBoard;
             
             // Initialize cache system - this is the SINGLE source of truth
             if (!window.cachedBoard) {
-                console.log('🗄️ Initializing cached board (first load)');
                 window.cachedBoard = JSON.parse(JSON.stringify(message.board)); // Deep clone
                 window.currentBoard = window.cachedBoard; // Keep for compatibility
                 window.savedBoardState = JSON.parse(JSON.stringify(message.board)); // Reference for unsaved detection
                 window.hasUnsavedChanges = false;
             } else {
-                console.log('🔄 VS Code sent updated board');
                 // Always update the cached board when receiving updates from backend
                 window.cachedBoard = JSON.parse(JSON.stringify(message.board)); 
                 
@@ -1363,7 +1320,6 @@ window.addEventListener('message', event => {
             
             if (message.imageMappings) {
                 window.currentImageMappings = message.imageMappings;
-                console.log('Received image mappings:', window.currentImageMappings);
             }            
 
             // Update whitespace with the value from configuration
@@ -1384,7 +1340,6 @@ window.addEventListener('message', event => {
             // Store tag colors globally - THIS IS CRITICAL
             if (message.tagColors) {
                 window.tagColors = message.tagColors;
-                console.log('Received tag colors:', window.tagColors);
                 // Only apply styles if not skipping render (prevents style spam during tag operations)
                 if (!shouldSkipRender && typeof applyTagStyles === 'function') {
                     applyTagStyles();
@@ -1394,19 +1349,12 @@ window.addEventListener('message', event => {
             // Store showRowTags configuration
             if (typeof message.showRowTags !== 'undefined') {
                 window.showRowTags = message.showRowTags;
-                console.log('Show row tags:', window.showRowTags);
             }
             
             // Save folding state before re-render
             saveCurrentFoldingState();
             const isEditing = window.taskEditor && window.taskEditor.currentEditor;
             
-            console.log('🔄 Board update received:', {
-                skipRender: shouldSkipRender,
-                isEditing,
-                messageType: message.type,
-                hasBoard: !!message.board
-            });
             
             if (!isEditing && !shouldSkipRender) {
                 // Only render if not editing and not explicitly skipping
@@ -1414,7 +1362,6 @@ window.addEventListener('message', event => {
                 
                 // Apply default folding if this is from an external change
                 if (message.applyDefaultFolding) {
-                    console.log('Applying default folding for external change');
                     setTimeout(() => {
                         applyDefaultFoldingToNewDocument();
                     }, 100); // Wait for render to complete
@@ -1424,7 +1371,6 @@ window.addEventListener('message', event => {
             }
             break;
         case 'updateFileInfo':
-            console.log('Updating file info with:', message.fileInfo);
             const previousDocumentPath = currentFileInfo?.documentPath;
             currentFileInfo = message.fileInfo;
             
@@ -1437,21 +1383,17 @@ window.addEventListener('message', event => {
             updateFileInfoBar();
             break;
         case 'resetClosePromptFlag':
-            console.log('🚪 Resetting close prompt flag - auto-save can resume');
             closePromptActive = false;
             break;
         case 'undoRedoStatus':
-            console.log('Undo/Redo status:', message);
             canUndo = message.canUndo;
             canRedo = message.canRedo;
             updateUndoRedoButtons();
             break;
         case 'insertFileLink':
-            console.log('Insert file link:', message.fileInfo);
             insertFileLink(message.fileInfo);
             break;
         case 'saveError':
-            console.log('Save error received:', message.error);
             if (typeof handleSaveError === 'function') {
                 handleSaveError(message.error);
             } else {
@@ -1459,23 +1401,17 @@ window.addEventListener('message', event => {
             }
             break;
         case 'checkUnsavedChanges':
-            console.log('🔍 Checking for unsaved changes before close');
-            console.log('🔍 hasUnsavedChanges function available:', typeof hasUnsavedChanges === 'function');
-            console.log('🔍 window.hasUnsavedChanges value:', window.hasUnsavedChanges);
             
             const hasChanges = typeof hasUnsavedChanges === 'function' ? hasUnsavedChanges() : false;
-            console.log('🔍 hasUnsavedChanges() returned:', hasChanges);
-            
+                
             // Respond with current unsaved changes status
             vscode.postMessage({
                 type: 'hasUnsavedChangesResponse',
                 hasUnsavedChanges: hasChanges,
                 requestId: message.requestId
             });
-            console.log('🔍 Sent hasUnsavedChangesResponse with:', hasChanges);
             break;
         case 'saveWithConflictFilename':
-            console.log('💾 Saving with conflict filename:', message.conflictPath);
             // Save current cached board to conflict file
             if (typeof saveCachedBoard === 'function') {
                 saveCachedBoard(message.conflictPath);
@@ -1484,7 +1420,6 @@ window.addEventListener('message', event => {
             }
             break;
         case 'requestCachedBoard':
-            console.log('📤 Backend requested cached board - sending current state');
             // Send the current cached board back to the backend
             if (window.cachedBoard || window.currentBoard) {
                 vscode.postMessage({
@@ -1492,7 +1427,6 @@ window.addEventListener('message', event => {
                     hasUnsavedChanges: window.hasUnsavedChanges || false,
                     cachedBoard: window.cachedBoard || window.currentBoard
                 });
-                console.log('✅ Sent cached board to backend for saving');
             } else {
                 console.warn('❌ No cached board available to send');
             }
@@ -1595,7 +1529,6 @@ document.addEventListener('keydown', (e) => {
         // Meta+S or Ctrl+S to save cached board to file
         else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            console.log('🎯 Cmd+S pressed - saving cached board to file');
             if (typeof saveCachedBoard === 'function') {
                 saveCachedBoard();
             } else {
@@ -1703,8 +1636,6 @@ document.addEventListener('keydown', (e) => {
                     if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
                     if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
                     
-                    console.log('🗑️ Unsaved changes discarded');
-                    
                     // Remove modal
                     modal.remove();
                     // Let VS Code handle the close
@@ -1757,29 +1688,21 @@ function redo() {
 // COMPREHENSIVE CLOSE DETECTION - Prevent data loss
 // Add beforeunload detection for unsaved changes
 window.addEventListener('beforeunload', function(e) {
-    console.log('🚪 Window beforeunload event - checking for unsaved changes');
-    console.log('🔍 hasUnsavedChanges function available:', typeof hasUnsavedChanges === 'function');
-    console.log('🔍 window.hasUnsavedChanges value:', window.hasUnsavedChanges);
-    
     if (typeof hasUnsavedChanges === 'function') {
         const hasChanges = hasUnsavedChanges();
-        console.log('🔍 hasUnsavedChanges() returned:', hasChanges);
         
         if (hasChanges) {
-            console.log('⚠️ Blocking close - unsaved changes detected');
             e.preventDefault();
             e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
             return 'You have unsaved changes. Are you sure you want to leave?';
         } else {
-            console.log('✅ No unsaved changes detected - allowing close');
         }
     } else {
-        console.log('❌ hasUnsavedChanges function not available');
+        console.error('❌ hasUnsavedChanges function not available');
     }
 });
 
 window.addEventListener('unload', function(e) {
-    console.log('🚪 Window unload event');
     if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
         console.warn('⚠️ Window closed with unsaved changes!');
     }
@@ -1791,11 +1714,9 @@ let closePromptActive = false;
 
 document.addEventListener('visibilitychange', function() {
     if (document.hidden) {
-        console.log('👁️ Page became hidden');
         
         // Always notify backend about page becoming hidden
         // Backend will check its own unsaved changes state and handle accordingly
-        console.log('📤 Notifying backend: page hidden');
         
         // Set flag to prevent auto-save while close prompt might be active
         closePromptActive = true;
@@ -1808,7 +1729,6 @@ document.addEventListener('visibilitychange', function() {
             });
         }, 0);
     } else {
-        console.log('👁️ Page became visible');
         // Reset flag when page becomes visible again
         closePromptActive = false;
     }
@@ -1941,7 +1861,6 @@ function updateWhitespace(value) {
         value = value + 'px';
     }
     
-    console.log('Updating whitespace to:', value);
     document.documentElement.style.setProperty('--whitespace', value);
 }
 

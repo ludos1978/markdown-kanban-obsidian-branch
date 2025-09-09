@@ -106,7 +106,6 @@ function applyTagStyles() {
     const existingStyles = document.getElementById('dynamic-tag-styles');
     if (existingStyles) {
         existingStyles.remove();
-        // console.log('Removed existing styles');
     }
     
     // Generate new styles
@@ -118,16 +117,11 @@ function applyTagStyles() {
         styleElement.id = 'dynamic-tag-styles';
         styleElement.textContent = styles;
         document.head.appendChild(styleElement);
-        // console.log('Tag styles applied successfully');
         
         // Debug: Check what columns have tags
         document.querySelectorAll('.kanban-full-height-column[data-column-tag]').forEach(col => {
-            // console.log('Column with tag:', col.getAttribute('data-column-tag'));
         });
     } 
-		// else {
-    //     console.log('No tag styles to apply');
-    // }
 }
 
 /**
@@ -138,7 +132,6 @@ function applyTagStyles() {
 function ensureTagStyleExists(tagName) {
     const config = getTagConfig(tagName);
     if (!config) {
-        // console.log(`No color config for tag: ${tagName}`);
         return;
     }
     
@@ -158,7 +151,6 @@ function ensureTagStyleExists(tagName) {
     const existingStyles = styleElement.textContent || '';
     if (existingStyles.includes(`[data-column-tag="${tagName}"]`) || 
         existingStyles.includes(`[data-task-tag="${tagName}"]`)) {
-        // console.log(`Styles already exist for tag: ${tagName}`);
         return;
     }
     
@@ -355,7 +347,6 @@ function ensureTagStyleExists(tagName) {
     // Append new styles
     if (newStyles) {
         styleElement.textContent += newStyles;
-        // console.log(`Added styles for tag: ${tagName}`);
     }
 }
 
@@ -530,8 +521,6 @@ function updateGlobalColumnFoldButton() {
  * Side effects: Adds 'collapsed' class to previously collapsed elements
  */
 function applyFoldingStates() {
-    // console.log('Applying folding states to rendered elements');
-    
     // Ensure folding state variables are initialized
     if (!window.collapsedColumns) window.collapsedColumns = new Set();
     if (!window.collapsedTasks) window.collapsedTasks = new Set();
@@ -545,7 +534,6 @@ function applyFoldingStates() {
         if (columnElement) {
             columnElement.classList.add('collapsed');
             if (toggle) toggle.classList.add('rotated');
-            // console.log(`Applied collapsed state to column: ${columnId}`);
         }
     });
     
@@ -557,7 +545,6 @@ function applyFoldingStates() {
         if (taskElement) {
             taskElement.classList.add('collapsed');
             if (toggle) toggle.classList.add('rotated');
-            // console.log(`Applied collapsed state to task: ${taskId}`);
         }
     });
     
@@ -868,17 +855,11 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         // Store the handler in a global object
         if (!window.tagHandlers) window.tagHandlers = {};
         window.tagHandlers[buttonId] = function(event) {
-            // console.log('🔍 DEBUG: window.tagHandlers called for:', tagName, 'buttonId:', buttonId);
-            // console.log('🔍 DEBUG: Parameters - id:', id, 'type:', type, 'columnId:', columnId, 'tagName:', tagName);
             event.stopPropagation();
             event.preventDefault();
             if (type === 'column') {
-                // FIXED: Correct parameter order for column tag click
-                // console.log('🔍 DEBUG: Calling handleColumnTagClick with columnId:', id, 'tagName:', tagName);
                 handleColumnTagClick(id, tagName, event);
             } else {
-                // FIXED: Correct parameter order for task tag click
-                // console.log('🔍 DEBUG: Calling handleTaskTagClick with taskId:', id, 'columnId:', columnId, 'tagName:', tagName);
                 handleTaskTagClick(id, columnId, tagName, event);
             }
             return false;
@@ -1146,7 +1127,6 @@ function renderBoard() {
                 window.updateAllVisualTagElements(element, tags, elementType);
             }
         });
-        // console.log('✅ Applied immediate visual updates to all tagged elements');
     }, 20);
 }
 
@@ -1800,11 +1780,8 @@ function getTagConfig(tagName) {
  */
 function generateTagStyles() {
     if (!window.tagColors) {
-        console.log('No tag colors configuration found');
         return '';
     }
-    
-    // console.log('Generating tag styles with colors:', window.tagColors); // Removed for cleaner logs
     
     const isDarkTheme = document.body.classList.contains('vscode-dark') || 
                         document.body.classList.contains('vscode-high-contrast');
@@ -1857,19 +1834,6 @@ function generateTagStyles() {
             }
         }
 
-        // Default column border (always allowed if provided)
-        // if (defaultConfig.column && defaultConfig.column.border) {
-        //     const b = defaultConfig.column.border;
-        //     const bStyle = b.style || 'solid';
-        //     const bWidth = b.width || '1px';
-        //     const bColor = b.color || 'var(--vscode-panel-border)';
-        //     if (b.position === 'left') {
-        //         styles += `.kanban-full-height-column:not([data-column-tag]) .column-inner { border-left: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
-        //     } else {
-        //         styles += `.kanban-full-height-column:not([data-column-tag]) .column-inner { border: ${bWidth} ${bStyle} ${bColor} !important; }\n`;
-        //     }
-        // }
-
         // Default card styles (gated)
         if (defaultConfig.card && (defaultConfig.card.applyBackground === true || defaultConfig.card.enable === true)) {
             const cardColors = defaultConfig.card[themeKey] || defaultConfig.card.light || {};
@@ -1915,7 +1879,6 @@ function generateTagStyles() {
                 const themeColors = config[themeKey] || config.light || {};
                 if (themeColors.text && themeColors.background) {
                     const lowerTagName = tagName.toLowerCase();
-                    // console.log(`Generating styles for tag "${lowerTagName}" with colors:`, themeColors); // Removed for cleaner logs
                     
                     // Tag pill styles (the tag text itself)
                     styles += `.kanban-tag[data-tag="${lowerTagName}"] {

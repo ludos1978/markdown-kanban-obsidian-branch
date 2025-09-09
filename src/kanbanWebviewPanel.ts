@@ -51,7 +51,6 @@ export class KanbanWebviewPanel {
             if (existingPanel && existingPanel._panel) {
                 // Panel exists, just reveal it
                 existingPanel._panel.reveal(column);
-                console.log(`Revealing existing panel for: ${path.basename(document.fileName)}`);
                 
                 // Update the file info to ensure context is maintained
                 existingPanel._fileManager.sendFileInfo();
@@ -186,21 +185,6 @@ export class KanbanWebviewPanel {
                         // This ensures we always have the latest data even if webview is disposed
                         this._board = cachedBoard;
                         this._cachedBoardFromWebview = cachedBoard; // Keep a separate reference
-                        console.log('💾 Updated backend board with cached data from webview');
-                        console.log('📋 Cached board structure:', {
-                            valid: cachedBoard.valid,
-                            columns: cachedBoard.columns?.length,
-                            firstColumnTitle: cachedBoard.columns?.[0]?.title,
-                            firstTaskTitle: cachedBoard.columns?.[0]?.tasks?.[0]?.title
-                        });
-                        // Log a specific task to verify content
-                        if (cachedBoard.columns?.[0]?.tasks?.[0]) {
-                            console.log('🔍 First task details:', {
-                                id: cachedBoard.columns[0].tasks[0].id,
-                                title: cachedBoard.columns[0].tasks[0].title,
-                                description: cachedBoard.columns[0].tasks[0].description?.substring(0, 50)
-                            });
-                        }
                     }
                 }
             }
@@ -300,23 +284,8 @@ export class KanbanWebviewPanel {
         const documentCloseListener = vscode.workspace.onDidCloseTextDocument(document => {
             const currentDocument = this._fileManager.getDocument();
             if (currentDocument && currentDocument.uri.toString() === document.uri.toString()) {
-                console.log('Current kanban document was closed:', document.fileName);
-                
-                // Clear the document reference
-                // this._fileManager.setDocument(undefined as any);
-                
                 // Update the file info to show no file loaded
                 this._fileManager.sendFileInfo();
-                
-                // Optionally show a message to the user
-                // vscode.window.showInformationMessage(
-                //     `Kanban document "${path.basename(document.fileName)}" was closed. Changes will not be saved until you open a new document.`,
-                //     'Open File'
-                // ).then(selection => {
-                //     if (selection === 'Open File') {
-                //         vscode.commands.executeCommand('markdown-kanban.switchFile');
-                //     }
-                // });
             }
         });
         
@@ -514,15 +483,11 @@ export class KanbanWebviewPanel {
                                 !this._isUpdatingFromPanel;
         
         if (isExternalChange) {
-            console.log(`External change detected - version jumped from ${this._lastDocumentVersion} to ${currentVersion}`);
         } else if (this._isUndoRedoOperation) {
-            console.log('Document change from undo/redo operation - preserving undo history');
         } else if (isFromEditorFocus) {
-            console.log('Document loaded from editor focus - not treating as external change');
             // Check if this is the same document that's already loaded
             const currentDocumentUri = this._fileManager.getDocument()?.uri.toString();
             if (currentDocumentUri === document.uri.toString()) {
-                console.log('Same document already loaded - skipping reload to preserve unsaved changes');
                 this._lastDocumentVersion = currentVersion;
                 return; // Don't reload the board, preserve all unsaved changes and folding state
             }
@@ -565,9 +530,6 @@ export class KanbanWebviewPanel {
             
             // Clean up any duplicate row tags
             const wasModified = this._boardOperations.cleanupRowTags(this._board);
-            if (wasModified) {
-                console.log('Cleaned up duplicate row tags in loaded board');
-            }
             
             this._boardOperations.setOriginalTaskOrder(this._board);
             
@@ -584,32 +546,27 @@ export class KanbanWebviewPanel {
 
                 if (choice === 'Ignore external changes') {
                     // User wants to keep working with current state - don't reload
-                    console.log('User chose to ignore external changes - keeping current board state');
                     return;
                 } else if (choice === 'Save as backup and reload') {
                     // Save current board state as backup before reloading
                     await this.createBackupBeforeExternalReload(document);
-                    console.log('Created backup before loading external changes');
                     // Save current state to undo history before reloading
                     this._undoRedoManager.saveStateForUndo(this._board);
                 } else if (choice === 'Discard changes and reload') {
                     // User explicitly chose to discard - continue with reload
-                    console.log('User chose to discard changes and reload from file');
                     // Save current state to undo history before reloading
                     this._undoRedoManager.saveStateForUndo(this._board);
                 } else {
                     // User cancelled or closed dialog - don't reload
-                    console.log('User cancelled external change dialog - keeping current state');
                     return;
                 }
             } else if (documentChanged && !this._isUndoRedoOperation && !this._isUpdatingFromPanel) {
                 // Only clear history when switching to completely different documents
                 this._undoRedoManager.clear();
-                console.log('Cleared undo history due to document change');
             } else if (this._isUndoRedoOperation) {
-                console.log('Preserved undo history during undo/redo operation');
+                // Preserve undo history during undo/redo operation
             } else if (this._isUpdatingFromPanel) {
-                console.log('Preserved undo history during save operation');
+                // Preserve undo history during save operation
             }
         } catch (error) {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
@@ -711,20 +668,6 @@ export class KanbanWebviewPanel {
             return;
         }
 
-        console.log('💾 Starting save operation for:', path.basename(document.fileName));
-        console.log('📋 Board state:', { 
-            valid: this._board.valid, 
-            columnsCount: this._board.columns?.length, 
-            tasksCount: this._board.columns?.reduce((sum, col) => sum + col.tasks.length, 0) 
-        });
-        
-        // Debug: Log sample task to verify content
-        if (this._board.columns?.length > 0 && this._board.columns[0].tasks?.length > 0) {
-            console.log('🔍 Sample task from board:', {
-                title: this._board.columns[0].tasks[0].title,
-                description: this._board.columns[0].tasks[0].description
-            });
-        }
         this._isUpdatingFromPanel = true;
         
         try {
@@ -734,15 +677,12 @@ export class KanbanWebviewPanel {
             );
             
             if (!isDocumentOpen) {
-                console.log('Document is closed, reopening in background for save...');
-                
                 // Reopen the document in the background
                 try {
                     const reopenedDoc = await vscode.workspace.openTextDocument(document.uri);
                     // Update the file manager with the reopened document
                     this._fileManager.setDocument(reopenedDoc);
                     document = reopenedDoc;
-                    console.log('Document reopened successfully in background');
                 } catch (reopenError) {
                     console.error('Failed to reopen document:', reopenError);
                     vscode.window.showErrorMessage(
@@ -761,7 +701,6 @@ export class KanbanWebviewPanel {
             );
             
             const success = await vscode.workspace.applyEdit(edit);
-            console.log('📝 workspace.applyEdit result:', success);
             
             if (!success) {
                 // VS Code's applyEdit can return false even when successful
@@ -775,24 +714,13 @@ export class KanbanWebviewPanel {
                 const currentContent = document.getText();
                 const expectedContent = markdown;
                 
-                console.log('📊 Content comparison:');
-                console.log('  Expected length:', expectedContent.length);
-                console.log('  Actual length:', currentContent.length);
-                console.log('  Content matches:', currentContent === expectedContent);
-                
                 if (currentContent === expectedContent) {
-                    console.log('✅ Changes were applied despite applyEdit returning false');
                 } else {
                     console.error('❌ Changes were not applied - this is a real failure');
-                    console.log('  First 200 chars expected:', JSON.stringify(expectedContent.substring(0, 200)));
-                    console.log('  First 200 chars actual:', JSON.stringify(currentContent.substring(0, 200)));
                     
                     // Find the first difference
                     for (let i = 0; i < Math.max(expectedContent.length, currentContent.length); i++) {
                         if (expectedContent[i] !== currentContent[i]) {
-                            console.log(`  First difference at position ${i}:`);
-                            console.log(`    Expected: "${expectedContent[i]}" (${expectedContent.charCodeAt(i)})`);
-                            console.log(`    Actual: "${currentContent[i]}" (${currentContent.charCodeAt(i) || 'undefined'})`);
                             break;
                         }
                     }
@@ -807,7 +735,6 @@ export class KanbanWebviewPanel {
             // Try to save the document
             try {
                 await document.save();
-                console.log('💾 Document.save() completed successfully');
                 
                 // Clean up cache files after successful save
                 await this._cacheManager.cleanupCacheFiles(document);
@@ -834,9 +761,6 @@ export class KanbanWebviewPanel {
             
             // Clear unsaved changes flag after successful save
             this._hasUnsavedChanges = false;
-            
-            console.log('✅ Save operation completed successfully for:', path.basename(document.fileName));
-                        
         } catch (error) {
             console.error('Error saving to markdown:', error);
             
@@ -1031,7 +955,6 @@ export class KanbanWebviewPanel {
             
             // Use the cached board that was already sent when changes were made
             if (this._cachedBoardFromWebview) {
-                console.log('Using cached board from webview for save dialog');
                 this._board = this._cachedBoardFromWebview;
             }
             
@@ -1045,14 +968,6 @@ export class KanbanWebviewPanel {
             if (choice && (choice.title === 'Save and close')) {
                 try {
                     // Save the changes before closing
-                    console.log('User chose to save before closing');
-                    console.log('Current board state before save:', {
-                        valid: this._board?.valid,
-                        columns: this._board?.columns?.length,
-                        firstTask: this._board?.columns?.[0]?.tasks?.[0]?.title,
-                        usingCachedBoard: this._cachedBoardFromWebview !== null
-                    });
-                    
                     await this.saveToMarkdown();
                     this._hasUnsavedChanges = false;
                     this._cachedBoardFromWebview = null; // Clear after save
@@ -1067,7 +982,6 @@ export class KanbanWebviewPanel {
                 }
             } else {
                 // Handle both 'Close without saving' and undefined (dialog closed) as close without saving
-                console.log('User chose to close without saving (or closed dialog)');
                 this._hasUnsavedChanges = false;
                 this._cachedBoardFromWebview = null; // Clear cached board
                 this.dispose();

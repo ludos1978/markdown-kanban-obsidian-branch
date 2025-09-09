@@ -97,11 +97,6 @@ export class MessageHandler {
                 break;
             case 'markUnsavedChanges':
                 // Track unsaved changes at panel level and update cached board if provided
-                console.log('📨 Received markUnsavedChanges message:', {
-                    hasUnsavedChanges: message.hasUnsavedChanges,
-                    hasCachedBoard: !!message.cachedBoard,
-                    boardColumns: message.cachedBoard?.columns?.length
-                });
                 this._markUnsavedChanges(message.hasUnsavedChanges, message.cachedBoard);
                 break;
             case 'saveUndoState':
@@ -110,7 +105,6 @@ export class MessageHandler {
                 const boardToSave = message.currentBoard || this._getCurrentBoard();
                 if (boardToSave) {
                     this._undoRedoManager.saveStateForUndo(boardToSave);
-                    console.log(`💾 UNDO: Saved state from ${message.currentBoard ? 'webview cache' : 'backend board'} - ${message.operation}`);
                 } else {
                     console.warn('❌ No current board available for undo state saving');
                 }
@@ -340,7 +334,6 @@ export class MessageHandler {
                 const task = column.tasks.find((t: any) => t.id === taskId);
                 if (task) {
                     (task as any)[field] = value;
-                    console.log(`✅ Updated task ${taskId} in backend: ${field} = "${value}"`);
                     // Update the board reference to ensure it's saved
                     this._setBoard(board);
                     return;
@@ -351,8 +344,6 @@ export class MessageHandler {
     }
 
     private async handleSaveBoardState(board: any) {
-        console.log('📥 Received complete board state for saving:', board);
-        
         if (!board) {
             console.warn('❌ No board data received for saving');
             return;
@@ -367,8 +358,6 @@ export class MessageHandler {
         // Save to markdown file and update the webview
         await this._onSaveToMarkdown();
         await this._onBoardUpdate();
-        
-        console.log('✅ Board state saved successfully');
     }
 
     private async performBoardAction(action: () => boolean, saveUndo: boolean = true) {
