@@ -1750,6 +1750,74 @@
             }
           },
           "description": "Grouped color and style configuration for tags in kanban boards with various visual indicators."
+        },
+        "markdown-kanban.taskMinHeight": {
+          "type": "string",
+          "default": "auto",
+          "description": "The minimum height for task cards (e.g., 'auto', '200px', '400px', '43.5vh', '89vh')",
+          "enum": ["auto", "200px", "400px", "43.5vh", "89vh"],
+          "enumDescriptions": [
+            "Automatic height based on content",
+            "Fixed minimum height of 200 pixels",
+            "Fixed minimum height of 400 pixels", 
+            "Minimum height of 43.5% of viewport height",
+            "Minimum height of 89% of viewport height"
+          ]
+        },
+        "markdown-kanban.fontSize": {
+          "type": "string",
+          "default": "small",
+          "description": "The font size for task cards and content",
+          "enum": ["small", "normal", "large", "xlarge"],
+          "enumDescriptions": [
+            "Small font size",
+            "Normal/default font size",
+            "Large font size",
+            "Extra large font size"
+          ]
+        },
+        "markdown-kanban.columnWidth": {
+          "type": "string",
+          "default": "medium",
+          "description": "The width of kanban columns",
+          "enum": ["small", "medium", "wide", "66", "100"],
+          "enumDescriptions": [
+            "Small columns (250px)",
+            "Medium columns (350px)",
+            "Wide columns (450px)",
+            "Half screen width (48.5%)",
+            "Full screen width (98%)"
+          ]
+        },
+        "markdown-kanban.layoutRows": {
+          "type": "number",
+          "default": 1,
+          "description": "The number of rows in the kanban layout",
+          "enum": [1, 2, 3, 4, 5, 6],
+          "enumDescriptions": [
+            "1 row",
+            "2 rows",
+            "3 rows", 
+            "4 rows",
+            "5 rows",
+            "6 rows"
+          ]
+        },
+        "markdown-kanban.rowHeight": {
+          "type": "string",
+          "default": "auto",
+          "description": "The height of kanban rows",
+          "enum": ["95vh", "63vh", "48vh", "31.5vh", "44em", "31em", "19em", "auto"],
+          "enumDescriptions": [
+            "100% of screen height",
+            "2/3 of screen height", 
+            "1/2 of screen height",
+            "1/3 of screen height",
+            "700px (~47em)",
+            "500px (~31em)",
+            "300px (~19em)",
+            "Automatic height based on content"
+          ]
         }
       }
     },

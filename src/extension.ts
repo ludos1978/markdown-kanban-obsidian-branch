@@ -255,15 +255,29 @@ export function activate(context: vscode.ExtensionContext) {
 	// React to configuration changes (e.g., tag colors, whitespace, etc.)
 	const configChangeListener = vscode.workspace.onDidChangeConfiguration(async (e) => {
 		if (e.affectsConfiguration('markdown-kanban')) {
-			const panels = KanbanWebviewPanel.getAllPanels();
-			for (const panel of panels) {
-				const uri = panel.getCurrentDocumentUri?.();
-				if (uri) {
-					try {
-						const doc = await vscode.workspace.openTextDocument(uri);
-						await panel.loadMarkdownFile(doc);
-					} catch {
-						// best-effort refresh; ignore failures
+			// Only trigger full refresh for configuration changes that affect board rendering
+			// UI preference changes (fontSize, columnWidth, etc.) are handled by the webview itself
+			const needsFullRefresh = 
+				e.affectsConfiguration('markdown-kanban.tagColors') ||
+				e.affectsConfiguration('markdown-kanban.enableBackups') ||
+				e.affectsConfiguration('markdown-kanban.backupInterval') ||
+				e.affectsConfiguration('markdown-kanban.backupLocation') ||
+				e.affectsConfiguration('markdown-kanban.maxBackupsPerFile') ||
+				e.affectsConfiguration('markdown-kanban.openLinksInNewTab') ||
+				e.affectsConfiguration('markdown-kanban.showRowTags') ||
+				e.affectsConfiguration('markdown-kanban.maxRowHeight');
+			
+			if (needsFullRefresh) {
+				const panels = KanbanWebviewPanel.getAllPanels();
+				for (const panel of panels) {
+					const uri = panel.getCurrentDocumentUri?.();
+					if (uri) {
+						try {
+							const doc = await vscode.workspace.openTextDocument(uri);
+							await panel.loadMarkdownFile(doc);
+						} catch {
+							// best-effort refresh; ignore failures
+						}
 					}
 				}
 			}

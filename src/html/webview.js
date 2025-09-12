@@ -17,6 +17,106 @@ let currentWhitespace = '4px';
 let currentTaskMinHeight = 'auto';
 let currentLayoutRows = 1;
 
+// Centralized configuration for all menu options
+const menuConfig = {
+    columnWidth: [
+        { label: "Small (250px)", value: "small", description: "250px" },
+        { label: "Medium (350px)", value: "medium", description: "350px" },
+        { label: "Wide (450px)", value: "wide", description: "450px" },
+        { separator: true },
+        { label: "Half Screen (48.5%)", value: "66", description: "48.5%" },
+        { label: "Full Width (98%)", value: "100", description: "98%" }
+    ],
+    cardHeight: [
+        { label: "Auto Height", value: "auto" },
+        { separator: true },
+        { label: "200px", value: "200px" },
+        { label: "400px", value: "400px" },
+        { label: "43.5vh", value: "43.5vh" },
+        { label: "89vh", value: "89vh" }
+    ],
+    whitespace: [
+        { label: "Compact (2px)", value: "2px" },
+        { label: "Default (4px)", value: "4px" },
+        { label: "Comfortable (8px)", value: "8px" },
+        { label: "Spacious (12px)", value: "12px" },
+        { separator: true },
+        { label: "10px", value: "10px" },
+        { label: "20px", value: "20px" },
+        { label: "40px", value: "40px" },
+        { label: "60px", value: "60px" }
+    ],
+    fontSize: [
+        { label: "Small", value: "small", icon: "a" },
+        { label: "Normal", value: "normal", icon: "A" },
+        { label: "Large", value: "large", icon: "A", iconStyle: "font-size: 16px;" },
+        { label: "X-Large", value: "xlarge", icon: "A", iconStyle: "font-size: 18px;" }
+    ],
+    layoutRows: [
+        { label: "1 Row", value: 1 },
+        { label: "2 Rows", value: 2 },
+        { label: "3 Rows", value: 3 },
+        { label: "4 Rows", value: 4 },
+        { label: "5 Rows", value: 5 },
+        { label: "6 Rows", value: 6 }
+    ],
+    rowHeight: [
+        { label: "100% Screen", value: "95vh" },
+        { label: "2/3 Screen", value: "63vh" },
+        { label: "1/2 Screen", value: "48vh" },
+        { label: "1/3 Screen", value: "31.5vh" },
+        { separator: true },
+        { label: "700px (~47em)", value: "44em" },
+        { label: "500px (~31em)", value: "31em" },
+        { label: "300px (~19em)", value: "19em" },
+        { separator: true },
+        { label: "Auto Height", value: "auto" }
+    ]
+};
+
+// Helper function to generate menu HTML from configuration
+function generateMenuHTML(configKey, onClickFunction) {
+    const config = menuConfig[configKey];
+    if (!config) return '';
+    
+    let html = '';
+    for (const item of config) {
+        if (item.separator) {
+            html += '<div class="file-bar-menu-divider"></div>';
+        } else {
+            const iconHtml = item.icon ? `<span class="menu-icon"${item.iconStyle ? ` style="${item.iconStyle}"` : ''}>${item.icon}</span> ` : '';
+            html += `<button class="file-bar-menu-item" onclick="${onClickFunction}('${item.value}')">${iconHtml}${item.label}</button>`;
+        }
+    }
+    return html;
+}
+
+// Function to populate dynamic menus
+function populateDynamicMenus() {
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', populateDynamicMenus);
+        return;
+    }
+    
+    // Populate each menu based on configuration
+    const menuMappings = [
+        { selector: '[data-menu="columnWidth"]', config: 'columnWidth', function: 'setColumnWidth' },
+        { selector: '[data-menu="cardHeight"]', config: 'cardHeight', function: 'setTaskMinHeight' },
+        { selector: '[data-menu="whitespace"]', config: 'whitespace', function: 'setWhitespace' },
+        { selector: '[data-menu="fontSize"]', config: 'fontSize', function: 'setFontSize' },
+        { selector: '[data-menu="layoutRows"]', config: 'layoutRows', function: 'setLayoutRows' },
+        { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' }
+    ];
+    
+    menuMappings.forEach(mapping => {
+        const container = document.querySelector(mapping.selector);
+        if (container) {
+            container.innerHTML = generateMenuHTML(mapping.config, mapping.function);
+        }
+    });
+}
+
 // Clipboard card source functionality
 let clipboardCardData = null;
 
@@ -621,7 +721,7 @@ function toggleFileBarMenu(event, button) {
  * @param {string} size - 'narrow', 'medium', 'wide', 'full'
  * Side effects: Updates CSS variables, saves preference
  */
-function setColumnWidth(size) {
+function applyColumnWidth(size) {
     currentColumnWidth = size;
     
     // Remove all existing column width classes
@@ -654,6 +754,11 @@ function setColumnWidth(size) {
         }
         document.documentElement.style.setProperty('--column-width', width);
     }
+}
+
+function setColumnWidth(size) {
+    // Apply the column width
+    applyColumnWidth(size);
     
     // Store preference
     vscode.postMessage({ 
@@ -680,14 +785,18 @@ function setColumnWidth(size) {
  * @param {number} rows - Number of rows (1, 2, or 3)
  * Side effects: Updates board layout, triggers re-render
  */
-function setLayoutRows(rows) {
-
+function applyLayoutRows(rows) {
     currentLayoutRows = rows;
     
     // Re-render the board to apply row layout
     if (currentBoard) {
         renderBoard();
     }
+}
+
+function setLayoutRows(rows) {
+    // Apply the layout rows
+    applyLayoutRows(rows);
     
     // Store preference
     vscode.postMessage({ 
@@ -771,15 +880,19 @@ function applyRowHeight(height) {
     }
 }
 
-// Function to set row height
-function setRowHeight(height) {
-    
+// Function to set row height (applies and stores)
+function applyRowHeightSetting(height) {
     // Store current height setting
     currentRowHeight = height;
     window.currentRowHeight = height;
     
-    // Apply the height to kanban rows
+    // Apply the height using the existing applyRowHeight function
     applyRowHeight(height);
+}
+
+function setRowHeight(height) {
+    // Apply the row height
+    applyRowHeightSetting(height);
     
     // Store preference
     vscode.postMessage({ 
@@ -811,14 +924,18 @@ function setRowHeight(height) {
 }
 
 // Function to set whitespace
-function setWhitespace(spacing) {
-    
+function applyWhitespace(spacing) {
     // Store current whitespace setting
     currentWhitespace = spacing;
     window.currentWhitespace = spacing;
     
     // Apply the whitespace immediately
     updateWhitespace(spacing);
+}
+
+function setWhitespace(spacing) {
+    // Apply the whitespace
+    applyWhitespace(spacing);
     
     // Store preference
     vscode.postMessage({ 
@@ -833,15 +950,20 @@ function setWhitespace(spacing) {
     });
 }
 
-// Function to set task minimum height
-function setTaskMinHeight(height) {
-    
+// Function to apply task minimum height (without saving preference)
+function applyTaskMinHeight(height) {
     // Store current task min height setting
     currentTaskMinHeight = height;
     window.currentTaskMinHeight = height;
     
     // Apply the task min height immediately
     updateTaskMinHeight(height);
+}
+
+// Function to set task minimum height
+function setTaskMinHeight(height) {
+    // Apply the task min height
+    applyTaskMinHeight(height);
     
     // Store preference
     vscode.postMessage({ 
@@ -1095,6 +1217,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize clipboard card source
     initializeClipboardCardSource();
+    
+    // Populate dynamic menus
+    populateDynamicMenus();
     
     // Update clipboard content when window gets focus
     window.addEventListener('focus', async () => {
@@ -1520,16 +1645,44 @@ window.addEventListener('message', event => {
 
             // Update whitespace with the value from configuration
             if (message.whitespace) {
-                updateWhitespace(message.whitespace);
+                applyWhitespace(message.whitespace);
             } else {
-                updateWhitespace('4px'); // Default fallback
+                applyWhitespace('4px'); // Default fallback
             }
             
             // Update task min height with the value from configuration
             if (message.taskMinHeight) {
-                updateTaskMinHeight(message.taskMinHeight);
+                applyTaskMinHeight(message.taskMinHeight);
             } else {
-                updateTaskMinHeight('auto'); // Default fallback
+                applyTaskMinHeight('auto'); // Default fallback
+            }
+            
+            // Update font size with the value from configuration
+            if (message.fontSize) {
+                applyFontSize(message.fontSize);
+            } else {
+                applyFontSize('small'); // Default fallback
+            }
+            
+            // Update column width with the value from configuration
+            if (message.columnWidth) {
+                applyColumnWidth(message.columnWidth);
+            } else {
+                applyColumnWidth('medium'); // Default fallback
+            }
+            
+            // Update layout rows with the value from configuration
+            if (message.layoutRows) {
+                applyLayoutRows(message.layoutRows);
+            } else {
+                applyLayoutRows(1); // Default fallback
+            }
+            
+            // Update row height with the value from configuration
+            if (message.rowHeight) {
+                applyRowHeightSetting(message.rowHeight);
+            } else {
+                applyRowHeightSetting('auto'); // Default fallback
             }
 
             // Update max row height
@@ -2149,7 +2302,7 @@ window.performSort = performSort;
 // Font size functionality
 let currentFontSize = 'small'; // Default to small (current behavior)
 
-function setFontSize(size) {
+function applyFontSize(size) {
     // Remove all font size classes
     document.body.classList.remove('font-size-small', 'font-size-normal', 'font-size-large', 'font-size-xlarge');
     
@@ -2159,38 +2312,18 @@ function setFontSize(size) {
     // Add the selected font size class
     document.body.classList.add(`font-size-${size}`);
     currentFontSize = size;
+}
+
+function setFontSize(size) {
+    // Apply the font size
+    applyFontSize(size);
     
-    // Update button appearance
-    const fontBtn = document.getElementById('font-size-btn');
-    const fontIcon = fontBtn?.querySelector('.font-size-icon');
-    const fontText = fontBtn?.querySelector('.font-size-text');
-    
-    if (fontIcon && fontText) {
-        switch (size) {
-            case 'small':
-                fontIcon.textContent = 'a';
-                fontText.textContent = 'Small';
-                fontBtn.title = 'Font size: Small';
-                break;
-            case 'normal':
-                fontIcon.textContent = 'A';
-                fontText.textContent = 'Normal';
-                fontBtn.title = 'Font size: Normal';
-                break;
-            case 'large':
-                fontIcon.textContent = 'A';
-                fontIcon.style.fontSize = '16px';
-                fontText.textContent = 'Large';
-                fontBtn.title = 'Font size: Large';
-                break;
-            case 'xlarge':
-                fontIcon.textContent = 'A';
-                fontIcon.style.fontSize = '18px';
-                fontText.textContent = 'X-Large';
-                fontBtn.title = 'Font size: Extra Large';
-                break;
-        }
-    }
+    // Store preference
+    vscode.postMessage({ 
+        type: 'setPreference', 
+        key: 'fontSize', 
+        value: size 
+    });
     
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {

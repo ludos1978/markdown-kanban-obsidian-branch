@@ -363,6 +363,30 @@ export class KanbanWebviewPanel {
         return taskMinHeight;
     }
 
+    private async _getFontSizeConfiguration(): Promise<string> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const fontSize = config.get<string>('fontSize', 'small');
+        return fontSize;
+    }
+
+    private async _getColumnWidthConfiguration(): Promise<string> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const columnWidth = config.get<string>('columnWidth', 'medium');
+        return columnWidth;
+    }
+
+    private async _getLayoutRowsConfiguration(): Promise<number> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const layoutRows = config.get<number>('layoutRows', 1);
+        return layoutRows;
+    }
+
+    private async _getRowHeightConfiguration(): Promise<string> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const rowHeight = config.get<string>('rowHeight', 'auto');
+        return rowHeight;
+    }
+
     private async _getMaxRowHeightConfiguration(): Promise<number> {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
         const maxRowHeight = config.get<number>('maxRowHeight', 0);
@@ -632,6 +656,14 @@ export class KanbanWebviewPanel {
         
         const taskMinHeight = await this._getTaskMinHeightConfiguration();
         
+        const fontSize = await this._getFontSizeConfiguration();
+        
+        const columnWidth = await this._getColumnWidthConfiguration();
+        
+        const layoutRows = await this._getLayoutRowsConfiguration();
+        
+        const rowHeight = await this._getRowHeightConfiguration();
+        
         const showRowTags = await this._getShowRowTagsConfiguration();
         
         const maxRowHeight = await this._getMaxRowHeightConfiguration();
@@ -644,6 +676,10 @@ export class KanbanWebviewPanel {
                 tagColors: tagColors,
                 whitespace: whitespace,
                 taskMinHeight: taskMinHeight,
+                fontSize: fontSize,
+                columnWidth: columnWidth,
+                layoutRows: layoutRows,
+                rowHeight: rowHeight,
                 showRowTags: showRowTags,
                 maxRowHeight: maxRowHeight,
                 applyDefaultFolding: applyDefaultFolding
