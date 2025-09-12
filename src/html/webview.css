@@ -501,7 +501,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   order: -1;
   /* position: sticky; */ /* should be sticky, but for the moment we dont implement it as the column header must not be overlapped when scrolling */
   /* top: 0px; */
-  z-index: 11;
+  z-index: 9;
   background-color: var(--vscode-editor-background);
 }
 
@@ -3083,4 +3083,138 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 .collapsed .markdown-content h6::before {
   margin-right: 0 !important;
   margin-bottom: 4px !important;
+}
+
+/* Column Width Classes */
+.kanban-full-height-column.column-width-66 {
+  width: 48.5vw !important;
+  --task-title-width: calc(48.5vw - 100px); /* Adjust task title width for wider column */
+}
+
+.kanban-full-height-column.column-width-100 {
+  width: 98vw !important;
+  --task-title-width: calc(98vw - 100px); /* Adjust task title width for full width column */
+}
+
+/* Override task title width for elements within these columns */
+.kanban-full-height-column.column-width-66 .task-title-display {
+  width: var(--task-title-width);
+}
+
+.kanban-full-height-column.column-width-100 .task-title-display {
+  width: var(--task-title-width);
+}
+
+/* IMPORTANT: Collapsed columns should always use fixed width, not viewport width */
+.kanban-full-height-column.collapsed.column-width-66,
+.kanban-full-height-column.collapsed.column-width-100 {
+  width: auto !important; /* Let collapsed width be determined by content */
+  min-width: auto !important;
+  max-width: none !important;
+}
+
+/* Font Size Classes - Small (current default) */
+body.font-size-small .column-title,
+body.font-size-small .task-title-display,
+body.font-size-small .task-description-display {
+  font-size: inherit; /* Keep current sizes */
+}
+
+/* Font Size Classes - Normal */
+body.font-size-normal .column-title {
+  font-size: 16px;
+}
+
+body.font-size-normal .task-title-display {
+  font-size: 16px;
+}
+
+body.font-size-normal .task-description-display {
+  font-size: 15px;
+}
+
+body.font-size-normal .column-title-edit {
+  font-size: 16px;
+}
+
+body.font-size-normal .task-title-edit {
+  font-size: 16px;
+}
+
+body.font-size-normal .task-description-edit {
+  font-size: 15px;
+}
+
+/* Font Size Classes - Large */
+body.font-size-large .column-title {
+  font-size: 40px;
+  line-height: 1.2;
+}
+
+body.font-size-large .task-title-display {
+  font-size: 40px;
+  line-height: 1.2;
+}
+
+body.font-size-large .task-description-display {
+  font-size: 36px;
+  line-height: 1.3;
+}
+
+body.font-size-large .column-title-edit {
+  font-size: 40px;
+  line-height: 1.2;
+}
+
+body.font-size-large .task-title-edit {
+  font-size: 40px;
+  line-height: 1.2;
+}
+
+body.font-size-large .task-description-edit {
+  font-size: 36px;
+  line-height: 1.3;
+}
+
+/* Disable sticky header for large font size */
+body.font-size-large .column-header {
+  position: relative !important;
+  top: auto !important;
+}
+
+/* Font Size Classes - X-Large */
+body.font-size-xlarge .column-title {
+  font-size: 60px;
+  line-height: 1.1;
+}
+
+body.font-size-xlarge .task-title-display {
+  font-size: 60px;
+  line-height: 1.1;
+}
+
+body.font-size-xlarge .task-description-display {
+  font-size: 54px;
+  line-height: 1.2;
+}
+
+body.font-size-xlarge .column-title-edit {
+  font-size: 60px;
+  line-height: 1.1;
+}
+
+body.font-size-xlarge .task-title-edit {
+  font-size: 60px;
+  line-height: 1.1;
+}
+
+body.font-size-xlarge .task-description-edit {
+  font-size: 54px;
+  line-height: 1.2;
+}
+
+/* Disable sticky header for x-large font size */
+body.font-size-xlarge .column-header {
+  position: relative !important;
+  top: auto !important;
 }

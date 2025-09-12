@@ -2279,7 +2279,7 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
     if (!badgesContainer) {
         badgesContainer = document.createElement('div');
         badgesContainer.className = 'corner-badges-container';
-        badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
+        badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 9;';
         element.appendChild(badgesContainer);
         // Ensure parent has relative positioning
         // if (!element.style.position || element.style.position === 'static') {

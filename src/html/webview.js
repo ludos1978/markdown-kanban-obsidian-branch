@@ -622,20 +622,36 @@ function toggleFileBarMenu(event, button) {
 function setColumnWidth(size) {
     currentColumnWidth = size;
     
-    let width = '350px'; // default medium
-    switch(size) {
-        case 'small':
-            width = '250px';
-            break;
-        case 'medium':
-            width = '350px';
-            break;
-        case 'wide':
-            width = '450px';
-            break;
-    }
+    // Remove all existing column width classes
+    const columns = document.querySelectorAll('.kanban-full-height-column');
+    columns.forEach(column => {
+        column.classList.remove('column-width-66', 'column-width-100');
+    });
     
-    document.documentElement.style.setProperty('--column-width', width);
+    // Handle pixel-based and percentage-based widths differently
+    if (size === '66' || size === '100') {
+        // For percentage widths, add CSS classes
+        columns.forEach(column => {
+            column.classList.add(`column-width-${size}`);
+        });
+        // Reset CSS custom property to default for percentage layouts
+        document.documentElement.style.setProperty('--column-width', '350px');
+    } else {
+        // For pixel widths, use CSS custom properties
+        let width = '350px'; // default medium
+        switch(size) {
+            case 'small':
+                width = '250px';
+                break;
+            case 'medium':
+                width = '350px';
+                break;
+            case 'wide':
+                width = '450px';
+                break;
+        }
+        document.documentElement.style.setProperty('--column-width', width);
+    }
     
     // Store preference
     vscode.postMessage({ 
@@ -2056,18 +2072,19 @@ window.getColumnRow = getColumnRow;
 
 window.performSort = performSort;
 
-// Font size toggle functionality
-let isSmallFont = false;
+// Font size functionality
+let currentFontSize = 'small'; // Default to small (current behavior)
 
-function toggleCardFontSize() {
+function setFontSize(size) {
+    // Remove all font size classes
+    document.body.classList.remove('font-size-small', 'font-size-normal', 'font-size-large', 'font-size-xlarge');
     
-    isSmallFont = !isSmallFont;
+    // Remove old small-card-fonts class for backward compatibility
+    document.body.classList.remove('small-card-fonts');
     
-    if (isSmallFont) {
-        document.body.classList.add('small-card-fonts');
-    } else {
-        document.body.classList.remove('small-card-fonts');
-    }
+    // Add the selected font size class
+    document.body.classList.add(`font-size-${size}`);
+    currentFontSize = size;
     
     // Update button appearance
     const fontBtn = document.getElementById('font-size-btn');
@@ -2075,18 +2092,50 @@ function toggleCardFontSize() {
     const fontText = fontBtn?.querySelector('.font-size-text');
     
     if (fontIcon && fontText) {
-        if (isSmallFont) {
-            fontIcon.textContent = 'a';
-            fontText.textContent = 'Small';
-            fontBtn.title = 'Switch to normal font size';
-        } else {
-            fontIcon.textContent = 'A';
-            fontText.textContent = 'Size';
-            fontBtn.title = 'Switch to small font size';
+        switch (size) {
+            case 'small':
+                fontIcon.textContent = 'a';
+                fontText.textContent = 'Small';
+                fontBtn.title = 'Font size: Small';
+                break;
+            case 'normal':
+                fontIcon.textContent = 'A';
+                fontText.textContent = 'Normal';
+                fontBtn.title = 'Font size: Normal';
+                break;
+            case 'large':
+                fontIcon.textContent = 'A';
+                fontIcon.style.fontSize = '16px';
+                fontText.textContent = 'Large';
+                fontBtn.title = 'Font size: Large';
+                break;
+            case 'xlarge':
+                fontIcon.textContent = 'A';
+                fontIcon.style.fontSize = '18px';
+                fontText.textContent = 'X-Large';
+                fontBtn.title = 'Font size: Extra Large';
+                break;
         }
     }
     
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
 }
 
-// Make function globally available
+// Legacy function for backward compatibility
+function toggleCardFontSize() {
+    const nextSize = currentFontSize === 'small' ? 'normal' : 'small';
+    setFontSize(nextSize);
+}
+
+// Make functions globally available
+window.setFontSize = setFontSize;
 window.toggleCardFontSize = toggleCardFontSize;
+
+// Initialize font size on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default font size to small (maintaining current behavior)
+    setFontSize('small');
+});

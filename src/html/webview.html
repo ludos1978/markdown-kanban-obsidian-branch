@@ -43,10 +43,27 @@
                     <span class="sort-text">Sort</span>
                 </button>
                 
-                <button id="font-size-btn" class="font-size-btn" onclick="toggleCardFontSize()" title="Toggle card font size">
-                    <span class="font-size-icon">A</span>
-                    <span class="font-size-text">Size</span>
-                </button>
+                <!-- Font Size Menu -->
+                <div class="font-size-menu file-bar-menu">
+                    <button id="font-size-btn" class="font-size-btn file-bar-menu-btn" onclick="toggleFileBarMenu(event, this)" title="Select font size">
+                        <span class="font-size-icon">A</span>
+                        <span class="font-size-text">Size</span>
+                    </button>
+                    <div class="file-bar-menu-dropdown">
+                        <button class="file-bar-menu-item" onclick="setFontSize('small')" title="Small font size">
+                            <span class="menu-icon">a</span> Small
+                        </button>
+                        <button class="file-bar-menu-item" onclick="setFontSize('normal')" title="Normal font size">
+                            <span class="menu-icon">A</span> Normal
+                        </button>
+                        <button class="file-bar-menu-item" onclick="setFontSize('large')" title="Large font size">
+                            <span class="menu-icon" style="font-size: 16px;">A</span> Large
+                        </button>
+                        <button class="file-bar-menu-item" onclick="setFontSize('xlarge')" title="Extra large font size">
+                            <span class="menu-icon" style="font-size: 18px;">A</span> X-Large
+                        </button>
+                    </div>
+                </div>
                 
                 <button id="refresh-btn" class="refresh-btn" onclick="manualRefresh()" title="Refresh from source markdown">
                     <span class="refresh-icon">↻</span>
@@ -77,6 +94,9 @@
                                 <button class="file-bar-menu-item" onclick="setColumnWidth('small')">Small (250px)</button>
                                 <button class="file-bar-menu-item" onclick="setColumnWidth('medium')">Medium (350px)</button>
                                 <button class="file-bar-menu-item" onclick="setColumnWidth('wide')">Wide (450px)</button>
+                                <div class="file-bar-menu-divider"></div>
+                                <button class="file-bar-menu-item" onclick="setColumnWidth('66')">Half Screen (48.5%)</button>
+                                <button class="file-bar-menu-item" onclick="setColumnWidth('100')">Full Width (98%)</button>
                             </div>
                         </div>
                         <div class="file-bar-menu-item has-submenu">
