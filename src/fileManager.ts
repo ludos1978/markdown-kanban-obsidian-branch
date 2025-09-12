@@ -384,6 +384,21 @@ export class FileManager {
     }
 
     /**
+     * Check if a file path is a media file (image, video, or audio)
+     */
+    private isMediaFile(filePath: string): boolean {
+        const extension = filePath.split('.').pop()?.toLowerCase() || '';
+        
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff', 'tif'];
+        const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'm4v', 'mpg', 'ogv', 'webm', 'wmv'];
+        const audioExts = ['mp3', 'm4a', 'wav', 'ogg', 'flac', 'aac', 'oga'];
+        
+        return imageExts.includes(extension) || 
+               videoExts.includes(extension) || 
+               audioExts.includes(extension);
+    }
+
+    /**
      * Generate image path mappings for the webview without modifying content
      * Returns a map of original paths to webview URIs
      */
@@ -396,26 +411,30 @@ export class FileManager {
             return mappings;
         }
 
-        // Find all image references in the content
-        const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        // Find all media references in the content (images, videos, audio)
+        const mediaRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
         let match;
         
-        while ((match = imageRegex.exec(content)) !== null) {
-            const imagePath = match[2];
+        while ((match = mediaRegex.exec(content)) !== null) {
+            const filePath = match[2];
             
             // Skip if already processed or if it's a special URI
-            if (mappings[imagePath] || 
-                imagePath.startsWith('vscode-webview://') || 
-                imagePath.startsWith('data:') ||
-                imagePath.startsWith('http://') || 
-                imagePath.startsWith('https://')) {
+            if (mappings[filePath] || 
+                filePath.startsWith('vscode-webview://') || 
+                filePath.startsWith('data:') ||
+                filePath.startsWith('http://') || 
+                filePath.startsWith('https://')) {
                 continue;
             }
             
-            // Resolve the image path to a webview URI
-            const webviewUri = await this.resolveImageForDisplay(imagePath);
-            if (webviewUri !== imagePath) {
-                mappings[imagePath] = webviewUri;
+            // Check if this is a media file (image, video, audio)
+            const isMediaFile = this.isMediaFile(filePath);
+            if (isMediaFile) {
+                // Resolve the file path to a webview URI (works for images, videos, audio)
+                const webviewUri = await this.resolveImageForDisplay(filePath);
+                if (webviewUri !== filePath) {
+                    mappings[filePath] = webviewUri;
+                }
             }
         }
         

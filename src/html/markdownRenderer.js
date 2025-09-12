@@ -298,6 +298,56 @@ function renderMarkdown(text) {
                 }
             }); // Custom media plugin for video/audio
         }
+        
+        // Add custom renderer for video and audio to handle path mapping
+        const originalVideoRenderer = md.renderer.rules.video;
+        const originalAudioRenderer = md.renderer.rules.audio;
+        
+        md.renderer.rules.video = function(tokens, idx, options, env, renderer) {
+            const token = tokens[idx];
+            console.log('Video token:', token);
+            
+            // Process source children to map paths
+            if (token.children) {
+                token.children.forEach(child => {
+                    if (child.type === 'source' && child.attrGet) {
+                        const originalSrc = child.attrGet('src');
+                        if (originalSrc) {
+                            console.log('Original video src:', originalSrc);
+                            // Use mapped path if available, otherwise use original
+                            const displaySrc = (window.currentImageMappings && window.currentImageMappings[originalSrc]) || originalSrc;
+                            console.log('Mapped video src:', displaySrc);
+                            child.attrSet('src', displaySrc);
+                        }
+                    }
+                });
+            }
+            
+            return originalVideoRenderer ? originalVideoRenderer(tokens, idx, options, env, renderer) : renderer.renderToken(tokens, idx);
+        };
+        
+        md.renderer.rules.audio = function(tokens, idx, options, env, renderer) {
+            const token = tokens[idx];
+            console.log('Audio token:', token);
+            
+            // Process source children to map paths
+            if (token.children) {
+                token.children.forEach(child => {
+                    if (child.type === 'source' && child.attrGet) {
+                        const originalSrc = child.attrGet('src');
+                        if (originalSrc) {
+                            console.log('Original audio src:', originalSrc);
+                            // Use mapped path if available, otherwise use original
+                            const displaySrc = (window.currentImageMappings && window.currentImageMappings[originalSrc]) || originalSrc;
+                            console.log('Mapped audio src:', displaySrc);
+                            child.attrSet('src', displaySrc);
+                        }
+                    }
+                });
+            }
+            
+            return originalAudioRenderer ? originalAudioRenderer(tokens, idx, options, env, renderer) : renderer.renderToken(tokens, idx);
+        };
 
         // Rest of the function remains the same...
         // Enhanced image renderer - uses mappings for display but preserves original paths
