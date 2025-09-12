@@ -995,10 +995,58 @@ function setupTaskDragAndDrop() {
 
         if (!tasksContainer) return;
 
+        // Add dragover handler to the entire column for appending to end
+        columnElement.addEventListener('dragover', e => {
+            // Only process if we have a dragged task
+            if (!dragState.draggedTask) return;
+            
+            // Check if we're over the tasks container specifically
+            const isOverTasksContainer = tasksContainer.contains(e.target);
+            
+            if (!isOverTasksContainer) {
+                // We're over the column but not the tasks container (e.g., header area)
+                e.preventDefault();
+                
+                // Move task to the end of this column
+                const addButton = tasksContainer.querySelector('.add-task-btn');
+                if (addButton) {
+                    tasksContainer.insertBefore(dragState.draggedTask, addButton);
+                } else {
+                    tasksContainer.appendChild(dragState.draggedTask);
+                }
+                
+                // Add visual feedback
+                columnElement.classList.add('drag-over-append');
+            }
+        });
+
+        // Add drop handler to entire column
+        columnElement.addEventListener('drop', e => {
+            if (!dragState.draggedTask) return;
+            
+            const isOverTasksContainer = tasksContainer.contains(e.target);
+            if (!isOverTasksContainer) {
+                e.preventDefault();
+                columnElement.classList.remove('drag-over-append');
+            }
+        });
+
+        // Clean up visual feedback when leaving column
+        columnElement.addEventListener('dragleave', e => {
+            if (!columnElement.contains(e.relatedTarget)) {
+                columnElement.classList.remove('drag-over-append');
+            }
+        });
+
+        // Keep the existing tasks container specific handling for precise placement
         tasksContainer.addEventListener('dragover', e => {
             e.preventDefault();
+            e.stopPropagation(); // Prevent column-level handler from interfering
             
             if (!dragState.draggedTask) return;
+            
+            // Remove any column-level visual feedback when over tasks
+            columnElement.classList.remove('drag-over-append');
             
             const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY);
             
@@ -1023,15 +1071,11 @@ function setupTaskDragAndDrop() {
             });
         });
 
-        tasksContainer.addEventListener('dragleave', e => {
-            if (!columnElement.contains(e.relatedTarget)) {
-                columnElement.classList.remove('drag-over');
-            }
-        });
-
         tasksContainer.addEventListener('drop', e => {
             e.preventDefault();
+            e.stopPropagation(); // Prevent column-level handler
             columnElement.classList.remove('drag-over');
+            columnElement.classList.remove('drag-over-append');
             
             // The actual position change is handled in dragend
         });
@@ -1084,6 +1128,10 @@ function setupTaskDragHandle(handle) {
             taskItem.classList.remove('dragging', 'drag-preview');
             document.querySelectorAll('.task-item').forEach(task => {
                 task.classList.remove('drag-transitioning');
+            });
+            // Clean up column drag-over styles
+            document.querySelectorAll('.kanban-full-height-column').forEach(col => {
+                col.classList.remove('drag-over-append');
             });
             
             // Get the final position
