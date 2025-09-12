@@ -2189,6 +2189,16 @@ h3,
 h4,
 h5,
 h6 {
+	font-weight: 500;
+	font-size: 1em;
+}
+
+/* h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
 	font-weight:600;
 }
 
@@ -2213,8 +2223,7 @@ h4 {
 	font-weight: 600; 
 	color: #333;
 }
-.vscode-dark h4 { /* ,
-	.vscode-high-contrast .markdown-content h4 */
+.vscode-dark h4 {
 	color: #ddd;
 }
 
@@ -2225,8 +2234,7 @@ h5 {
 	text-transform: uppercase;
 	color: #444;
 }
-.vscode-dark h5 { /* ,
-	.vscode-high-contrast .markdown-content h5 */
+.vscode-dark h5 { 
 	color: #bbb;
 }
 
@@ -2237,10 +2245,9 @@ h6 {
 	text-transform: uppercase;
 	color: #666;
 }
-.vscode-dark h6 { /* ,
-	.vscode-high-contrast .markdown-content h6 */
+.vscode-dark h6 {
 	color: #999;
-}
+} */
 
 blockquote {
   margin-block-start: 0.5em;
@@ -2368,7 +2375,7 @@ blockquote {
   min-height: unset;
 }
 
-h1 .kanban-tag,
+/* h1 .kanban-tag,
 h2 .kanban-tag {
   position: relative;
   top: -4px;
@@ -2394,7 +2401,7 @@ h6 .kanban-tag {
 .collapsed h6 .kanban-tag {
   left: -2px;
   position: relative;
-}
+} */
 
 /* Corner badges */
 .corner-badge {
@@ -2955,7 +2962,7 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 .markdown-content mark::after { margin-left: 2px; }
 
 /* Blockquote - only before */
-.markdown-content blockquote::before {
+/* .markdown-content blockquote::before {
   content: ">"; display: inline-block; float: left;
   width: 16px; height: 16px; margin-right: 6px; margin-top: 2px;
   border: 1px solid rgba(102, 102, 102, 0.5); border-radius: 2px;
@@ -2963,7 +2970,7 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
   background: rgba(240, 240, 240, 0.6); color: rgba(51, 51, 51, 0.7);
   text-align: center; line-height: 16px !important;
   vertical-align: top; opacity: 0.7;
-}
+} */
 
 /* Lists - only before (UL DISABLED - too common) */
 /*
@@ -2978,7 +2985,7 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 }
 */
 
-.markdown-content ol > li::before {
+/* .markdown-content ol > li::before {
   content: "#"; display: inline-block;
   width: 16px; height: 16px; margin-right: 6px; margin-left: -24px;
   border: 1px solid rgba(102, 102, 102, 0.5); border-radius: 2px;
@@ -2986,11 +2993,11 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
   background: rgba(240, 240, 240, 0.6); color: rgba(51, 51, 51, 0.7);
   text-align: center; line-height: 16px !important;
   vertical-align: middle; opacity: 0.7;
-}
+} */
 
 /* Links - before and after with brackets */
 .markdown-content a::before, .markdown-content a::after {
-  display: inline-block; width: 10px; height: 14px;
+  display: inline; width: 10px; height: 14px;
   border: 1px solid rgba(74, 144, 226, 0.5); border-radius: 2px;
   font-family: monospace; font-size: 10px !important; font-weight: bold;
   background: rgba(227, 242, 253, 0.6); color: rgba(25, 118, 210, 0.7);
@@ -3011,14 +3018,14 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 }
 
 /* Horizontal rule - only before */
-.markdown-content hr::before {
+/* .markdown-content hr::before {
   content: "—"; display: block; position: relative;
   width: 20px; height: 16px; top: -8px; margin: 0 auto;
   border: 1px solid rgba(102, 102, 102, 0.5); border-radius: 2px;
   font-family: monospace; font-size: 10px !important; font-weight: bold;
   background: rgba(240, 240, 240, 0.6); color: rgba(51, 51, 51, 0.7);
   text-align: center; line-height: 16px !important; opacity: 0.7;
-}
+} */
 
 /* Superscript/Subscript - before and after */
 .markdown-content sup::before, .markdown-content sup::after,
@@ -3061,3 +3068,19 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 .markdown-content abbr::before { margin-right: 1px; }
 .markdown-content abbr::after { margin-left: 1px; }
 
+/* Collapsed state adjustments */
+.kanban-full-height-column.collapsed .column-title h1::before,
+.kanban-full-height-column.collapsed .column-title h2::before,
+.kanban-full-height-column.collapsed .column-title h3::before,
+.kanban-full-height-column.collapsed .column-title h4::before,
+.kanban-full-height-column.collapsed .column-title h5::before,
+.kanban-full-height-column.collapsed .column-title h6::before,
+.collapsed .markdown-content h1::before,
+.collapsed .markdown-content h2::before,
+.collapsed .markdown-content h3::before,
+.collapsed .markdown-content h4::before,
+.collapsed .markdown-content h5::before,
+.collapsed .markdown-content h6::before {
+  margin-right: 0 !important;
+  margin-bottom: 4px !important;
+}
