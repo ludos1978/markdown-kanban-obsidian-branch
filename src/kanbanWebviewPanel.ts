@@ -932,7 +932,7 @@ export class KanbanWebviewPanel {
         
         
         const webviewDir = this._panel.webview.asWebviewUri(
-            vscode.Uri.file(path.join(this._context.extensionPath, 'src', 'html'))
+            vscode.Uri.file(path.join(this._context.extensionPath, 'dist', 'src', 'html'))
         );
         
         html = html.replace(/href="webview\.css"/, `href="${webviewDir}/webview.css"`);
@@ -945,7 +945,8 @@ export class KanbanWebviewPanel {
             'dragDrop.js',
             'menuOperations.js',
             'search.js',
-            'webview.js'
+            'webview.js',
+            'markdown-it-media-browser.js'
         ];
         
         jsFiles.forEach(jsFile => {

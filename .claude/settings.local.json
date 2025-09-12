@@ -17,7 +17,8 @@
       "Read(//tmp/**)",
       "Bash(git merge:*)",
       "Bash(npm run check:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

@@ -6,6 +6,20 @@
     <title>Enhanced Markdown Kanban</title>
     <link href="webview.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.2/markdown-it.min.js"></script>
+    
+    <!-- Only load essential plugins that are available on cdnjs.cloudflare.com for CSP compliance -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it-emoji/3.0.0/markdown-it-emoji.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it-footnote/4.0.0/markdown-it-footnote.min.js"></script>
+    
+    <!-- Note: Most markdown-it plugins are not available on cdnjs.cloudflare.com due to CSP restrictions -->
+    <!-- Advanced plugin functionality will be provided via npm packages and bundling -->
+    
+    <!-- Custom local plugins - browser-compatible markdown-it-media-lib -->
+    <script src="markdown-it-media-browser.js"></script>
+    
+    <!-- Note: Some plugins may not be available via CDN and would need bundling -->
+    <!-- markdown-it-strikethrough-alt, markdown-it-underline, markdown-it-footnote-here, -->
+    <!-- markdown-it-image-figures, markdown-it-anchor, markdown-it-toc-done-right, markdown-it-checkboxes -->
     <style>
     </style>
 </head>

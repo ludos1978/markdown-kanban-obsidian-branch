@@ -277,6 +277,27 @@ function renderMarkdown(text) {
             tagColors: window.tagColors || {}
         })
         .use(datePersonTagPlugin); // Add this line
+        
+        // Add plugins that are available from CDN (CSP-compliant)
+        if (typeof window.markdownitEmoji !== 'undefined') {
+            md.use(window.markdownitEmoji); // :smile: => 😊
+        }
+        if (typeof window.markdownitFootnote !== 'undefined') {
+            md.use(window.markdownitFootnote); // [^1]: footnote
+        }
+        
+        // Note: Most other plugins can't be loaded via CDN due to CSP restrictions
+        // Advanced plugin functionality would need to be bundled or implemented differently
+        if (typeof window.markdownItMediaCustom !== 'undefined') {
+            md.use(window.markdownItMediaCustom, {
+                controls: true,
+                attrs: {
+                    image: {},
+                    audio: {},
+                    video: {}
+                }
+            }); // Custom media plugin for video/audio
+        }
 
         // Rest of the function remains the same...
         // Enhanced image renderer - uses mappings for display but preserves original paths
