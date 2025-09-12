@@ -15,7 +15,9 @@
       "Bash(git commit:*)",
       "Bash(git checkout:*)",
       "Read(//tmp/**)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(npm run check:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

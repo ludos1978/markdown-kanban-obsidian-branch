@@ -1041,7 +1041,11 @@ function setupTaskDragAndDrop() {
         // Keep the existing tasks container specific handling for precise placement
         tasksContainer.addEventListener('dragover', e => {
             e.preventDefault();
-            e.stopPropagation(); // Prevent column-level handler from interfering
+            
+            // Only stop propagation for internal task drags, not external drops
+            if (dragState.draggedTask && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
+                e.stopPropagation(); // Prevent column-level handler from interfering
+            }
             
             if (!dragState.draggedTask) return;
             
@@ -1073,7 +1077,12 @@ function setupTaskDragAndDrop() {
 
         tasksContainer.addEventListener('drop', e => {
             e.preventDefault();
-            e.stopPropagation(); // Prevent column-level handler
+            
+            // Only stop propagation for internal task drags, let external drops bubble up
+            if (dragState.draggedTask && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
+                e.stopPropagation(); // Prevent column-level handler for internal drags only
+            }
+            
             columnElement.classList.remove('drag-over');
             columnElement.classList.remove('drag-over-append');
             
