@@ -2192,49 +2192,49 @@ h6 {
 	font-weight:600;
 }
 
-.markdown-content h1 { 
+h1 { 
 	font-size: 1.5em; 
 	font-weight: 700;
 	letter-spacing: -0.02em;
 }
-.markdown-content h2 { 
+h2 { 
 	font-size: 1.375em;
 	letter-spacing: -0.03em;
 }
 
-.markdown-content h3 { 
+h3 { 
 	font-size: 1.25em; 
 }
 
-.markdown-content h4 { 
+h4 { 
 	font-size: 1.125em; 
 	color: #222;
 }
-.vscode-dark .markdown-content h4 { /* ,
+.vscode-dark h4 { /* ,
 	.vscode-high-contrast .markdown-content h4 */
 	color: #ddd;
 }
 
-.markdown-content h5 { 
+h5 { 
 	font-size: 1em; 
 	letter-spacing: 0.05em;
 	font-weight: 700;
 	text-transform: uppercase;
 	color: #444;
 }
-.vscode-dark .markdown-content h5 { /* ,
+.vscode-dark h5 { /* ,
 	.vscode-high-contrast .markdown-content h5 */
 	color: #bbb;
 }
 
-.markdown-content h6 { 
+h6 { 
 	font-size: 0.875em; 
 	letter-spacing: 0.05em;
 	font-weight: 700;
 	text-transform: uppercase;
 	color: #666;
 }
-.vscode-dark .markdown-content h6 { /* ,
+.vscode-dark h6 { /* ,
 	.vscode-high-contrast .markdown-content h6 */
 	color: #999;
 }
