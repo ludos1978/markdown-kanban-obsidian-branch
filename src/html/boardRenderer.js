@@ -1815,11 +1815,11 @@ function getAllCornerBadgesHtml(tags, elementType) {
             switch (position) {
                 case 'top-left':
                     // Stack vertically downward, keep left position constant
-                    positionStyle = `top: ${2 + (index * offsetMultiplier)}px; left: -8px;`;
+                    positionStyle = `top: ${10 + (index * offsetMultiplier)}px; left: -8px;`;
                     break;
                 case 'top-right':
                     // Stack vertically downward, keep right position constant
-                    positionStyle = `top: ${2 + (index * offsetMultiplier)}px; right: -8px;`;
+                    positionStyle = `top: ${10 + (index * offsetMultiplier)}px; right: -8px;`;
                     break;
                 case 'bottom-left':
                     // Stack vertically upward, keep left position constant

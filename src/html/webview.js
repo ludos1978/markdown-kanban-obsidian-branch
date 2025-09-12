@@ -53,6 +53,24 @@ const menuConfig = {
         { label: "Large", value: "large", icon: "A", iconStyle: "font-size: 16px;" },
         { label: "X-Large", value: "xlarge", icon: "A", iconStyle: "font-size: 18px;" }
     ],
+    fontFamily: [
+        { label: "System Default", value: "system", icon: "Aa" },
+        { label: "Roboto", value: "roboto", icon: "Aa", iconStyle: "font-family: 'Roboto', sans-serif;" },
+        { label: "Open Sans", value: "opensans", icon: "Aa", iconStyle: "font-family: 'Open Sans', sans-serif;" },
+        { label: "Lato", value: "lato", icon: "Aa", iconStyle: "font-family: 'Lato', sans-serif;" },
+        { label: "Poppins", value: "poppins", icon: "Aa", iconStyle: "font-family: 'Poppins', sans-serif;" },
+        { label: "Inter", value: "inter", icon: "Aa", iconStyle: "font-family: 'Inter', sans-serif;" },
+        { separator: true },
+        { label: "Helvetica", value: "helvetica", icon: "Aa", iconStyle: "font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;" },
+        { label: "Arial", value: "arial", icon: "Aa", iconStyle: "font-family: Arial, sans-serif;" },
+        { label: "Georgia", value: "georgia", icon: "Aa", iconStyle: "font-family: Georgia, serif;" },
+        { label: "Times New Roman", value: "times", icon: "Aa", iconStyle: "font-family: 'Times New Roman', serif;" },
+        { separator: true },
+        { label: "Fira Code", value: "firacode", icon: "{ }", iconStyle: "font-family: 'Fira Code', monospace;" },
+        { label: "JetBrains Mono", value: "jetbrains", icon: "{ }", iconStyle: "font-family: 'JetBrains Mono', monospace;" },
+        { label: "Source Code Pro", value: "sourcecodepro", icon: "{ }", iconStyle: "font-family: 'Source Code Pro', monospace;" },
+        { label: "Consolas", value: "consolas", icon: "{ }", iconStyle: "font-family: Consolas, monospace;" }
+    ],
     layoutRows: [
         { label: "1 Row", value: 1 },
         { label: "2 Rows", value: 2 },
@@ -106,6 +124,7 @@ function populateDynamicMenus() {
         { selector: '[data-menu="cardHeight"]', config: 'cardHeight', function: 'setTaskMinHeight' },
         { selector: '[data-menu="whitespace"]', config: 'whitespace', function: 'setWhitespace' },
         { selector: '[data-menu="fontSize"]', config: 'fontSize', function: 'setFontSize' },
+        { selector: '[data-menu="fontFamily"]', config: 'fontFamily', function: 'setFontFamily' },
         { selector: '[data-menu="layoutRows"]', config: 'layoutRows', function: 'setLayoutRows' },
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' }
     ];
@@ -1665,6 +1684,13 @@ window.addEventListener('message', event => {
                 applyFontSize('small'); // Default fallback
             }
             
+            // Update font family with the value from configuration
+            if (message.fontFamily) {
+                applyFontFamily(message.fontFamily);
+            } else {
+                applyFontFamily('system'); // Default fallback
+            }
+            
             // Update column width with the value from configuration
             if (message.columnWidth) {
                 applyColumnWidth(message.columnWidth);
@@ -2324,6 +2350,35 @@ function setFontSize(size) {
         type: 'setPreference', 
         key: 'fontSize', 
         value: size 
+    });
+    
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+}
+
+// Font family functionality
+let currentFontFamily = 'system'; // Default to system fonts
+
+function applyFontFamily(family) {
+    // Remove all font family classes
+    document.body.classList.remove('font-family-system', 'font-family-roboto', 'font-family-opensans', 'font-family-lato', 'font-family-poppins', 'font-family-inter', 'font-family-helvetica', 'font-family-arial', 'font-family-georgia', 'font-family-times', 'font-family-firacode', 'font-family-jetbrains', 'font-family-sourcecodepro', 'font-family-consolas');
+    
+    // Add the selected font family class
+    document.body.classList.add(`font-family-${family}`);
+    currentFontFamily = family;
+}
+
+function setFontFamily(family) {
+    // Apply the font family
+    applyFontFamily(family);
+    
+    // Store preference
+    vscode.postMessage({ 
+        type: 'setPreference', 
+        key: 'fontFamily', 
+        value: family 
     });
     
     // Close menu

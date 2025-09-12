@@ -1777,6 +1777,28 @@
             "Extra large font size"
           ]
         },
+        "markdown-kanban.fontFamily": {
+          "type": "string",
+          "default": "system",
+          "description": "The font family for task cards and content",
+          "enum": ["system", "roboto", "opensans", "lato", "poppins", "inter", "helvetica", "arial", "georgia", "times", "firacode", "jetbrains", "sourcecodepro", "consolas"],
+          "enumDescriptions": [
+            "System default fonts",
+            "Roboto (Google font)",
+            "Open Sans (Google font)",
+            "Lato (Google font)",
+            "Poppins (Google font)",
+            "Inter (Google font)",
+            "Helvetica Neue / Helvetica / Arial",
+            "Arial",
+            "Georgia (serif)",
+            "Times New Roman (serif)",
+            "Fira Code (monospace)",
+            "JetBrains Mono (monospace)",
+            "Source Code Pro (monospace)",
+            "Consolas (monospace)"
+          ]
+        },
         "markdown-kanban.columnWidth": {
           "type": "string",
           "default": "medium",

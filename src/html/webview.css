@@ -6,8 +6,8 @@
   --whitespace-div2: calc(var(--whitespace) / 2);
   --whitespace-div4: calc(var(--whitespace) / 4);
   --task-min-height: auto;
-  --column-title-width: calc(var(--column-width) - 150px);
-  --task-title-width: calc(var(--column-width) - 120px);
+  /* --column-title-width: calc(var(--column-width) - 150px); */
+  /* --task-title-width: calc(var(--column-width) - 120px); */
   --column-width: 350px;
   --collapsed-column-width: 40px;
 }
@@ -591,7 +591,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Title container that should expand to fill available space */
 .column-title-container {
-  flex: 1;
+  flex: auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -832,9 +832,9 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Task title container */
 .task-title-container {
-  flex: 0 0 auto;
+  flex: auto;
   /* width: -webkit-fill-available; */
-  max-width: var(--task-title-width);
+  /* max-width: var(--task-title-width); */
   cursor: pointer;
 }
 
@@ -846,7 +846,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   font-size: 14px;
   color: var(--vscode-foreground);
   line-height: 1.4;
-	width: var(--task-title-width);
+	/* width: var(--task-title-width); */
   word-break: break-word;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -944,7 +944,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   padding: 2px 4px;
   resize: vertical;
   height: 20px;
-  width: var(--task-title-width);
+  /* width: var(--task-title-width); */
 }
 
 .task-description-edit {
@@ -1477,6 +1477,7 @@ button.file-bar-menu-item {
 
 .task-menu-container {
   z-index: 50;
+	margin-left: auto; /* align to right */
 }
 
 /* Tags menu - base styles (overridden for submenus) */
@@ -3089,21 +3090,21 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 /* Column Width Classes */
 .kanban-full-height-column.column-width-66 {
   width: 48.5vw !important;
-  --task-title-width: calc(48.5vw - 100px); /* Adjust task title width for wider column */
+  /* --task-title-width: calc(48.5vw - 100px); Adjust task title width for wider column */
 }
 
 .kanban-full-height-column.column-width-100 {
   width: 98vw !important;
-  --task-title-width: calc(98vw - 100px); /* Adjust task title width for full width column */
+  /* --task-title-width: calc(98vw - 100px); Adjust task title width for full width column */
 }
 
 /* Override task title width for elements within these columns */
 .kanban-full-height-column.column-width-66 .task-title-display {
-  width: var(--task-title-width);
+  /* width: var(--task-title-width); */
 }
 
 .kanban-full-height-column.column-width-100 .task-title-display {
-  width: var(--task-title-width);
+  /* width: var(--task-title-width); */
 }
 
 /* IMPORTANT: Collapsed columns should always use fixed width, not viewport width */
@@ -3191,4 +3192,71 @@ body.font-size-xlarge .column-header {
 body.tall-task-height .column-header {
   position: relative !important;
   top: auto !important;
+}
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600;700&display=swap');
+
+/* Font family styles */
+body.font-family-system {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+body.font-family-roboto {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+body.font-family-opensans {
+  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+body.font-family-lato {
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+body.font-family-poppins {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+body.font-family-inter {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+body.font-family-helvetica {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+body.font-family-arial {
+  font-family: Arial, sans-serif;
+}
+
+body.font-family-georgia {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+body.font-family-times {
+  font-family: 'Times New Roman', Times, serif;
+}
+
+body.font-family-firacode {
+  font-family: 'Fira Code', 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', monospace;
+}
+
+body.font-family-jetbrains {
+  font-family: 'JetBrains Mono', 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', monospace;
+}
+
+body.font-family-sourcecodepro {
+  font-family: 'Source Code Pro', 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', monospace;
+}
+
+body.font-family-consolas {
+  font-family: Consolas, 'Courier New', monospace;
 }

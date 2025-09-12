@@ -42,6 +42,31 @@ export class KanbanWebviewPanel {
     private _cachedBoardFromWebview: any = null;  // Store the latest cached board from webview
     private _isClosingPrevented: boolean = false;  // Flag to prevent recursive closing attempts
 
+    // Method to force refresh webview content (useful during development)
+    public async refreshWebviewContent() {
+        if (this._panel && this._board) {
+            this._panel.webview.html = this._getHtmlForWebview();
+            
+            // Send the board data to the refreshed webview
+            setTimeout(async () => {
+                this._panel.webview.postMessage({
+                    type: 'updateBoard',
+                    board: this._board,
+                    columnWidth: this._getColumnWidthConfiguration(),
+                    taskMinHeight: this._getTaskMinHeightConfiguration(),
+                    fontSize: this._getFontSizeConfiguration(),
+                    fontFamily: this._getFontFamilyConfiguration(),
+                    whitespace: this._getWhitespaceConfiguration(),
+                    layoutRows: this._getLayoutRowsConfiguration(),
+                    rowHeight: this._getRowHeightConfiguration(),
+                    showRowTags: this._getShowRowTagsConfiguration(),
+                    maxRowHeight: this._getMaxRowHeightConfiguration(),
+                    tagColors: await this._getTagConfiguration()
+                });
+            }, 100);
+        }
+    }
+
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, document?: vscode.TextDocument) {
         const column = vscode.window.activeTextEditor?.viewColumn || vscode.ViewColumn.One;
 
@@ -369,6 +394,12 @@ export class KanbanWebviewPanel {
         return fontSize;
     }
 
+    private async _getFontFamilyConfiguration(): Promise<string> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const fontFamily = config.get<string>('fontFamily', 'system');
+        return fontFamily;
+    }
+
     private async _getColumnWidthConfiguration(): Promise<string> {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
         const columnWidth = config.get<string>('columnWidth', 'medium');
@@ -658,6 +689,8 @@ export class KanbanWebviewPanel {
         
         const fontSize = await this._getFontSizeConfiguration();
         
+        const fontFamily = await this._getFontFamilyConfiguration();
+        
         const columnWidth = await this._getColumnWidthConfiguration();
         
         const layoutRows = await this._getLayoutRowsConfiguration();
@@ -677,6 +710,7 @@ export class KanbanWebviewPanel {
                 whitespace: whitespace,
                 taskMinHeight: taskMinHeight,
                 fontSize: fontSize,
+                fontFamily: fontFamily,
                 columnWidth: columnWidth,
                 layoutRows: layoutRows,
                 rowHeight: rowHeight,
@@ -980,7 +1014,12 @@ export class KanbanWebviewPanel {
             vscode.Uri.file(path.join(this._context.extensionPath, 'dist', 'src', 'html'))
         );
         
-        html = html.replace(/href="webview\.css"/, `href="${webviewDir}/webview.css"`);
+        // Add cache-busting timestamp for development
+        const timestamp = Date.now();
+        const isDevelopment = !this._context.extensionMode || this._context.extensionMode === vscode.ExtensionMode.Development;
+        const cacheBuster = isDevelopment ? `?v=${timestamp}` : '';
+        
+        html = html.replace(/href="webview\.css"/, `href="${webviewDir}/webview.css${cacheBuster}"`);
         
         // Replace all JavaScript file references
         const jsFiles = [
@@ -997,7 +1036,7 @@ export class KanbanWebviewPanel {
         jsFiles.forEach(jsFile => {
             html = html.replace(
                 new RegExp(`src="${jsFile}"`, 'g'), 
-                `src="${webviewDir}/${jsFile}"`
+                `src="${webviewDir}/${jsFile}${cacheBuster}"`
             );
         });
 
