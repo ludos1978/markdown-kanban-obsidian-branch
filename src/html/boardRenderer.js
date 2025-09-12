@@ -1408,7 +1408,7 @@ function createColumnElement(column, columnIndex) {
 								<span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
 								<span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
 								<div class="column-title-container">
-										<div class="column-title" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
+										<div class="column-title markdown-content" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
 										<textarea class="column-title-edit" 
 																data-column-id="${column.id}"
 																style="display: none;">${escapeHtml(displayTitle)}</textarea>
