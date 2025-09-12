@@ -13,6 +13,8 @@ let currentDocumentUri = null;
 
 // Layout preferences
 let currentColumnWidth = 'medium';
+let currentWhitespace = '4px';
+let currentTaskMinHeight = 'auto';
 let currentLayoutRows = 1;
 
 // Clipboard card source functionality
@@ -808,6 +810,52 @@ function setRowHeight(height) {
     // vscode.postMessage({ type: 'showMessage', text: message });
 }
 
+// Function to set whitespace
+function setWhitespace(spacing) {
+    
+    // Store current whitespace setting
+    currentWhitespace = spacing;
+    window.currentWhitespace = spacing;
+    
+    // Apply the whitespace immediately
+    updateWhitespace(spacing);
+    
+    // Store preference
+    vscode.postMessage({ 
+        type: 'setPreference', 
+        key: 'whitespace', 
+        value: spacing 
+    });
+    
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+}
+
+// Function to set task minimum height
+function setTaskMinHeight(height) {
+    
+    // Store current task min height setting
+    currentTaskMinHeight = height;
+    window.currentTaskMinHeight = height;
+    
+    // Apply the task min height immediately
+    updateTaskMinHeight(height);
+    
+    // Store preference
+    vscode.postMessage({ 
+        type: 'setPreference', 
+        key: 'taskMinHeight', 
+        value: height 
+    });
+    
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+}
+
 // Function to detect row tags from board
 /**
  * Auto-detects number of rows from column tags
@@ -1476,6 +1524,13 @@ window.addEventListener('message', event => {
             } else {
                 updateWhitespace('4px'); // Default fallback
             }
+            
+            // Update task min height with the value from configuration
+            if (message.taskMinHeight) {
+                updateTaskMinHeight(message.taskMinHeight);
+            } else {
+                updateTaskMinHeight('auto'); // Default fallback
+            }
 
             // Update max row height
             if (typeof message.maxRowHeight !== 'undefined') {
@@ -2042,6 +2097,25 @@ function updateWhitespace(value) {
     }
     
     document.documentElement.style.setProperty('--whitespace', value);
+}
+
+function updateTaskMinHeight(value) {
+    // Ensure we have a valid value
+    if (!value) {
+        value = 'auto';
+    }
+    
+    document.documentElement.style.setProperty('--task-min-height', value);
+    
+    // Add/remove class for tall task heights that interfere with sticky headers
+    const isTallHeight = value === '43.5vh' || value === '89vh' || 
+                         (value.includes('px') && parseInt(value) >= 400);
+    
+    if (isTallHeight) {
+        document.body.classList.add('tall-task-height');
+    } else {
+        document.body.classList.remove('tall-task-height');
+    }
 }
 
 function updateMaxRowHeight(value) {

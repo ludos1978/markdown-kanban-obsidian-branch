@@ -357,6 +357,12 @@ export class KanbanWebviewPanel {
         return whitespace;
     }
 
+    private async _getTaskMinHeightConfiguration(): Promise<string> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const taskMinHeight = config.get<string>('taskMinHeight', 'auto');
+        return taskMinHeight;
+    }
+
     private async _getMaxRowHeightConfiguration(): Promise<number> {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
         const maxRowHeight = config.get<number>('maxRowHeight', 0);
@@ -624,6 +630,8 @@ export class KanbanWebviewPanel {
         
         const whitespace = await this._getWhitespaceConfiguration();
         
+        const taskMinHeight = await this._getTaskMinHeightConfiguration();
+        
         const showRowTags = await this._getShowRowTagsConfiguration();
         
         const maxRowHeight = await this._getMaxRowHeightConfiguration();
@@ -635,6 +643,7 @@ export class KanbanWebviewPanel {
                 imageMappings: imageMappings,
                 tagColors: tagColors,
                 whitespace: whitespace,
+                taskMinHeight: taskMinHeight,
                 showRowTags: showRowTags,
                 maxRowHeight: maxRowHeight,
                 applyDefaultFolding: applyDefaultFolding

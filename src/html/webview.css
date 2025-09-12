@@ -5,6 +5,7 @@
   --whitespace-div3-mul2: calc(var(--whitespace) / 3 * 2);
   --whitespace-div2: calc(var(--whitespace) / 2);
   --whitespace-div4: calc(var(--whitespace) / 4);
+  --task-min-height: auto;
   --column-title-width: calc(var(--column-width) - 150px);
   --task-title-width: calc(var(--column-width) - 120px);
   --column-width: 350px;
@@ -700,12 +701,12 @@ body.small-card-fonts .task-title-container .markdown-content img {
   border-radius: 4px;
 	gap: 8px;
   margin-bottom: var(--whitespace-div2);
+  min-height: var(--task-min-height);
   transition: all 0.2s ease;
   position: relative;
   overflow: visible;
   display: flex;
   flex-direction: column;
-  min-height: auto;
   align-items: stretch;
 }
 
@@ -3215,6 +3216,12 @@ body.font-size-xlarge .task-description-edit {
 
 /* Disable sticky header for x-large font size */
 body.font-size-xlarge .column-header {
+  position: relative !important;
+  top: auto !important;
+}
+
+/* Disable sticky header for tall task minimum heights */
+body.tall-task-height .column-header {
   position: relative !important;
   top: auto !important;
 }

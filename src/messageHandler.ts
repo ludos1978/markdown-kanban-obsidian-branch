@@ -131,6 +131,9 @@ export class MessageHandler {
             case 'showMessage':
                 // vscode.window.showInformationMessage(message.text);
                 break;
+            case 'setPreference':
+                await this.handleSetPreference(message.key, message.value);
+                break;
             case 'resolveAndCopyPath':
                 const resolution = await this._fileManager.resolveFilePath(message.path);
                 if (resolution && resolution.exists) {
@@ -575,6 +578,17 @@ export class MessageHandler {
             this._getWebviewPanel().webview.postMessage({
                 type: 'resetClosePromptFlag'
             });
+        }
+    }
+
+    private async handleSetPreference(key: string, value: string): Promise<void> {
+        try {
+            const config = vscode.workspace.getConfiguration('markdown-kanban');
+            await config.update(key, value, vscode.ConfigurationTarget.Workspace);
+            console.log(`[MESSAGE DEBUG] Updated preference ${key} to ${value}`);
+        } catch (error) {
+            console.error(`Failed to update preference ${key}:`, error);
+            vscode.window.showErrorMessage(`Failed to update ${key} preference: ${error}`);
         }
     }
 }
