@@ -2555,12 +2555,13 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         } else {
             // For expanded elements, find column-inner and add container there
             const columnInner = element.querySelector('.column-inner');
+						const columnHeader = element.querySelector('.column-header');
             if (columnInner) {
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
                 // Header container should be first child, so insert at the beginning
-                columnInner.insertBefore(headerContainer, columnInner.firstChild);
+                columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
             } else {
                 // Fallback: add directly to element if no column-inner found
                 const headerContainer = document.createElement('div');

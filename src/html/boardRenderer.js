@@ -1399,48 +1399,49 @@ function createColumnElement(column, columnIndex) {
     const columnRow = getColumnRow(column.title);
     const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
+		// the column-header MUST be outside the column-inner to be able to be sticky over the full height!!!
     columnDiv.innerHTML = `
+				<div class="column-header">
+						${headerBarsHtml || ''}
+						${cornerBadgesHtml}
+						<div class="column-title-section">
+								<span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
+								<span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
+								<div class="column-title-container">
+										<div class="column-title" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
+										<textarea class="column-title-edit" 
+																data-column-id="${column.id}"
+																style="display: none;">${escapeHtml(displayTitle)}</textarea>
+								</div>
+								<span class="task-count">${column.tasks.length}
+										<button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
+												<span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
+										</button>
+								</span>
+								<button class="collapsed-add-task-btn" onclick="addTaskAndUnfold('${column.id}')" title="Add task and unfold column">+</button>
+								<div class="donut-menu">
+										<button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
+										<div class="donut-menu-dropdown">
+												<button class="donut-menu-item" onclick="insertColumnBefore('${column.id}')">Insert list before</button>
+												<button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
+												<div class="donut-menu-divider"></div>
+												<button class="donut-menu-item" onclick="copyColumnAsMarkdown('${column.id}')">Copy as markdown</button>
+												<div class="donut-menu-divider"></div>
+												<button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
+												<button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
+												<div class="donut-menu-divider"></div>
+												<div class="donut-menu-item has-submenu" data-submenu-type="sort" data-id="${column.id}" data-type="column" data-column-id="${column.id}">
+														Sort by
+												</div>
+												<div class="donut-menu-divider"></div>
+												${generateTagMenuItems(column.id, 'column')}
+												<div class="donut-menu-divider"></div>
+												<button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
+										</div>
+								</div>
+						</div>
+				</div>
         <div class="column-inner">
-            <div class="column-header">
-                ${headerBarsHtml || ''}
-                ${cornerBadgesHtml}
-                <div class="column-title-section">
-                    <span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
-                    <span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
-                    <div class="column-title-container">
-                        <div class="column-title" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
-                        <textarea class="column-title-edit" 
-                                    data-column-id="${column.id}"
-                                    style="display: none;">${escapeHtml(displayTitle)}</textarea>
-                    </div>
-                    <span class="task-count">${column.tasks.length}
-                        <button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
-                            <span class="fold-icon">${foldButtonState === 'fold-collapsed' ? '▶' : foldButtonState === 'fold-expanded' ? '▼' : '▽'}</span>
-                        </button>
-                    </span>
-                    <button class="collapsed-add-task-btn" onclick="addTaskAndUnfold('${column.id}')" title="Add task and unfold column">+</button>
-                    <div class="donut-menu">
-                        <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
-                        <div class="donut-menu-dropdown">
-                            <button class="donut-menu-item" onclick="insertColumnBefore('${column.id}')">Insert list before</button>
-                            <button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
-                            <div class="donut-menu-divider"></div>
-                            <button class="donut-menu-item" onclick="copyColumnAsMarkdown('${column.id}')">Copy as markdown</button>
-                            <div class="donut-menu-divider"></div>
-                            <button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
-                            <button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
-                            <div class="donut-menu-divider"></div>
-                            <div class="donut-menu-item has-submenu" data-submenu-type="sort" data-id="${column.id}" data-type="column" data-column-id="${column.id}">
-                                Sort by
-                            </div>
-                            <div class="donut-menu-divider"></div>
-                            ${generateTagMenuItems(column.id, 'column')}
-                            <div class="donut-menu-divider"></div>
-                            <button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
             <div class="column-content">
                 <div class="tasks-container" id="tasks-${column.id}">
                     ${column.tasks.map((task, index) => createTaskElement(task, column.id, index)).join('')}
@@ -2035,9 +2036,16 @@ function generateTagStyles() {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                         } else {
-                            // Full border on column-inner only  
+                            // Full border split the border for top and bottom part
                             styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-inner {
-                                border: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-bottom: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n
+														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-top: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
@@ -2254,13 +2262,14 @@ function injectStackableBars() {
             // Find the column-inner element to insert bars into
             // const columnInner = element.querySelector('.column-inner');
 						const kanbanFullHeight = element.querySelector('.kanban-full-height-column');
+						const columnHeader = element.querySelector('.column-header');
             
             // Create and insert header container at the beginning of column-inner
             if (headerBars.length > 0 && kanbanFullHeight) {
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
-                kanbanFullHeight.insertBefore(headerContainer, kanbanFullHeight.firstChild);
+                columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
                 element.classList.add('has-header-bar');
                 if (hasHeaderLabel) element.classList.add('has-header-label');
             }
@@ -2290,7 +2299,7 @@ function injectStackableBars() {
                     const headerContainer = document.createElement('div');
                     headerContainer.className = 'header-bars-container';
                     headerBars.forEach(bar => headerContainer.appendChild(bar));
-                    columnInner.insertBefore(headerContainer, columnInner.firstChild);
+                    columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
                 }
 						}
             

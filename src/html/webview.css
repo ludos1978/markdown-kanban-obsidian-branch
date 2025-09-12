@@ -457,8 +457,10 @@ body.small-card-fonts .task-title-container .markdown-content img {
   display: flex;
   flex-direction: column;
   /* overflow-y: auto; */ /* must be disabled for sticky childs to work */
-	border: 0.5px solid var(--vscode-panel-border);
-	border-radius: 4px;
+	border-left: 0.5px solid var(--vscode-panel-border);
+	border-right: 0.5px solid var(--vscode-panel-border);
+	border-bottom: 0.5px solid var(--vscode-panel-border);
+	border-radius: 0px 0px 4px 4px;
   overflow-x: visible;
   /* min-height: 100%; */
 	max-height: min-content;
@@ -544,6 +546,10 @@ body.small-card-fonts .task-title-container .markdown-content img {
   top: 0px;
   z-index: 10;
   background-color: var(--vscode-editor-background);
+	border-radius: 4px 4px 0px 0px;
+	border-left: 0.5px solid var(--vscode-panel-border);
+	border-right: 0.5px solid var(--vscode-panel-border);
+	border-top: 0.5px solid var(--vscode-panel-border);
   /* border-radius: var(--whitespace-div4) var(--whitespace-div4) 0 0; */
   border-bottom: 0.5px solid var(--vscode-panel-border);
   /* border-bottom: none; */
@@ -557,7 +563,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 .kanban-full-height-column.collapsed .column-header {
   flex-direction: column;
   border: 0.5px solid var(--vscode-panel-border);
-  border-radius: var(--whitespace-div4);
+  border-radius: 4px 4px 0px 0px;
   /* padding: var(--whitespace-div2) var(--whitespace-div3-mul2); */
   align-items: center;
   /* margin: var(--whitespace-div2); */
@@ -2114,7 +2120,7 @@ button.file-bar-menu-item {
 
 .markdown-content code {
   background-color: var(--vscode-textCodeBlock-background);
-  color: var(--vscode-textPreformat-foreground);
+  color: var(--vscode-editor-foreground)	;
   padding: 0.1em 0.3em;
   border-radius: 3px;
   font-size: 0.9em;
@@ -2153,12 +2159,61 @@ button.file-bar-menu-item {
   display: inline;
 }
 
-.markdown-content h1 { font-size: 1.8em; }
-.markdown-content h2 { font-size: 1.5em; }
-.markdown-content h3 { font-size: 1.3em; }
-.markdown-content h4 { font-size: 1.1em; }
-.markdown-content h5 { font-size: 1em; }
-.markdown-content h6 { font-size: 0.9em; }
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-weight:600;
+}
+
+.markdown-content h1 { 
+	font-size: 1.5em; 
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+.markdown-content h2 { 
+	font-size: 1.375em;
+	letter-spacing: -0.03em;
+}
+
+.markdown-content h3 { 
+	font-size: 1.25em; 
+}
+
+.markdown-content h4 { 
+	font-size: 1.125em; 
+	color: #222;
+}
+.vscode-dark .markdown-content h4,
+.vscode-high-contrast .markdown-content h4 {
+	color: #ddd;
+}
+
+.markdown-content h5 { 
+	font-size: 1em; 
+	letter-spacing: 0.05em;
+	font-weight: 700;
+	text-transform: uppercase;
+	color: #444;
+}
+.vscode-dark .markdown-content h5,
+.vscode-high-contrast .markdown-content h5 {
+	color: #bbb;
+}
+
+.markdown-content h6 { 
+	font-size: 0.875em; 
+	letter-spacing: 0.05em;
+	font-weight: 700;
+	text-transform: uppercase;
+	color: #666;
+}
+.vscode-dark .markdown-content h6,
+.vscode-high-contrast .markdown-content h6 {
+	color: #999;
+}
 
 blockquote {
   margin-block-start: 0.5em;
