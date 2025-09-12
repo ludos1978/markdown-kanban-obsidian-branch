@@ -7,6 +7,10 @@ let canRedo = false;
 window.currentImageMappings = {};
 window.showRowTags = false;
 
+// Card navigation variables
+let currentFocusedCard = null;
+let allCards = [];
+
 // Document-specific folding state storage
 let documentFoldingStates = new Map(); // Map<documentUri, {collapsedColumns: Set, collapsedTasks: Set, columnFoldStates: Map}>
 let currentDocumentUri = null;
@@ -1625,6 +1629,14 @@ function performFocusActions(focusTargets) {
     });
 }
 
+// Clear card focus on click
+document.addEventListener('click', (e) => {
+    // Don't clear focus if clicking on a card
+    if (!e.target.closest('.task-item') && currentFocusedCard) {
+        focusCard(null);
+    }
+});
+
 // Listen for messages from the extension
 window.addEventListener('message', event => {
     const message = event.data;
@@ -1632,6 +1644,9 @@ window.addEventListener('message', event => {
     switch (message.type) {
         case 'updateBoard':
             const previousBoard = currentBoard;
+            
+            // Clear card focus when board is updated
+            focusCard(null);
             
             // Initialize cache system - this is the SINGLE source of truth
             if (!window.cachedBoard) {
@@ -1856,8 +1871,173 @@ if (typeof MutationObserver !== 'undefined') {
 // REMOVED: Duplicate focus handler that was causing board refresh and losing folding state
 // The panel reuse mechanism now handles board updates properly
 
-// Keyboard shortcuts for search
+// Card navigation functions
+function updateCardList() {
+    // Use more flexible selector to handle class name variations
+    const allTaskItems = document.querySelectorAll('[class*="task-item"]');
+    
+    allCards = Array.from(allTaskItems).filter(card => {
+        const column = card.closest('.kanban-full-height-column');
+        return column && !column.classList.contains('collapsed');
+    });
+}
+
+function focusCard(card) {
+    if (currentFocusedCard) {
+        currentFocusedCard.classList.remove('card-focused');
+    }
+    
+    if (card) {
+        card.classList.add('card-focused');
+        
+        // Center the card in the viewport
+        card.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',    // Center vertically
+            inline: 'center'    // Center horizontally
+        });
+        
+        currentFocusedCard = card;
+    } else {
+        currentFocusedCard = null;
+    }
+}
+
+function getCurrentCardPosition() {
+    if (!currentFocusedCard) return null;
+    
+    const column = currentFocusedCard.closest('.kanban-full-height-column');
+    if (!column) return null;
+    
+    const columnCards = Array.from(column.querySelectorAll('[class*="task-item"]'));
+    const cardIndex = columnCards.indexOf(currentFocusedCard);
+    const columnIndex = Array.from(document.querySelectorAll('.kanban-full-height-column')).indexOf(column);
+    
+    return { columnIndex, cardIndex, columnCards };
+}
+
+function getCardClosestToTopLeft() {
+    const viewportRect = {
+        top: window.scrollY,
+        left: window.scrollX,
+        bottom: window.scrollY + window.innerHeight,
+        right: window.scrollX + window.innerWidth
+    };
+    
+    let closestCard = null;
+    let closestDistance = Infinity;
+    
+    for (const card of allCards) {
+        const cardRect = card.getBoundingClientRect();
+        const cardTop = cardRect.top + window.scrollY;
+        const cardLeft = cardRect.left + window.scrollX;
+        
+        // Check if card's top-left corner is within viewport
+        if (cardTop >= viewportRect.top && cardTop <= viewportRect.bottom &&
+            cardLeft >= viewportRect.left && cardLeft <= viewportRect.right) {
+            
+            // Calculate distance from viewport's top-left corner
+            const distance = Math.sqrt(
+                Math.pow(cardTop - viewportRect.top, 2) + 
+                Math.pow(cardLeft - viewportRect.left, 2)
+            );
+            
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestCard = card;
+            }
+        }
+    }
+    
+    // If no card is visible, find the one closest to being visible
+    if (!closestCard) {
+        for (const card of allCards) {
+            const cardRect = card.getBoundingClientRect();
+            const cardTop = cardRect.top + window.scrollY;
+            const cardLeft = cardRect.left + window.scrollX;
+            
+            // Calculate distance from viewport's top-left corner regardless of visibility
+            const distance = Math.sqrt(
+                Math.pow(cardTop - viewportRect.top, 2) + 
+                Math.pow(cardLeft - viewportRect.left, 2)
+            );
+            
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestCard = card;
+            }
+        }
+    }
+    
+    return closestCard || allCards[0];
+}
+
+function navigateToCard(direction) {
+    console.log('navigateToCard called with direction:', direction);
+    updateCardList();
+    console.log('Found', allCards.length, 'cards');
+    
+    if (allCards.length === 0) {
+        console.log('No cards found, exiting');
+        return;
+    }
+    
+    if (!currentFocusedCard) {
+        console.log('No current focused card, finding closest to top-left');
+        // No card focused, focus the one closest to top-left of viewport
+        const closestCard = getCardClosestToTopLeft();
+        console.log('Closest card:', closestCard);
+        focusCard(closestCard);
+        return;
+    }
+    
+    const position = getCurrentCardPosition();
+    if (!position) return;
+    
+    const { columnIndex, cardIndex, columnCards } = position;
+    const columns = Array.from(document.querySelectorAll('.kanban-full-height-column'));
+    
+    switch (direction) {
+        case 'up':
+            if (cardIndex > 0) {
+                focusCard(columnCards[cardIndex - 1]);
+            }
+            break;
+            
+        case 'down':
+            if (cardIndex < columnCards.length - 1) {
+                focusCard(columnCards[cardIndex + 1]);
+            }
+            break;
+            
+        case 'left':
+            if (columnIndex > 0) {
+                const prevColumn = columns[columnIndex - 1];
+                const prevColumnCards = Array.from(prevColumn.querySelectorAll('[class*="task-item"]'));
+                if (prevColumnCards.length > 0) {
+                    const targetIndex = Math.min(cardIndex, prevColumnCards.length - 1);
+                    focusCard(prevColumnCards[targetIndex]);
+                }
+            }
+            break;
+            
+        case 'right':
+            if (columnIndex < columns.length - 1) {
+                const nextColumn = columns[columnIndex + 1];
+                const nextColumnCards = Array.from(nextColumn.querySelectorAll('[class*="task-item"]'));
+                if (nextColumnCards.length > 0) {
+                    const targetIndex = Math.min(cardIndex, nextColumnCards.length - 1);
+                    focusCard(nextColumnCards[targetIndex]);
+                }
+            }
+            break;
+    }
+}
+
+// Keyboard shortcuts for search and navigation
 document.addEventListener('keydown', (e) => {
+    console.log('Key pressed:', e.key, 'Active element:', document.activeElement);
+    
     const activeElement = document.activeElement;
     const isEditing = activeElement && (
         activeElement.tagName === 'INPUT' || 
@@ -1867,8 +2047,33 @@ document.addEventListener('keydown', (e) => {
         activeElement.classList.contains('task-description-edit')
     );
     
+    console.log('Is editing:', isEditing);
+    
     // Don't trigger search shortcuts when editing (except when in search input)
     const isInSearchInput = activeElement && activeElement.id === 'search-input';
+    
+    // Arrow key navigation when not editing
+    if (!isEditing && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        console.log('Arrow key navigation triggered:', e.key);
+        e.preventDefault();
+        
+        const direction = {
+            'ArrowUp': 'up',
+            'ArrowDown': 'down',
+            'ArrowLeft': 'left',
+            'ArrowRight': 'right'
+        }[e.key];
+        
+        console.log('Navigating:', direction);
+        navigateToCard(direction);
+        return;
+    }
+    
+    // Escape to clear card focus
+    if (e.key === 'Escape' && !isEditing && currentFocusedCard) {
+        focusCard(null);
+        return;
+    }
     
     // Ctrl+F or Cmd+F to open search
     if ((e.ctrlKey || e.metaKey) && e.key === 'f' && !isEditing) {

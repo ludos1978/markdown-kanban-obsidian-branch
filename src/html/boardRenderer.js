@@ -1513,7 +1513,7 @@ function createTaskElement(task, columnId, taskIndex) {
     const footerBarsHtml = footerBarsData.html || '';
     
     return `
-        <div class="task-item ${isCollapsed ? 'collapsed' : ''} ${headerClasses} ${footerClasses}" 
+        <div class="${['task-item', isCollapsed ? 'collapsed' : '', headerClasses || '', footerClasses || ''].filter(cls => cls && cls.trim()).join(' ')}" 
              data-task-id="${task.id}" 
              data-column-id="${columnId}" 
              data-task-index="${taskIndex}"${tagAttribute}${allTagsAttribute}
