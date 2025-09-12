@@ -49,6 +49,7 @@ const menuConfig = {
     fontSize: [
         { label: "Small", value: "small", icon: "a" },
         { label: "Normal", value: "normal", icon: "A" },
+        { label: "Bigger", value: "bigger", icon: "A", iconStyle: "font-size: 15px;" },
         { label: "Large", value: "large", icon: "A", iconStyle: "font-size: 16px;" },
         { label: "X-Large", value: "xlarge", icon: "A", iconStyle: "font-size: 18px;" }
     ],
@@ -2304,7 +2305,7 @@ let currentFontSize = 'small'; // Default to small (current behavior)
 
 function applyFontSize(size) {
     // Remove all font size classes
-    document.body.classList.remove('font-size-small', 'font-size-normal', 'font-size-large', 'font-size-xlarge');
+    document.body.classList.remove('font-size-small', 'font-size-normal', 'font-size-bigger', 'font-size-large', 'font-size-xlarge');
     
     // Remove old small-card-fonts class for backward compatibility
     document.body.classList.remove('small-card-fonts');

@@ -524,9 +524,12 @@ export class MessageHandler {
         // Replace the current board with the new one
         this._setBoard(board);
         
-        // Save to markdown file and update the webview
+        // Save to markdown file only - do NOT trigger board update
+        // The webview already has the correct state (it sent us this board)
+        // Triggering _onBoardUpdate() would cause folding state to be lost
         await this._onSaveToMarkdown();
-        await this._onBoardUpdate();
+        
+        // No board update needed - webview state is already correct
     }
 
     private async performBoardAction(action: () => boolean, saveUndo: boolean = true) {

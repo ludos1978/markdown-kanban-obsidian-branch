@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.10.70",
+  "version": "0.10.71",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -1768,10 +1768,11 @@
           "type": "string",
           "default": "small",
           "description": "The font size for task cards and content",
-          "enum": ["small", "normal", "large", "xlarge"],
+          "enum": ["small", "normal", "bigger", "large", "xlarge"],
           "enumDescriptions": [
             "Small font size",
             "Normal/default font size",
+            "Bigger font size",
             "Large font size",
             "Extra large font size"
           ]

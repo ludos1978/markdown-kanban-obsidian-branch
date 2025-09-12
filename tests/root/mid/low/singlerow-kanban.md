@@ -4,9 +4,7 @@ kanban-plugin: board
 
 ---
 
-## # H1 #urgent #high #frontend #bug #feature #inprogress #blocked #transferred
-- [ ] Lorem Imspum #urgent
-  setetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+## # H1 #urgent #blocked
 - [ ] Mario
   ![Mario.mp4](Mario.mp4)
 - [ ] # Header 1
@@ -15,10 +13,10 @@ kanban-plugin: board
 - [ ] #### Header 4
 - [ ] ##### Header 5
 - [ ] ###### Header 6
+- [ ] Lorem Imspum #green
+  Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
 
 ## # TITLE #urgent #blocked
-- [ ] # Lorem Imspum #yellow
-  Lorem ipsum dolor sit amet,
 - [ ] Lighting #urgent
   - Lighting
 - [ ] Lorem Imspum #green
@@ -38,7 +36,7 @@ kanban-plugin: board
   
   ---
   
-  Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+  Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore
   
   1. one
   2. two
@@ -50,32 +48,16 @@ kanban-plugin: board
   [[test]]
   
   <https://www.nouser.org/>
-- [ ] Lorem Imspum #green
-  # H1
-  
-  * star
-  - dash
-  
-  
-  
-  
-  ---
-  
-  Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
-  
-  1. one
-  2. two
-  
-  ~~no~~
-  
-  ![](./red.png)
-  
-  [[test]]
-  
-  <https://www.nouser.org/>
+- [ ] Lorem Imspum #urgent
+  setetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
 - [ ] Lorem Imspum
   Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam
 
-## ## H2
+## ## H2 #todo
+- [ ] # Lorem Imspum #yellow
+  Lorem ipsum dolor sit amet,
+- [ ] test #review
+- [ ] db #database
+- [ ] ui #ui
 
 
