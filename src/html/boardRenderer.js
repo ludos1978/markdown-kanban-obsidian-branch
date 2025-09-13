@@ -1011,34 +1011,6 @@ function generateFlatTagItems(tags, id, type, columnId = null) {
     }).join('');
 }
 
-// Helper function to get corner badge HTML
-function getCornerBadgeHtml(tag) {
-    if (!window.tagColors) return '';
-    
-    // Check both grouped and flat structure
-    let config = null;
-    
-    // Check grouped structure
-    const groups = ['status', 'type', 'priority', 'category', 'colors'];
-    for (const group of groups) {
-        if (window.tagColors[group] && window.tagColors[group][tag]) {
-            config = window.tagColors[group][tag];
-            break;
-        }
-    }
-    
-    // Check flat structure
-    if (!config && window.tagColors[tag]) {
-        config = window.tagColors[tag];
-    }
-    
-    if (config && config.cornerBadge) {
-        const badgeText = config.cornerBadge.text || '';
-        return `<div class="corner-badge-${tag}">${badgeText}</div>`;
-    }
-    
-    return '';
-}
 
 // Render Kanban board
 /**
@@ -2404,7 +2376,6 @@ window.getActiveTagsInTitle = getActiveTagsInTitle;
 window.generateTagMenuItems = generateTagMenuItems;
 window.generateGroupTagItems = generateGroupTagItems;
 window.generateFlatTagItems = generateFlatTagItems;
-window.getCornerBadgeHtml = getCornerBadgeHtml;
 
 window.getAllCornerBadgesHtml = getAllCornerBadgesHtml;
 window.getTagConfig = getTagConfig;
