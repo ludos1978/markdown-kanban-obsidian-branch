@@ -277,7 +277,7 @@ function renderMarkdown(text) {
             tagColors: window.tagColors || {}
         })
         .use(datePersonTagPlugin); // Add this line
-        
+
         // Add plugins that are available from CDN (CSP-compliant)
         if (typeof window.markdownitEmoji !== 'undefined') {
             md.use(window.markdownitEmoji); // :smile: => 😊
@@ -285,7 +285,13 @@ function renderMarkdown(text) {
         if (typeof window.markdownitFootnote !== 'undefined') {
             md.use(window.markdownitFootnote); // [^1]: footnote
         }
-        
+        if (typeof window.markdownItMulticolumn !== 'undefined') {
+            console.log('Loading markdown-it-multicolumn plugin');
+            md.use(window.markdownItMulticolumn); // Multi-column layout support
+        } else {
+            console.warn('markdown-it-multicolumn plugin not found');
+        }
+
         // Note: Most other plugins can't be loaded via CDN due to CSP restrictions
         // Advanced plugin functionality would need to be bundled or implemented differently
         if (typeof window.markdownItMediaCustom !== 'undefined') {

@@ -1024,13 +1024,14 @@ export class KanbanWebviewPanel {
         // Replace all JavaScript file references
         const jsFiles = [
             'markdownRenderer.js',
-            'taskEditor.js', 
+            'taskEditor.js',
             'boardRenderer.js',
             'dragDrop.js',
             'menuOperations.js',
             'search.js',
             'webview.js',
-            'markdown-it-media-browser.js'
+            'markdown-it-media-browser.js',
+            'markdown-it-multicolumn-browser.js'
         ];
         
         jsFiles.forEach(jsFile => {

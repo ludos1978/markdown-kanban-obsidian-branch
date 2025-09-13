@@ -3288,3 +3288,18 @@ body.font-family-consolas {
 .task-item.card-focused {
     transform: translateZ(0);
 }
+
+/* Multi-column layout styles */
+.multicolumn {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.multicolumn-column {
+    flex-basis: 0 !important;
+    padding: 10px;
+    min-width: 0; /* Allow columns to shrink */
+}
