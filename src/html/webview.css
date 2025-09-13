@@ -2404,6 +2404,15 @@ blockquote {
   opacity: 0.8;
 }
 
+/* Special styling for span and row tags */
+.kanban-tag[data-tag^="span"],
+.kanban-tag[data-tag^="row"] {
+  color: #666;
+  background-color: transparent;
+  border: 1px dashed #999;
+  opacity: 0.7;
+}
+
 .kanban-full-height-column[data-column-tag] {
   box-sizing: border-box;
   transition: padding 0.2s ease;
