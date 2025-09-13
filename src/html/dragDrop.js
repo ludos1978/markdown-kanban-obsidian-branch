@@ -502,13 +502,13 @@ function handleVSCodeFileDrop(e, files) {
     const file = files[0];
     const fileName = file.name;
 
-    // Create a file reference task using cache-first approach
-    const fileContent = `[[${fileName}]]`; // Use Obsidian-style file links
+    // Create appropriate link format based on file type
+    const fileLink = createFileLink(fileName, fileName); // For direct file drops, use filename as path
 
     createNewTaskWithContent(
-        fileContent,
+        fileName,  // Title: actual filename
         { x: e.clientX, y: e.clientY },
-        `Dropped file: ${fileName}`
+        fileLink   // Description: formatted link
     );
 }
 
@@ -522,22 +522,70 @@ function handleVSCodeUriDrop(e, uriData) {
     if (uris.length > 0) {
         // Create tasks for each URI using cache-first approach
         uris.forEach((uri, index) => {
-            let displayUri = uri;
+            let filename = uri;
+            let fullPath = uri;
+
             if (uri.startsWith('file://')) {
-                // Extract just the filename from file:// URIs
-                displayUri = decodeURIComponent(uri).split('/').pop() || uri;
+                // Extract filename from file:// URIs
+                filename = decodeURIComponent(uri).split('/').pop() || uri;
+                fullPath = decodeURIComponent(uri); // Keep full path for link creation
+            } else {
+                // For non-file URIs, try to get the filename
+                filename = uri.split('/').pop() || uri;
+                fullPath = uri;
             }
 
-            const content = `[[${displayUri}]]`;
-            const description = `Dropped URI: ${uri}`;
+            // Create appropriate link format based on file type
+            const fileLink = createFileLink(filename, fullPath);
 
             // Stagger the creation slightly if multiple files
             setTimeout(() => {
-                createNewTaskWithContent(content, { x: e.clientX, y: e.clientY }, description);
+                createNewTaskWithContent(
+                    filename,  // Title: actual filename
+                    { x: e.clientX, y: e.clientY },
+                    fileLink   // Description: formatted link
+                );
             }, index * 10);
         });
     } else {
         console.warn('Could not process the dropped file URIs');
+    }
+}
+
+/**
+ * Creates appropriate link format based on file type
+ * @param {string} filename - The filename with extension
+ * @param {string} fullPath - The full path to the file
+ * @returns {string} Formatted link based on file type
+ */
+function createFileLink(filename, fullPath) {
+    const extension = filename.toLowerCase().split('.').pop();
+    const baseName = filename.replace(/\.[^/.]+$/, ""); // filename without extension
+
+    // Image file extensions
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif'];
+
+    // Video file extensions
+    const videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'ogv', '3gp'];
+
+    // Audio file extensions
+    const audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma', 'opus'];
+
+    // Markdown file extensions
+    const markdownExtensions = ['md', 'markdown', 'mdown', 'mkd', 'mdx'];
+
+    if (imageExtensions.includes(extension) || videoExtensions.includes(extension) || audioExtensions.includes(extension)) {
+        // Use image/media syntax: ![alt-text](path)
+        return `![${baseName}](${fullPath})`;
+    } else if (markdownExtensions.includes(extension)) {
+        // Use Obsidian-style wiki links: [[file.md]]
+        return `[[${filename}]]`;
+    } else if (fullPath.startsWith('http://') || fullPath.startsWith('https://')) {
+        // Use angle brackets for URLs: <url>
+        return `<${fullPath}>`;
+    } else {
+        // Use standard markdown link for unknown file types: [filename](path)
+        return `[${baseName}](${fullPath})`;
     }
 }
 
