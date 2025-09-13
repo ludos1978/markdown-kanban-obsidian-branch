@@ -1667,9 +1667,7 @@ window.addEventListener('message', event => {
 
             // Then detect rows from board and override configuration if different
             const detectedRows = detectRowsFromBoard(currentBoard);
-            console.log('Row detection:', { detectedRows, currentLayoutRows, configLayoutRows: message.layoutRows, columnTitles: currentBoard.columns.map(c => c.title) });
             if (detectedRows !== currentLayoutRows) {
-                console.log('Auto-detection overriding config - setting layout rows to:', detectedRows);
                 setLayoutRows(detectedRows);
             }
             
