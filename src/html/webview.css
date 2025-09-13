@@ -3311,3 +3311,73 @@ mark {
     padding: 1px 2px;
     border-radius: 2px;
 }
+
+/* Additional markdown-it plugin styles */
+sub, sup {
+    font-size: 0.75em;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+}
+
+sub {
+    bottom: -0.25em;
+}
+
+sup {
+    top: -0.5em;
+}
+
+ins {
+    text-decoration: underline;
+    background-color: var(--vscode-editor-insertedTextBackground, rgba(0, 255, 0, 0.2));
+    color: var(--vscode-editor-foreground);
+}
+
+u {
+    text-decoration: underline;
+}
+
+s {
+    text-decoration: line-through;
+}
+
+/* Container styles */
+.note, .comment, .highlight {
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 4px solid;
+}
+
+.note {
+    background-color: var(--vscode-textBlockQuote-background, rgba(0, 122, 204, 0.1));
+    border-left-color: var(--vscode-textBlockQuote-border, #007acc);
+}
+
+.comment {
+    background-color: var(--vscode-editor-inactiveSelectionBackground, rgba(128, 128, 128, 0.1));
+    border-left-color: var(--vscode-descriptionForeground, #888);
+}
+
+.highlight {
+    background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(255, 235, 59, 0.3));
+    border-left-color: var(--vscode-editor-findMatchBorder, #ffeb3b);
+}
+
+.mark-red { background-color: rgba(255, 0, 0, 0.1); border-left-color: #ff0000; }
+.mark-green { background-color: rgba(0, 255, 0, 0.1); border-left-color: #00ff00; }
+.mark-blue { background-color: rgba(0, 0, 255, 0.1); border-left-color: #0000ff; }
+.mark-cyan { background-color: rgba(0, 255, 255, 0.1); border-left-color: #00ffff; }
+.mark-magenta { background-color: rgba(255, 0, 255, 0.1); border-left-color: #ff00ff; }
+.mark-yellow { background-color: rgba(255, 255, 0, 0.1); border-left-color: #ffff00; }
+
+.center { text-align: center; }
+.center100 { text-align: center; width: 100%; }
+.right { text-align: right; }
+.caption {
+    font-style: italic;
+    text-align: center;
+    color: var(--vscode-descriptionForeground, #888);
+    font-size: 0.9em;
+}

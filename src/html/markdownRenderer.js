@@ -295,6 +295,40 @@ function renderMarkdown(text) {
         } else {
             console.warn('markdown-it-mark plugin not found');
         }
+        if (typeof window.markdownitSub !== 'undefined') {
+            md.use(window.markdownitSub); // H~2~O subscript support
+        }
+        if (typeof window.markdownitSup !== 'undefined') {
+            md.use(window.markdownitSup); // 29^th^ superscript support
+        }
+        if (typeof window.markdownitIns !== 'undefined') {
+            md.use(window.markdownitIns); // ++inserted++ text support
+        }
+        if (typeof window.markdownitStrikethroughAlt !== 'undefined') {
+            md.use(window.markdownitStrikethroughAlt); // --strikethrough-- support
+        }
+        if (typeof window.markdownitUnderline !== 'undefined') {
+            md.use(window.markdownitUnderline); // _underline_ support
+        }
+        if (typeof window.markdownitAbbr !== 'undefined') {
+            md.use(window.markdownitAbbr); // *[HTML]: Hyper Text Markup Language
+        }
+        if (typeof window.markdownitContainer !== 'undefined') {
+            // Add common container types from engine.js
+            md.use(window.markdownitContainer, 'note');
+            md.use(window.markdownitContainer, 'comment');
+            md.use(window.markdownitContainer, 'highlight');
+            md.use(window.markdownitContainer, 'mark-red');
+            md.use(window.markdownitContainer, 'mark-green');
+            md.use(window.markdownitContainer, 'mark-blue');
+            md.use(window.markdownitContainer, 'mark-cyan');
+            md.use(window.markdownitContainer, 'mark-magenta');
+            md.use(window.markdownitContainer, 'mark-yellow');
+            md.use(window.markdownitContainer, 'center');
+            md.use(window.markdownitContainer, 'center100');
+            md.use(window.markdownitContainer, 'right');
+            md.use(window.markdownitContainer, 'caption');
+        }
 
         // Note: Most other plugins can't be loaded via CDN due to CSP restrictions
         // Advanced plugin functionality would need to be bundled or implemented differently

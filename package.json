@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.10.77",
+  "version": "0.10.78",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -2005,7 +2005,12 @@
   },
   "dependencies": {
     "markdown-it": "^14.1.0",
-    "markdown-it-mark": "^4.0.0"
+    "markdown-it-abbr": "^2.0.0",
+    "markdown-it-container": "^4.0.0",
+    "markdown-it-ins": "^4.0.0",
+    "markdown-it-mark": "^4.0.0",
+    "markdown-it-sub": "^2.0.0",
+    "markdown-it-sup": "^2.0.0"
   },
   "extensionDependencies": [
     "vscode.markdown"

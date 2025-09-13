@@ -1026,7 +1026,14 @@ export class KanbanWebviewPanel {
             'webview.js',
             'markdown-it-media-browser.js',
             'markdown-it-multicolumn-browser.js',
-            'markdown-it-mark-browser.js'
+            'markdown-it-mark-browser.js',
+            'markdown-it-sub-browser.js',
+            'markdown-it-sup-browser.js',
+            'markdown-it-ins-browser.js',
+            'markdown-it-strikethrough-alt-browser.js',
+            'markdown-it-underline-browser.js',
+            'markdown-it-abbr-browser.js',
+            'markdown-it-container-browser.js'
         ];
         
         jsFiles.forEach(jsFile => {
