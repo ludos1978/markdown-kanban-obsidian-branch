@@ -1166,9 +1166,9 @@ function setupTaskDragHandle(handle) {
                 const finalIndex = Array.from(finalParent.children).indexOf(taskItem);
                 
                 // Check if position actually changed
-                const positionChanged = finalParent !== dragState.originalTaskParent || 
+                const positionChanged = finalParent !== dragState.originalTaskParent ||
                                        finalIndex !== dragState.originalTaskIndex;
-                
+
                 if (positionChanged && originalColumnId) {
                     // DON'T restore position - keep the preview position
                     // Calculate the proper index for the data model
@@ -1224,9 +1224,15 @@ function setupTaskDragHandle(handle) {
                                 }
                             }
                         }
+
                     }
-                    
-                    // NEW CACHE SYSTEM: Mark as unsaved  
+
+                    // Ensure currentBoard is fully synced with cachedBoard after ANY position change
+                    if (window.cachedBoard && window.currentBoard !== window.cachedBoard) {
+                        window.currentBoard = window.cachedBoard;
+                    }
+
+                    // NEW CACHE SYSTEM: Mark as unsaved
                     if (typeof markUnsavedChanges === 'function') {
                         markUnsavedChanges();
                     }

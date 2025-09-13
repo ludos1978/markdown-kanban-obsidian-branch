@@ -1014,11 +1014,16 @@ function renderBoard() {
         return;
     }
 
+    // Ensure currentBoard is synced with cachedBoard for operations like tag toggling
+    if (window.cachedBoard && window.cachedBoard !== currentBoard) {
+        currentBoard = window.cachedBoard;
+    }
+
     if (!currentBoard) {
         boardElement.innerHTML = `
             <div class="empty-board" style="
-                text-align: center; 
-                padding: 40px; 
+                text-align: center;
+                padding: 40px;
                 color: var(--vscode-descriptionForeground);
                 font-style: italic;
             ">
