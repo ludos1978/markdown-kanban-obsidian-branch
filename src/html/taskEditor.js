@@ -347,8 +347,8 @@ class TaskEditor {
                             task.title = value;
                         }
                     } else if (type === 'task-description') {
-                        // Handle task description - compare with rawDescription if it exists
-                        const currentRawValue = task.rawDescription || task.description || '';
+                        // Handle task description
+                        const currentRawValue = task.description || '';
                         if (currentRawValue !== value) {
                             const editContext = `${type}-${taskId}-${columnId}`;
 
@@ -356,16 +356,14 @@ class TaskEditor {
                             this.saveUndoStateImmediately('editTaskDescription', taskId, columnId);
                             this.lastEditContext = editContext;
 
-                            // Update both raw and processed descriptions
-                            task.rawDescription = value;
-                            // For now, keep processed description the same as raw (includes will be processed on server side)
+                            // Update description (frontend will handle include processing)
                             task.description = value;
                         }
                     }
 
                     // Mark as unsaved and send the specific change to backend if any change was made
                     const wasChanged = (type === 'task-title' && task.title === value) ||
-                                      (type === 'task-description' && task.rawDescription === value);
+                                      (type === 'task-description' && task.description === value);
 
                     if (wasChanged) {
                         if (typeof markUnsavedChanges === 'function') {
@@ -375,7 +373,7 @@ class TaskEditor {
                         // Send specific task update to backend
                         if (typeof vscode !== 'undefined') {
                             const field = type === 'task-title' ? 'title' : 'description';
-                            const valueToSend = type === 'task-description' ? task.rawDescription : value;
+                            const valueToSend = type === 'task-description' ? task.description : value;
                             vscode.postMessage({
                                 type: 'updateTaskInBackend',
                                 taskId: taskId,

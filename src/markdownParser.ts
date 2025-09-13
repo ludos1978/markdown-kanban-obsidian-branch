@@ -6,7 +6,6 @@ export interface KanbanTask {
   id: string;
   title: string;
   description?: string;
-  rawDescription?: string; // Original description before include processing
 }
 
 export interface KanbanColumn {
@@ -26,60 +25,12 @@ export interface KanbanBoard {
 export class MarkdownKanbanParser {
   // Runtime-only ID generation - no persistence to markdown
 
-  /**
-   * Process include statements in markdown content
-   * !!!include(filepath)!!! -> content of the file
-   */
-  static processIncludes(content: string, basePath: string): { content: string, includedFiles: string[] } {
-    const INCLUDE_RE = /!!!include\(([^)]+)\)!!!/gi;
-    let result = content;
-    const includedFiles: string[] = [];
-
-    // Simple single-pass processing to avoid recursion issues
-    const matches = [...content.matchAll(INCLUDE_RE)];
-
-    for (const match of matches) {
-      const fullMatch = match[0];
-      const filePath = match[1].trim();
-
-      try {
-        // Resolve the file path relative to the base path
-        const absolutePath = path.resolve(basePath, filePath);
-
-        // Check if file exists
-        if (fs.existsSync(absolutePath)) {
-          // Track this file as included
-          includedFiles.push(absolutePath);
-
-          // Read the file content
-          const includeContent = fs.readFileSync(absolutePath, 'utf8');
-
-          // Add 2 spaces indentation to each line to make it card content
-          const indentedContent = includeContent
-            .split('\n')
-            .map(line => line.length > 0 ? '  ' + line : line)
-            .join('\n');
-
-          // Replace the include statement with the indented file content
-          result = result.replace(fullMatch, indentedContent);
-        } else {
-          console.warn(`Include file not found: ${absolutePath}`);
-          result = result.replace(fullMatch, `<!-- Include file not found: ${filePath} -->`);
-        }
-      } catch (error) {
-        console.error(`Error processing include ${filePath}:`, error);
-        result = result.replace(fullMatch, `<!-- Error processing include: ${filePath} -->`);
-      }
-    }
-
-    return { content: result, includedFiles };
-  }
 
   static parseMarkdown(content: string, basePath?: string): { board: KanbanBoard, includedFiles: string[] } {
       // First parse with original content to preserve raw descriptions
       const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
 
-      // Track included files for watcher setup
+      // No include processing in backend - handled by frontend
       let includedFiles: string[] = [];
       const board: KanbanBoard = {
         valid: false,
@@ -183,8 +134,7 @@ export class MarkdownKanbanParser {
             currentTask = {
               id: IdGenerator.generateTaskId(),
               title: taskTitle,
-              description: '',
-              rawDescription: ''
+              description: ''
             };
             
             taskIndexInColumn++;
@@ -201,14 +151,7 @@ export class MarkdownKanbanParser {
             descLine = line.substring(2);
           }
 
-          // Store raw description (original content with includes)
-          if (!currentTask.rawDescription) {
-            currentTask.rawDescription = descLine;
-          } else {
-            currentTask.rawDescription += '\n' + descLine;
-          }
-
-          // Store processed description (for initial display)
+          // Store description (frontend will handle include processing)
           if (!currentTask.description) {
             currentTask.description = descLine;
           } else {
@@ -234,26 +177,6 @@ export class MarkdownKanbanParser {
         board.kanbanFooter = footerLines.join('\n');
       }
 
-      // Process includes for display descriptions if basePath is provided
-      if (basePath) {
-        try {
-          for (const column of board.columns) {
-            for (const task of column.tasks) {
-              if (task.rawDescription) {
-                // Process includes in the description and track included files
-                const includeResult = this.processIncludes(task.rawDescription, basePath);
-                task.description = includeResult.content;
-                // Merge included files
-                includedFiles = [...includedFiles, ...includeResult.includedFiles];
-              }
-            }
-          }
-          // Remove duplicates from included files
-          includedFiles = [...new Set(includedFiles)];
-        } catch (error) {
-          console.error('Error processing includes in task descriptions:', error);
-        }
-      }
 
       return { board, includedFiles };
   }
@@ -261,15 +184,7 @@ export class MarkdownKanbanParser {
   private static finalizeCurrentTask(task: KanbanTask | null, column: KanbanColumn | null): void {
     if (!task || !column) return;
 
-    // Clean up rawDescription
-    if (task.rawDescription) {
-      task.rawDescription = task.rawDescription.trimEnd();
-      if (task.rawDescription === '') {
-        delete task.rawDescription;
-      }
-    }
-
-    // Clean up processed description
+    // Clean up description
     if (task.description) {
       task.description = task.description.trimEnd();
       if (task.description === '') {
@@ -299,8 +214,8 @@ export class MarkdownKanbanParser {
       for (const task of column.tasks) {
         markdown += `- [ ] ${task.title}\n`;
 
-        // Add description with proper indentation (use raw description if available)
-        const descriptionToUse = task.rawDescription || task.description;
+        // Add description with proper indentation
+        const descriptionToUse = task.description;
         if (descriptionToUse && descriptionToUse.trim() !== '') {
           const descriptionLines = descriptionToUse.split('\n');
           for (const descLine of descriptionLines) {
