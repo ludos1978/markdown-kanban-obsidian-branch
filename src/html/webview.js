@@ -105,6 +105,10 @@ const menuConfig = {
         { label: "Custom Tags Only", value: "custom", description: "Show only custom tags (not configured ones) and @ tags" },
         { label: "@ Tags Only", value: "mentions", description: "Show only @ tags" },
         { label: "No Tags", value: "none", description: "Hide all tags" }
+    ],
+    imageFill: [
+        { label: "Fit Content", value: "fit", description: "Images size to their natural dimensions" },
+        { label: "Fill Space", value: "fill", description: "Images fill available space while keeping aspect ratio" }
     ]
 };
 
@@ -143,7 +147,8 @@ function populateDynamicMenus() {
         { selector: '[data-menu="layoutRows"]', config: 'layoutRows', function: 'setLayoutRows' },
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
         { selector: '[data-menu="stickyHeaders"]', config: 'stickyHeaders', function: 'setStickyHeaders' },
-        { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' }
+        { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
+        { selector: '[data-menu="imageFill"]', config: 'imageFill', function: 'setImageFill' }
     ];
     
     menuMappings.forEach(mapping => {
@@ -1062,6 +1067,38 @@ function setTagVisibility(setting) {
     });
 }
 
+// Image fill functionality
+let currentImageFill = 'fit'; // Default to fit content
+
+function applyImageFill(setting) {
+    // Store current setting
+    currentImageFill = setting;
+    window.currentImageFill = setting;
+
+    // Remove all image fill classes
+    document.body.classList.remove('image-fill-fit', 'image-fill-fill');
+
+    // Add the selected image fill class
+    document.body.classList.add(`image-fill-${setting}`);
+}
+
+function setImageFill(setting) {
+    // Apply the image fill setting
+    applyImageFill(setting);
+
+    // Store preference
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'imageFill',
+        value: setting
+    });
+
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+}
+
 // Function to set whitespace
 function applyWhitespace(spacing) {
     // Store current whitespace setting
@@ -1846,6 +1883,13 @@ window.addEventListener('message', event => {
                 applyTagVisibility(message.tagVisibility);
             } else {
                 applyTagVisibility('standard'); // Default fallback
+            }
+
+            // Update image fill with the value from configuration
+            if (message.imageFill) {
+                applyImageFill(message.imageFill);
+            } else {
+                applyImageFill('fit'); // Default fallback
             }
 
             // Update max row height
@@ -2658,6 +2702,9 @@ window.setTagVisibility = setTagVisibility;
 window.applyTagVisibility = applyTagVisibility;
 window.currentTagVisibility = currentTagVisibility;
 window.filterTagsFromText = filterTagsFromText;
+window.setImageFill = setImageFill;
+window.applyImageFill = applyImageFill;
+window.currentImageFill = currentImageFill;
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
 

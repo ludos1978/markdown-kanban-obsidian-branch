@@ -1922,6 +1922,19 @@
             "Show only @ tags",
             "Hide all tags"
           ]
+        },
+        "markdown-kanban.imageFill": {
+          "type": "string",
+          "default": "fit",
+          "description": "Control how images are sized within cards",
+          "enum": [
+            "fit",
+            "fill"
+          ],
+          "enumDescriptions": [
+            "Images size to their natural dimensions",
+            "Images fill available space while keeping aspect ratio"
+          ]
         }
       }
     },
