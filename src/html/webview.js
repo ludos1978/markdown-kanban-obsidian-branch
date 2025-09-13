@@ -1047,9 +1047,15 @@ function getColumnRow(title) {
 // Function to update column row tag
 function updateColumnRowTag(columnId, newRow) {
     if (!currentBoard || !currentBoard.columns) return;
-    
+
     const column = currentBoard.columns.find(c => c.id === columnId);
     if (!column) return;
+
+    // Also update cachedBoard if it exists and is different
+    let cachedColumn = null;
+    if (window.cachedBoard && window.cachedBoard !== currentBoard) {
+        cachedColumn = window.cachedBoard.columns.find(c => c.id === columnId);
+    }
     
     // Remove ALL existing row tags - more comprehensive regex patterns
     let cleanTitle = column.title
@@ -1062,9 +1068,15 @@ function updateColumnRowTag(columnId, newRow) {
     if (newRow > 1) {
         // Add row tag for rows 2, 3, 4
         column.title = cleanTitle + ` #row${newRow}`;
+        if (cachedColumn) {
+            cachedColumn.title = cleanTitle + ` #row${newRow}`;
+        }
     } else {
         // For row 1, just use the clean title without any row tag
         column.title = cleanTitle;
+        if (cachedColumn) {
+            cachedColumn.title = cleanTitle;
+        }
     }
     
     // Update the visual element immediately
@@ -1077,7 +1089,7 @@ function updateColumnRowTag(columnId, newRow) {
         if (titleElement) {
             const displayTitle = column.title.replace(/#row\d+/gi, '').trim();
             const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
-            const rowIndicator = newRow > 1 ? `<span class="column-row-tag">Row ${newRow}</span>` : '';
+            const rowIndicator = (window.showRowTags && newRow > 1) ? `<span class="column-row-tag">Row ${newRow}</span>` : '';
             titleElement.innerHTML = renderedTitle + rowIndicator;
         }
         
@@ -1088,11 +1100,11 @@ function updateColumnRowTag(columnId, newRow) {
         }
     }
     
-    // Send update to backend
+    // Send update to backend with the full title including row tag
     vscode.postMessage({
         type: 'editColumnTitle',
         columnId: columnId,
-        title: cleanTitle
+        title: column.title
     });
 }
 

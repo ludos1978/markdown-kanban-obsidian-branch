@@ -1374,15 +1374,66 @@ function setupColumnDragAndDrop() {
             // Get row number
             const parentRow = columnElement.closest('.kanban-row');
             const newRow = parentRow ? parseInt(parentRow.getAttribute('data-row-number') || '1') : 1;
-            
-            
+
+            // Update the column's row tag FIRST in the data before reordering
+            // This ensures the column has the correct row tag when the board is reordered
+            if (window.cachedBoard) {
+                const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+                if (cachedColumn) {
+                    // Update row tag in cached column
+                    let cleanTitle = cachedColumn.title
+                        .replace(/#row\d+\b/gi, '')
+                        .replace(/\s+#row\d+/gi, '')
+                        .replace(/#row\d+\s+/gi, '')
+                        .replace(/\s+#row\d+\s+/gi, '')
+                        .trim();
+
+                    if (newRow > 1) {
+                        cachedColumn.title = cleanTitle + ` #row${newRow}`;
+                    } else {
+                        cachedColumn.title = cleanTitle;
+                    }
+                }
+            }
+
+            // Also update currentBoard
+            if (window.currentBoard) {
+                const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+                if (currentColumn) {
+                    let cleanTitle = currentColumn.title
+                        .replace(/#row\d+\b/gi, '')
+                        .replace(/\s+#row\d+/gi, '')
+                        .replace(/#row\d+\s+/gi, '')
+                        .replace(/\s+#row\d+\s+/gi, '')
+                        .trim();
+
+                    if (newRow > 1) {
+                        currentColumn.title = cleanTitle + ` #row${newRow}`;
+                    } else {
+                        currentColumn.title = cleanTitle;
+                    }
+                }
+            }
+
+            // Update the visual display
+            const titleElement = columnElement.querySelector('.column-title');
+            if (titleElement && window.cachedBoard) {
+                const columnData = window.cachedBoard.columns.find(col => col.id === columnId);
+                if (columnData) {
+                    const displayTitle = columnData.title.replace(/#row\d+/gi, '').trim();
+                    const renderedTitle = window.renderMarkdown ? window.renderMarkdown(displayTitle) : displayTitle;
+                    const rowIndicator = (window.showRowTags && newRow > 1) ? `<span class="column-row-tag">Row ${newRow}</span>` : '';
+                    titleElement.innerHTML = renderedTitle + rowIndicator;
+                }
+            }
+
             // NEW CACHE SYSTEM: Update cached board directly
             if (window.cachedBoard) {
                 // Reorder columns in cached board to match DOM order
-                const reorderedColumns = newOrder.map(colId => 
+                const reorderedColumns = newOrder.map(colId =>
                     window.cachedBoard.columns.find(col => col.id === colId)
                 ).filter(Boolean);
-                
+
                 window.cachedBoard.columns = reorderedColumns;
                 
                 // Also update currentBoard for compatibility
