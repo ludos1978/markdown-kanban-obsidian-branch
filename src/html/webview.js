@@ -1799,15 +1799,16 @@ window.addEventListener('message', event => {
             focusCard(null);
             
             // Initialize cache system - this is the SINGLE source of truth
-            if (!window.cachedBoard) {
+            const isInitialLoad = !window.cachedBoard;
+            if (isInitialLoad) {
                 window.cachedBoard = JSON.parse(JSON.stringify(message.board)); // Deep clone
                 window.currentBoard = window.cachedBoard; // Keep for compatibility
                 window.savedBoardState = JSON.parse(JSON.stringify(message.board)); // Reference for unsaved detection
                 window.hasUnsavedChanges = false;
             } else {
                 // Always update the cached board when receiving updates from backend
-                window.cachedBoard = JSON.parse(JSON.stringify(message.board)); 
-                
+                window.cachedBoard = JSON.parse(JSON.stringify(message.board));
+
                 // If this is a save confirmation (no unsaved changes), update the saved reference
                 if (!window.hasUnsavedChanges) {
                     window.savedBoardState = JSON.parse(JSON.stringify(message.board));
@@ -1835,69 +1836,75 @@ window.addEventListener('message', event => {
                 window.currentImageMappings = message.imageMappings;
             }            
 
-            // Update whitespace with the value from configuration
-            if (message.whitespace) {
-                applyWhitespace(message.whitespace);
-            } else {
-                applyWhitespace('4px'); // Default fallback
-            }
-            
-            // Update task min height with the value from configuration
-            if (message.taskMinHeight) {
-                applyTaskMinHeight(message.taskMinHeight);
-            } else {
-                applyTaskMinHeight('auto'); // Default fallback
-            }
-            
-            // Update font size with the value from configuration
-            if (message.fontSize) {
-                applyFontSize(message.fontSize);
-            } else {
-                applyFontSize('small'); // Default fallback
-            }
-            
-            // Update font family with the value from configuration
-            if (message.fontFamily) {
-                applyFontFamily(message.fontFamily);
-            } else {
-                applyFontFamily('system'); // Default fallback
-            }
-            
-            // Update column width with the value from configuration
-            if (message.columnWidth) {
-                applyColumnWidth(message.columnWidth);
-            } else {
-                applyColumnWidth('medium'); // Default fallback
+            // Only apply configuration settings on initial load, not on content updates
+            if (isInitialLoad) {
+                // Update whitespace with the value from configuration
+                if (message.whitespace) {
+                    applyWhitespace(message.whitespace);
+                } else {
+                    applyWhitespace('4px'); // Default fallback
+                }
+
+                // Update task min height with the value from configuration
+                if (message.taskMinHeight) {
+                    applyTaskMinHeight(message.taskMinHeight);
+                } else {
+                    applyTaskMinHeight('auto'); // Default fallback
+                }
+
+                // Update font size with the value from configuration
+                if (message.fontSize) {
+                    applyFontSize(message.fontSize);
+                } else {
+                    applyFontSize('small'); // Default fallback
+                }
+
+                // Update font family with the value from configuration
+                if (message.fontFamily) {
+                    applyFontFamily(message.fontFamily);
+                } else {
+                    applyFontFamily('system'); // Default fallback
+                }
+
+                // Update column width with the value from configuration
+                if (message.columnWidth) {
+                    applyColumnWidth(message.columnWidth);
+                } else {
+                    applyColumnWidth('medium'); // Default fallback
+                }
             }
             
             // Layout rows are now handled above (with auto-detection override)
             
-            // Update row height with the value from configuration
-            if (message.rowHeight) {
-                applyRowHeightSetting(message.rowHeight);
-            } else {
-                applyRowHeightSetting('auto'); // Default fallback
-            }
+            // Continue configuration settings only on initial load
+            if (isInitialLoad) {
+                // Update row height with the value from configuration
+                if (message.rowHeight) {
+                    applyRowHeightSetting(message.rowHeight);
+                } else {
+                    applyRowHeightSetting('auto'); // Default fallback
+                }
 
-            // Update sticky headers with the value from configuration
-            if (message.stickyHeaders) {
-                applyStickyHeaders(message.stickyHeaders);
-            } else {
-                applyStickyHeaders('enabled'); // Default fallback
-            }
+                // Update sticky headers with the value from configuration
+                if (message.stickyHeaders) {
+                    applyStickyHeaders(message.stickyHeaders);
+                } else {
+                    applyStickyHeaders('enabled'); // Default fallback
+                }
 
-            // Update tag visibility with the value from configuration
-            if (message.tagVisibility) {
-                applyTagVisibility(message.tagVisibility);
-            } else {
-                applyTagVisibility('standard'); // Default fallback
-            }
+                // Update tag visibility with the value from configuration
+                if (message.tagVisibility) {
+                    applyTagVisibility(message.tagVisibility);
+                } else {
+                    applyTagVisibility('standard'); // Default fallback
+                }
 
-            // Update image fill with the value from configuration
-            if (message.imageFill) {
-                applyImageFill(message.imageFill);
-            } else {
-                applyImageFill('fit'); // Default fallback
+                // Update image fill with the value from configuration
+                if (message.imageFill) {
+                    applyImageFill(message.imageFill);
+                } else {
+                    applyImageFill('fit'); // Default fallback
+                }
             }
 
             // Update max row height
