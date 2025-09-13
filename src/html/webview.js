@@ -1499,9 +1499,7 @@ function isCurrentlyEditing() {
 
 // Callback for when board rendering is complete
 window.onBoardRenderingComplete = function() {
-    console.log('[FOCUS DEBUG] Board rendering complete callback fired');
     if (window.pendingFocusTargets && window.pendingFocusTargets.length > 0) {
-        console.log('[FOCUS DEBUG] Processing pending focus targets:', window.pendingFocusTargets);
         
         // Try to find the first target element
         const target = window.pendingFocusTargets[0];
@@ -1513,7 +1511,6 @@ window.onBoardRenderingComplete = function() {
             element = document.querySelector(`[data-task-id="${target.id}"]`);
         }
         
-        console.log('[FOCUS DEBUG] Checking if target element exists:', element ? 'FOUND' : 'NOT FOUND');
         
         if (element) {
             // Element exists - process focus targets and clear them
@@ -1521,18 +1518,14 @@ window.onBoardRenderingComplete = function() {
             window.pendingFocusTargets = null;
         } else {
             // Element not found yet - keep targets for next render completion
-            console.log('[FOCUS DEBUG] Element not ready yet, keeping targets for next render');
         }
     } else {
-        console.log('[FOCUS DEBUG] No pending focus targets to process');
     }
 };
 
 // Function to handle focusing on objects after undo/redo
 function handleFocusAfterUndoRedo(focusTargets) {
-    console.log('[FOCUS DEBUG] handleFocusAfterUndoRedo called with:', focusTargets);
     if (!focusTargets || focusTargets.length === 0) {
-        console.log('[FOCUS DEBUG] No focus targets provided');
         return;
     }
     
@@ -1546,7 +1539,6 @@ function handleFocusAfterUndoRedo(focusTargets) {
                 if (columnElement && columnElement.classList.contains('collapsed')) {
                     const columnId = columnElement.getAttribute('data-column-id');
                     columnsToUnfold.add(columnId);
-                    console.log('[FOCUS DEBUG] Task', target.id, 'is in collapsed column:', columnId);
                 }
             }
         }
@@ -1554,7 +1546,6 @@ function handleFocusAfterUndoRedo(focusTargets) {
 
     // Unfold any collapsed columns first
     if (columnsToUnfold.size > 0) {
-        console.log('[FOCUS DEBUG] Unfolding columns before focus:', Array.from(columnsToUnfold));
         if (typeof unfoldColumnIfCollapsed === 'function') {
             columnsToUnfold.forEach(columnId => {
                 unfoldColumnIfCollapsed(columnId);
@@ -1573,26 +1564,20 @@ function handleFocusAfterUndoRedo(focusTargets) {
 
 // Helper function to perform the actual focus actions
 function performFocusActions(focusTargets) {
-    console.log('[FOCUS DEBUG] Performing focus actions on targets:', focusTargets);
     
     // Process all focus targets to handle multiple changes
     focusTargets.forEach((target, index) => {
-        console.log(`[FOCUS DEBUG] Processing target ${index + 1}/${focusTargets.length}:`, target);
         let element = null;
         
         if (target.type === 'column') {
             element = document.querySelector(`[data-column-id="${target.id}"]`);
-            console.log('[FOCUS DEBUG] Looking for column element with selector [data-column-id="' + target.id + '"]');
         } else if (target.type === 'task') {
             element = document.querySelector(`[data-task-id="${target.id}"]`);
-            console.log('[FOCUS DEBUG] Looking for task element with selector [data-task-id="' + target.id + '"]');
         }
         
-        console.log('[FOCUS DEBUG] Found element:', element);
         
         if (element && index === 0) {
             // Only scroll to and highlight the first target to avoid jarring jumps
-            console.log('[FOCUS DEBUG] Scrolling to element and adding highlight');
             // Scroll to element with proper horizontal scrolling for right-side elements
             element.scrollIntoView({ 
                 behavior: 'smooth', 
@@ -1602,28 +1587,20 @@ function performFocusActions(focusTargets) {
             
             // Add highlight effect
             element.classList.add('focus-highlight');
-            console.log('[FOCUS DEBUG] Added focus-highlight class');
             
             // Remove highlight after animation
             setTimeout(() => {
                 element.classList.remove('focus-highlight');
-                console.log('[FOCUS DEBUG] Removed focus-highlight class');
             }, 2000);
         } else if (element) {
             // For additional targets, just add highlight without scrolling
-            console.log('[FOCUS DEBUG] Adding highlight to additional target');
             element.classList.add('focus-highlight');
             setTimeout(() => {
                 element.classList.remove('focus-highlight');
             }, 2000);
         } else {
-            console.log('[FOCUS DEBUG] Element not found - target may not exist in DOM');
             if (index === 0) {
                 // Only debug for first target to avoid spam
-                console.log('[FOCUS DEBUG] Available column elements:', 
-                    Array.from(document.querySelectorAll('[data-column-id]')).map(el => el.getAttribute('data-column-id')));
-                console.log('[FOCUS DEBUG] Available task elements:', 
-                    Array.from(document.querySelectorAll('[data-task-id]')).map(el => el.getAttribute('data-task-id')));
             }
         }
     });
@@ -1784,7 +1761,6 @@ window.addEventListener('message', event => {
             closePromptActive = false;
             break;
         case 'undoRedoStatus':
-            console.log('[UNDO DEBUG] Received undo/redo status - canUndo:', message.canUndo, 'canRedo:', message.canRedo);
             canUndo = message.canUndo;
             canRedo = message.canRedo;
             updateUndoRedoButtons();
@@ -1832,17 +1808,14 @@ window.addEventListener('message', event => {
             break;
         case 'unfoldColumnsBeforeUpdate':
             // Unfold columns immediately before board update happens
-            console.log('[FOCUS DEBUG] Received unfold request for columns:', message.columnIds);
             if (typeof unfoldColumnIfCollapsed === 'function') {
                 message.columnIds.forEach(columnId => {
-                    console.log('[FOCUS DEBUG] Unfolding column before board update:', columnId);
                     unfoldColumnIfCollapsed(columnId);
                 });
             }
             break;
         case 'focusAfterUndoRedo':
             // Store focus targets to be processed after rendering completes
-            console.log('[FOCUS DEBUG] Received focus message with targets:', message.focusTargets);
             window.pendingFocusTargets = message.focusTargets;
             break;
     }
@@ -1990,20 +1963,15 @@ function getCardClosestToTopLeft() {
 }
 
 function navigateToCard(direction) {
-    console.log('navigateToCard called with direction:', direction);
     updateCardList();
-    console.log('Found', allCards.length, 'cards');
     
     if (allCards.length === 0) {
-        console.log('No cards found, exiting');
         return;
     }
     
     if (!currentFocusedCard) {
-        console.log('No current focused card, finding closest to top-left');
         // No card focused, focus the one closest to top-left of viewport
         const closestCard = getCardClosestToTopLeft();
-        console.log('Closest card:', closestCard);
         focusCard(closestCard);
         return;
     }
@@ -2053,7 +2021,6 @@ function navigateToCard(direction) {
 
 // Keyboard shortcuts for search and navigation
 document.addEventListener('keydown', (e) => {
-    console.log('Key pressed:', e.key, 'Active element:', document.activeElement);
     
     const activeElement = document.activeElement;
     const isEditing = activeElement && (
@@ -2064,14 +2031,12 @@ document.addEventListener('keydown', (e) => {
         activeElement.classList.contains('task-description-edit')
     );
     
-    console.log('Is editing:', isEditing);
     
     // Don't trigger search shortcuts when editing (except when in search input)
     const isInSearchInput = activeElement && activeElement.id === 'search-input';
     
     // Arrow key navigation when not editing
     if (!isEditing && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        console.log('Arrow key navigation triggered:', e.key);
         e.preventDefault();
         
         const direction = {
@@ -2081,7 +2046,6 @@ document.addEventListener('keydown', (e) => {
             'ArrowRight': 'right'
         }[e.key];
         
-        console.log('Navigating:', direction);
         navigateToCard(direction);
         return;
     }
@@ -2140,7 +2104,6 @@ document.addEventListener('keydown', (e) => {
     // Original undo/redo shortcuts (keep these)
     if (!isEditing && !isInSearchInput) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-            console.log('[KEYBOARD DEBUG] Ctrl+Z detected in webview');
             e.preventDefault();
             undo();
         }
@@ -2290,23 +2253,15 @@ document.addEventListener('keydown', (e) => {
  * Side effects: Sends undo message to VS Code
  */
 function undo() {
-    console.log('[UNDO DEBUG] Undo function called, canUndo:', canUndo);
     if (canUndo) {
-        console.log('[UNDO DEBUG] Sending undo message to backend');
-        console.log('[UNDO DEBUG] vscode object available:', typeof vscode !== 'undefined');
-        console.log('[UNDO DEBUG] vscode.postMessage available:', typeof vscode.postMessage === 'function');
         
         try {
             const message = { type: 'undo' };
-            console.log('[UNDO DEBUG] About to send message:', message);
             const result = vscode.postMessage(message);
-            console.log('[UNDO DEBUG] vscode.postMessage returned:', result);
-            console.log('[UNDO DEBUG] Message sent successfully');
         } catch (error) {
             console.error('[UNDO DEBUG] Error sending message:', error);
         }
     } else {
-        console.log('[UNDO DEBUG] Cannot undo - canUndo is false');
     }
 }
 

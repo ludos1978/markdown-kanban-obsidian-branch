@@ -156,7 +156,6 @@ export class BackupManager {
                 for (const file of filesToDelete) {
                     try {
                         fs.unlinkSync(file.path);
-                        console.log(`Deleted old backup: ${file.name}`);
                     } catch (error) {
                         console.error(`Failed to delete backup ${file.name}:`, error);
                     }

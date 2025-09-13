@@ -44,7 +44,6 @@ export class MessageHandler {
             markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => void;
         }
     ) {
-        console.log('[MESSAGE HANDLER DEBUG] MessageHandler constructor called');
         this._fileManager = fileManager;
         this._undoRedoManager = undoRedoManager;
         this._boardOperations = boardOperations;
@@ -61,7 +60,6 @@ export class MessageHandler {
     }
 
     public async handleMessage(message: any): Promise<void> {
-        console.log('[MESSAGE DEBUG] Received message:', message.type);
         
         switch (message.type) {
             // Undo/Redo operations
@@ -287,14 +285,10 @@ export class MessageHandler {
     }
 
     private async handleUndo() {
-        console.log('[FOCUS DEBUG] handleUndo called');
         const currentBoard = this._getCurrentBoard();
-        console.log('[FOCUS DEBUG] Current board:', currentBoard ? 'exists' : 'null');
         const restoredBoard = this._undoRedoManager.undo(currentBoard);
-        console.log('[FOCUS DEBUG] Restored board:', restoredBoard ? 'exists' : 'null');
         
         if (restoredBoard) {
-            console.log('[FOCUS DEBUG] Restored board exists, detecting changes');
             // Detect changes for focusing
             const focusTargets = this.detectBoardChanges(currentBoard, restoredBoard);
             this._previousBoardForFocus = JSON.parse(JSON.stringify(currentBoard));
@@ -313,11 +307,9 @@ export class MessageHandler {
             await this._onBoardUpdate();
             
             // Send focus information to webview after board update
-            console.log('[FOCUS DEBUG] Checking if focus targets should be sent:', focusTargets.length > 0);
             if (focusTargets.length > 0) {
                 this.sendFocusTargets(focusTargets);
             } else {
-                console.log('[FOCUS DEBUG] No focus targets to send');
             }
             
             // Reset flag after operations complete
@@ -328,9 +320,7 @@ export class MessageHandler {
     }
 
     private detectBoardChanges(oldBoard: KanbanBoard | undefined, newBoard: KanbanBoard): FocusTarget[] {
-        console.log('[FOCUS DEBUG] Detecting changes between boards');
         if (!oldBoard) {
-            console.log('[FOCUS DEBUG] No old board - skipping change detection');
             return [];
         }
         
@@ -392,12 +382,10 @@ export class MessageHandler {
             }
         }
         
-        console.log('[FOCUS DEBUG] Detected focus targets:', focusTargets);
         return focusTargets;
     }
 
     private async unfoldColumnsForFocusTargets(focusTargets: FocusTarget[], restoredBoard: KanbanBoard) {
-        console.log('[FOCUS DEBUG] Checking focus targets for columns that need unfolding');
         const columnsToUnfold = new Set<string>();
         
         focusTargets.forEach(target => {
@@ -406,18 +394,15 @@ export class MessageHandler {
                 for (const column of restoredBoard.columns) {
                     if (column.tasks.some(task => task.id === target.id)) {
                         columnsToUnfold.add(column.id);
-                        console.log('[FOCUS DEBUG] Task', target.id, 'will be in column', column.id);
                         break;
                     }
                 }
             } else if (target.type === 'column' && target.operation === 'created') {
                 columnsToUnfold.add(target.id);
-                console.log('[FOCUS DEBUG] Column', target.id, 'is being created');
             }
         });
         
         if (columnsToUnfold.size > 0) {
-            console.log('[FOCUS DEBUG] Sending unfold message for columns:', Array.from(columnsToUnfold));
             const webviewPanel = this._getWebviewPanel();
             if (webviewPanel && webviewPanel.webview) {
                 webviewPanel.webview.postMessage({
@@ -432,7 +417,6 @@ export class MessageHandler {
     }
 
     private sendFocusTargets(focusTargets: FocusTarget[]) {
-        console.log('[FOCUS DEBUG] Sending focus targets:', focusTargets);
         const webviewPanel = this._getWebviewPanel();
         if (webviewPanel && webviewPanel.webview) {
             // Send focus message immediately - webview will wait for rendering to complete
@@ -440,9 +424,7 @@ export class MessageHandler {
                 type: 'focusAfterUndoRedo',
                 focusTargets: focusTargets
             });
-            console.log('[FOCUS DEBUG] Focus message sent to webview');
         } else {
-            console.log('[FOCUS DEBUG] No webview panel available');
         }
     }
 
@@ -469,11 +451,9 @@ export class MessageHandler {
             await this._onBoardUpdate();
             
             // Send focus information to webview after board update
-            console.log('[FOCUS DEBUG] Checking if focus targets should be sent:', focusTargets.length > 0);
             if (focusTargets.length > 0) {
                 this.sendFocusTargets(focusTargets);
             } else {
-                console.log('[FOCUS DEBUG] No focus targets to send');
             }
             
             // Reset flag after operations complete
@@ -588,7 +568,6 @@ export class MessageHandler {
         try {
             const config = vscode.workspace.getConfiguration('markdown-kanban');
             await config.update(key, value, vscode.ConfigurationTarget.Workspace);
-            console.log(`[MESSAGE DEBUG] Updated preference ${key} to ${value}`);
         } catch (error) {
             console.error(`Failed to update preference ${key}:`, error);
             vscode.window.showErrorMessage(`Failed to update ${key} preference: ${error}`);

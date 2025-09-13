@@ -3303,3 +3303,11 @@ body.font-family-consolas {
     padding: 10px;
     min-width: 0; /* Allow columns to shrink */
 }
+
+/* Mark/highlight styling */
+mark {
+    background-color: var(--vscode-editor-findMatchHighlightBackground, #ffeb3b);
+    color: var(--vscode-editor-foreground);
+    padding: 1px 2px;
+    border-radius: 2px;
+}

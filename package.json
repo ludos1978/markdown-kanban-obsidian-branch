@@ -1755,11 +1755,17 @@
           "type": "string",
           "default": "auto",
           "description": "The minimum height for task cards (e.g., 'auto', '200px', '400px', '43.5vh', '89vh')",
-          "enum": ["auto", "200px", "400px", "43.5vh", "89vh"],
+          "enum": [
+            "auto",
+            "200px",
+            "400px",
+            "43.5vh",
+            "89vh"
+          ],
           "enumDescriptions": [
             "Automatic height based on content",
             "Fixed minimum height of 200 pixels",
-            "Fixed minimum height of 400 pixels", 
+            "Fixed minimum height of 400 pixels",
             "Minimum height of 43.5% of viewport height",
             "Minimum height of 89% of viewport height"
           ]
@@ -1768,7 +1774,13 @@
           "type": "string",
           "default": "small",
           "description": "The font size for task cards and content",
-          "enum": ["small", "normal", "bigger", "large", "xlarge"],
+          "enum": [
+            "small",
+            "normal",
+            "bigger",
+            "large",
+            "xlarge"
+          ],
           "enumDescriptions": [
             "Small font size",
             "Normal/default font size",
@@ -1781,7 +1793,22 @@
           "type": "string",
           "default": "system",
           "description": "The font family for task cards and content",
-          "enum": ["system", "roboto", "opensans", "lato", "poppins", "inter", "helvetica", "arial", "georgia", "times", "firacode", "jetbrains", "sourcecodepro", "consolas"],
+          "enum": [
+            "system",
+            "roboto",
+            "opensans",
+            "lato",
+            "poppins",
+            "inter",
+            "helvetica",
+            "arial",
+            "georgia",
+            "times",
+            "firacode",
+            "jetbrains",
+            "sourcecodepro",
+            "consolas"
+          ],
           "enumDescriptions": [
             "System default fonts",
             "Roboto (Google font)",
@@ -1803,7 +1830,13 @@
           "type": "string",
           "default": "medium",
           "description": "The width of kanban columns",
-          "enum": ["small", "medium", "wide", "66", "100"],
+          "enum": [
+            "small",
+            "medium",
+            "wide",
+            "66",
+            "100"
+          ],
           "enumDescriptions": [
             "Small columns (250px)",
             "Medium columns (350px)",
@@ -1816,11 +1849,18 @@
           "type": "number",
           "default": 1,
           "description": "The number of rows in the kanban layout",
-          "enum": [1, 2, 3, 4, 5, 6],
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
           "enumDescriptions": [
             "1 row",
             "2 rows",
-            "3 rows", 
+            "3 rows",
             "4 rows",
             "5 rows",
             "6 rows"
@@ -1830,10 +1870,19 @@
           "type": "string",
           "default": "auto",
           "description": "The height of kanban rows",
-          "enum": ["95vh", "63vh", "48vh", "31.5vh", "44em", "31em", "19em", "auto"],
+          "enum": [
+            "95vh",
+            "63vh",
+            "48vh",
+            "31.5vh",
+            "44em",
+            "31em",
+            "19em",
+            "auto"
+          ],
           "enumDescriptions": [
             "100% of screen height",
-            "2/3 of screen height", 
+            "2/3 of screen height",
             "1/2 of screen height",
             "1/3 of screen height",
             "700px (~47em)",
@@ -1955,7 +2004,8 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "markdown-it": "^14.1.0"
+    "markdown-it": "^14.1.0",
+    "markdown-it-mark": "^4.0.0"
   },
   "extensionDependencies": [
     "vscode.markdown"

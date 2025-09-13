@@ -954,7 +954,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
                     class="donut-menu-tag-chip ${isActive ? 'active' : ''} ${isConfigured ? '' : 'custom-tag'}"
                     data-tag-name="${tagName}"
                     data-tag-type="${type}"
-                    onclick="console.log('🔍 DEBUG: Inline onclick triggered for ${buttonId}'); window.tagHandlers['${buttonId}'](event); return false;"
+                    onclick="window.tagHandlers['${buttonId}'](event); return false;"
                     style="background-color: ${isActive ? bgColor : 'transparent'}; 
                            color: ${isActive ? textColor : (bgDark ? bgDark : 'inherit')};
                            border-color: ${bgDark || bgColor};
@@ -1198,11 +1198,9 @@ function renderBoard() {
         updateImageSources();
         
         // Notify that rendering is complete (for focus functionality)
-        console.log('[FOCUS DEBUG] Board rendering complete - calling callback');
         if (window.onBoardRenderingComplete) {
             window.onBoardRenderingComplete();
         } else {
-            console.log('[FOCUS DEBUG] No onBoardRenderingComplete callback registered');
         }
     }, 10);
 

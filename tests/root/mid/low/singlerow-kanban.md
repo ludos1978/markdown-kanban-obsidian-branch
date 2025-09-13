@@ -6,8 +6,25 @@ kanban-plugin: board
 
 ## # H1 #urgent #blocked
 - [ ] Mario
+  ---:
+  
   ![Mario.mp4](Mario.mp4)
+  
+  :--:
+  
+  XXX
+  
+  :---
 - [ ] # Header 1
+  ---:
+  
+  a
+  
+  :--:
+  
+  b
+  
+  :---
 - [ ] ## Header 2
 - [ ] ### Header 3
 - [ ] #### Header 4
@@ -57,6 +74,7 @@ kanban-plugin: board
 - [ ] # Lorem Imspum #yellow
   Lorem ipsum dolor sit amet,
 - [ ] test #review
+  ==highlight== test
 - [ ] db #database
 - [ ] ui #ui
 

@@ -286,10 +286,14 @@ function renderMarkdown(text) {
             md.use(window.markdownitFootnote); // [^1]: footnote
         }
         if (typeof window.markdownItMulticolumn !== 'undefined') {
-            console.log('Loading markdown-it-multicolumn plugin');
             md.use(window.markdownItMulticolumn); // Multi-column layout support
         } else {
             console.warn('markdown-it-multicolumn plugin not found');
+        }
+        if (typeof window.markdownitMark !== 'undefined') {
+            md.use(window.markdownitMark); // ==mark== syntax support
+        } else {
+            console.warn('markdown-it-mark plugin not found');
         }
 
         // Note: Most other plugins can't be loaded via CDN due to CSP restrictions
@@ -311,7 +315,6 @@ function renderMarkdown(text) {
         
         md.renderer.rules.video = function(tokens, idx, options, env, renderer) {
             const token = tokens[idx];
-            console.log('Video token:', token);
             
             // Process source children to map paths
             if (token.children) {
@@ -319,10 +322,8 @@ function renderMarkdown(text) {
                     if (child.type === 'source' && child.attrGet) {
                         const originalSrc = child.attrGet('src');
                         if (originalSrc) {
-                            console.log('Original video src:', originalSrc);
                             // Use mapped path if available, otherwise use original
                             const displaySrc = (window.currentImageMappings && window.currentImageMappings[originalSrc]) || originalSrc;
-                            console.log('Mapped video src:', displaySrc);
                             child.attrSet('src', displaySrc);
                         }
                     }
@@ -334,7 +335,6 @@ function renderMarkdown(text) {
         
         md.renderer.rules.audio = function(tokens, idx, options, env, renderer) {
             const token = tokens[idx];
-            console.log('Audio token:', token);
             
             // Process source children to map paths
             if (token.children) {
@@ -342,10 +342,8 @@ function renderMarkdown(text) {
                     if (child.type === 'source' && child.attrGet) {
                         const originalSrc = child.attrGet('src');
                         if (originalSrc) {
-                            console.log('Original audio src:', originalSrc);
                             // Use mapped path if available, otherwise use original
                             const displaySrc = (window.currentImageMappings && window.currentImageMappings[originalSrc]) || originalSrc;
-                            console.log('Mapped audio src:', displaySrc);
                             child.attrSet('src', displaySrc);
                         }
                     }

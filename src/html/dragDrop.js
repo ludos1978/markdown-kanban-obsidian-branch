@@ -2,7 +2,7 @@
 // Add debugging flag
 let lastIndicatorUpdate = 0;
 const INDICATOR_UPDATE_THROTTLE = 100; // milliseconds
-const DEBUG_DROP = true;
+const DEBUG_DROP = false;
 
 // Track if drag/drop is already set up to prevent multiple listeners
 let dragDropInitialized = false;
@@ -176,12 +176,10 @@ function setupGlobalDragAndDrop() {
         // Only log on drop events to reduce spam
         const isDropEvent = e.type === 'drop';
         if (isDropEvent) {
-            console.log('[DROP DEBUG] DataTransfer types:', Array.from(dt.types));
-        }
+            }
         
         const hasFiles = Array.from(dt.types).some(t => t === 'Files' || t === 'files');
         if (hasFiles) {
-            if (isDropEvent) console.log('[DROP DEBUG] Has Files type');
             return true;
         }
         
@@ -191,17 +189,14 @@ function setupGlobalDragAndDrop() {
         const hasEmptyCard = dragState.draggedEmptyCard !== null;
         
         if (hasClipboardCard || hasEmptyCard) {
-            if (isDropEvent) console.log('[DROP DEBUG] Has clipboard/empty card');
             return true;
         }
         
         if (dragState.isDragging && (dragState.draggedColumn || dragState.draggedTask) && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
-            if (isDropEvent) console.log('[DROP DEBUG] Internal drag, not external');
             return false;
         }
         
         const hasUriList = Array.from(dt.types).some(t => t.toLowerCase() === 'text/uri-list');
-        if (isDropEvent) console.log('[DROP DEBUG] Has URI list:', hasUriList);
         return hasUriList;
     }
     
@@ -220,15 +215,6 @@ function setupGlobalDragAndDrop() {
     
     // Main drop handler function  
     function handleExternalDrop(e) {
-        console.log('[DROP DEBUG] handleExternalDrop called');
-        console.log('[DROP DEBUG] Event target:', e.target);
-        console.log('[DROP DEBUG] dragState:', {
-            isDragging: dragState.isDragging,
-            draggedColumn: !!dragState.draggedColumn,
-            draggedTask: !!dragState.draggedTask,
-            draggedClipboardCard: !!dragState.draggedClipboardCard,
-            draggedEmptyCard: !!dragState.draggedEmptyCard
-        });
         
         // Prevent default browser behavior
         e.preventDefault();
@@ -240,8 +226,7 @@ function setupGlobalDragAndDrop() {
             !dragState.draggedEmptyCard;
             
         if (isInternalDrag) {
-            console.log('[DROP DEBUG] Internal drag detected, skipping external drop handler');
-            return;
+                return;
         }
         
         // Stop event propagation to prevent duplicate handling
@@ -260,11 +245,9 @@ function setupGlobalDragAndDrop() {
             return;
         }
         
-        console.log('[DROP DEBUG] DataTransfer types:', Array.from(dt.types));
         
         // Priority 1: Check dragState for clipboard/empty cards (most reliable)
         if (dragState.draggedClipboardCard) {
-            console.log('[DROP DEBUG] Processing clipboard card from dragState');
             const clipboardData = JSON.stringify({
                 type: 'clipboard-card',
                 task: dragState.draggedClipboardCard
@@ -276,7 +259,6 @@ function setupGlobalDragAndDrop() {
         }
         
         if (dragState.draggedEmptyCard) {
-            console.log('[DROP DEBUG] Processing empty card from dragState');
             const emptyCardData = JSON.stringify({
                 type: 'empty-card',
                 task: dragState.draggedEmptyCard
@@ -289,31 +271,25 @@ function setupGlobalDragAndDrop() {
         
         // Priority 2: Check for files
         if (dt.files && dt.files.length > 0) {
-            console.log('[DROP DEBUG] Handling file drop');
             handleVSCodeFileDrop(e, dt.files);
             return;
         }
         
         // Priority 3: Check text data for special formats
         const textData = dt.getData('text/plain');
-        console.log('[DROP DEBUG] Text data:', textData);
         
         if (textData) {
             if (textData.startsWith('CLIPBOARD_CARD:')) {
-                console.log('[DROP DEBUG] Handling clipboard card from text');
                 const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
                 handleClipboardCardDrop(e, clipboardData);
             } else if (textData.startsWith('EMPTY_CARD:')) {
-                console.log('[DROP DEBUG] Handling empty card from text');
                 const emptyCardData = textData.substring('EMPTY_CARD:'.length);
                 handleEmptyCardDrop(e, emptyCardData);
             } else if (textData.includes('/')) {
                 // Looks like a file path
-                console.log('[DROP DEBUG] Handling path-like text');
                 handleVSCodeUriDrop(e, textData);
             } else {
                 // Plain text - create a new card
-                console.log('[DROP DEBUG] Creating new card from plain text');
                 createNewTaskWithContent(
                     textData,
                     { x: e.clientX, y: e.clientY },
@@ -326,12 +302,10 @@ function setupGlobalDragAndDrop() {
         // Priority 4: Check for URI list
         const uriList = dt.getData('text/uri-list');
         if (uriList) {
-            console.log('[DROP DEBUG] Handling URI list');
             handleVSCodeUriDrop(e, uriList);
             return;
         }
         
-        console.log('[DROP DEBUG] No suitable data found in drop');
     }
     
     // Register handlers on the container (works for both single row and multi-row)
@@ -434,7 +408,6 @@ function setupGlobalDragAndDrop() {
     
     // Global dragend handler to ensure cleanup
     document.addEventListener('dragend', function(e) {
-        console.log('[DROP DEBUG] Global dragend - cleaning up all drag states');
         
         // Clean up any lingering indicators when drag ends
         hideDropFeedback();
@@ -467,13 +440,6 @@ function setupGlobalDragAndDrop() {
         // Always reset the main flags
         dragState.isDragging = false;
         
-        console.log('[DROP DEBUG] Drag state after cleanup:', {
-            isDragging: dragState.isDragging,
-            draggedColumn: !!dragState.draggedColumn,
-            draggedTask: !!dragState.draggedTask,
-            draggedClipboardCard: !!dragState.draggedClipboardCard,
-            draggedEmptyCard: !!dragState.draggedEmptyCard
-        });
     }, false);
     
 }
@@ -604,7 +570,6 @@ function getActiveTextEditor() {
  * Side effects: Sends create task message to VS Code
  */
 function createNewTaskWithContent(content, dropPosition, description = '') {
-    console.log('[DROP DEBUG] createNewTaskWithContent called with:', { content, dropPosition, description });
     
     // Check board availability - NEW CACHE SYSTEM
     
@@ -631,7 +596,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     let insertionIndex = -1;
     
     const elementAtPoint = document.elementFromPoint(dropPosition.x, dropPosition.y);
-    console.log('[DROP DEBUG] Element at drop point:', elementAtPoint);
     
     // Try multiple strategies to find the column
     let columnElement = elementAtPoint?.closest('.kanban-full-height-column');
@@ -641,7 +605,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         // Check if we're on a row
         const row = elementAtPoint?.closest('.kanban-row');
         if (row) {
-            console.log('[DROP DEBUG] Found row, looking for column in row');
             // Find the column that contains this x position
             const columns = row.querySelectorAll('.kanban-full-height-column');
             for (const col of columns) {
@@ -654,23 +617,19 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         }
     }
     
-    console.log('[DROP DEBUG] Column element after strategies:', columnElement);
     
     if (columnElement) {
         targetColumnId = columnElement.dataset.columnId;
         
         // Unfold the column if it's collapsed
         if (columnElement.classList.contains('collapsed')) {
-            console.log('[DROP DEBUG] Column is collapsed, unfolding before drop');
             if (typeof unfoldColumnIfCollapsed === 'function') {
                 unfoldColumnIfCollapsed(targetColumnId);
             }
         }
         
         insertionIndex = calculateInsertionIndex(columnElement, dropPosition.y);
-        console.log('[DROP DEBUG] Found column:', targetColumnId, 'at index:', insertionIndex);
     } else {
-        console.log('[DROP DEBUG] No direct column found, searching for nearest');
         const columns = document.querySelectorAll('.kanban-full-height-column'); // Allow collapsed columns
         let minDistance = Infinity;
         
@@ -686,7 +645,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
                 
                 // Unfold the nearest column if it's collapsed
                 if (column.classList.contains('collapsed')) {
-                    console.log('[DROP DEBUG] Nearest column is collapsed, unfolding');
                     if (typeof unfoldColumnIfCollapsed === 'function') {
                         unfoldColumnIfCollapsed(targetColumnId);
                     }
@@ -697,12 +655,10 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         });
         
         if (targetColumnId) {
-            console.log('[DROP DEBUG] Using nearest column:', targetColumnId);
         }
     }
     
     if (!targetColumnId && window.cachedBoard.columns.length > 0) {
-        console.log('[DROP DEBUG] No target column yet, using first available column');
         // Try non-collapsed first, then any column
         let fallbackColumn = window.cachedBoard.columns.find(col => 
             !window.collapsedColumns || !window.collapsedColumns.has(col.id)
@@ -711,7 +667,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
         if (!fallbackColumn) {
             // If all columns are collapsed, use the first one and unfold it
             fallbackColumn = window.cachedBoard.columns[0];
-            console.log('[DROP DEBUG] All columns collapsed, using first column and unfolding');
         }
         
         if (fallbackColumn) {
@@ -723,7 +678,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             }
             
             insertionIndex = -1;
-            console.log('[DROP DEBUG] Using fallback column:', targetColumnId);
         }
     }
     
@@ -740,7 +694,6 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             insertionIndex: insertionIndex
         };
         
-        console.log('[DROP DEBUG] Sending message to VS Code:', message);
         vscode.postMessage(message);
     } else {
         console.error('[DROP DEBUG] Could not find any suitable column');
