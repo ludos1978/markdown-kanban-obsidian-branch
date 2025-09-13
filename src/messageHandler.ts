@@ -84,6 +84,11 @@ export class MessageHandler {
                 await this.handleRequestIncludeFile(message.filePath);
                 break;
 
+            // Runtime function tracking report
+            case 'runtimeTrackingReport':
+                await this.handleRuntimeTrackingReport(message.report);
+                break;
+
             // Special request for board update
             case 'requestBoardUpdate':
                 await this._onBoardUpdate();
@@ -666,6 +671,41 @@ export class MessageHandler {
 
         } catch (error) {
             console.error('[MESSAGE HANDLER] Error handling include file request:', error);
+        }
+    }
+
+    private async handleRuntimeTrackingReport(report: any): Promise<void> {
+        console.log('[MESSAGE HANDLER] Received runtime tracking report');
+
+        try {
+            // Save runtime report to file
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `runtime-tracking-${report.metadata.sessionId}-${timestamp}.json`;
+            const reportPath = path.join(__dirname, '..', '..', 'tools', 'reports', filename);
+
+            // Ensure reports directory exists
+            const reportsDir = path.dirname(reportPath);
+            if (!fs.existsSync(reportsDir)) {
+                fs.mkdirSync(reportsDir, { recursive: true });
+            }
+
+            // Write report
+            fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+
+            console.log(`[MESSAGE HANDLER] Runtime tracking report saved: ${reportPath}`);
+
+            // Log summary
+            if (report.summary) {
+                console.log(`[MESSAGE HANDLER] Session summary:`, {
+                    duration: Math.round(report.metadata.duration / 1000) + 's',
+                    totalCalls: report.summary.totalCalls,
+                    uniqueFunctions: report.summary.uniqueFunctions,
+                    mostCalled: report.summary.mostCalled?.[0]?.name
+                });
+            }
+
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error saving runtime tracking report:', error);
         }
     }
 }

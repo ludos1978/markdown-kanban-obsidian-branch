@@ -1036,6 +1036,7 @@ export class KanbanWebviewPanel {
         
         // Replace all JavaScript file references
         const jsFiles = [
+            'runtime-tracker.js',
             'markdownRenderer.js',
             'taskEditor.js',
             'boardRenderer.js',

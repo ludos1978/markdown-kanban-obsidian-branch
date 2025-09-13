@@ -3411,10 +3411,12 @@ s {
     font-family: var(--vscode-font-family);
     border: 1px solid var(--vscode-errorBorder, rgba(255, 0, 0, 0.3));
 }
-
+d
 .included-content-inline {
     /* Inline included content should blend seamlessly */
-    display: inline;
+    display: block;
+    border-top: 1px solid gray;
+    border-bottom: 1px solid gray;
 }
 
 .included-content {

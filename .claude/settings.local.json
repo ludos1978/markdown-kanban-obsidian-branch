@@ -21,7 +21,9 @@
       "WebSearch",
       "WebFetch(domain:cdn.jsdelivr.net)",
       "WebFetch(domain:unpkg.com)",
-      "Bash(open test-multicolumn.html)"
+      "Bash(open test-multicolumn.html)",
+      "Bash(npm run analyze-cleanup:*)",
+      "Read(//Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/**)"
     ],
     "deny": [],
     "ask": []
