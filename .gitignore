@@ -14,3 +14,5 @@ src/extension.js
 src/test/extension.test.js.map
 src/test/extension.test.js
 .*.md
+tools/reports
+code-analysis-report.json

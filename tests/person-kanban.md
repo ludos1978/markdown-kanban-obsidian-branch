@@ -13,7 +13,7 @@ kanban-plugin: board
 
 ## #gather_anita
 - [ ] @anita
-- [ ] @anita
+- [ ] @anita @susanne
   X
 
 ## #gather_reto|anita

@@ -23,7 +23,8 @@
       "WebFetch(domain:unpkg.com)",
       "Bash(open test-multicolumn.html)",
       "Bash(npm run analyze-cleanup:*)",
-      "Read(//Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/**)"
+      "Read(//Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/**)",
+      "Bash(npm test)"
     ],
     "deny": [],
     "ask": []

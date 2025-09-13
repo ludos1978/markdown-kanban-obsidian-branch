@@ -10,6 +10,4 @@ kanban-plugin: board
 ## 2 #row2
 - [ ] B
 
-## 
-
 
