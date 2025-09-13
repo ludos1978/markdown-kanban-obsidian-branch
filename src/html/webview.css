@@ -143,17 +143,13 @@ body {
   border-color: var(--vscode-inputValidation-warningBorder);
 }
 
-/* Refresh includes button in file-info-left */
-.file-info-left .refresh-includes-btn {
-  margin-left: 8px;
-  border: 1px solid var(--vscode-inputValidation-warningBorder);
-  padding: 2px 6px;
-  font-size: 12px;
-  border-radius: 3px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+/* Refresh includes button - icon only, warning colors */
+.refresh-includes-btn .refresh-includes-text {
+  display: none; /* Hide text, show only icon */
+}
+
+.refresh-includes-btn .refresh-includes-icon {
+  font-size: 14px;
 }
 
 /* Responsive file info header - collapse to icons when space is limited */
