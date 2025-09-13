@@ -581,33 +581,9 @@ function applyFoldingStates() {
         return;
     }
     
-    // Check if the saved folding state is inconsistent with current board content
-    let shouldResetToDefaults = false;
-    
-    // Check each column's current state vs. what it should be based on content
-    for (const column of currentBoard.columns) {
-        const hasNoTasks = !column.tasks || column.tasks.length === 0;
-        const isCurrentlyCollapsed = window.collapsedColumns.has(column.id);
-        
-        // Check for inconsistencies:
-        // 1. Empty column that should be collapsed but isn't in collapsed set
-        // 2. Non-empty column that should be expanded but is in collapsed set
-        const shouldBeCollapsed = hasNoTasks;  // Default rule: empty columns collapsed
-        
-        // Check for inconsistencies and reset if found
-        if (shouldBeCollapsed !== isCurrentlyCollapsed) {
-            shouldResetToDefaults = true;
-            break;
-        }
-    }
-    
-    // Also reset if we have no global state set (fresh load)
+    // Only reset to defaults if this is a truly fresh load (no global state at all)
+    // Don't reset for "inconsistencies" as this causes unwanted unfolding when adding tasks to empty columns
     if (!window.globalColumnFoldState) {
-        shouldResetToDefaults = true;
-    }
-    
-    // If inconsistencies detected, apply the default folding logic
-    if (shouldResetToDefaults) {
         setDefaultFoldingState();
     }
     

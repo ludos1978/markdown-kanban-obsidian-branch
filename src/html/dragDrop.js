@@ -512,7 +512,8 @@ function handleVSCodeFileDrop(e, files) {
             x: e.clientX,
             y: e.clientY
         },
-        activeEditor: activeEditor
+        activeEditor: activeEditor,
+        skipRender: true  // Prevent automatic board re-render that would unfold all columns
     };
     
     vscode.postMessage(message);
@@ -534,7 +535,8 @@ function handleVSCodeUriDrop(e, uriData) {
                 x: e.clientX,
                 y: e.clientY
             },
-            activeEditor: getActiveTextEditor()
+            activeEditor: getActiveTextEditor(),
+            skipRender: true  // Prevent automatic board re-render that would unfold all columns
         });
     } else {
         vscode.postMessage({
@@ -691,9 +693,10 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             type: 'addTaskAtPosition',
             columnId: targetColumnId,
             taskData: taskData,
-            insertionIndex: insertionIndex
+            insertionIndex: insertionIndex,
+            skipRender: true  // Prevent automatic board re-render that would unfold all columns
         };
-        
+
         vscode.postMessage(message);
     } else {
         console.error('[DROP DEBUG] Could not find any suitable column');
