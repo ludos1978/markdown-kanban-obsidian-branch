@@ -761,10 +761,12 @@ function toggleFileBarMenu(event, button) {
 function applyColumnWidth(size) {
     currentColumnWidth = size;
     
-    // Remove all existing column width classes
+    // Remove all existing column width classes and span classes (global width overrides span)
     const columns = document.querySelectorAll('.kanban-full-height-column');
     columns.forEach(column => {
         column.classList.remove('column-width-66', 'column-width-100');
+        // Remove span classes since global column width takes precedence
+        column.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
     });
     
     // Handle pixel-based and percentage-based widths differently

@@ -335,9 +335,10 @@ class TaskEditor {
                         // Remove old span classes
                         columnElement.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
 
-                        // Check for new span tag
+                        // Check for new span tag (only if no global column width override)
                         const spanMatch = column.title.match(/#span(\d+)\b/i);
-                        if (spanMatch) {
+                        const hasGlobalColumnWidth = window.currentColumnWidth && (window.currentColumnWidth === '66' || window.currentColumnWidth === '100');
+                        if (spanMatch && !hasGlobalColumnWidth) {
                             const spanCount = parseInt(spanMatch[1]);
                             if (spanCount >= 2 && spanCount <= 4) {
                                 columnElement.classList.add(`column-span-${spanCount}`);

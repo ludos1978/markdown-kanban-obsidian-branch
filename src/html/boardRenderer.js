@@ -1325,10 +1325,11 @@ function createColumnElement(column, columnIndex) {
         if (footerBarsHtml.includes('label')) footerClasses += ' has-footer-label';
     }
     
-    // Check for span tag to set column width
+    // Check for span tag to set column width (only if no global column width override)
     let spanClass = '';
     const spanMatch = column.title.match(/#span(\d+)\b/i);
-    if (spanMatch) {
+    const hasGlobalColumnWidth = window.currentColumnWidth && (window.currentColumnWidth === '66' || window.currentColumnWidth === '100');
+    if (spanMatch && !hasGlobalColumnWidth) {
         const spanCount = parseInt(spanMatch[1]);
         if (spanCount >= 2 && spanCount <= 4) { // Limit to reasonable span values
             spanClass = `column-span-${spanCount}`;
