@@ -847,10 +847,10 @@ function changeColumnSpan(columnId, delta) {
     // Update the column element immediately
     const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
     if (columnElement) {
-        // Update CSS classes (only if no global column width override)
+        // Update CSS classes (only blocked by viewport-based widths, not pixel widths)
         columnElement.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
-        const hasGlobalColumnWidth = window.currentColumnWidth && (window.currentColumnWidth === '66' || window.currentColumnWidth === '100');
-        if (newSpan >= 2 && !hasGlobalColumnWidth) {
+        const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '66' || window.currentColumnWidth === '100');
+        if (newSpan >= 2 && !hasViewportWidth) {
             columnElement.classList.add(`column-span-${newSpan}`);
         }
 

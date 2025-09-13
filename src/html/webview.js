@@ -766,12 +766,14 @@ function toggleFileBarMenu(event, button) {
 function applyColumnWidth(size) {
     currentColumnWidth = size;
     
-    // Remove all existing column width classes and span classes (global width overrides span)
+    // Remove all existing column width classes
     const columns = document.querySelectorAll('.kanban-full-height-column');
     columns.forEach(column => {
         column.classList.remove('column-width-66', 'column-width-100');
-        // Remove span classes since global column width takes precedence
-        column.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
+        // Only remove span classes for viewport-based widths (66%, 100%), not pixel widths
+        if (size === '66' || size === '100') {
+            column.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
+        }
     });
     
     // Handle pixel-based and percentage-based widths differently
@@ -797,6 +799,12 @@ function applyColumnWidth(size) {
                 break;
         }
         document.documentElement.style.setProperty('--column-width', width);
+
+        // For pixel widths, re-apply span classes if they exist
+        // Trigger a re-render to restore span classes from column titles
+        if (window.currentBoard) {
+            renderBoard(window.currentBoard, { skipRender: false });
+        }
     }
 }
 

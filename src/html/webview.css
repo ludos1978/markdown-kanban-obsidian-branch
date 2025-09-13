@@ -3543,18 +3543,25 @@ d
 }
 
 /* Image Fill Controls */
-/* Default: Images fit their natural content size */
-.image-fill-fit img {
-    max-width: 100%;
-    height: auto;
-    object-fit: contain;
+/* Default: Images fit their natural content size (use existing behavior) */
+.image-fill-fit .task-title-container .markdown-content img,
+.image-fill-fit .task-description-container .markdown-content img {
+    /* Use existing default styles */
 }
 
-/* Fill Space: Images fill available space while keeping aspect ratio */
-.image-fill-fill img {
-    width: 100%;
-    height: 100%;
-    max-height: 300px; /* Prevent images from becoming too tall */
-    object-fit: cover;
-    object-position: center;
+/* Fill Space: Images scale to use available space while maintaining aspect ratio */
+.image-fill-fill .task-title-container .markdown-content img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 80px !important; /* Slightly larger than default 60px for titles */
+    object-fit: contain !important;
+    object-position: left !important;
+}
+
+.image-fill-fill .task-description-container .markdown-content img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 500px !important; /* Larger than default 400px for descriptions */
+    object-fit: contain !important;
+    object-position: left !important;
 }
