@@ -499,50 +499,45 @@ function handleEmptyCardDrop(e, emptyCardData) {
 }
 
 function handleVSCodeFileDrop(e, files) {
-    
     const file = files[0];
     const fileName = file.name;
-    
-    const activeEditor = getActiveTextEditor();
-    
-    const message = {
-        type: 'handleFileDrop',
-        fileName: fileName,
-        dropPosition: {
-            x: e.clientX,
-            y: e.clientY
-        },
-        activeEditor: activeEditor,
-        skipRender: true  // Prevent automatic board re-render that would unfold all columns
-    };
-    
-    vscode.postMessage(message);
+
+    // Create a file reference task using cache-first approach
+    const fileContent = `[[${fileName}]]`; // Use Obsidian-style file links
+
+    createNewTaskWithContent(
+        fileContent,
+        { x: e.clientX, y: e.clientY },
+        `Dropped file: ${fileName}`
+    );
 }
 
 
 function handleVSCodeUriDrop(e, uriData) {
-
     const uris = uriData.split('\n').filter(uri => uri.trim()).filter(uri => {
         const isFile = uri.startsWith('file://') || (uri.includes('/') && !uri.includes('task_') && !uri.includes('col_'));
         return isFile;
     });
-    
+
     if (uris.length > 0) {
-        vscode.postMessage({
-            type: 'handleUriDrop',
-            uris: uris,
-            dropPosition: {
-                x: e.clientX,
-                y: e.clientY
-            },
-            activeEditor: getActiveTextEditor(),
-            skipRender: true  // Prevent automatic board re-render that would unfold all columns
+        // Create tasks for each URI using cache-first approach
+        uris.forEach((uri, index) => {
+            let displayUri = uri;
+            if (uri.startsWith('file://')) {
+                // Extract just the filename from file:// URIs
+                displayUri = decodeURIComponent(uri).split('/').pop() || uri;
+            }
+
+            const content = `[[${displayUri}]]`;
+            const description = `Dropped URI: ${uri}`;
+
+            // Stagger the creation slightly if multiple files
+            setTimeout(() => {
+                createNewTaskWithContent(content, { x: e.clientX, y: e.clientY }, description);
+            }, index * 10);
         });
     } else {
-        vscode.postMessage({
-            type: 'showMessage',
-            text: 'Could not process the dropped file. Please try dragging from the Explorer panel.'
-        });
+        console.warn('Could not process the dropped file URIs');
     }
 }
 
@@ -684,20 +679,32 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     }
     
     if (targetColumnId) {
-        const taskData = {
+        // Create new task with cache-first approach (no VS Code message)
+        const newTask = {
+            id: `temp-drop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             title: content,
             description: description
         };
-        
-        const message = {
-            type: 'addTaskAtPosition',
-            columnId: targetColumnId,
-            taskData: taskData,
-            insertionIndex: insertionIndex,
-            skipRender: true  // Prevent automatic board re-render that would unfold all columns
-        };
 
-        vscode.postMessage(message);
+        // Update cached board directly
+        if (typeof updateCacheForNewTask === 'function') {
+            updateCacheForNewTask(targetColumnId, newTask, insertionIndex);
+        }
+
+        // Mark as unsaved changes
+        if (typeof markUnsavedChanges === 'function') {
+            markUnsavedChanges();
+        }
+
+        // Update refresh button to show unsaved state
+        if (typeof updateRefreshButtonState === 'function') {
+            updateRefreshButtonState('unsaved', 1);
+        }
+
+        // Re-render board to show the new task
+        if (typeof renderBoard === 'function') {
+            renderBoard();
+        }
     } else {
         console.error('[DROP DEBUG] Could not find any suitable column');
         vscode.postMessage({ 

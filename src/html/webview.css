@@ -433,7 +433,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 /* Kanban board */
 .kanban-board {
   display: flex;
-  gap: var(--whitespace);
+  /* gap: var(--whitespace); */
   flex-wrap: nowrap;
   width: max-content; /* Allow horizontal expansion */
   align-items: flex-start;
