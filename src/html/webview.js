@@ -1825,6 +1825,14 @@ window.addEventListener('message', event => {
                 refreshIncludesBtn.style.display = message.hasChanges ? 'flex' : 'none';
             }
             break;
+        case 'includeFileContent':
+            // Handle include file content response from backend
+            if (typeof window.updateIncludeFileCache === 'function') {
+                window.updateIncludeFileCache(message.filePath, message.content);
+            } else {
+                console.warn('updateIncludeFileCache function not available');
+            }
+            break;
     }
 });
 

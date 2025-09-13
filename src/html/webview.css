@@ -3369,3 +3369,45 @@ s {
     color: var(--vscode-descriptionForeground, #888);
     font-size: 0.9em;
 }
+
+/* Include file processing styles */
+.include-placeholder {
+    display: inline-block;
+    padding: 2px 6px;
+    background-color: var(--vscode-badge-background, rgba(0, 122, 204, 0.2));
+    color: var(--vscode-badge-foreground, var(--vscode-foreground));
+    border-radius: 3px;
+    font-size: 0.85em;
+    font-family: var(--vscode-font-family);
+    border: 1px solid var(--vscode-panel-border, rgba(255, 255, 255, 0.1));
+    animation: pulse 2s infinite;
+}
+
+.include-error {
+    display: inline-block;
+    padding: 2px 6px;
+    background-color: var(--vscode-errorBackground, rgba(255, 0, 0, 0.1));
+    color: var(--vscode-errorForeground, #ff6b6b);
+    border-radius: 3px;
+    font-size: 0.85em;
+    font-family: var(--vscode-font-family);
+    border: 1px solid var(--vscode-errorBorder, rgba(255, 0, 0, 0.3));
+}
+
+.included-content-inline {
+    /* Inline included content should blend seamlessly */
+    display: inline;
+}
+
+.included-content {
+    /* Block included content can have subtle visual indication */
+    border-left: 2px solid var(--vscode-panel-border, rgba(255, 255, 255, 0.1));
+    padding-left: 8px;
+    margin: 4px 0;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
