@@ -1737,11 +1737,23 @@ function handleColumnTitleClick(event, columnId) {
         if (handleLinkOrImageOpen(event, event.target)) return;
         return; // Don't edit if Alt is pressed
     }
-    
-    // Default: always edit
+
+    // Default: unfold if collapsed, then edit
     event.preventDefault();
     event.stopPropagation();
-    editColumnTitle(columnId);
+
+    const column = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (column && column.classList.contains('collapsed')) {
+        // Unfold the column first
+        toggleColumnCollapse(columnId);
+        // Use a short delay to allow the unfold animation to start, then enter edit mode
+        setTimeout(() => {
+            editColumnTitle(columnId);
+        }, 50);
+    } else {
+        // Column is already unfolded, edit immediately
+        editColumnTitle(columnId);
+    }
 }
 
 function handleTaskTitleClick(event, element, taskId, columnId) {

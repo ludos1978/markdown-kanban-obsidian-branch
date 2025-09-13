@@ -16,7 +16,46 @@ kanban-plugin: board
 - [ ] Lorem Imspum #todo #high
   Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam
 
-## ## H2 #todo
+## # H1 #urgent #blocked
+- [ ] Mario
+  ---:
+  
+  ![Mario.mp4](Mario.mp4)
+  
+  :--:
+  
+  XXX
+  
+  :---
+- [ ] 
+  !!!include(include2.md)!!!
+- [ ] # Header 1
+  ---:
+  
+  a
+  
+  :--:
+  
+  b
+  
+  :---
+- [ ] ## Header 2
+  !!!include(include.md)!!!
+  
+  !!!include(include2.md)!!!
+- [ ] ### Header 3
+- [ ] #### Header 4
+- [ ] ##### Header 5
+- [ ] ###### Header 6
+- [ ] Lorem Imspum #green
+  Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+
+## 
+- [ ] xx
+- [ ] ![green](../green.png)
+  ![green](../green.png)
+
+## ## H2 #todo #row2
 - [ ] # Lorem Imspum #yellow
   Lorem ipsum dolor sit amet,
 - [ ] Lorem Imspum #green
@@ -73,40 +112,11 @@ kanban-plugin: board
   #### 4
 - [ ] ui #ui
 
-## # H1 #urgent #blocked
-- [ ] Mario
-  ---:
-  
-  ![Mario.mp4](Mario.mp4)
-  
-  :--:
-  
-  XXX
-  
-  :---
-- [ ] 
-  !!!include(include2.md)!!!
-- [ ] # Header 1
-  ---:
-  
-  a
-  
-  :--:
-  
-  b
-  
-  :---
-- [ ] ## Header 2
-  !!!include(include.md)!!!
-  
-  !!!include(include2.md)!!!
-- [ ] ### Header 3
-- [ ] #### Header 4
-- [ ] ##### Header 5
-- [ ] ###### Header 6
-- [ ] Lorem Imspum #green
-  Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+## row 3 #row2
+- [ ] a
+- [ ] a
 
-## 
+## bla #span3 #row3
+- [ ] x
 
 

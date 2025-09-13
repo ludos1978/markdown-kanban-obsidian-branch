@@ -628,13 +628,13 @@ function editDescription(element, taskId, columnId) {
  */
 function editColumnTitle(columnId) {
     // Don't start editing if we're already editing this column
-    if (taskEditor.currentEditor && 
+    if (taskEditor.currentEditor &&
         taskEditor.currentEditor.type === 'column-title' &&
         taskEditor.currentEditor.columnId === columnId) {
         return; // Already editing this column title
     }
     const column = document.querySelector(`[data-column-id="${columnId}"]`);
-    if (column && !column.classList.contains('collapsed')) {
+    if (column) {
         taskEditor.startEdit(column, 'column-title', null, columnId);
     }
 }
