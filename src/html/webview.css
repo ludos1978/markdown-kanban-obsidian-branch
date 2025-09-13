@@ -3157,17 +3157,17 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 
 /* Column Span Classes - for columns that span multiple widths */
 .kanban-full-height-column.column-span-2 {
-  width: calc(var(--column-width) * 2 + 10px) !important; /* 2x width plus gap */
+  width: calc(var(--column-width) * 2 + var(--whitespace)) !important; /* 2x width plus 1 gap */
   flex-shrink: 0;
 }
 
 .kanban-full-height-column.column-span-3 {
-  width: calc(var(--column-width) * 3 + 20px) !important; /* 3x width plus gaps */
+  width: calc(var(--column-width) * 3 + var(--whitespace) * 2) !important; /* 3x width plus 2 gaps */
   flex-shrink: 0;
 }
 
 .kanban-full-height-column.column-span-4 {
-  width: calc(var(--column-width) * 4 + 30px) !important; /* 4x width plus gaps */
+  width: calc(var(--column-width) * 4 + var(--whitespace) * 3) !important; /* 4x width plus 3 gaps */
   flex-shrink: 0;
 }
 
