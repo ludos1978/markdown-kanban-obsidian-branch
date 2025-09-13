@@ -6,6 +6,7 @@ export interface KanbanTask {
   id: string;
   title: string;
   description?: string;
+  rawDescription?: string; // Original description before include processing
 }
 
 export interface KanbanColumn {
@@ -75,23 +76,11 @@ export class MarkdownKanbanParser {
   }
 
   static parseMarkdown(content: string, basePath?: string): { board: KanbanBoard, includedFiles: string[] } {
-      // Process includes if basePath is provided
-      let processedContent = content;
+      // First parse with original content to preserve raw descriptions
+      const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+
+      // Track included files for watcher setup
       let includedFiles: string[] = [];
-
-      if (basePath) {
-        try {
-          const includeResult = this.processIncludes(content, basePath);
-          processedContent = includeResult.content;
-          includedFiles = includeResult.includedFiles;
-        } catch (error) {
-          console.error('Error processing includes:', error);
-          // Fall back to original content if include processing fails
-          processedContent = content;
-        }
-      }
-
-      const lines = processedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
       const board: KanbanBoard = {
         valid: false,
         title: '',
@@ -194,7 +183,8 @@ export class MarkdownKanbanParser {
             currentTask = {
               id: IdGenerator.generateTaskId(),
               title: taskTitle,
-              description: ''
+              description: '',
+              rawDescription: ''
             };
             
             taskIndexInColumn++;
@@ -210,6 +200,15 @@ export class MarkdownKanbanParser {
           if (line.startsWith('  ')) {
             descLine = line.substring(2);
           }
+
+          // Store raw description (original content with includes)
+          if (!currentTask.rawDescription) {
+            currentTask.rawDescription = descLine;
+          } else {
+            currentTask.rawDescription += '\n' + descLine;
+          }
+
+          // Store processed description (for initial display)
           if (!currentTask.description) {
             currentTask.description = descLine;
           } else {
@@ -235,12 +234,42 @@ export class MarkdownKanbanParser {
         board.kanbanFooter = footerLines.join('\n');
       }
 
+      // Process includes for display descriptions if basePath is provided
+      if (basePath) {
+        try {
+          for (const column of board.columns) {
+            for (const task of column.tasks) {
+              if (task.rawDescription) {
+                // Process includes in the description and track included files
+                const includeResult = this.processIncludes(task.rawDescription, basePath);
+                task.description = includeResult.content;
+                // Merge included files
+                includedFiles = [...includedFiles, ...includeResult.includedFiles];
+              }
+            }
+          }
+          // Remove duplicates from included files
+          includedFiles = [...new Set(includedFiles)];
+        } catch (error) {
+          console.error('Error processing includes in task descriptions:', error);
+        }
+      }
+
       return { board, includedFiles };
   }
 
   private static finalizeCurrentTask(task: KanbanTask | null, column: KanbanColumn | null): void {
     if (!task || !column) return;
 
+    // Clean up rawDescription
+    if (task.rawDescription) {
+      task.rawDescription = task.rawDescription.trimEnd();
+      if (task.rawDescription === '') {
+        delete task.rawDescription;
+      }
+    }
+
+    // Clean up processed description
     if (task.description) {
       task.description = task.description.trimEnd();
       if (task.description === '') {
@@ -270,9 +299,10 @@ export class MarkdownKanbanParser {
       for (const task of column.tasks) {
         markdown += `- [ ] ${task.title}\n`;
 
-        // Add description with proper indentation
-        if (task.description && task.description.trim() !== '') {
-          const descriptionLines = task.description.split('\n');
+        // Add description with proper indentation (use raw description if available)
+        const descriptionToUse = task.rawDescription || task.description;
+        if (descriptionToUse && descriptionToUse.trim() !== '') {
+          const descriptionLines = descriptionToUse.split('\n');
           for (const descLine of descriptionLines) {
             markdown += `  ${descLine}\n`;
           }

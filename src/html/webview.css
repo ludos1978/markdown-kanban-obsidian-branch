@@ -143,6 +143,19 @@ body {
   border-color: var(--vscode-inputValidation-warningBorder);
 }
 
+/* Refresh includes button in file-info-left */
+.file-info-left .refresh-includes-btn {
+  margin-left: 8px;
+  border: 1px solid var(--vscode-inputValidation-warningBorder);
+  padding: 2px 6px;
+  font-size: 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Responsive file info header - collapse to icons when space is limited */
 @container (max-width: 320px) {
   /* Hide text labels, show only icons for file info buttons */

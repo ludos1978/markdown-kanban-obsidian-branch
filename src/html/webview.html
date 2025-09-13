@@ -40,6 +40,10 @@
             <div class="file-info-left">
                 <span class="file-icon">📄</span>
                 <span id="file-name" class="file-name">No file loaded</span>
+                <button id="refresh-includes-btn" class="refresh-includes-btn" onclick="refreshIncludes()" title="Refresh included files (files have changed)" style="display: none;">
+                    <span class="refresh-includes-icon">📄↻</span>
+                    <span class="refresh-includes-text">Includes</span>
+                </button>
             </div>
             <div class="file-info-center">
                 <div id="empty-card-source" class="empty-card-source" draggable="true" title="Drag to create empty card" ondragstart="handleEmptyCardDragStart(event)" ondragend="handleEmptyCardDragEnd(event)">
@@ -70,11 +74,6 @@
                 <button id="refresh-btn" class="refresh-btn" onclick="manualRefresh()" title="Refresh from source markdown">
                     <span class="refresh-icon">↻</span>
                     <span class="refresh-text">Refresh</span>
-                </button>
-
-                <button id="refresh-includes-btn" class="refresh-includes-btn" onclick="refreshIncludes()" title="Refresh included files (files have changed)" style="display: none;">
-                    <span class="refresh-includes-icon">📄↻</span>
-                    <span class="refresh-includes-text">Includes</span>
                 </button>
 
                 <!-- File Bar Burger Menu -->

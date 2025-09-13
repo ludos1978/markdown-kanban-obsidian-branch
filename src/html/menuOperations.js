@@ -2114,13 +2114,17 @@ function manualRefresh() {
 
 // Refresh includes function
 function refreshIncludes() {
+    console.log('[FRONTEND] Refresh includes button clicked');
+
     // Hide the refresh includes button
     const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
     if (refreshIncludesBtn) {
         refreshIncludesBtn.style.display = 'none';
+        console.log('[FRONTEND] Refresh includes button hidden');
     }
 
     // Send message to backend to refresh includes
+    console.log('[FRONTEND] Sending refreshIncludes message to backend');
     vscode.postMessage({ type: 'refreshIncludes' });
     vscode.postMessage({ type: 'showMessage', text: 'Refreshing included files...' });
 }

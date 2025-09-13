@@ -26,6 +26,10 @@ kanban-plugin: board
   
   :---
 - [ ] ## Header 2
+  !!!include(include.md)!!!
+  
+  !!!include(include2.md)!!!
+  
 - [ ] ### Header 3
 - [ ] #### Header 4
 - [ ] ##### Header 5

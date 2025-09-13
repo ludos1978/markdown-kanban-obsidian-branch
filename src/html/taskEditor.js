@@ -334,46 +334,64 @@ class TaskEditor {
                 const task = column?.tasks.find(t => t.id === taskId);
                 
                 if (task) {
-                    const field = type === 'task-title' ? 'title' : 'description';
-                    
-                    // Only save undo state if the value actually changed
-                    if (task[field] !== value) {
-                        // Create context for this edit to determine if it's the same field being edited
-                        const editContext = `${type}-${taskId}-${columnId}`;
-                        
-                        
-                        // CRITICAL FIX: Save undo state BEFORE making the change
-                        this.saveUndoStateImmediately(
-                            type === 'task-title' ? 'editTaskTitle' : 'editTaskDescription',
-                            taskId,
-                            columnId
-                        );
-                        
-                        this.lastEditContext = editContext;
-                        
-                        // Now make the change AFTER saving the undo state
-                        task[field] = value;
-                        
-                        // Mark as unsaved and send the specific change to backend
+                    if (type === 'task-title') {
+                        // Handle task title
+                        if (task.title !== value) {
+                            const editContext = `${type}-${taskId}-${columnId}`;
+
+                            // Save undo state BEFORE making the change
+                            this.saveUndoStateImmediately('editTaskTitle', taskId, columnId);
+                            this.lastEditContext = editContext;
+
+                            // Update the title
+                            task.title = value;
+                        }
+                    } else if (type === 'task-description') {
+                        // Handle task description - compare with rawDescription if it exists
+                        const currentRawValue = task.rawDescription || task.description || '';
+                        if (currentRawValue !== value) {
+                            const editContext = `${type}-${taskId}-${columnId}`;
+
+                            // Save undo state BEFORE making the change
+                            this.saveUndoStateImmediately('editTaskDescription', taskId, columnId);
+                            this.lastEditContext = editContext;
+
+                            // Update both raw and processed descriptions
+                            task.rawDescription = value;
+                            // For now, keep processed description the same as raw (includes will be processed on server side)
+                            task.description = value;
+                        }
+                    }
+
+                    // Mark as unsaved and send the specific change to backend if any change was made
+                    const wasChanged = (type === 'task-title' && task.title === value) ||
+                                      (type === 'task-description' && task.rawDescription === value);
+
+                    if (wasChanged) {
                         if (typeof markUnsavedChanges === 'function') {
                             markUnsavedChanges();
                         }
-                        
+
                         // Send specific task update to backend
                         if (typeof vscode !== 'undefined') {
+                            const field = type === 'task-title' ? 'title' : 'description';
+                            const valueToSend = type === 'task-description' ? task.rawDescription : value;
                             vscode.postMessage({
                                 type: 'updateTaskInBackend',
                                 taskId: taskId,
                                 columnId: columnId,
                                 field: field,
-                                value: value
+                                value: valueToSend
                             });
                         }
                     }
                     
                     if (this.currentEditor.displayElement) {
                         if (value.trim()) {
-                            this.currentEditor.displayElement.innerHTML = renderMarkdown(value);
+                            // For task descriptions, render the processed description (with includes expanded)
+                            // For task titles, render the value as-is
+                            const displayValue = (type === 'task-description' && task.description) ? task.description : value;
+                            this.currentEditor.displayElement.innerHTML = renderMarkdown(displayValue);
                             this.currentEditor.displayElement.style.display = 'block';
                         } else if (type === 'task-description') {
                             this.currentEditor.displayElement.style.display = 'none';

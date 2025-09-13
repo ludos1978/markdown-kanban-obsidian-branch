@@ -206,7 +206,7 @@ export class KanbanWebviewPanel {
                 setUndoRedoOperation: (isOperation: boolean) => {
                     this._isUndoRedoOperation = isOperation;
                 },
-                getWebviewPanel: () => this._panel,
+                getWebviewPanel: () => this,
                 saveWithBackup: this._saveWithConflictBackup.bind(this),
                 markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => {
                     this._hasUnsavedChanges = hasChanges;
@@ -1249,16 +1249,43 @@ export class KanbanWebviewPanel {
     }
 
     public async refreshIncludes() {
+        console.log('[REFRESH INCLUDES] Starting refresh includes...');
+
         // Reset the change flag
         this._includeFilesChanged = false;
 
-        // Re-parse the markdown to get fresh includes
+        // Force re-parse the markdown to get fresh includes
         const document = this._fileManager.getDocument();
         if (document) {
-            await this.loadMarkdownFile(document, false); // false = not from editor focus
+            try {
+                console.log('[REFRESH INCLUDES] Re-parsing markdown with includes...');
+                const basePath = path.dirname(document.uri.fsPath);
+                const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
+
+                console.log('[REFRESH INCLUDES] Parse complete, included files:', parseResult.includedFiles);
+                console.log('[REFRESH INCLUDES] Board has', parseResult.board.columns.length, 'columns');
+
+                this._board = parseResult.board;
+                this._includedFiles = parseResult.includedFiles;
+
+                // Set up file watchers for included files
+                this._setupIncludeFileWatchers();
+
+                // Clean up any duplicate row tags
+                this._boardOperations.cleanupRowTags(this._board);
+                this._boardOperations.setOriginalTaskOrder(this._board);
+
+                console.log('[REFRESH INCLUDES] Sending board update to webview...');
+                // Force send the updated board to webview
+                await this.sendBoardUpdate();
+                console.log('[REFRESH INCLUDES] Board update sent successfully');
+            } catch (error) {
+                console.error('[REFRESH INCLUDES] Error refreshing includes:', error);
+            }
         }
 
         // Send notification to hide the button
         this._sendIncludeFileChangeNotification();
+        console.log('[REFRESH INCLUDES] Refresh includes complete');
     }
 }
