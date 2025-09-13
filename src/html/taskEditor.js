@@ -284,8 +284,8 @@ class TaskEditor {
                         .replace(/\s{2,}/g, ' ')
                         .trim();
 
-                    // Check if the title actually changed (excluding row and span tags)
-                    const oldCleanTitle = column.title.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+                    // Check if the title actually changed (excluding filtered tags)
+                    const oldCleanTitle = window.filterTagsFromText(column.title);
                     if (oldCleanTitle !== cleanValue) {
                         // Create context for this edit to determine if it's the same column being edited
                         const editContext = `column-title-${columnId}`;
@@ -319,8 +319,8 @@ class TaskEditor {
                     }
                     
                     if (this.currentEditor.displayElement) {
-                        // Display without row tags and span tags
-                        const displayTitle = column.title.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+                        // Display with tag filtering based on visibility setting
+                        const displayTitle = window.filterTagsFromText(column.title);
                         this.currentEditor.displayElement.innerHTML = renderMarkdown(displayTitle);
 
                         // Add row indicator if needed

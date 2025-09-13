@@ -98,6 +98,13 @@ const menuConfig = {
     stickyHeaders: [
         { label: "Enabled", value: "enabled", description: "Headers stick to top when scrolling" },
         { label: "Disabled", value: "disabled", description: "Headers scroll with content" }
+    ],
+    tagVisibility: [
+        { label: "All Tags", value: "all", description: "Show all tags including #span, #row, and @ tags" },
+        { label: "Standard Tags", value: "standard", description: "Show all except #span and #row (includes @ tags)" },
+        { label: "Custom Tags Only", value: "custom", description: "Show only custom tags (not configured ones) and @ tags" },
+        { label: "@ Tags Only", value: "mentions", description: "Show only @ tags" },
+        { label: "No Tags", value: "none", description: "Hide all tags" }
     ]
 };
 
@@ -135,7 +142,8 @@ function populateDynamicMenus() {
         { selector: '[data-menu="fontFamily"]', config: 'fontFamily', function: 'setFontFamily' },
         { selector: '[data-menu="layoutRows"]', config: 'layoutRows', function: 'setLayoutRows' },
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
-        { selector: '[data-menu="stickyHeaders"]', config: 'stickyHeaders', function: 'setStickyHeaders' }
+        { selector: '[data-menu="stickyHeaders"]', config: 'stickyHeaders', function: 'setStickyHeaders' },
+        { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' }
     ];
     
     menuMappings.forEach(mapping => {
@@ -986,6 +994,72 @@ function setStickyHeaders(setting) {
     });
 }
 
+// Tag visibility functionality
+let currentTagVisibility = 'standard'; // Default to standard (exclude #span and #row)
+
+// Helper function to filter tags from text based on current visibility setting
+function filterTagsFromText(text) {
+    if (!text) return text;
+
+    const setting = currentTagVisibility || 'standard';
+
+    switch (setting) {
+        case 'all':
+            // Show all tags - don't filter anything
+            return text;
+        case 'standard':
+            // Hide #span and #row tags only
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+        case 'custom':
+            // Hide #span, #row, and configured tags (but show @ tags)
+            // For now, just hide #span and #row (configured tag filtering happens in CSS)
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+        case 'mentions':
+            // Hide all tags except @ tags - need to preserve @mentions but remove # tags
+            return text.replace(/#\w+/gi, '').trim();
+        case 'none':
+            // Hide all tags
+            return text.replace(/#\w+/gi, '').replace(/@\w+/gi, '').trim();
+        default:
+            // Default to standard behavior
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+    }
+}
+
+function applyTagVisibility(setting) {
+    // Store current setting
+    currentTagVisibility = setting;
+    window.currentTagVisibility = setting;
+
+    // Remove all tag visibility classes
+    document.body.classList.remove('tag-visibility-all', 'tag-visibility-standard', 'tag-visibility-custom', 'tag-visibility-mentions', 'tag-visibility-none');
+
+    // Add the selected tag visibility class
+    document.body.classList.add(`tag-visibility-${setting}`);
+
+    // Trigger re-render to apply text filtering changes
+    if (window.currentBoard) {
+        renderBoard(window.currentBoard, { skipRender: false });
+    }
+}
+
+function setTagVisibility(setting) {
+    // Apply the tag visibility setting
+    applyTagVisibility(setting);
+
+    // Store preference
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'tagVisibility',
+        value: setting
+    });
+
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+}
+
 // Function to set whitespace
 function applyWhitespace(spacing) {
     // Store current whitespace setting
@@ -1763,6 +1837,13 @@ window.addEventListener('message', event => {
                 applyStickyHeaders(message.stickyHeaders);
             } else {
                 applyStickyHeaders('enabled'); // Default fallback
+            }
+
+            // Update tag visibility with the value from configuration
+            if (message.tagVisibility) {
+                applyTagVisibility(message.tagVisibility);
+            } else {
+                applyTagVisibility('standard'); // Default fallback
             }
 
             // Update max row height
@@ -2571,6 +2652,10 @@ window.currentRowHeight = currentRowHeight;
 window.setStickyHeaders = setStickyHeaders;
 window.applyStickyHeaders = applyStickyHeaders;
 window.currentStickyHeaders = currentStickyHeaders;
+window.setTagVisibility = setTagVisibility;
+window.applyTagVisibility = applyTagVisibility;
+window.currentTagVisibility = currentTagVisibility;
+window.filterTagsFromText = filterTagsFromText;
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
 

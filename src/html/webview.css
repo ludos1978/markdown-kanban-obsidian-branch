@@ -3508,3 +3508,27 @@ d
     50% { opacity: 0.6; }
     100% { opacity: 1; }
 }
+
+/* Tag Visibility Controls */
+/* Standard Tags: Hide #span and #row tags only */
+.tag-visibility-standard .kanban-tag[data-tag^="span"],
+.tag-visibility-standard .kanban-tag[data-tag^="row"] {
+    display: none !important;
+}
+
+/* Custom Tags Only: Hide #span, #row, and all configured tags (but show @ tags) */
+.tag-visibility-custom .kanban-tag[data-tag^="span"],
+.tag-visibility-custom .kanban-tag[data-tag^="row"],
+.tag-visibility-custom .kanban-tag:not([data-tag^="@"]):not(.custom-tag) {
+    display: none !important;
+}
+
+/* @ Tags Only: Hide all tags except @ tags */
+.tag-visibility-mentions .kanban-tag:not([data-tag^="@"]) {
+    display: none !important;
+}
+
+/* No Tags: Hide all tags */
+.tag-visibility-none .kanban-tag {
+    display: none !important;
+}

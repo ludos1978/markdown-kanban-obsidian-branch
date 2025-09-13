@@ -856,7 +856,7 @@ function changeColumnSpan(columnId, delta) {
         // Update the title display (without span tags)
         const titleElement = columnElement.querySelector('.column-title-display');
         if (titleElement) {
-            const displayTitle = newTitle.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+            const displayTitle = window.filterTagsFromText(newTitle);
             titleElement.innerHTML = renderMarkdown(displayTitle);
 
             // Add row indicator if needed

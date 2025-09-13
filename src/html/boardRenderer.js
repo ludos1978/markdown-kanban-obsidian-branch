@@ -1353,8 +1353,8 @@ function createColumnElement(column, columnIndex) {
     // Skip corner badges HTML generation - handled by immediate update system
     const cornerBadgesHtml = ''; // getAllCornerBadgesHtml(allTags, 'column');
 
-    // Filter out row tags and span tags from displayed title
-    const displayTitle = column.title ? column.title.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim() : '';
+    // Filter tags from displayed title based on visibility setting
+    const displayTitle = column.title ? window.filterTagsFromText(column.title) : '';
     const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
     const foldButtonState = getFoldAllButtonState(column.id);
 

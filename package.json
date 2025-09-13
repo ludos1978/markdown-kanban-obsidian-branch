@@ -1890,6 +1890,38 @@
             "300px (~19em)",
             "Automatic height based on content"
           ]
+        },
+        "markdown-kanban.stickyHeaders": {
+          "type": "string",
+          "default": "enabled",
+          "description": "Control sticky positioning of column headers",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "enumDescriptions": [
+            "Column headers stick to top when scrolling",
+            "Column headers scroll normally with content"
+          ]
+        },
+        "markdown-kanban.tagVisibility": {
+          "type": "string",
+          "default": "all",
+          "description": "Control which types of tags are displayed on cards",
+          "enum": [
+            "all",
+            "standard",
+            "custom",
+            "mentions",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Show all tags including #span, #row, and @ tags",
+            "Show all except #span and #row (includes @ tags)",
+            "Show only custom tags (not configured ones) and @ tags",
+            "Show only @ tags",
+            "Hide all tags"
+          ]
         }
       }
     },
