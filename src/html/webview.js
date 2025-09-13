@@ -94,6 +94,10 @@ const menuConfig = {
         { label: "300px (~19em)", value: "19em" },
         { separator: true },
         { label: "Auto Height", value: "auto" }
+    ],
+    stickyHeaders: [
+        { label: "Enabled", value: "enabled", description: "Headers stick to top when scrolling" },
+        { label: "Disabled", value: "disabled", description: "Headers scroll with content" }
     ]
 };
 
@@ -130,7 +134,8 @@ function populateDynamicMenus() {
         { selector: '[data-menu="fontSize"]', config: 'fontSize', function: 'setFontSize' },
         { selector: '[data-menu="fontFamily"]', config: 'fontFamily', function: 'setFontFamily' },
         { selector: '[data-menu="layoutRows"]', config: 'layoutRows', function: 'setLayoutRows' },
-        { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' }
+        { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
+        { selector: '[data-menu="stickyHeaders"]', config: 'stickyHeaders', function: 'setStickyHeaders' }
     ];
     
     menuMappings.forEach(mapping => {
@@ -947,6 +952,40 @@ function setRowHeight(height) {
     // vscode.postMessage({ type: 'showMessage', text: message });
 }
 
+// Sticky headers functionality
+let currentStickyHeaders = 'enabled'; // Default to enabled
+
+function applyStickyHeaders(setting) {
+    // Store current setting
+    currentStickyHeaders = setting;
+    window.currentStickyHeaders = setting;
+
+    if (setting === 'disabled') {
+        // Add class to disable sticky headers
+        document.body.classList.add('sticky-headers-disabled');
+    } else {
+        // Remove class to enable sticky headers
+        document.body.classList.remove('sticky-headers-disabled');
+    }
+}
+
+function setStickyHeaders(setting) {
+    // Apply the sticky headers setting
+    applyStickyHeaders(setting);
+
+    // Store preference
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'stickyHeaders',
+        value: setting
+    });
+
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+}
+
 // Function to set whitespace
 function applyWhitespace(spacing) {
     // Store current whitespace setting
@@ -1717,6 +1756,13 @@ window.addEventListener('message', event => {
                 applyRowHeightSetting(message.rowHeight);
             } else {
                 applyRowHeightSetting('auto'); // Default fallback
+            }
+
+            // Update sticky headers with the value from configuration
+            if (message.stickyHeaders) {
+                applyStickyHeaders(message.stickyHeaders);
+            } else {
+                applyStickyHeaders('enabled'); // Default fallback
             }
 
             // Update max row height
@@ -2522,6 +2568,9 @@ window.setLayoutRows = setLayoutRows;
 window.setRowHeight = setRowHeight;
 window.applyRowHeight = applyRowHeight;
 window.currentRowHeight = currentRowHeight;
+window.setStickyHeaders = setStickyHeaders;
+window.applyStickyHeaders = applyStickyHeaders;
+window.currentStickyHeaders = currentStickyHeaders;
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
 

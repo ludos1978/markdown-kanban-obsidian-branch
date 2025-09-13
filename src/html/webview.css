@@ -3245,16 +3245,16 @@ body.font-size-xlarge .task-description-edit {
   line-height: 1.2;
 }
 
-/* Disable sticky header for large font size */
-body.font-size-bigger .column-header,
-body.font-size-large .column-header,
-body.font-size-xlarge .column-header {
+/* Note: Sticky header disabling for large fonts removed - now controlled manually via burger menu */
+
+/* Disable sticky header for tall task minimum heights */
+body.tall-task-height .column-header {
   position: relative !important;
   top: auto !important;
 }
 
-/* Disable sticky header for tall task minimum heights */
-body.tall-task-height .column-header {
+/* Disable sticky header when manually disabled by user */
+body.sticky-headers-disabled .column-header {
   position: relative !important;
   top: auto !important;
 }
