@@ -433,7 +433,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
 /* Kanban board */
 .kanban-board {
   display: flex;
-  /* gap: var(--whitespace); */
   flex-wrap: nowrap;
   width: max-content; /* Allow horizontal expansion */
   align-items: flex-start;
@@ -443,6 +442,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 /* when it has no child - kanban-row */
 .kanban-board:not(:has(.kanban-row)) {
 	padding: var(--whitespace);
+  gap: var(--whitespace);
 }
 
 .kanban-board.multi-row {
