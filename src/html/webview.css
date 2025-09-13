@@ -3383,6 +3383,24 @@ s {
     animation: pulse 2s infinite;
 }
 
+.include-icon {
+    display: inline-block;
+    cursor: pointer;
+    padding: 1px 3px;
+    margin-right: 3px;
+    border-radius: 2px;
+    font-size: 0.85em;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    vertical-align: baseline;
+}
+
+.include-icon:hover {
+    opacity: 1;
+    background-color: var(--vscode-button-hoverBackground, rgba(255, 255, 255, 0.1));
+    transform: scale(1.1);
+}
+
 .include-error {
     display: inline-block;
     padding: 2px 6px;

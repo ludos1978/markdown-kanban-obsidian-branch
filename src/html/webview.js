@@ -2585,9 +2585,22 @@ function toggleCardFontSize() {
     setFontSize(nextSize);
 }
 
+// Open include file function
+function openIncludeFile(filePath) {
+    if (typeof vscode !== 'undefined') {
+        vscode.postMessage({
+            type: 'openFileLink',
+            href: filePath
+        });
+    } else {
+        console.warn('Cannot open include file: VSCode API not available');
+    }
+}
+
 // Make functions globally available
 window.setFontSize = setFontSize;
 window.toggleCardFontSize = toggleCardFontSize;
+window.openIncludeFile = openIncludeFile;
 
 // Initialize font size on page load
 document.addEventListener('DOMContentLoaded', function() {

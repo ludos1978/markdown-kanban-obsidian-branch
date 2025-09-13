@@ -388,14 +388,21 @@ class TaskEditor {
                         if (value.trim()) {
                             // For task descriptions, render the processed description (with includes expanded)
                             // For task titles, render the value as-is
-                            const displayValue = (type === 'task-description' && task.description) ? task.description : value;
+                            const displayValue = (type === 'task-description') ? task.description || value : value;
                             this.currentEditor.displayElement.innerHTML = renderMarkdown(displayValue);
                             this.currentEditor.displayElement.style.display = 'block';
-                        } else if (type === 'task-description') {
-                            this.currentEditor.displayElement.style.display = 'none';
-                            const placeholder = element.closest('.task-description-container')
-                                ?.querySelector('.task-description-placeholder');
-                            if (placeholder) placeholder.style.display = 'block';
+                        } else {
+                            // Handle empty values for both titles and descriptions
+                            if (type === 'task-description') {
+                                this.currentEditor.displayElement.style.display = 'none';
+                                const placeholder = element.closest('.task-description-container')
+                                    ?.querySelector('.task-description-placeholder');
+                                if (placeholder) placeholder.style.display = 'block';
+                            } else if (type === 'task-title') {
+                                // For empty titles, show empty content but keep element visible
+                                this.currentEditor.displayElement.innerHTML = '';
+                                this.currentEditor.displayElement.style.display = 'block';
+                            }
                         }
                     }
                     
