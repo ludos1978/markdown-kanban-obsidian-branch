@@ -2458,31 +2458,40 @@ function updateTagCategoryCounts(id, type, columnId = null) {
         }
     }
     
-    // Show/hide "Remove all tags" option
-    const removeAllButton = activeDropdown.querySelector('[onclick*="removeAllTags"]');
+    // Show/hide "Remove all tags" option - ensure only one exists
+    const existingRemoveAllButtons = activeDropdown.querySelectorAll('[data-action="remove-all-tags"]');
+
     if (activeTags.length > 0) {
-        if (!removeAllButton) {
-            // Add remove all tags option
-            const divider = document.createElement('div');
-            divider.className = 'donut-menu-divider';
-            
-            const button = document.createElement('button');
-            button.className = 'donut-menu-item';
-            button.onclick = () => removeAllTags(id, type, columnId);
-            button.textContent = 'Remove all tags';
-            
-            activeDropdown.appendChild(divider);
-            activeDropdown.appendChild(button);
-        }
-    } else {
-        // Remove "Remove all tags" option if no active tags
-        if (removeAllButton) {
-            const divider = removeAllButton.previousElementSibling;
+        // Remove any existing "remove all tags" buttons first to prevent duplicates
+        existingRemoveAllButtons.forEach(button => {
+            const divider = button.previousElementSibling;
             if (divider && divider.classList.contains('donut-menu-divider')) {
                 divider.remove();
             }
-            removeAllButton.remove();
-        }
+            button.remove();
+        });
+
+        // Add single "Remove all tags" option at the end
+        const divider = document.createElement('div');
+        divider.className = 'donut-menu-divider';
+
+        const button = document.createElement('button');
+        button.className = 'donut-menu-item';
+        button.setAttribute('data-action', 'remove-all-tags'); // Add identifier for reliable detection
+        button.onclick = () => removeAllTags(id, type, columnId);
+        button.textContent = 'Remove all tags';
+
+        activeDropdown.appendChild(divider);
+        activeDropdown.appendChild(button);
+    } else {
+        // Remove all "Remove all tags" options if no active tags
+        existingRemoveAllButtons.forEach(button => {
+            const divider = button.previousElementSibling;
+            if (divider && divider.classList.contains('donut-menu-divider')) {
+                divider.remove();
+            }
+            button.remove();
+        });
     }
     
 }
