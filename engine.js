@@ -4,30 +4,6 @@
 // https://www.npmjs.com/package/markdown-it-container
 const mdItContainer = require("markdown-it-container");
 
-// ---
-// marpitFragmentedTableRowPlugin
-// for each row in a table add data-marpit-fragment
-const marpitFragmentedTableRowPlugin = (md) => {
-  md.core.ruler.after('block', 'marpit_fragmented_table_row', (state) => {
-    if (state.inlineMode) return
-
-    let inTBody = false
-
-    // Add data-marpit-fragment attribute to every rows in table body
-    for (const token of state.tokens) {
-      if (inTBody) {
-        if (token.type === 'tr_open') {
-          token.attrSet('data-marpit-fragment', '')
-        } else if (token.type === 'tbody_close') {
-          inTBody = false
-        }
-      } else if (token.type === 'tbody_open') {
-        inTBody = true
-      }
-    }
-  })
-}
-// ---
 
 // ---
 // create fragmented list using the '+' character
@@ -78,69 +54,6 @@ function _fragment_plus(md) {
 }
 // ---
 
-
-const _customImageCaption = (md) => {
-  // console.log(md.renderer.rules);
-  var old = md.renderer.rules.image;
-
-  md.renderer.rules.image = function (tokens, idx, options, env, self) {
-    let result = ``;
-    result += `<!-- type=${tokens[idx].type} -->`;
-
-    if ("image" == tokens[idx].type) {
-      // if (tokens[idx].attrs[2]) {
-      let attrs = tokens[idx].attrs;
-      let content = tokens[idx].content;
-      let attrsTitle;
-      let attrsStyle;
-      let attrsSrc;
-      for (let i = 0; i < attrs.length; i++) {
-        if ("title" == attrs[i][0]) {
-          attrsTitle = attrs[i][1];
-        }
-        if ("style" == attrs[i][0]) {
-          attrsStyle = attrs[i][1];
-        }
-        if ("src" == attrs[i][0]) {
-          attrsSrc = attrs[i][1];
-        }
-      }
-
-      if (false) {
-        result += `<img `;
-        if (attrsSrc !== undefined) {
-          result += `src="${attrsSrc}" `;
-        }
-        if (attrsTitle !== undefined) {
-          result += `title="${attrsTitle}" `;
-        }
-        if (attrsStyle !== undefined) {
-          result += `style="${attrsStyle}" `;
-        }
-        result += `alt="${content}" />`;
-      }
-
-      if (attrsTitle !== undefined) {
-        result += `<figcaption>${attrsTitle}</figcaption>`;
-      }
-
-      if (false) {
-        let test = "<!--";
-        for (let key in tokens[idx]) {
-          if (tokens[idx].hasOwnProperty(key)) {
-            // To ensure you're only listing own properties
-            //console.log(`Key: ${key}, Value: ${person[key]}`);
-            test += `, Key: ${key}, Value: ${tokens[idx][key]}`;
-          }
-        }
-        test += "-->";
-        result += test;
-      }
-
-      return old(tokens, idx, options, env, self) + result;
-    }
-  };
-};
 
 // import deflistPlugin from './markdown-it-deflist.js';
 // const deflistPlugin = require('./markdown-it-deflist.js').default;
