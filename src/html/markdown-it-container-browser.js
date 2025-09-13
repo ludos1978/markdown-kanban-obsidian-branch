@@ -133,4 +133,10 @@ function container_plugin(md, name, options) {
   md.renderer.rules['container_' + name + '_close'] = render;
 }
 
-module.exports = container_plugin;
+// Export for browser use
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = container_plugin;
+} else {
+  window.markdownitContainer = container_plugin;
+  console.log('markdown-it-container plugin loaded and available as window.markdownitContainer');
+}

@@ -2112,6 +2112,19 @@ function manualRefresh() {
     }, 100);
 }
 
+// Refresh includes function
+function refreshIncludes() {
+    // Hide the refresh includes button
+    const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
+    if (refreshIncludesBtn) {
+        refreshIncludesBtn.style.display = 'none';
+    }
+
+    // Send message to backend to refresh includes
+    vscode.postMessage({ type: 'refreshIncludes' });
+    vscode.postMessage({ type: 'showMessage', text: 'Refreshing included files...' });
+}
+
 // Function to update refresh button state
 /**
  * Updates the refresh button to show save state

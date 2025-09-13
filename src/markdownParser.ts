@@ -1,4 +1,6 @@
 import { IdGenerator } from './utils/idGenerator';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface KanbanTask {
   id: string;
@@ -23,8 +25,73 @@ export interface KanbanBoard {
 export class MarkdownKanbanParser {
   // Runtime-only ID generation - no persistence to markdown
 
-  static parseMarkdown(content: string): KanbanBoard {
-      const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  /**
+   * Process include statements in markdown content
+   * !!!include(filepath)!!! -> content of the file
+   */
+  static processIncludes(content: string, basePath: string): { content: string, includedFiles: string[] } {
+    const INCLUDE_RE = /!!!include\(([^)]+)\)!!!/gi;
+    let result = content;
+    const includedFiles: string[] = [];
+
+    // Simple single-pass processing to avoid recursion issues
+    const matches = [...content.matchAll(INCLUDE_RE)];
+
+    for (const match of matches) {
+      const fullMatch = match[0];
+      const filePath = match[1].trim();
+
+      try {
+        // Resolve the file path relative to the base path
+        const absolutePath = path.resolve(basePath, filePath);
+
+        // Check if file exists
+        if (fs.existsSync(absolutePath)) {
+          // Track this file as included
+          includedFiles.push(absolutePath);
+
+          // Read the file content
+          const includeContent = fs.readFileSync(absolutePath, 'utf8');
+
+          // Add 2 spaces indentation to each line to make it card content
+          const indentedContent = includeContent
+            .split('\n')
+            .map(line => line.length > 0 ? '  ' + line : line)
+            .join('\n');
+
+          // Replace the include statement with the indented file content
+          result = result.replace(fullMatch, indentedContent);
+        } else {
+          console.warn(`Include file not found: ${absolutePath}`);
+          result = result.replace(fullMatch, `<!-- Include file not found: ${filePath} -->`);
+        }
+      } catch (error) {
+        console.error(`Error processing include ${filePath}:`, error);
+        result = result.replace(fullMatch, `<!-- Error processing include: ${filePath} -->`);
+      }
+    }
+
+    return { content: result, includedFiles };
+  }
+
+  static parseMarkdown(content: string, basePath?: string): { board: KanbanBoard, includedFiles: string[] } {
+      // Process includes if basePath is provided
+      let processedContent = content;
+      let includedFiles: string[] = [];
+
+      if (basePath) {
+        try {
+          const includeResult = this.processIncludes(content, basePath);
+          processedContent = includeResult.content;
+          includedFiles = includeResult.includedFiles;
+        } catch (error) {
+          console.error('Error processing includes:', error);
+          // Fall back to original content if include processing fails
+          processedContent = content;
+        }
+      }
+
+      const lines = processedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
       const board: KanbanBoard = {
         valid: false,
         title: '',
@@ -62,7 +129,7 @@ export class MarkdownKanbanParser {
             board.yamlHeader = yamlLines.join('\n');
             board.valid = board.yamlHeader.includes('kanban-plugin: board');
             if (!board.valid) {
-              return board;
+              return { board, includedFiles };
             }
             inYamlHeader = false;
             continue;
@@ -168,7 +235,7 @@ export class MarkdownKanbanParser {
         board.kanbanFooter = footerLines.join('\n');
       }
 
-      return board;
+      return { board, includedFiles };
   }
 
   private static finalizeCurrentTask(task: KanbanTask | null, column: KanbanColumn | null): void {

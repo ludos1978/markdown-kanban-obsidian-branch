@@ -329,6 +329,9 @@ function renderMarkdown(text) {
             md.use(window.markdownitContainer, 'right');
             md.use(window.markdownitContainer, 'caption');
         }
+        if (typeof window.markdownitInclude !== 'undefined') {
+            md.use(window.markdownitInclude); // !!!include(file)!!! syntax support (browser warning)
+        }
 
         // Note: Most other plugins can't be loaded via CDN due to CSP restrictions
         // Advanced plugin functionality would need to be bundled or implemented differently

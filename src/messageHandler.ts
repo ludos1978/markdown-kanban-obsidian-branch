@@ -69,7 +69,12 @@ export class MessageHandler {
             case 'redo':
                 await this.handleRedo();
                 break;
-                
+
+            // Include file refresh
+            case 'refreshIncludes':
+                await this.handleRefreshIncludes();
+                break;
+
             // Special request for board update
             case 'requestBoardUpdate':
                 await this._onBoardUpdate();
@@ -571,6 +576,19 @@ export class MessageHandler {
         } catch (error) {
             console.error(`Failed to update preference ${key}:`, error);
             vscode.window.showErrorMessage(`Failed to update ${key} preference: ${error}`);
+        }
+    }
+
+    private async handleRefreshIncludes(): Promise<void> {
+        try {
+            // Call refreshIncludes on the webview panel
+            const panel = this._getWebviewPanel();
+            if (panel && typeof panel.refreshIncludes === 'function') {
+                await panel.refreshIncludes();
+            }
+        } catch (error) {
+            console.error('Error refreshing includes:', error);
+            vscode.window.showErrorMessage(`Failed to refresh includes: ${error}`);
         }
     }
 }

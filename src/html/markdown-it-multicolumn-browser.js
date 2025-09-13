@@ -102,5 +102,5 @@
 
     // Export for browser use
     window.markdownItMulticolumn = MultiColumnPlugin;
-    console.log('markdown-it-multicolumn plugin loaded and available as window.markdownItMulticolumn');
+    // console.log('markdown-it-multicolumn plugin loaded and available as window.markdownItMulticolumn');
 })();

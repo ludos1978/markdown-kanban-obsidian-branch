@@ -1818,6 +1818,13 @@ window.addEventListener('message', event => {
             // Store focus targets to be processed after rendering completes
             window.pendingFocusTargets = message.focusTargets;
             break;
+        case 'includeFilesChanged':
+            // Show/hide the refresh includes button based on whether files have changed
+            const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
+            if (refreshIncludesBtn) {
+                refreshIncludesBtn.style.display = message.hasChanges ? 'flex' : 'none';
+            }
+            break;
     }
 });
 

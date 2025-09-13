@@ -25,7 +25,8 @@
     <script src="markdown-it-underline-browser.js"></script>
     <script src="markdown-it-abbr-browser.js"></script>
     <script src="markdown-it-container-browser.js"></script>
-    
+    <script src="markdown-it-include-browser.js"></script>
+
     <!-- Note: Some plugins may not be available via CDN and would need bundling -->
     <!-- markdown-it-strikethrough-alt, markdown-it-underline, markdown-it-footnote-here, -->
     <!-- markdown-it-image-figures, markdown-it-anchor, markdown-it-toc-done-right, markdown-it-checkboxes -->
@@ -70,7 +71,12 @@
                     <span class="refresh-icon">↻</span>
                     <span class="refresh-text">Refresh</span>
                 </button>
-                
+
+                <button id="refresh-includes-btn" class="refresh-includes-btn" onclick="refreshIncludes()" title="Refresh included files (files have changed)" style="display: none;">
+                    <span class="refresh-includes-icon">📄↻</span>
+                    <span class="refresh-includes-text">Includes</span>
+                </button>
+
                 <!-- File Bar Burger Menu -->
                 <div class="file-bar-menu">
                     <button class="file-bar-menu-btn" onclick="toggleFileBarMenu(event, this)">

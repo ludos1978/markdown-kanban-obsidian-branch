@@ -42,6 +42,11 @@ export class KanbanWebviewPanel {
     private _cachedBoardFromWebview: any = null;  // Store the latest cached board from webview
     private _isClosingPrevented: boolean = false;  // Flag to prevent recursive closing attempts
 
+    // Include file tracking
+    private _includedFiles: string[] = [];
+    private _includeFileWatchers: vscode.FileSystemWatcher[] = [];
+    private _includeFilesChanged: boolean = false;
+
     // Method to force refresh webview content (useful during development)
     public async refreshWebviewContent() {
         if (this._panel && this._board) {
@@ -492,7 +497,15 @@ export class KanbanWebviewPanel {
     private async _ensureBoardAndSendUpdate() {
         if (!this._board && this._fileManager.getDocument()) {
             try {
-                this._board = MarkdownKanbanParser.parseMarkdown(this._fileManager.getDocument()!.getText());
+                const document = this._fileManager.getDocument()!;
+                const basePath = path.dirname(document.uri.fsPath);
+                const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
+                this._board = parseResult.board;
+                this._includedFiles = parseResult.includedFiles;
+
+                // Set up file watchers for included files
+                this._setupIncludeFileWatchers();
+
                 this._boardOperations.setOriginalTaskOrder(this._board);
             } catch (error) {
                 this._board = { 
@@ -600,8 +613,14 @@ export class KanbanWebviewPanel {
         }
         
         try {
-            this._board = MarkdownKanbanParser.parseMarkdown(document.getText());
-            
+            const basePath = path.dirname(document.uri.fsPath);
+            const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
+            this._board = parseResult.board;
+            this._includedFiles = parseResult.includedFiles;
+
+            // Set up file watchers for included files
+            this._setupIncludeFileWatchers();
+
             // Clean up any duplicate row tags
             const wasModified = this._boardOperations.cleanupRowTags(this._board);
             
@@ -1033,7 +1052,8 @@ export class KanbanWebviewPanel {
             'markdown-it-strikethrough-alt-browser.js',
             'markdown-it-underline-browser.js',
             'markdown-it-abbr-browser.js',
-            'markdown-it-container-browser.js'
+            'markdown-it-container-browser.js',
+            'markdown-it-include-browser.js'
         ];
         
         jsFiles.forEach(jsFile => {
@@ -1183,5 +1203,62 @@ export class KanbanWebviewPanel {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
         const showRowTags = config.get<boolean>('showRowTags', false);
         return showRowTags;
+    }
+
+    private _setupIncludeFileWatchers() {
+        // Clean up existing watchers
+        this._cleanupIncludeFileWatchers();
+
+        // Set up watchers for each included file
+        for (const filePath of this._includedFiles) {
+            try {
+                const watcher = vscode.workspace.createFileSystemWatcher(filePath);
+
+                watcher.onDidChange(() => {
+                    this._includeFilesChanged = true;
+                    this._sendIncludeFileChangeNotification();
+                });
+
+                watcher.onDidDelete(() => {
+                    this._includeFilesChanged = true;
+                    this._sendIncludeFileChangeNotification();
+                });
+
+                this._includeFileWatchers.push(watcher);
+                this._disposables.push(watcher);
+            } catch (error) {
+                console.error(`Failed to create watcher for ${filePath}:`, error);
+            }
+        }
+    }
+
+    private _cleanupIncludeFileWatchers() {
+        for (const watcher of this._includeFileWatchers) {
+            watcher.dispose();
+        }
+        this._includeFileWatchers = [];
+    }
+
+    private _sendIncludeFileChangeNotification() {
+        if (this._panel && this._panel.webview) {
+            this._panel.webview.postMessage({
+                type: 'includeFilesChanged',
+                hasChanges: this._includeFilesChanged
+            });
+        }
+    }
+
+    public async refreshIncludes() {
+        // Reset the change flag
+        this._includeFilesChanged = false;
+
+        // Re-parse the markdown to get fresh includes
+        const document = this._fileManager.getDocument();
+        if (document) {
+            await this.loadMarkdownFile(document, false); // false = not from editor focus
+        }
+
+        // Send notification to hide the button
+        this._sendIncludeFileChangeNotification();
     }
 }
