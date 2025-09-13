@@ -795,6 +795,93 @@ function moveColumnRight(columnId) {
     }
 }
 
+function changeColumnSpan(columnId, delta) {
+    if (!currentBoard?.columns) return;
+
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) return;
+
+    // Extract current span value
+    const spanMatch = column.title.match(/#span(\d+)\b/i);
+    let currentSpan = spanMatch ? parseInt(spanMatch[1]) : 1;
+
+    // Calculate new span value (1-4 range)
+    let newSpan = currentSpan + delta;
+    newSpan = Math.max(1, Math.min(4, newSpan));
+
+    // If no change needed, return early
+    if (newSpan === currentSpan) return;
+
+    // Flush pending tag changes first
+    if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
+        (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)) {
+        flushPendingTagChanges();
+    }
+
+    // Update the column title
+    let newTitle = column.title;
+
+    if (newSpan === 1) {
+        // Remove span tag entirely
+        newTitle = newTitle.replace(/#span\d+\b\s*/gi, '').replace(/\s+/g, ' ').trim();
+    } else {
+        if (spanMatch) {
+            // Replace existing span tag
+            newTitle = newTitle.replace(/#span\d+\b/gi, `#span${newSpan}`);
+        } else {
+            // Add new span tag
+            newTitle += ` #span${newSpan}`;
+        }
+    }
+
+    // Update the column in currentBoard and cachedBoard
+    column.title = newTitle;
+
+    if (typeof cachedBoard !== 'undefined' && cachedBoard?.columns) {
+        const cachedColumn = cachedBoard.columns.find(c => c.id === columnId);
+        if (cachedColumn) {
+            cachedColumn.title = newTitle;
+        }
+    }
+
+    // Update the column element immediately
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (columnElement) {
+        // Update CSS classes
+        columnElement.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
+        if (newSpan >= 2) {
+            columnElement.classList.add(`column-span-${newSpan}`);
+        }
+
+        // Update the title display (without span tags)
+        const titleElement = columnElement.querySelector('.column-title-display');
+        if (titleElement) {
+            const displayTitle = newTitle.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+            titleElement.innerHTML = renderMarkdown(displayTitle);
+
+            // Add row indicator if needed
+            const currentRow = getColumnRow(newTitle);
+            if (window.showRowTags && currentRow > 1) {
+                titleElement.innerHTML += `<span class="column-row-tag">Row ${currentRow}</span>`;
+            }
+        }
+
+        // Update the span value display in the menu
+        const spanValueElement = document.querySelector(`[data-column-id="${columnId}"].span-width-value`);
+        if (spanValueElement) {
+            spanValueElement.textContent = newSpan.toString();
+        }
+    }
+
+    // Mark as unsaved
+    if (typeof markUnsavedChanges === 'function') {
+        markUnsavedChanges();
+    }
+
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+}
+
 function deleteColumn(columnId) {
     // Close all menus properly
     closeAllMenus();

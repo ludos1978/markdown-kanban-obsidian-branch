@@ -16,11 +16,11 @@ let renderTimeout = null;
  * Used by: renderBoard(), generateTagStyles(), task/column rendering
  * @param {string} text - Text containing hashtags
  * @returns {string|null} - Lowercase tag name without # or null if none found
- * Note: Skips row tags (#rowN) and gather tags (#gather_...)
+ * Note: Skips row tags (#rowN), span tags (#spanN), and gather tags (#gather_...)
  */
 function extractFirstTag(text) {
     if (!text) return null;
-    const re = /#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
+    const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
     let m;
     while ((m = re.exec(text)) !== null) {
         const raw = m[1];
@@ -350,8 +350,9 @@ function ensureTagStyleExists(tagName) {
     }
 }
 
-// Make it globally available
+// Make functions globally available
 window.ensureTagStyleExists = ensureTagStyleExists;
+window.extractFirstTag = extractFirstTag;
 
 
 
@@ -654,7 +655,8 @@ function applyFoldingStates() {
 function getActiveTagsInTitle(text) {
     if (!text) return [];
     // Match all tags - for gather tags, include the full expression until next space
-    const matches = text.match(/#(?!row\d+\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
+    // Skip row tags and span tags
+    const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
     return matches.map(tag => {
         const fullTag = tag.substring(1);
         // For gather tags, keep the full expression
@@ -1342,13 +1344,23 @@ function createColumnElement(column, columnIndex) {
         if (footerBarsHtml.includes('label')) footerClasses += ' has-footer-label';
     }
     
-    columnDiv.className = `kanban-full-height-column ${isCollapsed ? 'collapsed' : ''} ${headerClasses} ${footerClasses}`.trim();
+    // Check for span tag to set column width
+    let spanClass = '';
+    const spanMatch = column.title.match(/#span(\d+)\b/i);
+    if (spanMatch) {
+        const spanCount = parseInt(spanMatch[1]);
+        if (spanCount >= 2 && spanCount <= 4) { // Limit to reasonable span values
+            spanClass = `column-span-${spanCount}`;
+        }
+    }
+
+    columnDiv.className = `kanban-full-height-column ${isCollapsed ? 'collapsed' : ''} ${headerClasses} ${footerClasses} ${spanClass}`.trim();
     columnDiv.setAttribute('data-column-id', column.id);
     columnDiv.setAttribute('data-column-index', columnIndex);
     columnDiv.setAttribute('data-row', getColumnRow(column.title));
-    
-    // Add primary tag for background color only (ignore row/gather)
-    if (columnTag && !columnTag.startsWith('row') && !columnTag.startsWith('gather_')) {
+
+    // Add primary tag for background color only (ignore row/gather/span)
+    if (columnTag && !columnTag.startsWith('row') && !columnTag.startsWith('gather_') && !columnTag.startsWith('span')) {
         columnDiv.setAttribute('data-column-tag', columnTag);
     }
     
@@ -1360,8 +1372,8 @@ function createColumnElement(column, columnIndex) {
     // Skip corner badges HTML generation - handled by immediate update system
     const cornerBadgesHtml = ''; // getAllCornerBadgesHtml(allTags, 'column');
 
-    // Filter out row tags from displayed title
-    const displayTitle = column.title ? column.title.replace(/#row\d+/gi, '').trim() : '';
+    // Filter out row tags and span tags from displayed title
+    const displayTitle = column.title ? column.title.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim() : '';
     const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
     const foldButtonState = getFoldAllButtonState(column.id);
 
@@ -1399,6 +1411,18 @@ function createColumnElement(column, columnIndex) {
 												<div class="donut-menu-divider"></div>
 												<button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
 												<button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>
+												<div class="donut-menu-divider"></div>
+												<div class="donut-menu-item span-width-control">
+													<span class="span-width-label">Width:</span>
+													<div class="span-width-controls">
+														<button class="span-width-btn" onclick="changeColumnSpan('${column.id}', -1)">−</button>
+														<span class="span-width-value" data-column-id="${column.id}">${(() => {
+															const spanMatch = column.title.match(/#span(\\d+)\\b/i);
+															return spanMatch ? spanMatch[1] : '1';
+														})()}</span>
+														<button class="span-width-btn" onclick="changeColumnSpan('${column.id}', 1)">+</button>
+													</div>
+												</div>
 												<div class="donut-menu-divider"></div>
 												<div class="donut-menu-item has-submenu" data-submenu-type="sort" data-id="${column.id}" data-type="column" data-column-id="${column.id}">
 														Sort by
@@ -2416,8 +2440,8 @@ function removeAllTags(id, type, columnId = null) {
     }
     
     // Remove all tags from the title (keep everything except tags)
-    // Tags are in format #tagname, but preserve #row tags
-    const newTitle = currentTitle.replace(/#(?!row\d+\b)[a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*/g, '').trim();
+    // Tags are in format #tagname, but preserve #row tags and #span tags
+    const newTitle = currentTitle.replace(/#(?!row\d+\b)(?!span\d+\b)[a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*/g, '').trim();
     
     // Update the element
     element.title = newTitle;

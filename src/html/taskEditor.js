@@ -268,19 +268,24 @@ class TaskEditor {
             if (type === 'column-title') {
                 const column = currentBoard.columns.find(c => c.id === columnId);
                 if (column) {
-                    // Get current row to preserve it
+                    // Get current row and span to preserve them
                     const currentRow = getColumnRow(column.title);
-                    
-                    // Clean the value of any row tags
+                    const spanMatch = column.title.match(/#span(\d+)\b/i);
+                    const currentSpan = spanMatch ? spanMatch[0] : null;
+
+                    // Clean the value of any row tags and span tags
                     let cleanValue = value
                         .replace(/#row\d+\b/gi, '')
                         .replace(/\s+#row\d+/gi, '')
                         .replace(/#row\d+\s+/gi, '')
+                        .replace(/#span\d+\b/gi, '')
+                        .replace(/\s+#span\d+/gi, '')
+                        .replace(/#span\d+\s+/gi, '')
                         .replace(/\s{2,}/g, ' ')
                         .trim();
-                    
-                    // Check if the title actually changed
-                    const oldCleanTitle = column.title.replace(/#row\d+/gi, '').trim();
+
+                    // Check if the title actually changed (excluding row and span tags)
+                    const oldCleanTitle = column.title.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
                     if (oldCleanTitle !== cleanValue) {
                         // Create context for this edit to determine if it's the same column being edited
                         const editContext = `column-title-${columnId}`;
@@ -292,12 +297,20 @@ class TaskEditor {
                         this.lastEditContext = editContext;
                         
                         // Now make the change AFTER saving the undo state
+                        // Reconstruct title with preserved tags
+                        let newTitle = cleanValue;
+
                         // Re-add row tag if needed
                         if (currentRow > 1) {
-                            column.title = cleanValue + ` #row${currentRow}`;
-                        } else {
-                            column.title = cleanValue;
+                            newTitle += ` #row${currentRow}`;
                         }
+
+                        // Re-add span tag if it existed
+                        if (currentSpan) {
+                            newTitle += ` ${currentSpan}`;
+                        }
+
+                        column.title = newTitle;
                         
                         // Mark as unsaved since we made a change
                         if (typeof markUnsavedChanges === 'function') {
@@ -306,13 +319,42 @@ class TaskEditor {
                     }
                     
                     if (this.currentEditor.displayElement) {
-                        // Display without row tags
-                        const displayTitle = column.title.replace(/#row\d+/gi, '').trim();
+                        // Display without row tags and span tags
+                        const displayTitle = column.title.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
                         this.currentEditor.displayElement.innerHTML = renderMarkdown(displayTitle);
-                        
+
                         // Add row indicator if needed
                         if (window.showRowTags && currentRow > 1) {
                             this.currentEditor.displayElement.innerHTML += `<span class="column-row-tag">Row ${currentRow}</span>`;
+                        }
+                    }
+
+                    // Update column CSS classes for span tags
+                    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+                    if (columnElement) {
+                        // Remove old span classes
+                        columnElement.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
+
+                        // Check for new span tag
+                        const spanMatch = column.title.match(/#span(\d+)\b/i);
+                        if (spanMatch) {
+                            const spanCount = parseInt(spanMatch[1]);
+                            if (spanCount >= 2 && spanCount <= 4) {
+                                columnElement.classList.add(`column-span-${spanCount}`);
+                            }
+                        }
+
+                        // Also update tag-based styling
+                        const newTag = window.extractFirstTag ? window.extractFirstTag(column.title) : null;
+                        if (newTag && !newTag.startsWith('row') && !newTag.startsWith('gather_') && !newTag.startsWith('span')) {
+                            columnElement.setAttribute('data-column-tag', newTag);
+                        } else {
+                            columnElement.removeAttribute('data-column-tag');
+                        }
+
+                        // Regenerate tag styles to apply any new tag colors
+                        if (typeof applyTagStyles === 'function') {
+                            applyTagStyles();
                         }
                     }
                     
@@ -402,6 +444,25 @@ class TaskEditor {
                                 // For empty titles, show empty content but keep element visible
                                 this.currentEditor.displayElement.innerHTML = '';
                                 this.currentEditor.displayElement.style.display = 'block';
+                            }
+                        }
+                    }
+
+                    // Update task element styling if this is a task title edit
+                    if (type === 'task-title') {
+                        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                        if (taskElement) {
+                            // Update tag-based styling
+                            const newTag = window.extractFirstTag ? window.extractFirstTag(task.title) : null;
+                            if (newTag && !newTag.startsWith('row') && !newTag.startsWith('gather_') && !newTag.startsWith('span')) {
+                                taskElement.setAttribute('data-task-tag', newTag);
+                            } else {
+                                taskElement.removeAttribute('data-task-tag');
+                            }
+
+                            // Regenerate tag styles to apply any new tag colors
+                            if (typeof applyTagStyles === 'function') {
+                                applyTagStyles();
                             }
                         }
                     }

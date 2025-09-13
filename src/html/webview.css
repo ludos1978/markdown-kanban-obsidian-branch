@@ -1474,6 +1474,58 @@ button.file-bar-menu-item {
   color: var(--vscode-errorForeground);
 }
 
+/* Span width controls in column menu */
+.donut-menu-item.span-width-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+}
+
+.span-width-label {
+  font-size: 13px;
+  color: var(--vscode-menu-foreground);
+}
+
+.span-width-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.span-width-btn {
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-button-border, transparent);
+  color: var(--vscode-button-foreground);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.1s ease;
+}
+
+.span-width-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.span-width-btn:active {
+  background: var(--vscode-button-background);
+  transform: scale(0.95);
+}
+
+.span-width-value {
+  font-size: 13px;
+  color: var(--vscode-menu-foreground);
+  min-width: 12px;
+  text-align: center;
+  font-weight: 500;
+}
+
 .task-menu-container {
   z-index: 50;
 	margin-left: auto; /* align to right */
@@ -3101,6 +3153,31 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
   width: auto !important; /* Let collapsed width be determined by content */
   min-width: auto !important;
   max-width: none !important;
+}
+
+/* Column Span Classes - for columns that span multiple widths */
+.kanban-full-height-column.column-span-2 {
+  width: calc(var(--column-width) * 2 + 10px) !important; /* 2x width plus gap */
+  flex-shrink: 0;
+}
+
+.kanban-full-height-column.column-span-3 {
+  width: calc(var(--column-width) * 3 + 20px) !important; /* 3x width plus gaps */
+  flex-shrink: 0;
+}
+
+.kanban-full-height-column.column-span-4 {
+  width: calc(var(--column-width) * 4 + 30px) !important; /* 4x width plus gaps */
+  flex-shrink: 0;
+}
+
+/* Collapsed span columns should use normal collapsed width */
+.kanban-full-height-column.collapsed.column-span-2,
+.kanban-full-height-column.collapsed.column-span-3,
+.kanban-full-height-column.collapsed.column-span-4 {
+  width: var(--collapsed-column-width) !important;
+  min-width: var(--collapsed-column-width) !important;
+  max-width: var(--collapsed-column-width) !important;
 }
 
 /* Font Size Classes - Small (current default) */
