@@ -1012,10 +1012,11 @@ function setTaskMinHeight(height) {
  */
 function detectRowsFromBoard(board) {
     if (!board || !board.columns) return 1;
-    
+
     let maxRow = 1;
     board.columns.forEach(column => {
         if (column.title) {
+            // Look for #row{number} format only (hashtag required)
             const rowMatch = column.title.match(/#row(\d+)/i);
             if (rowMatch) {
                 const rowNum = parseInt(rowMatch[1]);
@@ -1025,7 +1026,7 @@ function detectRowsFromBoard(board) {
             }
         }
     });
-    
+
     return Math.min(maxRow, 6); // Cap at 6 rows
 }
 
@@ -1657,9 +1658,18 @@ window.addEventListener('message', event => {
             // Clean up any duplicate row tags
             cleanupRowTags();
             
-            // Detect rows from board
+            // First apply configuration (as fallback)
+            if (message.layoutRows) {
+                applyLayoutRows(message.layoutRows);
+            } else {
+                applyLayoutRows(1); // Default fallback
+            }
+
+            // Then detect rows from board and override configuration if different
             const detectedRows = detectRowsFromBoard(currentBoard);
-            if (detectedRows > currentLayoutRows) {
+            console.log('Row detection:', { detectedRows, currentLayoutRows, configLayoutRows: message.layoutRows, columnTitles: currentBoard.columns.map(c => c.title) });
+            if (detectedRows !== currentLayoutRows) {
+                console.log('Auto-detection overriding config - setting layout rows to:', detectedRows);
                 setLayoutRows(detectedRows);
             }
             
@@ -1702,12 +1712,7 @@ window.addEventListener('message', event => {
                 applyColumnWidth('medium'); // Default fallback
             }
             
-            // Update layout rows with the value from configuration
-            if (message.layoutRows) {
-                applyLayoutRows(message.layoutRows);
-            } else {
-                applyLayoutRows(1); // Default fallback
-            }
+            // Layout rows are now handled above (with auto-detection override)
             
             // Update row height with the value from configuration
             if (message.rowHeight) {
