@@ -2471,18 +2471,37 @@ function updateTagCategoryCounts(id, type, columnId = null) {
             button.remove();
         });
 
-        // Add single "Remove all tags" option at the end
-        const divider = document.createElement('div');
-        divider.className = 'donut-menu-divider';
-
+        // Add single "Remove all tags" option before the last item (usually Delete)
         const button = document.createElement('button');
         button.className = 'donut-menu-item';
         button.setAttribute('data-action', 'remove-all-tags'); // Add identifier for reliable detection
         button.onclick = () => removeAllTags(id, type, columnId);
         button.textContent = 'Remove all tags';
 
-        activeDropdown.appendChild(divider);
-        activeDropdown.appendChild(button);
+        // Find the last menu item (usually "Delete card" or "Delete list")
+        const lastMenuItem = activeDropdown.querySelector('.donut-menu-item.danger:last-of-type');
+
+        if (lastMenuItem) {
+            // Check if there's already a divider before the delete button
+            const existingDivider = lastMenuItem.previousElementSibling;
+            const hasExistingDivider = existingDivider && existingDivider.classList.contains('donut-menu-divider');
+
+            // Insert the button before the delete button
+            activeDropdown.insertBefore(button, lastMenuItem);
+
+            // Add a divider after the "Remove all tags" button (before delete) if none exists
+            if (!hasExistingDivider) {
+                const dividerAfter = document.createElement('div');
+                dividerAfter.className = 'donut-menu-divider';
+                activeDropdown.insertBefore(dividerAfter, lastMenuItem);
+            }
+        } else {
+            // Fallback: add at the end if no danger button found
+            const divider = document.createElement('div');
+            divider.className = 'donut-menu-divider';
+            activeDropdown.appendChild(divider);
+            activeDropdown.appendChild(button);
+        }
     } else {
         // Remove all "Remove all tags" options if no active tags
         existingRemoveAllButtons.forEach(button => {
