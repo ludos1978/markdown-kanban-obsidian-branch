@@ -58,6 +58,10 @@
                 </div>
             </div>
             <div class="file-info-right">
+                <button id="refresh-includes-btn" class="refresh-includes-btn" onclick="refreshIncludes()" title="Refresh included files (files have changed)" style="display: none;">
+                    <span class="refresh-includes-icon">❗</span>
+                </button>
+
                 <button id="global-fold-btn" class="global-fold-btn fold-mixed" onclick="toggleAllColumns()" title="Fold/unfold all columns">
                     <span id="global-fold-icon" class="global-fold-icon">▽</span>
                     <span class="global-fold-text">Columns</span>
@@ -66,14 +70,10 @@
                     <span class="sort-icon">⇅</span>
                     <span class="sort-text">Sort</span>
                 </button>
-                
+
                 <button id="refresh-btn" class="refresh-btn" onclick="manualRefresh()" title="Refresh from source markdown">
                     <span class="refresh-icon">↻</span>
                     <span class="refresh-text">Refresh</span>
-                </button>
-
-                <button id="refresh-includes-btn" class="refresh-includes-btn" onclick="refreshIncludes()" title="Refresh included files (files have changed)" style="display: none;">
-                    <span class="refresh-includes-icon">📄</span>
                 </button>
 
                 <!-- File Bar Burger Menu -->

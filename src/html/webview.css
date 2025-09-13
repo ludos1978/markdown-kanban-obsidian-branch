@@ -138,18 +138,19 @@ body {
 }
 
 .refresh-includes-btn {
-  background: var(--vscode-inputValidation-warningBackground);
-  color: var(--vscode-inputValidation-warningForeground);
-  border-color: var(--vscode-inputValidation-warningBorder);
+  background: var(--vscode-inputValidation-errorBackground);
+  color: var(--vscode-inputValidation-errorForeground);
+  border-color: var(--vscode-inputValidation-errorBorder);
 }
 
-/* Refresh includes button - icon only, warning colors */
+/* Refresh includes button - icon only, error colors (red) */
 .refresh-includes-btn .refresh-includes-text {
   display: none; /* Hide text, show only icon */
 }
 
 .refresh-includes-btn .refresh-includes-icon {
-  font-size: 14px;
+  font-size: 16px;
+  color: #ff4444; /* Force red color for the exclamation mark */
 }
 
 /* Responsive file info header - collapse to icons when space is limited */
