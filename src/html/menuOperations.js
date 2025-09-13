@@ -1495,29 +1495,19 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
 
     // If task not found in the expected column, search all columns for the task
     if (!task) {
-        console.log('toggleTaskTag: task not found in expected column, searching all columns...', { taskId, expectedColumnId: columnId });
         for (const col of window.currentBoard.columns) {
             const foundTask = col.tasks.find(t => t.id === taskId);
             if (foundTask) {
                 column = col;
                 task = foundTask;
-                console.log('toggleTaskTag: found task in different column', { taskId, actualColumnId: col.id, actualColumnTitle: col.title });
                 break;
             }
         }
     }
 
-    if (!column) {
-        console.error('toggleTaskTag: column not found', { columnId, availableColumns: window.currentBoard.columns.map(c => ({ id: c.id, title: c.title })) });
+    if (!column || !task) {
         return;
     }
-
-    if (!task) {
-        console.error('toggleTaskTag: task not found in any column', { taskId, searchedColumns: window.currentBoard.columns.length });
-        return;
-    }
-
-    console.log('toggleTaskTag: found task and column successfully', { taskId, columnId, taskTitle: task.title, columnTitle: column.title });
     
     
     // Also check DOM element

@@ -1227,11 +1227,6 @@ function setupTaskDragHandle(handle) {
 
                     }
 
-                    // Ensure currentBoard is fully synced with cachedBoard after ANY position change
-                    if (window.cachedBoard && window.currentBoard !== window.cachedBoard) {
-                        window.currentBoard = window.cachedBoard;
-                    }
-
                     // NEW CACHE SYSTEM: Mark as unsaved
                     if (typeof markUnsavedChanges === 'function') {
                         markUnsavedChanges();

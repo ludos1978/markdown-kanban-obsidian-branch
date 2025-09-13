@@ -1397,8 +1397,8 @@ function createColumnElement(column, columnIndex) {
 													<span class="span-width-label">Width:</span>
 													<div class="span-width-controls">
 														<button class="span-width-btn" onclick="changeColumnSpan('${column.id}', -1)">−</button>
-														<span class="span-width-value" data-column-id="${column.id}">${(() => {
-															const spanMatch = column.title.match(/#span(\\d+)\\b/i);
+														<span class="span-width-value" data-column-id="${column.id}" title="Debug: ${column.title}">${(() => {
+															const spanMatch = column.title.match(/#span(\d+)\b/i);
 															return spanMatch ? spanMatch[1] : '1';
 														})()}</span>
 														<button class="span-width-btn" onclick="changeColumnSpan('${column.id}', 1)">+</button>
