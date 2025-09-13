@@ -62,7 +62,6 @@ export class MessageHandler {
     }
 
     public async handleMessage(message: any): Promise<void> {
-        console.log('[MESSAGE HANDLER] Received message:', message.type);
 
         switch (message.type) {
             // Undo/Redo operations
@@ -75,7 +74,6 @@ export class MessageHandler {
 
             // Include file refresh
             case 'refreshIncludes':
-                console.log('[MESSAGE HANDLER] Received refreshIncludes message');
                 await this.handleRefreshIncludes();
                 break;
 
@@ -594,17 +592,12 @@ export class MessageHandler {
     }
 
     private async handleRefreshIncludes(): Promise<void> {
-        console.log('[MESSAGE HANDLER] handleRefreshIncludes called');
         try {
             // Call refreshIncludes on the webview panel
             const panel = this._getWebviewPanel();
-            console.log('[MESSAGE HANDLER] Panel found:', !!panel);
             if (panel && typeof panel.refreshIncludes === 'function') {
-                console.log('[MESSAGE HANDLER] Calling panel.refreshIncludes()');
                 await panel.refreshIncludes();
-                console.log('[MESSAGE HANDLER] panel.refreshIncludes() completed');
             } else {
-                console.log('[MESSAGE HANDLER] Panel or refreshIncludes method not found');
             }
         } catch (error) {
             console.error('[MESSAGE HANDLER] Error refreshing includes:', error);
@@ -613,7 +606,6 @@ export class MessageHandler {
     }
 
     private async handleRequestIncludeFile(filePath: string): Promise<void> {
-        console.log('[MESSAGE HANDLER] Handling include file request for:', filePath);
 
         try {
             const panel = this._getWebviewPanel();
@@ -632,7 +624,6 @@ export class MessageHandler {
             const basePath = path.dirname(document.uri.fsPath);
             const absolutePath = path.resolve(basePath, filePath);
 
-            console.log('[MESSAGE HANDLER] Resolving include file:', { filePath, basePath, absolutePath });
 
             // Read the file content
             let content: string;
@@ -650,7 +641,6 @@ export class MessageHandler {
                 }
 
                 content = fs.readFileSync(absolutePath, 'utf8');
-                console.log('[MESSAGE HANDLER] Successfully read include file, length:', content.length);
 
                 // Send the content back to the frontend
                 await panel._panel.webview.postMessage({
@@ -675,7 +665,6 @@ export class MessageHandler {
     }
 
     private async handleRuntimeTrackingReport(report: any): Promise<void> {
-        console.log('[MESSAGE HANDLER] Received runtime tracking report');
 
         try {
             // Save runtime report to file
@@ -692,7 +681,6 @@ export class MessageHandler {
             // Write report
             fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
-            console.log(`[MESSAGE HANDLER] Runtime tracking report saved: ${reportPath}`);
 
             // Log summary
             if (report.summary) {

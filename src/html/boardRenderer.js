@@ -2412,7 +2412,6 @@ function removeAllTags(id, type, columnId = null) {
     }
     
     if (!element) {
-        console.warn('Element not found for removeAllTags');
         return;
     }
     

@@ -287,13 +287,9 @@ function renderMarkdown(text) {
         }
         if (typeof window.markdownItMulticolumn !== 'undefined') {
             md.use(window.markdownItMulticolumn); // Multi-column layout support
-        } else {
-            console.warn('markdown-it-multicolumn plugin not found');
         }
         if (typeof window.markdownitMark !== 'undefined') {
             md.use(window.markdownitMark); // ==mark== syntax support
-        } else {
-            console.warn('markdown-it-mark plugin not found');
         }
         if (typeof window.markdownitSub !== 'undefined') {
             md.use(window.markdownitSub); // H~2~O subscript support

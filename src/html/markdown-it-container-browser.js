@@ -138,5 +138,4 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = container_plugin;
 } else {
   window.markdownitContainer = container_plugin;
-  console.log('markdown-it-container plugin loaded and available as window.markdownitContainer');
 }

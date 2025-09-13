@@ -1250,7 +1250,6 @@ export class KanbanWebviewPanel {
     }
 
     public async refreshIncludes() {
-        console.log('[REFRESH INCLUDES] Starting refresh includes...');
 
         // Reset the change flag
         this._includeFilesChanged = false;
@@ -1259,12 +1258,9 @@ export class KanbanWebviewPanel {
         const document = this._fileManager.getDocument();
         if (document) {
             try {
-                console.log('[REFRESH INCLUDES] Re-parsing markdown with includes...');
                 const basePath = path.dirname(document.uri.fsPath);
                 const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
 
-                console.log('[REFRESH INCLUDES] Parse complete, included files:', parseResult.includedFiles);
-                console.log('[REFRESH INCLUDES] Board has', parseResult.board.columns.length, 'columns');
 
                 this._board = parseResult.board;
                 this._includedFiles = parseResult.includedFiles;
@@ -1276,10 +1272,8 @@ export class KanbanWebviewPanel {
                 this._boardOperations.cleanupRowTags(this._board);
                 this._boardOperations.setOriginalTaskOrder(this._board);
 
-                console.log('[REFRESH INCLUDES] Sending board update to webview...');
                 // Force send the updated board to webview
                 await this.sendBoardUpdate();
-                console.log('[REFRESH INCLUDES] Board update sent successfully');
             } catch (error) {
                 console.error('[REFRESH INCLUDES] Error refreshing includes:', error);
             }
@@ -1287,6 +1281,5 @@ export class KanbanWebviewPanel {
 
         // Send notification to hide the button
         this._sendIncludeFileChangeNotification();
-        console.log('[REFRESH INCLUDES] Refresh includes complete');
     }
 }

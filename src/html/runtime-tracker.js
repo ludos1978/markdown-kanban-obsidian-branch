@@ -4,7 +4,6 @@
  * Helps identify truly unused functions vs. functions that are rarely used
  */
 
-console.log('🔍 Runtime tracker script loading...');
 
 class RuntimeTracker {
     constructor() {
@@ -31,13 +30,11 @@ class RuntimeTracker {
      * Initialize the runtime tracker
      */
     init() {
-        console.log('🔍 Init method called');
 
         // Check if tracking is enabled (can be controlled by localStorage or config)
         const trackingEnabled = localStorage.getItem('codeTrackingEnabled') === 'true' ||
                                window.DEBUG_MODE === true;
 
-        console.log('🔍 Tracking enabled?', trackingEnabled);
 
         if (trackingEnabled) {
             this.start();
@@ -59,7 +56,6 @@ class RuntimeTracker {
             }
         };
 
-        console.log('🔍 window.runtimeTracker set to:', window.runtimeTracker);
     }
 
     /**
@@ -71,7 +67,6 @@ class RuntimeTracker {
         this.enabled = true;
         this.startTime = Date.now();
 
-        console.log('🔍 Runtime function tracking started');
 
         // Track global functions
         if (this.config.trackGlobalFunctions) {
@@ -103,7 +98,6 @@ class RuntimeTracker {
         if (!this.enabled) return;
 
         this.enabled = false;
-        console.log('⏹️ Runtime function tracking stopped');
 
         if (this.reportTimer) {
             clearInterval(this.reportTimer);
@@ -118,7 +112,6 @@ class RuntimeTracker {
     clear() {
         this.functionCalls.clear();
         this.startTime = Date.now();
-        console.log('🗑️ Runtime tracking data cleared');
     }
 
     /**
@@ -392,25 +385,20 @@ class RuntimeTracker {
 
 // Initialize runtime tracker
 if (typeof window !== 'undefined') {
-    console.log('🔍 Initializing runtime tracker...');
     window.RuntimeTracker = RuntimeTracker;
 
     // Auto-start if in debug mode or explicitly enabled
     const tracker = new RuntimeTracker();
-    console.log('🔍 Runtime tracker instance created:', tracker);
 
     // Expose for manual control
     window.startFunctionTracking = () => tracker.start();
     window.stopFunctionTracking = () => tracker.stop();
     window.getFunctionReport = () => tracker.generateReport();
 
-    console.log('🔍 Runtime tracker initialization complete. Access via window.runtimeTracker');
 
     // Check if it gets overwritten
     setTimeout(() => {
-        console.log('🔍 Delayed check - window.runtimeTracker is:', window.runtimeTracker);
         if (!window.runtimeTracker) {
-            console.log('🔍 window.runtimeTracker was overwritten! Re-setting...');
             window.runtimeTracker = {
                 start: () => tracker.start(),
                 stop: () => tracker.stop(),
@@ -425,9 +413,7 @@ if (typeof window !== 'undefined') {
                     tracker.stop();
                 }
             };
-            console.log('🔍 window.runtimeTracker re-set to:', window.runtimeTracker);
         }
     }, 1000);
 } else {
-    console.log('🔍 Window not available - runtime tracker not initialized');
 }

@@ -1802,8 +1802,6 @@ window.addEventListener('message', event => {
                     hasUnsavedChanges: window.hasUnsavedChanges || false,
                     cachedBoard: window.cachedBoard || window.currentBoard
                 });
-            } else {
-                console.warn('❌ No cached board available to send');
             }
             break;
         case 'unfoldColumnsBeforeUpdate':
@@ -1829,8 +1827,6 @@ window.addEventListener('message', event => {
             // Handle include file content response from backend
             if (typeof window.updateIncludeFileCache === 'function') {
                 window.updateIncludeFileCache(message.filePath, message.content);
-            } else {
-                console.warn('updateIncludeFileCache function not available');
             }
             break;
     }
@@ -2131,8 +2127,6 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             if (typeof saveCachedBoard === 'function') {
                 saveCachedBoard();
-            } else {
-                console.warn('❌ saveCachedBoard function not available');
             }
         }
         // Meta+W or Ctrl+W to close window - check for unsaved changes first
@@ -2592,8 +2586,6 @@ function openIncludeFile(filePath) {
             type: 'openFileLink',
             href: filePath
         });
-    } else {
-        console.warn('Cannot open include file: VSCode API not available');
     }
 }
 

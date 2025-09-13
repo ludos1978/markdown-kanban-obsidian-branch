@@ -825,11 +825,7 @@ function deleteColumn(columnId) {
             // Send message to VS Code for undo tracking
             vscode.postMessage({ type: 'deleteColumn', columnId });
             
-        } else {
-            console.warn(`❌ Column ${columnId} not found for deletion`);
         }
-    } else {
-        console.warn('❌ No cached board available for column deletion');
     }
 }
 
@@ -1153,14 +1149,8 @@ function deleteTask(taskId, columnId) {
                 // Send message to VS Code for undo tracking
                 vscode.postMessage({ type: 'deleteTask', taskId, columnId });
                 
-            } else {
-                console.warn(`❌ Task ${taskId} not found in column ${columnId} for deletion`);
             }
-        } else {
-            console.warn(`❌ Column ${columnId} not found for task deletion`);
         }
-    } else {
-        console.warn('❌ No cached board available for task deletion');
     }
 }
 
@@ -1300,16 +1290,11 @@ function toggleColumnTag(columnId, tagName, event) {
     }
     
     if (!window.currentBoard?.columns) {
-        console.warn('No currentBoard or columns available');
         return;
     }
-    
-    // Enhanced debugging for column finding
-    
+
     const column = window.currentBoard.columns.find(c => c.id === columnId);
     if (!column) {
-        console.warn(`❌ Column not found: ${columnId}`);
-        console.warn(`Available column IDs: ${window.currentBoard.columns.map(c => c.id).join(', ')}`);
         return;
     }
     
@@ -1317,11 +1302,7 @@ function toggleColumnTag(columnId, tagName, event) {
     // Also check DOM element
     const domElement = document.querySelector(`[data-column-id="${columnId}"]`);
     if (!domElement) {
-        console.warn(`❌ DOM element not found for column ID: ${columnId}`);
-        // Try to find any elements with data-column-id
-        const allColumnElements = document.querySelectorAll('[data-column-id]');
-        console.warn(`Available DOM column elements:`, Array.from(allColumnElements).map(el => el.getAttribute('data-column-id')));
-    } else {
+        return;
     }
     
     const tagWithHash = `#${tagName}`;
@@ -1408,21 +1389,16 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     }
     
     if (!window.currentBoard?.columns) {
-        console.warn('No currentBoard or columns available');
         return;
     }
     
-    // Enhanced debugging for task finding
     const column = window.currentBoard.columns.find(c => c.id === columnId);
     if (!column) {
-        console.warn(`❌ Column not found: ${columnId}`);
         return;
     }
     
     const task = column?.tasks.find(t => t.id === taskId);
     if (!task) {
-        console.warn(`❌ Task not found: ${taskId} in column ${columnId}`);
-        console.warn(`Available task IDs in column: ${column.tasks?.map(t => t.id).join(', ') || 'none'}`);
         return;
     }
     
@@ -1430,11 +1406,7 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     // Also check DOM element
     const domElement = document.querySelector(`[data-task-id="${taskId}"]`);
     if (!domElement) {
-        console.warn(`❌ DOM element not found for task ID: ${taskId}`);
-        // Try to find any elements with data-task-id
-        const allTaskElements = document.querySelectorAll('[data-task-id]');
-        console.warn(`Available DOM task elements:`, Array.from(allTaskElements).map(el => el.getAttribute('data-task-id')));
-    } else {
+        return;
     }
     
     const tagWithHash = `#${tagName}`;
@@ -1459,11 +1431,7 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
             const cachedTask = cachedColumn.tasks.find(t => t.id === taskId);
             if (cachedTask) {
                 cachedTask.title = title;
-            } else {
-                console.warn(`❌ Task ${taskId} not found in cached board column ${columnId}`);
             }
-        } else {
-            console.warn(`❌ Column ${columnId} not found in cached board`);
         }
     }
     
@@ -1510,7 +1478,6 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     // Use unique ID to find column element - NEVER use titles for selection
     const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
     if (!columnElement) {
-        console.warn(`Column element not found for ID: ${columnId}`);
         return;
     }
     
@@ -1551,8 +1518,6 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     if (window.updateVisualTagState && typeof window.updateVisualTagState === 'function') {
         const isCollapsed = columnElement.classList.contains('collapsed');
         window.updateVisualTagState(columnElement, allTags, 'column', isCollapsed);
-    } else {
-        console.warn('updateVisualTagState function not available');
     }
     
     // Update corner badges immediately
@@ -1590,7 +1555,6 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
     // Use unique ID to find task element - NEVER use titles for selection
     const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
     if (!taskElement) {
-        console.warn(`Task element not found for ID: ${taskId}`);
         return;
     }
     
@@ -1628,8 +1592,6 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
     if (window.updateVisualTagState && typeof window.updateVisualTagState === 'function') {
         const isCollapsed = taskElement.classList.contains('collapsed');
         window.updateVisualTagState(taskElement, allTags, 'task', isCollapsed);
-    } else {
-        console.warn('updateVisualTagState function not available');
     }
     
     // Update corner badges immediately
@@ -1854,7 +1816,6 @@ function compareBoards(savedBoard, cachedBoard) {
 function saveCachedBoard() {
     
     if (!window.cachedBoard) {
-        console.warn('❌ No cached board data available!');
         return;
     }
     
@@ -1890,7 +1851,6 @@ function flushPendingTagChanges() {
 // Retry function for failed saves
 function retryLastFlushedChanges() {
     if (!window._lastFlushedChanges) {
-        console.warn('⚠️ No changes to retry');
         return false;
     }
     
@@ -1899,7 +1859,6 @@ function retryLastFlushedChanges() {
     
     // Don't retry if too much time has passed (5 minutes)
     if (timeSinceFlush > 300000) {
-        console.warn('⚠️ Last flush too old to retry safely');
         window._lastFlushedChanges = null;
         return false;
     }
@@ -1945,7 +1904,6 @@ function retryLastFlushedChanges() {
 function applyPendingChangesLocally() {
     
     if (!window.currentBoard) {
-        console.warn('No currentBoard available for local updates');
         return;
     }
     
@@ -1987,8 +1945,6 @@ function applyPendingChangesLocally() {
                     task.description = taskData.description;
                     changesApplied++;
                 }
-            } else {
-                console.warn(`📝 Could not find task ${taskId} in any column for local update`);
             }
         });
     }
@@ -2005,17 +1961,9 @@ function handleSaveError(errorMessage) {
     
     // Show user-friendly error message
     if (errorMessage.includes('workspace edit')) {
-        console.warn('💾 Workspace edit failed - this might be due to:');
-        console.warn('  • File permissions');
-        console.warn('  • File is open in another editor');
-        console.warn('  • File was modified externally');
-        console.warn('  • VS Code is busy with other operations');
-        
         // Attempt to retry after a delay
         setTimeout(() => {
             if (retryLastFlushedChanges()) {
-            } else {
-                console.warn('❌ Retry failed - manual refresh may be needed');
             }
         }, 2000);
     }
@@ -2114,17 +2062,14 @@ function manualRefresh() {
 
 // Refresh includes function
 function refreshIncludes() {
-    console.log('[FRONTEND] Refresh includes button clicked');
 
     // Hide the refresh includes button
     const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
     if (refreshIncludesBtn) {
         refreshIncludesBtn.style.display = 'none';
-        console.log('[FRONTEND] Refresh includes button hidden');
     }
 
     // Send message to backend to refresh includes
-    console.log('[FRONTEND] Sending refreshIncludes message to backend');
     vscode.postMessage({ type: 'refreshIncludes' });
     vscode.postMessage({ type: 'showMessage', text: 'Refreshing included files...' });
 }
@@ -2276,7 +2221,6 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
     const selector = elementType === 'column' ? `[data-column-id="${elementId}"]` : `[data-task-id="${elementId}"]`;
     const element = document.querySelector(selector);
     if (!element) {
-        console.warn(`❌ Element not found for ${elementType} ID: ${elementId}`);
         return;
     }
     
