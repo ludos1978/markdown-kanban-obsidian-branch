@@ -1890,12 +1890,29 @@ function focusCard(card) {
     if (card) {
         card.classList.add('card-focused');
         
-        // Center the card in the viewport
-        card.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center',    // Center vertically
-            inline: 'center'    // Center horizontally
-        });
+        // Check if card is larger than viewport
+        const cardRect = card.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        
+        const cardTallerThanViewport = cardRect.height > viewportHeight;
+        const cardWiderThanViewport = cardRect.width > viewportWidth;
+        
+        // If card is larger than viewport, scroll to show top-left corner
+        // Otherwise, center the card
+        if (cardTallerThanViewport || cardWiderThanViewport) {
+            card.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start',    // Show top of card
+                inline: 'start'    // Show left of card
+            });
+        } else {
+            card.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center',   // Center vertically
+                inline: 'center'   // Center horizontally
+            });
+        }
         
         currentFocusedCard = card;
     } else {
