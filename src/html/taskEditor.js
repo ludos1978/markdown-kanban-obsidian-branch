@@ -100,8 +100,6 @@ class TaskEditor {
             containerElement = element.closest('.task-item') || element;
             displayElement = containerElement.querySelector('.task-description-display');
             editElement = containerElement.querySelector('.task-description-edit');
-            const placeholder = containerElement.querySelector('.task-description-placeholder');
-            if (placeholder) placeholder.style.display = 'none';
         } else if (type === 'column-title') {
             containerElement = element.closest('.kanban-full-height-column') || element;
             displayElement = containerElement.querySelector('.column-title');

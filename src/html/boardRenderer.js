@@ -1559,7 +1559,6 @@ function createTaskElement(task, columnId, taskIndex) {
                             data-field="description"
                             placeholder="Add description (Markdown supported)..."
                             style="display: none;">${escapeHtml(task.description || '')}</textarea>
-                ${!task.description ? `<div class="task-description-placeholder" onclick="handleDescriptionClick(event, this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
             </div>
             ${footerBarsHtml}
         </div>
