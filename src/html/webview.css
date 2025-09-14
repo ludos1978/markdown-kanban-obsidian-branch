@@ -3502,28 +3502,31 @@ s {
     border-top: 1px solid gray;
     border-bottom: 1px solid gray;
     position: relative;
+    padding-right: 25px; /* Make room for the icon in top-right */
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: 5px;
+    min-height: 20px; /* Ensure minimum height for icon placement */
 }
 
-/* Add icon before included content */
+/* Add icon in top right corner of included content */
 .included-content-inline::before {
     content: "📄";
-    display: inline-block;
+    position: absolute;
+    top: 2px;
+    right: 2px;
     cursor: pointer;
     padding: 1px 3px;
-    margin-right: 3px;
     border-radius: 2px;
     font-size: 14px;
     opacity: 0.7;
     transition: all 0.2s ease;
-    vertical-align: baseline;
-    max-height: 14px;
-    min-height: 14px;
-    max-width: 14px;
-    min-width: 14px;
-    float: left;
-    /* Ensure the icon has its own click area */
-    position: relative;
+    height: 14px;
+    width: 14px;
+    line-height: 14px;
+    text-align: center;
     z-index: 1;
+    background-color: var(--vscode-editor-background);
 }
 
 .included-content-inline:hover::before {

@@ -2919,17 +2919,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Handle clicks on included content icons (::before pseudo-element)
+    // Handle clicks on included content icons (::before pseudo-element in top-right)
     document.addEventListener('click', function(e) {
         const includedContent = e.target.closest('.included-content-inline');
         if (includedContent) {
             // Get the position of the click relative to the element
             const rect = includedContent.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            const iconSize = 20; // Icon area is approximately 20x20px (14px + padding)
 
-            // The icon is approximately 20px wide (14px + padding)
-            // Check if click is within the icon area (left side)
-            if (clickX <= 20) {
+            // Check if click is within the icon area (top-right corner)
+            if (clickX >= rect.width - iconSize && clickY <= iconSize) {
                 const filePath = includedContent.getAttribute('data-include-file');
                 if (filePath) {
                     e.preventDefault();
@@ -2946,10 +2947,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (includedContent) {
             const rect = includedContent.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const iconSize = 20;
             const filePath = includedContent.getAttribute('data-include-file');
 
-            // Show title only when hovering over the icon area
-            if (mouseX <= 20 && filePath) {
+            // Show title only when hovering over the icon area (top-right corner)
+            if (mouseX >= rect.width - iconSize && mouseY <= iconSize && filePath) {
                 includedContent.title = `Open ${filePath}`;
             } else {
                 includedContent.title = '';
