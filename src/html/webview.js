@@ -53,11 +53,13 @@ const menuConfig = {
         { label: "60px", value: "60px" }
     ],
     fontSize: [
-        { label: "Small", value: "small", icon: "a" },
-        { label: "Normal", value: "normal", icon: "A" },
-        { label: "Bigger", value: "bigger", icon: "A", iconStyle: "font-size: 15px;" },
-        { label: "Large", value: "large", icon: "A", iconStyle: "font-size: 16px;" },
-        { label: "X-Large", value: "xlarge", icon: "A", iconStyle: "font-size: 18px;" }
+        { label: "4px", value: "4px", icon: "a", iconStyle: "font-size: 10px;" },
+        { label: "8px", value: "8px", icon: "a", iconStyle: "font-size: 11px;" },
+        { label: "13px", value: "13px", icon: "a", iconStyle: "font-size: 12px;" },
+        { label: "16px", value: "16px", icon: "A", iconStyle: "font-size: 14px;" },
+        { label: "30px", value: "30px", icon: "A", iconStyle: "font-size: 16px;" },
+        { label: "40px", value: "40px", icon: "A", iconStyle: "font-size: 18px;" },
+        { label: "60px", value: "60px", icon: "A", iconStyle: "font-size: 20px;" }
     ],
     fontFamily: [
         { label: "System Default", value: "system", icon: "Aa" },

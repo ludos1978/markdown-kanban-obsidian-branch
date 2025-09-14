@@ -3213,67 +3213,97 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
   max-width: var(--collapsed-column-width) !important;
 }
 
-/* Font Size Classes - Small (current default) */
-body.font-size-small .column-title,
-body.font-size-small .task-title-display,
-body.font-size-small .task-description-display {
+/* Font Size Classes - 4px */
+body.font-size-4px .column-title,
+body.font-size-4px .column-title-edit,
+body.font-size-4px .task-title-display,
+body.font-size-4px .task-title-edit {
+  font-size: 4px;
+  line-height: 1.4;
+}
+
+body.font-size-4px .task-description-display,
+body.font-size-4px .task-description-edit {
+  font-size: 4px;
+  line-height: 1.4;
+}
+
+/* Font Size Classes - 8px */
+body.font-size-8px .column-title,
+body.font-size-8px .column-title-edit,
+body.font-size-8px .task-title-display,
+body.font-size-8px .task-title-edit {
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+body.font-size-8px .task-description-display,
+body.font-size-8px .task-description-edit {
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+/* Font Size Classes - 13px */
+body.font-size-13px .column-title,
+body.font-size-13px .task-title-display,
+body.font-size-13px .task-description-display {
   font-size: inherit; /* Keep current sizes */
 }
 
-/* Font Size Classes - Normal */
-body.font-size-normal .column-title,
-body.font-size-normal .column-title-edit,
-body.font-size-normal .task-title-display,
-body.font-size-normal .task-title-edit {
+/* Font Size Classes - 16px */
+body.font-size-16px .column-title,
+body.font-size-16px .column-title-edit,
+body.font-size-16px .task-title-display,
+body.font-size-16px .task-title-edit {
   font-size: 16px;
 }
 
-body.font-size-normal .task-description-display,
-body.font-size-normal .task-description-edit {
+body.font-size-16px .task-description-display,
+body.font-size-16px .task-description-edit {
 	font-size: 15px;
 }
 
-/* Font Size Classes - Large */
-body.font-size-bigger .column-title,
-body.font-size-bigger .task-title-display,
-body.font-size-bigger .column-title-edit,
-body.font-size-bigger .task-title-edit {
+/* Font Size Classes - 30px */
+body.font-size-30px .column-title,
+body.font-size-30px .task-title-display,
+body.font-size-30px .column-title-edit,
+body.font-size-30px .task-title-edit {
   font-size: 30px;
   line-height: 1.1;
 }
 
-body.font-size-bigger .task-description-display,
-body.font-size-bigger .task-description-edit {
+body.font-size-30px .task-description-display,
+body.font-size-30px .task-description-edit {
   font-size: 27px;
   line-height: 1.15;
 }
 
-/* Font Size Classes - Large */
-body.font-size-large .column-title,
-body.font-size-large .column-title-edit,
-body.font-size-large .task-title-display,
-body.font-size-large .task-title-edit {
+/* Font Size Classes - 40px */
+body.font-size-40px .column-title,
+body.font-size-40px .column-title-edit,
+body.font-size-40px .task-title-display,
+body.font-size-40px .task-title-edit {
   font-size: 40px;
   line-height: 1.2;
 }
 
-body.font-size-large .task-description-display,
-body.font-size-large .task-description-edit {
+body.font-size-40px .task-description-display,
+body.font-size-40px .task-description-edit {
   font-size: 36px;
   line-height: 1.3;
 }
 
-/* Font Size Classes - X-Large */
-body.font-size-xlarge .column-title,
-body.font-size-xlarge .column-title-edit,
-body.font-size-xlarge .task-title-display,
-body.font-size-xlarge .task-title-edit {
+/* Font Size Classes - 60px */
+body.font-size-60px .column-title,
+body.font-size-60px .column-title-edit,
+body.font-size-60px .task-title-display,
+body.font-size-60px .task-title-edit {
   font-size: 60px;
   line-height: 1.1;
 }
 
-body.font-size-xlarge .task-description-display,
-body.font-size-xlarge .task-description-edit {
+body.font-size-60px .task-description-display,
+body.font-size-60px .task-description-edit {
   font-size: 54px;
   line-height: 1.2;
 }
