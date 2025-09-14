@@ -1057,32 +1057,12 @@ function applyTagVisibility(setting) {
     if (window.currentBoard) {
         renderBoard(window.currentBoard, { skipRender: false });
 
-        // Force column width preservation - use multiple attempts with different delays
-        const preserveColumnWidth = (attempt) => {
-            console.log(`[DEBUG] Attempt ${attempt} - currentColumnWidth:`, window.currentColumnWidth);
-            const columns = document.querySelectorAll('.kanban-full-height-column');
-            console.log(`[DEBUG] Found ${columns.length} columns`);
+        // Preserve column width after re-render
+        setTimeout(() => {
             if (window.currentColumnWidth && window.applyColumnWidth) {
-                console.log(`[DEBUG] Applying column width: ${window.currentColumnWidth}`);
-                window.applyColumnWidth(window.currentColumnWidth, true); // Skip render to prevent loop
-
-                // Verify it was applied
-                setTimeout(() => {
-                    const firstColumn = document.querySelector('.kanban-full-height-column');
-                    if (firstColumn) {
-                        console.log(`[DEBUG] After apply - column classes:`, firstColumn.className);
-                        console.log(`[DEBUG] CSS --column-width:`, getComputedStyle(document.documentElement).getPropertyValue('--column-width'));
-                    }
-                }, 10);
-            } else {
-                console.log(`[DEBUG] Cannot apply - currentColumnWidth: ${window.currentColumnWidth}, applyColumnWidth: ${typeof window.applyColumnWidth}`);
+                window.applyColumnWidth(window.currentColumnWidth, true);
             }
-        };
-
-        // Multiple attempts to ensure column width sticks
-        setTimeout(() => preserveColumnWidth(1), 50);
-        setTimeout(() => preserveColumnWidth(2), 150);
-        setTimeout(() => preserveColumnWidth(3), 300);
+        }, 50);
     }
 }
 
