@@ -1870,7 +1870,7 @@ window.addEventListener('message', event => {
                 if (message.fontSize) {
                     applyFontSize(message.fontSize);
                 } else {
-                    applyFontSize('small'); // Default fallback
+                    applyFontSize('13px'); // Default fallback
                 }
 
                 // Update font family with the value from configuration
@@ -2830,11 +2830,11 @@ window.getColumnRow = getColumnRow;
 window.performSort = performSort;
 
 // Font size functionality
-let currentFontSize = 'small'; // Default to small (current behavior)
+let currentFontSize = '13px'; // Default to 13px (current behavior)
 
 function applyFontSize(size) {
     // Remove all font size classes
-    document.body.classList.remove('font-size-small', 'font-size-normal', 'font-size-bigger', 'font-size-large', 'font-size-xlarge');
+    document.body.classList.remove('font-size-4px', 'font-size-8px', 'font-size-13px', 'font-size-16px', 'font-size-30px', 'font-size-40px', 'font-size-60px');
     
     // Remove old small-card-fonts class for backward compatibility
     document.body.classList.remove('small-card-fonts');
@@ -2914,7 +2914,7 @@ window.openIncludeFile = openIncludeFile;
 // Initialize font size on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Set default font size to small (maintaining current behavior)
-    setFontSize('small');
+    setFontSize('13px');
 
     // Recalculate task description heights when window resizes (for vh units)
     window.addEventListener('resize', () => {
