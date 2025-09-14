@@ -3394,7 +3394,7 @@ body.font-family-consolas {
 
 /* Mark/highlight styling */
 mark {
-    background-color: var(--vscode-editor-findMatchHighlightBackground, #ffeb3b);
+    background-color: var(--vscode-editor-findMatchHighlightBackground, #ffaa88);
     color: var(--vscode-editor-foreground);
     padding: 1px 2px;
     border-radius: 2px;
@@ -3535,11 +3535,46 @@ s {
     transform: scale(1.1);
 }
 
-.included-content {
-    /* Block included content can have subtle visual indication */
-    border-left: 2px solid var(--vscode-panel-border, rgba(255, 255, 255, 0.1));
+.included-content-block {
+    /* Block included content with visual indication */
+    display: block;
+		border: 0.5px dashed gray;
+    /* border-top: 1px  gray;
+    border-bottom: 1px solid gray;
+    border-left: 2px solid var(--vscode-panel-border, rgba(255, 255, 255, 0.1)); */
+    position: relative;
+    padding-right: 25px; /* Make room for the icon in top-right */
+    padding-top: 5px;
+    padding-bottom: 5px;
     padding-left: 8px;
     margin: 4px 0;
+    min-height: 20px; /* Ensure minimum height for icon placement */
+}
+
+/* Add icon in top right corner of block included content */
+.included-content-block::before {
+    content: "📄";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    cursor: pointer;
+    padding: 1px 3px;
+    border-radius: 2px;
+    font-size: 14px;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    height: 14px;
+    width: 14px;
+    line-height: 14px;
+    text-align: center;
+    z-index: 1;
+    background-color: var(--vscode-editor-background);
+}
+
+.included-content-block:hover::before {
+    opacity: 1;
+    background-color: var(--vscode-button-hoverBackground, rgba(255, 255, 255, 0.1));
+    transform: scale(1.1);
 }
 
 @keyframes pulse {

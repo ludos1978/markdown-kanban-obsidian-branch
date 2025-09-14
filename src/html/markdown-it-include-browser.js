@@ -67,12 +67,31 @@
       const token = tokens[idx];
       const content = token.content;
       const filePath = token.attrGet('data-include-file') || '';
+      const isBlock = token.attrGet('data-include-block') === 'true';
 
-      // Render the content as markdown (recursively)
+      // Render the content as markdown
       try {
-        const rendered = md.render(content);
-        // Use data attribute for file path, icon will be added via CSS ::before
-        return `<span class="included-content-inline" data-include-file="${escapeHtml(filePath)}">${rendered}</span>`;
+        let rendered;
+        let wrapperTag;
+        let wrapperClass;
+
+        // Check if content has block-level elements (headers, lists, etc.)
+        const hasBlockContent = /^#{1,6}\s|^\*\s|^\d+\.\s|^\>|^```|^\|/m.test(content);
+
+        if (hasBlockContent || isBlock) {
+          // Use div for block content and full render
+          rendered = md.render(content);
+          wrapperTag = 'div';
+          wrapperClass = 'included-content-block';
+        } else {
+          // Use span for inline content and renderInline
+          rendered = md.renderInline(content);
+          wrapperTag = 'span';
+          wrapperClass = 'included-content-inline';
+        }
+
+        // Each include gets its own wrapper
+        return `<${wrapperTag} class="${wrapperClass}" data-include-file="${escapeHtml(filePath)}">${rendered}</${wrapperTag}>`;
       } catch (error) {
         console.error('Error rendering included content:', error);
         return `<span class="include-error" title="Error rendering included content">Error including: ${escapeHtml(filePath)}</span>`;

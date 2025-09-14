@@ -2921,7 +2921,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle clicks on included content icons (::before pseudo-element in top-right)
     document.addEventListener('click', function(e) {
-        const includedContent = e.target.closest('.included-content-inline');
+        const includedContent = e.target.closest('.included-content-inline, .included-content-block');
         if (includedContent) {
             // Get the position of the click relative to the element
             const rect = includedContent.getBoundingClientRect();
@@ -2943,7 +2943,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add dynamic title on mousemove to show tooltip only on icon
     document.addEventListener('mousemove', function(e) {
-        const includedContent = e.target.closest('.included-content-inline');
+        const includedContent = e.target.closest('.included-content-inline, .included-content-block');
         if (includedContent) {
             const rect = includedContent.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
