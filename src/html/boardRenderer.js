@@ -1155,7 +1155,11 @@ function renderBoard() {
         // Notify that rendering is complete (for focus functionality)
         if (window.onBoardRenderingComplete) {
             window.onBoardRenderingComplete();
-        } else {
+        }
+
+        // Recalculate task description heights after board renders
+        if (window.calculateTaskDescriptionHeight) {
+            window.calculateTaskDescriptionHeight();
         }
     }, 10);
 

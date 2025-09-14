@@ -2678,12 +2678,88 @@ function updateWhitespace(value) {
     document.documentElement.style.setProperty('--whitespace', value);
 }
 
+function calculateTaskDescriptionHeight() {
+    // Only calculate if we're in height-limited mode
+    if (!document.body.classList.contains('task-height-limited')) {
+        return;
+    }
+
+    const taskHeight = getComputedStyle(document.documentElement).getPropertyValue('--task-height');
+    if (!taskHeight || taskHeight === 'auto') {
+        return;
+    }
+
+    // Get all task items
+    document.querySelectorAll('.task-item').forEach(taskItem => {
+        const descContainer = taskItem.querySelector('.task-description-container');
+        if (!descContainer) return;
+
+        // Calculate the total height of other elements in the task-item
+        let usedHeight = 0;
+
+        // Add header bars height if present
+        const headerBars = taskItem.querySelector('.header-bars-container');
+        if (headerBars) {
+            usedHeight += headerBars.offsetHeight;
+        }
+
+        // Add task header height
+        const taskHeader = taskItem.querySelector('.task-header');
+        if (taskHeader) {
+            usedHeight += taskHeader.offsetHeight;
+        }
+
+        // Add footer bars height if present
+        const footerBars = taskItem.querySelector('.footer-bars-container');
+        if (footerBars) {
+            usedHeight += footerBars.offsetHeight;
+        }
+
+        // Get the task item's computed styles
+        const taskItemStyles = getComputedStyle(taskItem);
+        const paddingTop = parseFloat(taskItemStyles.paddingTop) || 0;
+        const paddingBottom = parseFloat(taskItemStyles.paddingBottom) || 0;
+        const gap = parseFloat(taskItemStyles.gap) || 0;
+
+        // Account for gaps between elements (flexbox gap)
+        const gapCount = [headerBars, taskHeader, descContainer, footerBars].filter(el => el).length - 1;
+        const totalGap = gap * gapCount;
+
+        // Calculate total used height
+        usedHeight += (paddingTop + paddingBottom + totalGap) * 1.2;
+
+        // Parse task height to pixels
+        let taskHeightPx = 0;
+        if (taskHeight.includes('vh')) {
+            const vh = parseFloat(taskHeight);
+            taskHeightPx = (vh / 100) * window.innerHeight;
+        } else if (taskHeight.includes('px')) {
+            taskHeightPx = parseFloat(taskHeight);
+        } else if (taskHeight.includes('%')) {
+            const percent = parseFloat(taskHeight);
+            taskHeightPx = (percent / 100) * window.innerHeight;
+        }
+
+        // Calculate available height for description container
+        const availableHeight = taskHeightPx - usedHeight;
+
+        // Set the max-height for the description container
+        if (availableHeight > 0) {
+            descContainer.style.maxHeight = availableHeight + 'px';
+            descContainer.style.overflow = 'auto';
+        } else {
+            descContainer.style.maxHeight = '';
+            descContainer.style.overflow = '';
+        }
+    });
+}
+
 function updateTaskMinHeight(value) {
     // Ensure we have a valid value
     if (!value) {
         value = 'auto';
     }
-    
+
     document.documentElement.style.setProperty('--task-height', value);
 
     // Apply height limitation when value is not 'auto'
@@ -2694,14 +2770,19 @@ function updateTaskMinHeight(value) {
     }
 
     // Add/remove class for tall task heights that interfere with sticky headers
-    const isTallHeight = value === '43.5vh' || value === '89vh' || 
+    const isTallHeight = value === '43.5vh' || value === '89vh' ||
                          (value.includes('px') && parseInt(value) >= 400);
-    
+
     if (isTallHeight) {
         document.body.classList.add('tall-task-height');
     } else {
         document.body.classList.remove('tall-task-height');
     }
+
+    // Calculate task description heights after setting the height
+    setTimeout(() => {
+        calculateTaskDescriptionHeight();
+    }, 0);
 }
 
 function updateMaxRowHeight(value) {
@@ -2719,6 +2800,7 @@ function updateMaxRowHeight(value) {
 // Export functions for use by other modules
 window.saveCurrentFoldingState = saveCurrentFoldingState;
 window.restoreFoldingState = restoreFoldingState;
+window.calculateTaskDescriptionHeight = calculateTaskDescriptionHeight;
 
 // Make functions globally available
 window.toggleFileBarMenu = toggleFileBarMenu;
@@ -2829,4 +2911,11 @@ window.openIncludeFile = openIncludeFile;
 document.addEventListener('DOMContentLoaded', function() {
     // Set default font size to small (maintaining current behavior)
     setFontSize('small');
+
+    // Recalculate task description heights when window resizes (for vh units)
+    window.addEventListener('resize', () => {
+        if (document.body.classList.contains('task-height-limited')) {
+            calculateTaskDescriptionHeight();
+        }
+    });
 });
