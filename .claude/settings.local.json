@@ -25,7 +25,10 @@
       "Bash(npm run analyze-cleanup:*)",
       "Read(//Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/**)",
       "Bash(npm test)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Read(///**)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []

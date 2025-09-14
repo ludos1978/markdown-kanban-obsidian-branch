@@ -763,8 +763,9 @@ function toggleFileBarMenu(event, button) {
  * @param {string} size - 'narrow', 'medium', 'wide', 'full'
  * Side effects: Updates CSS variables, saves preference
  */
-function applyColumnWidth(size) {
+function applyColumnWidth(size, skipRender = false) {
     currentColumnWidth = size;
+    window.currentColumnWidth = size;
     
     // Remove all existing column width classes
     const columns = document.querySelectorAll('.kanban-full-height-column');
@@ -802,7 +803,7 @@ function applyColumnWidth(size) {
 
         // For pixel widths, re-apply span classes if they exist
         // Trigger a re-render to restore span classes from column titles
-        if (window.currentBoard) {
+        if (window.currentBoard && !skipRender) {
             renderBoard(window.currentBoard, { skipRender: false });
         }
     }
@@ -1055,6 +1056,33 @@ function applyTagVisibility(setting) {
     // Trigger re-render to apply text filtering changes
     if (window.currentBoard) {
         renderBoard(window.currentBoard, { skipRender: false });
+
+        // Force column width preservation - use multiple attempts with different delays
+        const preserveColumnWidth = (attempt) => {
+            console.log(`[DEBUG] Attempt ${attempt} - currentColumnWidth:`, window.currentColumnWidth);
+            const columns = document.querySelectorAll('.kanban-full-height-column');
+            console.log(`[DEBUG] Found ${columns.length} columns`);
+            if (window.currentColumnWidth && window.applyColumnWidth) {
+                console.log(`[DEBUG] Applying column width: ${window.currentColumnWidth}`);
+                window.applyColumnWidth(window.currentColumnWidth, true); // Skip render to prevent loop
+
+                // Verify it was applied
+                setTimeout(() => {
+                    const firstColumn = document.querySelector('.kanban-full-height-column');
+                    if (firstColumn) {
+                        console.log(`[DEBUG] After apply - column classes:`, firstColumn.className);
+                        console.log(`[DEBUG] CSS --column-width:`, getComputedStyle(document.documentElement).getPropertyValue('--column-width'));
+                    }
+                }, 10);
+            } else {
+                console.log(`[DEBUG] Cannot apply - currentColumnWidth: ${window.currentColumnWidth}, applyColumnWidth: ${typeof window.applyColumnWidth}`);
+            }
+        };
+
+        // Multiple attempts to ensure column width sticks
+        setTimeout(() => preserveColumnWidth(1), 50);
+        setTimeout(() => preserveColumnWidth(2), 150);
+        setTimeout(() => preserveColumnWidth(3), 300);
     }
 }
 
@@ -1838,6 +1866,8 @@ window.addEventListener('message', event => {
 
             // Only apply configuration settings on initial load, not on content updates
             if (isInitialLoad) {
+                // Initialize global reference to current values
+                window.currentColumnWidth = currentColumnWidth;
                 // Update whitespace with the value from configuration
                 if (message.whitespace) {
                     applyWhitespace(message.whitespace);
@@ -2706,6 +2736,7 @@ window.restoreFoldingState = restoreFoldingState;
 // Make functions globally available
 window.toggleFileBarMenu = toggleFileBarMenu;
 window.setColumnWidth = setColumnWidth;
+window.applyColumnWidth = applyColumnWidth;
 window.setLayoutRows = setLayoutRows;
 window.setRowHeight = setRowHeight;
 window.applyRowHeight = applyRowHeight;

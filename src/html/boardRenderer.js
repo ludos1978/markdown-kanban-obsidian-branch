@@ -1171,6 +1171,14 @@ function renderBoard() {
             }
         });
     }, 20);
+
+    // Re-apply column width after render to preserve user's UI settings
+    // Use setTimeout to ensure DOM is fully ready after the render
+    setTimeout(() => {
+        if (window.currentColumnWidth && window.applyColumnWidth) {
+            window.applyColumnWidth(window.currentColumnWidth, true); // Skip render to prevent loop
+        }
+    }, 50);
 }
 
 function getFoldAllButtonState(columnId) {
