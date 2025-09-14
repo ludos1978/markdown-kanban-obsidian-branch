@@ -67,9 +67,8 @@
       // Render the content as markdown (recursively)
       try {
         const rendered = md.render(content);
-        // Add clickable icon before the included content
-        const includeIcon = `<span class="include-icon" onclick="openIncludeFile('${escapeHtml(filePath)}')" title="Open ${escapeHtml(filePath)}">📄</span>`;
-        return `<span class="included-content-inline" data-include-file="${escapeHtml(filePath)}">${includeIcon}${rendered}</span>`;
+        // Use data attribute for file path, icon will be added via CSS ::before
+        return `<span class="included-content-inline" data-include-file="${escapeHtml(filePath)}">${rendered}</span>`;
       } catch (error) {
         console.error('Error rendering included content:', error);
         return `<span class="include-error" title="Error rendering included content">Error including: ${escapeHtml(filePath)}</span>`;

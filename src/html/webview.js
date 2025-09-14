@@ -2918,4 +2918,42 @@ document.addEventListener('DOMContentLoaded', function() {
             calculateTaskDescriptionHeight();
         }
     });
+
+    // Handle clicks on included content icons (::before pseudo-element)
+    document.addEventListener('click', function(e) {
+        const includedContent = e.target.closest('.included-content-inline');
+        if (includedContent) {
+            // Get the position of the click relative to the element
+            const rect = includedContent.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+
+            // The icon is approximately 20px wide (14px + padding)
+            // Check if click is within the icon area (left side)
+            if (clickX <= 20) {
+                const filePath = includedContent.getAttribute('data-include-file');
+                if (filePath) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openIncludeFile(filePath);
+                }
+            }
+        }
+    });
+
+    // Add dynamic title on mousemove to show tooltip only on icon
+    document.addEventListener('mousemove', function(e) {
+        const includedContent = e.target.closest('.included-content-inline');
+        if (includedContent) {
+            const rect = includedContent.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const filePath = includedContent.getAttribute('data-include-file');
+
+            // Show title only when hovering over the icon area
+            if (mouseX <= 20 && filePath) {
+                includedContent.title = `Open ${filePath}`;
+            } else {
+                includedContent.title = '';
+            }
+        }
+    });
 });
