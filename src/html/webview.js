@@ -83,9 +83,10 @@ const menuConfig = {
         { separator: true },
         { label: "200px", value: "200px" },
         { label: "400px", value: "400px" },
-        { label: "26.5vh", value: "26.5vh" },
-        { label: "43.5vh", value: "43.5vh" },
-        { label: "89vh", value: "89vh" }
+        { separator: true },
+        { label: "1/3 Screen (26.5vh)", value: "26.5vh" },
+        { label: "1/2 Screen (43.5vh)", value: "43.5vh" },
+        { label: "Full Screen (89vh)", value: "89vh" }
     ],
     whitespace: [
         { label: "Compact (2px)", value: "2px" },
