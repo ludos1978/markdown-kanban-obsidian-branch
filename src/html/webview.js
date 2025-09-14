@@ -22,6 +22,57 @@ let currentTaskMinHeight = 'auto';
 let currentLayoutRows = 1;
 
 // Centralized configuration for all menu options
+// Font size configuration
+const fontSizeMultipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0];
+
+// Generate font size CSS dynamically
+function generateFontSizeCSS() {
+    let css = '';
+    fontSizeMultipliers.forEach(multiplier => {
+        const safeName = multiplier.toString().replace('.', '_');
+        const className = `font-size-${safeName}x`;
+        const titleSize = `calc(var(--vscode-font-size, 14px) * ${multiplier})`;
+        const descSize = `calc(var(--vscode-font-size, 14px) * ${multiplier * 0.9})`;
+        const lineHeight = multiplier >= 2 ? '1.1' : (multiplier >= 1.5 ? '1.2' : '1.4');
+
+        css += `
+/* Font Size Classes - ${multiplier}x */
+body.${className} .column-title,
+body.${className} .column-title-edit,
+body.${className} .task-title-display,
+body.${className} .task-title-edit {
+  font-size: ${titleSize} !important;
+  line-height: ${lineHeight} !important;
+}
+
+body.${className} .task-description-display,
+body.${className} .task-description-edit {
+  font-size: ${descSize} !important;
+  line-height: ${lineHeight === '1.1' ? '1.15' : (lineHeight === '1.2' ? '1.3' : '1.4')} !important;
+}
+`;
+    });
+    return css;
+}
+
+// Inject font size CSS into document
+function injectFontSizeCSS() {
+    const existingStyle = document.getElementById('dynamic-font-sizes');
+    if (existingStyle) {
+        existingStyle.remove();
+    }
+
+    const css = generateFontSizeCSS();
+    console.log('Generated font size CSS:', css);
+
+    const style = document.createElement('style');
+    style.id = 'dynamic-font-sizes';
+    style.textContent = css;
+    document.head.appendChild(style);
+
+    console.log('Font size CSS injected into document');
+}
+
 const menuConfig = {
     columnWidth: [
         { label: "Small (250px)", value: "small", description: "250px" },
@@ -52,15 +103,12 @@ const menuConfig = {
         { label: "40px", value: "40px" },
         { label: "60px", value: "60px" }
     ],
-    fontSize: [
-        { label: "4px", value: "4px", icon: "a", iconStyle: "font-size: 10px;" },
-        { label: "8px", value: "8px", icon: "a", iconStyle: "font-size: 11px;" },
-        { label: "13px", value: "13px", icon: "a", iconStyle: "font-size: 12px;" },
-        { label: "16px", value: "16px", icon: "A", iconStyle: "font-size: 14px;" },
-        { label: "30px", value: "30px", icon: "A", iconStyle: "font-size: 16px;" },
-        { label: "40px", value: "40px", icon: "A", iconStyle: "font-size: 18px;" },
-        { label: "60px", value: "60px", icon: "A", iconStyle: "font-size: 20px;" }
-    ],
+    fontSize: fontSizeMultipliers.map((multiplier, index) => ({
+        label: `${multiplier}x`,
+        value: `${multiplier.toString().replace('.', '_')}x`,
+        icon: multiplier < 1 ? "a" : "A",
+        iconStyle: `font-size: ${10 + index}px;`
+    })),
     fontFamily: [
         { label: "System Default", value: "system", icon: "Aa" },
         { label: "Roboto", value: "roboto", icon: "Aa", iconStyle: "font-family: 'Roboto', sans-serif;" },
@@ -1870,7 +1918,7 @@ window.addEventListener('message', event => {
                 if (message.fontSize) {
                     applyFontSize(message.fontSize);
                 } else {
-                    applyFontSize('13px'); // Default fallback
+                    applyFontSize('1_0x'); // Default fallback
                 }
 
                 // Update font family with the value from configuration
@@ -2730,7 +2778,7 @@ function calculateTaskDescriptionHeight() {
         const totalGap = gap * gapCount;
 
         // Calculate total used height
-        usedHeight += (paddingTop + paddingBottom + totalGap) * 1.2;
+        usedHeight += (paddingTop + paddingBottom + totalGap);
 
         // Parse task height to pixels
         let taskHeightPx = 0;
@@ -2749,7 +2797,7 @@ function calculateTaskDescriptionHeight() {
 
         // Set the max-height for the description container
         if (availableHeight > 0) {
-            descContainer.style.maxHeight = availableHeight + 'px';
+            descContainer.style.maxHeight = 'calc(' + availableHeight + 'px - var(--whitespace-div2)';
             descContainer.style.overflow = 'auto';
         } else {
             descContainer.style.maxHeight = '';
@@ -2830,18 +2878,27 @@ window.getColumnRow = getColumnRow;
 window.performSort = performSort;
 
 // Font size functionality
-let currentFontSize = '13px'; // Default to 13px (current behavior)
+let currentFontSize = '1_0x'; // Default to 1.0x (current behavior)
 
 function applyFontSize(size) {
+    console.log('Applying font size:', size);
+
     // Remove all font size classes
-    document.body.classList.remove('font-size-4px', 'font-size-8px', 'font-size-13px', 'font-size-16px', 'font-size-30px', 'font-size-40px', 'font-size-60px');
-    
+    fontSizeMultipliers.forEach(multiplier => {
+        const safeName = multiplier.toString().replace('.', '_');
+        document.body.classList.remove(`font-size-${safeName}x`);
+    });
+
     // Remove old small-card-fonts class for backward compatibility
     document.body.classList.remove('small-card-fonts');
-    
+
     // Add the selected font size class
-    document.body.classList.add(`font-size-${size}`);
+    const className = `font-size-${size}`;
+    console.log('Adding CSS class:', className);
+    document.body.classList.add(className);
     currentFontSize = size;
+
+    console.log('Current body classes:', document.body.className);
 }
 
 function setFontSize(size) {
@@ -2914,7 +2971,10 @@ window.openIncludeFile = openIncludeFile;
 // Initialize font size on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Set default font size to small (maintaining current behavior)
-    setFontSize('13px');
+    // Inject dynamic CSS for font sizes
+    injectFontSizeCSS();
+
+    setFontSize('1_0x');
 
     // Recalculate task description heights when window resizes (for vh units)
     window.addEventListener('resize', () => {
