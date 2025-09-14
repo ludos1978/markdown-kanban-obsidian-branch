@@ -636,7 +636,7 @@ export class KanbanWebviewPanel {
 
                 // Ask user what to do with external changes
                 const fileName = path.basename(document.fileName);
-                const discardChanges = { title: 'Discard changes and reload' };
+                const discardChanges = { title: 'Discard kanban changes and reload' };
                 const saveBackup = { title: 'Save as backup and reload' };
                 const discardExternal = { title: 'Discard external changes and overwrite' };
                 const ignoreExternal = { title: 'Ignore external changes', isCloseAffordance: true };

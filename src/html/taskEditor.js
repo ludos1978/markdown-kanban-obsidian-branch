@@ -377,6 +377,12 @@ class TaskEditor {
                 const task = column?.tasks.find(t => t.id === taskId);
                 
                 if (task) {
+                    // Capture original values before making changes
+                    const originalTitle = task.title || '';
+                    const originalDescription = task.description || '';
+
+                    let hasChanged = false;
+
                     if (type === 'task-title') {
                         // Handle task title
                         if (task.title !== value) {
@@ -388,6 +394,7 @@ class TaskEditor {
 
                             // Update the title
                             task.title = value;
+                            hasChanged = true;
                         }
                     } else if (type === 'task-description') {
                         // Handle task description
@@ -401,12 +408,12 @@ class TaskEditor {
 
                             // Update description (frontend will handle include processing)
                             task.description = value;
+                            hasChanged = true;
                         }
                     }
 
                     // Mark as unsaved and send the specific change to backend if any change was made
-                    const wasChanged = (type === 'task-title' && task.title === value) ||
-                                      (type === 'task-description' && task.description === value);
+                    const wasChanged = hasChanged;
 
                     if (wasChanged) {
                         if (typeof markUnsavedChanges === 'function') {
@@ -433,18 +440,20 @@ class TaskEditor {
                             // For task titles, render the value as-is
                             const displayValue = (type === 'task-description') ? task.description || value : value;
                             this.currentEditor.displayElement.innerHTML = renderMarkdown(displayValue);
-                            this.currentEditor.displayElement.style.display = 'block';
                         } else {
-                            // Handle empty values for both titles and descriptions
-                            if (type === 'task-description') {
-                                this.currentEditor.displayElement.style.display = 'none';
-                                const placeholder = element.closest('.task-description-container')
-                                    ?.querySelector('.task-description-placeholder');
-                                if (placeholder) placeholder.style.display = 'block';
-                            } else if (type === 'task-title') {
-                                // For empty titles, show empty content but keep element visible
-                                this.currentEditor.displayElement.innerHTML = '';
-                                this.currentEditor.displayElement.style.display = 'block';
+                            // For empty values, clear the content (CSS will show placeholder)
+                            this.currentEditor.displayElement.innerHTML = '';
+                        }
+
+                        // Always show the display element (CSS handles empty state)
+                        this.currentEditor.displayElement.style.display = 'block';
+
+                        // Hide any legacy placeholder elements for descriptions
+                        if (type === 'task-description') {
+                            const container = element.closest('.task-description-container');
+                            const placeholder = container?.querySelector('.task-description-placeholder');
+                            if (placeholder) {
+                                placeholder.style.display = 'none';
                             }
                         }
                     }
@@ -499,15 +508,17 @@ class TaskEditor {
         // Hide edit element
         element.style.display = 'none';
         
-        // Show display element
+        // Show display element (CSS handles placeholder for empty content)
         if (displayElement) {
             displayElement.style.display = 'block';
-        } else if (type === 'task-description') {
-            // Show placeholder if description is empty
-            const container = element.closest('.task-description-container');
-            const placeholder = container?.querySelector('.task-description-placeholder');
-            if (placeholder && !element.value.trim()) {
-                placeholder.style.display = 'block';
+
+            // Hide any legacy placeholder elements for descriptions
+            if (type === 'task-description') {
+                const container = element.closest('.task-description-container');
+                const placeholder = container?.querySelector('.task-description-placeholder');
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
             }
         }
         
