@@ -614,9 +614,20 @@ export class KanbanWebviewPanel {
         }
         
         try {
+            // Check if the document content has actually changed to avoid unnecessary re-renders
+            const newContent = document.getText();
+            const currentContent = this._fileManager.getDocument()?.getText();
+
+            if (!isExternalChange && currentContent === newContent) {
+                // Content is identical, skip re-parsing and re-rendering
+                console.log('📄 No content changes detected, skipping re-render');
+                this._lastDocumentVersion = currentVersion;
+                return;
+            }
+
             // Parse the document content first to get the external content
             const basePath = path.dirname(document.uri.fsPath);
-            const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
+            const parseResult = MarkdownKanbanParser.parseMarkdown(newContent, basePath);
 
             // Handle external changes - check user choice BEFORE updating this._board
             if (isExternalChange && this._board) {
