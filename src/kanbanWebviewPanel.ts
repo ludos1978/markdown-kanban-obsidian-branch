@@ -46,6 +46,8 @@ export class KanbanWebviewPanel {
     private _includedFiles: string[] = [];
     private _includeFileWatchers: vscode.FileSystemWatcher[] = [];
     private _includeFilesChanged: boolean = false;
+    private _changedIncludeFiles: Set<string> = new Set();
+    private _includeFileContents: Map<string, string> = new Map();
 
     // Method to force refresh webview content (useful during development)
     public async refreshWebviewContent() {
@@ -504,7 +506,7 @@ export class KanbanWebviewPanel {
                 this._includedFiles = parseResult.includedFiles;
 
                 // Set up file watchers for included files
-                this._setupIncludeFileWatchers();
+                await this._setupIncludeFileWatchers();
 
                 this._boardOperations.setOriginalTaskOrder(this._board);
             } catch (error) {
@@ -523,32 +525,33 @@ export class KanbanWebviewPanel {
 
     private async createBackupBeforeExternalReload(document: vscode.TextDocument) {
         if (!this._board || !this._fileManager.getDocument()) return;
-        
+
         try {
-            // Get current document content as the backup (this includes any unsaved changes)
-            const currentDocument = this._fileManager.getDocument();
-            if (!currentDocument) return;
-            
-            // Create backup filename with timestamp
-            const originalPath = document.uri.fsPath;
+            // Get current kanban board state and convert to markdown (this preserves unsaved internal changes)
+            const currentBoardMarkdown = MarkdownKanbanParser.generateMarkdown(this._board);
+
+            // Create backup filename with timestamp - use current document path, not external document
+            const currentDocument = this._fileManager.getDocument()!;
+            const originalPath = currentDocument.uri.fsPath;
             const pathParts = originalPath.split('.');
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '-').split('Z')[0];
             const backupPath = `${pathParts.slice(0, -1).join('.')}-backup-${timestamp}.${pathParts[pathParts.length - 1]}`;
-            
-            // Write backup file with current document content
+
+            // Write backup file with current board state as markdown
             const backupUri = vscode.Uri.file(backupPath);
-            await vscode.workspace.fs.writeFile(backupUri, Buffer.from(currentDocument.getText(), 'utf8'));
+            await vscode.workspace.fs.writeFile(backupUri, Buffer.from(currentBoardMarkdown, 'utf8'));
             
-            // Show success message with option to open backup
-            const openBackup = await vscode.window.showInformationMessage(
-                `Current state backed up as: ${backupPath.split('/').pop()}`,
+            // Show non-blocking success message with option to open backup
+            vscode.window.showInformationMessage(
+                `Internal kanban changes backed up as: ${backupPath.split('/').pop()}`,
                 'Open backup file'
-            );
-            
-            if (openBackup === 'Open backup file') {
-                const backupDocument = await vscode.workspace.openTextDocument(backupUri);
-                await vscode.window.showTextDocument(backupDocument);
-            }
+            ).then((choice) => {
+                if (choice === 'Open backup file') {
+                    vscode.workspace.openTextDocument(backupUri).then(backupDocument => {
+                        vscode.window.showTextDocument(backupDocument);
+                    });
+                }
+            });
             
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to create backup: ${error instanceof Error ? error.message : String(error)}`);
@@ -579,8 +582,6 @@ export class KanbanWebviewPanel {
                 return; // Don't reload the board, preserve all unsaved changes and folding state
             }
         }
-        
-        this._lastDocumentVersion = currentVersion;
         
         const documentChanged = this._fileManager.getDocument()?.uri.toString() !== document.uri.toString();
         
@@ -613,54 +614,88 @@ export class KanbanWebviewPanel {
         }
         
         try {
+            // Parse the document content first to get the external content
             const basePath = path.dirname(document.uri.fsPath);
             const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
-            this._board = parseResult.board;
-            this._includedFiles = parseResult.includedFiles;
 
-            // Set up file watchers for included files
-            this._setupIncludeFileWatchers();
-
-            // Clean up any duplicate row tags
-            const wasModified = this._boardOperations.cleanupRowTags(this._board);
-            
-            this._boardOperations.setOriginalTaskOrder(this._board);
-            
-            // Handle undo history based on change type
+            // Handle external changes - check user choice BEFORE updating this._board
             if (isExternalChange && this._board) {
                 // Ask user what to do with external changes
+                const fileName = path.basename(document.fileName);
                 const choice = await vscode.window.showWarningMessage(
-                    'The markdown file has been modified externally. Your current kanban changes may be lost if you reload the file.',
-                    { modal: true },
+                    `The file "${fileName}" has been modified externally. Your current kanban changes may be lost if you reload the file.`,
+                    { modal: true, isCloseAffordanceDestructive: false },
                     'Discard changes and reload',
-                    'Save as backup and reload', 
-                    'Ignore external changes'
+                    'Save as backup and reload',
+                    'Discard external changes and save',
+                    { title: 'Ignore external changes', isCloseAffordance: true }
                 );
 
                 if (choice === 'Ignore external changes') {
-                    // User wants to keep working with current state - don't reload
+                    // User wants to keep working with current state - don't reload or update version
                     return;
                 } else if (choice === 'Save as backup and reload') {
                     // Save current board state as backup before reloading
                     await this.createBackupBeforeExternalReload(document);
                     // Save current state to undo history before reloading
                     this._undoRedoManager.saveStateForUndo(this._board);
+                    // Update version since we're proceeding with the reload
+                    this._lastDocumentVersion = currentVersion;
+
+                    // Immediately update board and send to webview
+                    this._board = parseResult.board;
+                    this._includedFiles = parseResult.includedFiles;
+                    await this._setupIncludeFileWatchers();
+                    const wasModified = this._boardOperations.cleanupRowTags(this._board);
+                    this._boardOperations.setOriginalTaskOrder(this._board);
+                    await this.sendBoardUpdate(isExternalChange);
+                    return; // Exit early since we've already handled everything
+
                 } else if (choice === 'Discard changes and reload') {
                     // User explicitly chose to discard - continue with reload
                     // Save current state to undo history before reloading
                     this._undoRedoManager.saveStateForUndo(this._board);
+                    // Update version since we're proceeding with the reload
+                    this._lastDocumentVersion = currentVersion;
+
+                    // Immediately update board and send to webview
+                    this._board = parseResult.board;
+                    this._includedFiles = parseResult.includedFiles;
+                    await this._setupIncludeFileWatchers();
+                    const wasModified = this._boardOperations.cleanupRowTags(this._board);
+                    this._boardOperations.setOriginalTaskOrder(this._board);
+                    await this.sendBoardUpdate(isExternalChange);
+                    return; // Exit early since we've already handled everything
+
                 } else {
-                    // User cancelled or closed dialog - don't reload
+                    // User cancelled or closed dialog - don't reload or update version
                     return;
                 }
-            } else if (documentChanged && !this._isUndoRedoOperation && !this._isUpdatingFromPanel) {
-                // Only clear history when switching to completely different documents
-                this._undoRedoManager.clear();
-            } else if (this._isUndoRedoOperation) {
-                // Preserve undo history during undo/redo operation
-            } else if (this._isUpdatingFromPanel) {
-                // Preserve undo history during save operation
+            } else {
+                // For non-external changes, update version normally
+                this._lastDocumentVersion = currentVersion;
+
+                if (documentChanged && !this._isUndoRedoOperation && !this._isUpdatingFromPanel) {
+                    // Only clear history when switching to completely different documents
+                    this._undoRedoManager.clear();
+                } else if (this._isUndoRedoOperation) {
+                    // Preserve undo history during undo/redo operation
+                } else if (this._isUpdatingFromPanel) {
+                    // Preserve undo history during save operation
+                }
             }
+
+            // Now update the board with external content (after user confirmed they want to proceed)
+            this._board = parseResult.board;
+            this._includedFiles = parseResult.includedFiles;
+
+            // Set up file watchers for included files
+            await this._setupIncludeFileWatchers();
+
+            // Clean up any duplicate row tags
+            const wasModified = this._boardOperations.cleanupRowTags(this._board);
+
+            this._boardOperations.setOriginalTaskOrder(this._board);
         } catch (error) {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
             this._board = { 
@@ -1206,21 +1241,28 @@ export class KanbanWebviewPanel {
         return showRowTags;
     }
 
-    private _setupIncludeFileWatchers() {
+    private async _setupIncludeFileWatchers() {
         // Clean up existing watchers
         this._cleanupIncludeFileWatchers();
 
         // Set up watchers for each included file
         for (const filePath of this._includedFiles) {
             try {
+                // Read initial content
+                const initialContent = await this._readFileContent(filePath);
+                if (initialContent !== null) {
+                    this._includeFileContents.set(filePath, initialContent);
+                }
+
                 const watcher = vscode.workspace.createFileSystemWatcher(filePath);
 
-                watcher.onDidChange(() => {
-                    this._includeFilesChanged = true;
-                    this._sendIncludeFileChangeNotification();
+                watcher.onDidChange(async () => {
+                    await this._handleIncludeFileChange(filePath);
                 });
 
                 watcher.onDidDelete(() => {
+                    this._changedIncludeFiles.add(filePath);
+                    this._includeFileContents.delete(filePath);
                     this._includeFilesChanged = true;
                     this._sendIncludeFileChangeNotification();
                 });
@@ -1240,19 +1282,50 @@ export class KanbanWebviewPanel {
         this._includeFileWatchers = [];
     }
 
+    private async _readFileContent(filePath: string): Promise<string | null> {
+        try {
+            const uri = vscode.Uri.file(filePath);
+            const content = await vscode.workspace.fs.readFile(uri);
+            return Buffer.from(content).toString('utf8');
+        } catch (error) {
+            console.error(`Failed to read file ${filePath}:`, error);
+            return null;
+        }
+    }
+
+    private async _handleIncludeFileChange(filePath: string) {
+        const newContent = await this._readFileContent(filePath);
+        if (newContent === null) {
+            return;
+        }
+
+        const oldContent = this._includeFileContents.get(filePath);
+
+        // Only mark as changed if content actually differs
+        if (oldContent !== newContent) {
+            this._includeFileContents.set(filePath, newContent);
+            this._changedIncludeFiles.add(filePath);
+            this._includeFilesChanged = true;
+            this._sendIncludeFileChangeNotification();
+        }
+    }
+
     private _sendIncludeFileChangeNotification() {
         if (this._panel && this._panel.webview) {
+            const changedFiles = Array.from(this._changedIncludeFiles);
             this._panel.webview.postMessage({
                 type: 'includeFilesChanged',
-                hasChanges: this._includeFilesChanged
+                hasChanges: this._includeFilesChanged,
+                changedFiles: changedFiles
             });
         }
     }
 
     public async refreshIncludes() {
 
-        // Reset the change flag
+        // Reset the change flag and clear changed files list
         this._includeFilesChanged = false;
+        this._changedIncludeFiles.clear();
 
         // Force re-parse the markdown to get fresh includes
         const document = this._fileManager.getDocument();
@@ -1266,7 +1339,7 @@ export class KanbanWebviewPanel {
                 this._includedFiles = parseResult.includedFiles;
 
                 // Set up file watchers for included files
-                this._setupIncludeFileWatchers();
+                await this._setupIncludeFileWatchers();
 
                 // Clean up any duplicate row tags
                 this._boardOperations.cleanupRowTags(this._board);

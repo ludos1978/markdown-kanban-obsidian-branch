@@ -2082,6 +2082,18 @@ window.addEventListener('message', event => {
             const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
             if (refreshIncludesBtn) {
                 refreshIncludesBtn.style.display = message.hasChanges ? 'flex' : 'none';
+
+                // Update tooltip to show which files changed
+                if (message.hasChanges && message.changedFiles && message.changedFiles.length > 0) {
+                    const fileNames = message.changedFiles.map(path => {
+                        // Extract just the filename from the full path
+                        return path.split(/[/\\]/).pop() || path;
+                    });
+                    const tooltip = `Files changed: ${fileNames.join(', ')}`;
+                    refreshIncludesBtn.title = tooltip;
+                } else {
+                    refreshIncludesBtn.title = "Refresh included files (files have changed)";
+                }
             }
             break;
         case 'includeFileContent':
