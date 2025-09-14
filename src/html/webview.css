@@ -5,7 +5,7 @@
   --whitespace-div3-mul2: calc(var(--whitespace) / 3 * 2);
   --whitespace-div2: calc(var(--whitespace) / 2);
   --whitespace-div4: calc(var(--whitespace) / 4);
-  --task-min-height: auto;
+  --task-height: auto;
   --column-width: 350px;
   --collapsed-column-width: 40px;
 }
@@ -706,7 +706,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   border-radius: 4px;
 	gap: var(--whitespace-div2);
   margin-bottom: var(--whitespace);
-  min-height: var(--task-min-height);
+  min-height: var(--task-height);
   transition: all 0.2s ease;
   position: relative;
   overflow: visible;
@@ -715,12 +715,19 @@ body.small-card-fonts .task-title-container .markdown-content img {
   align-items: stretch;
 }
 
+/* Apply fixed height when task height is limited */
+.task-height-limited .task-item {
+  height: var(--task-height) !important;
+  max-height: var(--task-height) !important;
+  overflow: hidden;
+}
+
 .task-item:not(:has(.header-bars-container)) {
-	padding-top: 8px;
+	padding-top: var(--whitespace-div2);
 }
 
 .task-item:not(:has(.footer-bars-container)) {
-	padding-bottom: 8px;
+	padding-bottom: var(--whitespace-div2);
 }
 
 .task-item:last-child {
@@ -870,6 +877,11 @@ body.small-card-fonts .task-title-container .markdown-content img {
   /* margin-top: 4px; */
   order: 3;
   flex: 1 1 auto;
+}
+
+.image-fill-fill .task-description-container {
+  position: relative;
+  overflow: hidden;
 }
 
 .task-description-display {
@@ -2314,7 +2326,7 @@ blockquote {
   max-width: 100%;
   height: auto;
   border-radius: 4px;
-  margin: 8px 0;
+  /* margin: 8px 0; */
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   border: 1px solid var(--vscode-panel-border);
 }
@@ -2332,7 +2344,7 @@ blockquote {
   width: auto;
   max-height: 400px;
   height: auto;
-  margin: var(--whitespace) 0;
+  /* margin: var(--whitespace) 0; */
   display: block;
   object-fit: contain;
 }
@@ -3553,15 +3565,17 @@ d
 .image-fill-fill .task-title-container .markdown-content img {
     width: 100% !important;
     height: auto !important;
-    max-height: none !important; /* Let images fill the title area completely */
+    max-height: 100% !important; /* Fill available space without expanding container */
     object-fit: contain !important;
     object-position: left !important;
 }
 
 .image-fill-fill .task-description-container .markdown-content img {
-    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
     height: auto !important;
-    max-height: none !important; /* Let images fill the card completely */
     object-fit: contain !important;
-    object-position: left !important;
+    object-position: center !important;
+    display: block !important;
 }

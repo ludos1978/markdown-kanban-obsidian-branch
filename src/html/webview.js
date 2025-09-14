@@ -2684,8 +2684,15 @@ function updateTaskMinHeight(value) {
         value = 'auto';
     }
     
-    document.documentElement.style.setProperty('--task-min-height', value);
-    
+    document.documentElement.style.setProperty('--task-height', value);
+
+    // Apply height limitation when value is not 'auto'
+    if (value !== 'auto') {
+        document.body.classList.add('task-height-limited');
+    } else {
+        document.body.classList.remove('task-height-limited');
+    }
+
     // Add/remove class for tall task heights that interfere with sticky headers
     const isTallHeight = value === '43.5vh' || value === '89vh' || 
                          (value.includes('px') && parseInt(value) >= 400);
