@@ -100,8 +100,6 @@ class TaskEditor {
             containerElement = element.closest('.task-item') || element;
             displayElement = containerElement.querySelector('.task-description-display');
             editElement = containerElement.querySelector('.task-description-edit');
-            const placeholder = containerElement.querySelector('.task-description-placeholder');
-            if (placeholder) placeholder.style.display = 'none';
         } else if (type === 'column-title') {
             containerElement = element.closest('.kanban-full-height-column') || element;
             displayElement = containerElement.querySelector('.column-title');
@@ -447,15 +445,6 @@ class TaskEditor {
 
                         // Always show the display element (CSS handles empty state)
                         this.currentEditor.displayElement.style.display = 'block';
-
-                        // Hide any legacy placeholder elements for descriptions
-                        if (type === 'task-description') {
-                            const container = element.closest('.task-description-container');
-                            const placeholder = container?.querySelector('.task-description-placeholder');
-                            if (placeholder) {
-                                placeholder.style.display = 'none';
-                            }
-                        }
                     }
 
                     // Update task element styling if this is a task title edit
@@ -511,15 +500,6 @@ class TaskEditor {
         // Show display element (CSS handles placeholder for empty content)
         if (displayElement) {
             displayElement.style.display = 'block';
-
-            // Hide any legacy placeholder elements for descriptions
-            if (type === 'task-description') {
-                const container = element.closest('.task-description-container');
-                const placeholder = container?.querySelector('.task-description-placeholder');
-                if (placeholder) {
-                    placeholder.style.display = 'none';
-                }
-            }
         }
         
         this.currentEditor = null;
