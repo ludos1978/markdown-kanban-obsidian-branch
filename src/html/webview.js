@@ -62,15 +62,10 @@ function injectFontSizeCSS() {
         existingStyle.remove();
     }
 
-    const css = generateFontSizeCSS();
-    console.log('Generated font size CSS:', css);
-
     const style = document.createElement('style');
     style.id = 'dynamic-font-sizes';
-    style.textContent = css;
+    style.textContent = generateFontSizeCSS();
     document.head.appendChild(style);
-
-    console.log('Font size CSS injected into document');
 }
 
 const menuConfig = {
@@ -2881,8 +2876,6 @@ window.performSort = performSort;
 let currentFontSize = '1_0x'; // Default to 1.0x (current behavior)
 
 function applyFontSize(size) {
-    console.log('Applying font size:', size);
-
     // Remove all font size classes
     fontSizeMultipliers.forEach(multiplier => {
         const safeName = multiplier.toString().replace('.', '_');
@@ -2893,12 +2886,8 @@ function applyFontSize(size) {
     document.body.classList.remove('small-card-fonts');
 
     // Add the selected font size class
-    const className = `font-size-${size}`;
-    console.log('Adding CSS class:', className);
-    document.body.classList.add(className);
+    document.body.classList.add(`font-size-${size}`);
     currentFontSize = size;
-
-    console.log('Current body classes:', document.body.className);
 }
 
 function setFontSize(size) {
