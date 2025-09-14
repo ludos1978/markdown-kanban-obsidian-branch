@@ -620,21 +620,36 @@ export class KanbanWebviewPanel {
 
             // Handle external changes - check user choice BEFORE updating this._board
             if (isExternalChange && this._board) {
+                // Ensure unsaved changes marker is active since we have internal changes
+                this._hasUnsavedChanges = true;
+
                 // Ask user what to do with external changes
                 const fileName = path.basename(document.fileName);
+                const discardChanges = { title: 'Discard changes and reload' };
+                const saveBackup = { title: 'Save as backup and reload' };
+                const discardExternal = { title: 'Discard external changes and save' };
+                const ignoreExternal = { title: 'Ignore external changes', isCloseAffordance: true };
+
                 const choice = await vscode.window.showWarningMessage(
                     `The file "${fileName}" has been modified externally. Your current kanban changes may be lost if you reload the file.`,
-                    { modal: true, isCloseAffordanceDestructive: false },
-                    'Discard changes and reload',
-                    'Save as backup and reload',
-                    'Discard external changes and save',
-                    { title: 'Ignore external changes', isCloseAffordance: true }
+                    { modal: true },
+                    discardChanges,
+                    saveBackup,
+                    discardExternal,
+                    ignoreExternal
                 );
 
-                if (choice === 'Ignore external changes') {
+                if (choice === ignoreExternal) {
                     // User wants to keep working with current state - don't reload or update version
                     return;
-                } else if (choice === 'Save as backup and reload') {
+                } else if (choice === discardExternal) {
+                    // User wants to save current kanban state and ignore external changes
+                    // Update version to prevent future prompts for this external change
+                    this._lastDocumentVersion = currentVersion;
+                    // Save current board state to file, overwriting external changes
+                    await this.saveToMarkdown();
+                    return;
+                } else if (choice === saveBackup) {
                     // Save current board state as backup before reloading
                     await this.createBackupBeforeExternalReload(document);
                     // Save current state to undo history before reloading
@@ -651,7 +666,7 @@ export class KanbanWebviewPanel {
                     await this.sendBoardUpdate(isExternalChange);
                     return; // Exit early since we've already handled everything
 
-                } else if (choice === 'Discard changes and reload') {
+                } else if (choice === discardChanges) {
                     // User explicitly chose to discard - continue with reload
                     // Save current state to undo history before reloading
                     this._undoRedoManager.saveStateForUndo(this._board);
