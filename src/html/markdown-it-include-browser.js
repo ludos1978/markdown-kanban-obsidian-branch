@@ -28,8 +28,11 @@
       const start = state.pos;
       const max = state.posMax;
 
+      // Create a fresh regex instance to avoid state issues with global flag
+      const includeRe = new RegExp(options.includeRe.source, options.includeRe.flags);
+
       // Look for include pattern
-      const match = options.includeRe.exec(state.src.slice(start));
+      const match = includeRe.exec(state.src.slice(start));
       if (!match || match.index !== 0) {
         return false;
       }
@@ -37,6 +40,7 @@
       if (silent) return true;
 
       const filePath = match[1].trim();
+      console.log('Processing include:', filePath);
 
       // Try to get file content
       let content = getFileContent(filePath);
