@@ -922,6 +922,28 @@ body.small-card-fonts .task-title-container .markdown-content img {
   opacity: 0.7;
 }
 
+/* CSS-based placeholders for empty display elements */
+.task-title-display:empty::before {
+  content: "Add title...";
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.task-description-display:empty::before {
+  content: "Add description...";
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+  font-style: italic;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+
+.task-description-display:empty:hover::before {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
 /* Edit fields */
 .column-title-edit,
 .task-title-edit,

@@ -440,7 +440,9 @@ class TaskEditor {
                             this.currentEditor.displayElement.style.display = 'block';
                         } else {
                             // Handle empty values for both titles and descriptions
+                            // Ensure element is truly empty for CSS :empty selector
                             this.currentEditor.displayElement.innerHTML = '';
+                            this.currentEditor.displayElement.textContent = '';
                             this.currentEditor.displayElement.style.display = 'block';
                         }
                     }
