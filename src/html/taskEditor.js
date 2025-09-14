@@ -377,6 +377,10 @@ class TaskEditor {
                 const task = column?.tasks.find(t => t.id === taskId);
                 
                 if (task) {
+                    // Capture original values before making changes
+                    const originalTitle = task.title || '';
+                    const originalDescription = task.description || '';
+
                     if (type === 'task-title') {
                         // Handle task title
                         if (task.title !== value) {
@@ -405,8 +409,8 @@ class TaskEditor {
                     }
 
                     // Mark as unsaved and send the specific change to backend if any change was made
-                    const wasChanged = (type === 'task-title' && task.title === value) ||
-                                      (type === 'task-description' && task.description === value);
+                    const wasChanged = (type === 'task-title' && (task.title || '') !== originalTitle) ||
+                                      (type === 'task-description' && (task.description || '') !== originalDescription);
 
                     if (wasChanged) {
                         if (typeof markUnsavedChanges === 'function') {
@@ -436,16 +440,8 @@ class TaskEditor {
                             this.currentEditor.displayElement.style.display = 'block';
                         } else {
                             // Handle empty values for both titles and descriptions
-                            if (type === 'task-description') {
-                                this.currentEditor.displayElement.style.display = 'none';
-                                const placeholder = element.closest('.task-description-container')
-                                    ?.querySelector('.task-description-placeholder');
-                                if (placeholder) placeholder.style.display = 'block';
-                            } else if (type === 'task-title') {
-                                // For empty titles, show empty content but keep element visible
-                                this.currentEditor.displayElement.innerHTML = '';
-                                this.currentEditor.displayElement.style.display = 'block';
-                            }
+                            this.currentEditor.displayElement.innerHTML = '';
+                            this.currentEditor.displayElement.style.display = 'block';
                         }
                     }
 
@@ -502,13 +498,6 @@ class TaskEditor {
         // Show display element
         if (displayElement) {
             displayElement.style.display = 'block';
-        } else if (type === 'task-description') {
-            // Show placeholder if description is empty
-            const container = element.closest('.task-description-container');
-            const placeholder = container?.querySelector('.task-description-placeholder');
-            if (placeholder && !element.value.trim()) {
-                placeholder.style.display = 'block';
-            }
         }
         
         this.currentEditor = null;
