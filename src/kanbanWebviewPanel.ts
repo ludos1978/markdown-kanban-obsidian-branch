@@ -627,7 +627,7 @@ export class KanbanWebviewPanel {
                 const fileName = path.basename(document.fileName);
                 const discardChanges = { title: 'Discard changes and reload' };
                 const saveBackup = { title: 'Save as backup and reload' };
-                const discardExternal = { title: 'Discard external changes and save' };
+                const discardExternal = { title: 'Discard external changes and overwrite' };
                 const ignoreExternal = { title: 'Ignore external changes', isCloseAffordance: true };
 
                 const choice = await vscode.window.showWarningMessage(
@@ -854,13 +854,23 @@ export class KanbanWebviewPanel {
             }
             
             const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
+
+            // Check if content has actually changed before applying edit
+            const currentContent = document.getText();
+            if (currentContent === markdown) {
+                // No changes needed, skip the edit to avoid unnecessary re-renders
+                console.log('📄 No changes detected, skipping save');
+                this._hasUnsavedChanges = false;
+                return;
+            }
+
             const edit = new vscode.WorkspaceEdit();
             edit.replace(
                 document.uri,
                 new vscode.Range(0, 0, document.lineCount, 0),
                 markdown
             );
-            
+
             const success = await vscode.workspace.applyEdit(edit);
             
             if (!success) {
