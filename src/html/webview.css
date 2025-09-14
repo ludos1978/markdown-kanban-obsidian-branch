@@ -3553,7 +3553,7 @@ d
 .image-fill-fill .task-title-container .markdown-content img {
     width: 100% !important;
     height: auto !important;
-    max-height: 80px !important; /* Slightly larger than default 60px for titles */
+    max-height: none !important; /* Let images fill the title area completely */
     object-fit: contain !important;
     object-position: left !important;
 }
@@ -3561,7 +3561,7 @@ d
 .image-fill-fill .task-description-container .markdown-content img {
     width: 100% !important;
     height: auto !important;
-    max-height: 500px !important; /* Larger than default 400px for descriptions */
+    max-height: none !important; /* Let images fill the card completely */
     object-fit: contain !important;
     object-position: left !important;
 }
