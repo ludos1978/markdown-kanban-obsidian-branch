@@ -28,6 +28,7 @@ const menuConfig = {
         { label: "Medium (350px)", value: "medium", description: "350px" },
         { label: "Wide (450px)", value: "wide", description: "450px" },
         { separator: true },
+        { label: "Third Screen (30.5%)", value: "40", description: "30.5%" },
         { label: "Half Screen (48.5%)", value: "66", description: "48.5%" },
         { label: "Full Width (98%)", value: "100", description: "98%" }
     ],
@@ -36,6 +37,7 @@ const menuConfig = {
         { separator: true },
         { label: "200px", value: "200px" },
         { label: "400px", value: "400px" },
+        { label: "26.5vh", value: "26.5vh" },
         { label: "43.5vh", value: "43.5vh" },
         { label: "89vh", value: "89vh" }
     ],
@@ -770,15 +772,15 @@ function applyColumnWidth(size, skipRender = false) {
     // Remove all existing column width classes
     const columns = document.querySelectorAll('.kanban-full-height-column');
     columns.forEach(column => {
-        column.classList.remove('column-width-66', 'column-width-100');
-        // Only remove span classes for viewport-based widths (66%, 100%), not pixel widths
-        if (size === '66' || size === '100') {
+        column.classList.remove('column-width-40', 'column-width-66', 'column-width-100');
+        // Only remove span classes for viewport-based widths (40%, 66%, 100%), not pixel widths
+        if (size === '40' || size === '66' || size === '100') {
             column.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
         }
     });
-    
+
     // Handle pixel-based and percentage-based widths differently
-    if (size === '66' || size === '100') {
+    if (size === '40' || size === '66' || size === '100') {
         // For percentage widths, add CSS classes
         columns.forEach(column => {
             column.classList.add(`column-width-${size}`);
