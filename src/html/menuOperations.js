@@ -2661,8 +2661,36 @@ function updateVisualTagState(element, allTags, elementType, isCollapsed) {
 // Comprehensive function to update ALL visual tag elements immediately
 function updateAllVisualTagElements(element, allTags, elementType) {
     
-    // 1. CLEAN UP - Remove all existing visual tag elements
-    element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container, .corner-badges-container').forEach(el => el.remove());
+    // 1. CLEAN UP - Remove visual elements only from column-header and column-footer areas
+    if (elementType === 'column') {
+        // For columns: clean up only within column-header and column-footer (never column-inner)
+
+        const columnHeader = element.querySelector('.column-header');
+        if (columnHeader) {
+            // Remove all visual tag elements from column-header
+            columnHeader.querySelectorAll('.header-bar, .header-bars-container, .corner-badges-container').forEach(el => el.remove());
+        }
+
+        const columnFooter = element.querySelector('.column-footer');
+        if (columnFooter) {
+            // Remove all visual tag elements from column-footer
+            columnFooter.querySelectorAll('.footer-bar, .footer-bars-container').forEach(el => el.remove());
+        }
+
+        // For collapsed state: remove direct children that are visual elements
+        Array.from(element.children).forEach(child => {
+            if (child.classList.contains('header-bar') ||
+                child.classList.contains('footer-bar') ||
+                child.classList.contains('header-bars-container') ||
+                child.classList.contains('footer-bars-container') ||
+                child.classList.contains('corner-badges-container')) {
+                child.remove();
+            }
+        });
+    } else {
+        // For tasks, safe to remove all visual elements directly
+        element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container, .corner-badges-container').forEach(el => el.remove());
+    }
     element.classList.remove('has-header-bar', 'has-footer-bar', 'has-header-label', 'has-footer-label');
     
     if (allTags.length === 0) {
@@ -2738,7 +2766,7 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         }
     }
     
-    // 4. HEADER BARS - Create header bars for tags that have them
+    // 4. HEADER BARS - Always create header-bars-container in column-header
     const headerBars = [];
     let hasHeaderLabel = false;
     allTags.forEach(tag => {
@@ -2752,30 +2780,36 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             }
         }
     });
-    
-    if (headerBars.length > 0) {
-        const isCollapsed = element.classList.contains('collapsed');
-        if (isCollapsed) {
-            // For collapsed elements, add bars directly to the column
+
+    // Always try to add header-bars-container to column-header (even if empty)
+    const isCollapsed = element.classList.contains('collapsed');
+    if (isCollapsed) {
+        // For collapsed elements, add bars directly to the column
+        if (headerBars.length > 0) {
             headerBars.forEach(bar => element.appendChild(bar));
+        }
+    } else {
+        // For expanded elements, always add header-bars-container to column-header
+        const columnHeader = element.querySelector('.column-header');
+        if (columnHeader) {
+            const headerContainer = document.createElement('div');
+            headerContainer.className = 'header-bars-container';
+            headerBars.forEach(bar => headerContainer.appendChild(bar));
+            // Header container should be first child, so insert at the beginning
+            columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
         } else {
-            // For expanded elements, find column-inner and add container there
-            const columnInner = element.querySelector('.column-inner');
-						const columnHeader = element.querySelector('.column-header');
-            if (columnInner) {
-                const headerContainer = document.createElement('div');
-                headerContainer.className = 'header-bars-container';
-                headerBars.forEach(bar => headerContainer.appendChild(bar));
-                // Header container should be first child, so insert at the beginning
-                columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
-            } else {
-                // Fallback: add directly to element if no column-inner found
+            // Fallback: add directly to element if no column-header found
+            if (headerBars.length > 0) {
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
                 element.appendChild(headerContainer);
             }
         }
+    }
+
+    // Set classes only if there are actual header bars
+    if (headerBars.length > 0) {
         element.classList.add('has-header-bar');
         // if (hasHeaderLabel) element.classList.add('has-header-label');
     }
@@ -2801,15 +2835,15 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             // For collapsed elements, add bars directly to the column
             footerBars.forEach(bar => element.appendChild(bar));
         } else {
-            // For expanded elements, find column-inner and add container there
-            const columnInner = element.querySelector('.column-inner');
-            if (columnInner) {
+            // For expanded elements, find column-footer and add container there
+            const columnFooter = element.querySelector('.column-footer');
+            if (columnFooter) {
                 const footerContainer = document.createElement('div');
                 footerContainer.className = 'footer-bars-container';
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
-                columnInner.appendChild(footerContainer);
+                columnFooter.appendChild(footerContainer);
             } else {
-                // Fallback: add directly to element if no column-inner found
+                // Fallback: add directly to element if no column-footer found
                 const footerContainer = document.createElement('div');
                 footerContainer.className = 'footer-bars-container';
                 footerBars.forEach(bar => footerContainer.appendChild(bar));

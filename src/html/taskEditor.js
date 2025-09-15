@@ -447,8 +447,8 @@ class TaskEditor {
                                 columnElement2.classList.remove('tag-update-trigger');
 
                                 // Update footer/header bars after DOM updates complete
-                                if (window.injectStackableBars) {
-                                    window.injectStackableBars(columnElement2);
+                                if (window.updateAllVisualTagElements) {
+                                    window.updateAllVisualTagElements(columnElement2, allTags, 'column');
                                 }
                             });
                         } else {

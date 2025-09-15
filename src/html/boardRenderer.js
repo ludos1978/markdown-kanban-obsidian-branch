@@ -1438,6 +1438,8 @@ function createColumnElement(column, columnIndex) {
                     </button>` : ''}
                 </div>
             </div>
+        </div>
+        <div class="column-footer">
             ${footerBarsHtml || ''}
         </div>
     `;
@@ -2233,27 +2235,27 @@ function injectStackableBars(targetElement = null) {
             element.style.paddingBottom = '';
             
         } else {
-            // For non-collapsed elements, also use column-inner with flex positioning
-            const columnInner = element.querySelector('.column-inner');
-						const columnHeader = element.querySelector('.column-header');
-            
+            // For non-collapsed elements, use column-header and column-footer
+            const columnHeader = element.querySelector('.column-header');
+            const columnFooter = element.querySelector('.column-footer');
+
             if (columnHeader) {
-                // Create and insert header container at the beginning of column-inner
+                // Create and insert header container at the beginning of column-header
                 if (headerBars.length > 0) {
                     const headerContainer = document.createElement('div');
                     headerContainer.className = 'header-bars-container';
                     headerBars.forEach(bar => headerContainer.appendChild(bar));
                     columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
                 }
-						}
-            
-						if (columnInner) {
-                // Create and append footer container at the end of column-inner
+            }
+
+            if (columnFooter) {
+                // Create and append footer container to column-footer
                 if (footerBars.length > 0) {
                     const footerContainer = document.createElement('div');
                     footerContainer.className = 'footer-bars-container';
                     footerBars.forEach(bar => footerContainer.appendChild(bar));
-                    columnInner.appendChild(footerContainer);
+                    columnFooter.appendChild(footerContainer);
                 }
             } 
 						
