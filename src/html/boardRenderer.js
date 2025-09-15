@@ -1368,7 +1368,7 @@ function createColumnElement(column, columnIndex) {
 
     // Filter tags from displayed title based on visibility setting
     const displayTitle = column.title ? window.filterTagsFromText(column.title) : '';
-    const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
+    const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
     const foldButtonState = getFoldAllButtonState(column.id);
 
     // Only show row indicator for rows 2, 3, 4 if configuration allows (not row 1)
@@ -1459,8 +1459,8 @@ function createTaskElement(task, columnId, taskIndex) {
         return '';
     }
 
-    const renderedDescription = task.description ? renderMarkdown(task.description) : '';
-    const renderedTitle = task.title ? renderMarkdown(task.title) : '';
+    const renderedDescription = (task.description && task.description.trim()) ? renderMarkdown(task.description) : '';
+    const renderedTitle = (task.title && task.title.trim()) ? renderMarkdown(task.title) : '';
     const isCollapsed = window.collapsedTasks.has(task.id);
     
     // Extract ALL tags for stacking features
@@ -1512,9 +1512,9 @@ function createTaskElement(task, columnId, taskIndex) {
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}'); updateFoldAllButton('${columnId}')">▶</span>
                 <div class="task-title-container" onclick="handleTaskTitleClick(event, this, '${task.id}', '${columnId}')">
-                <div class="task-title-display markdown-content" 
-                            data-task-id="${task.id}" 
-                            data-column-id="${columnId}">${renderedTitle || '<span class="task-title-placeholder">Add title...</span>'}</div>
+                <div class="task-title-display markdown-content"
+                            data-task-id="${task.id}"
+                            data-column-id="${columnId}">${renderedTitle}</div>
                     <textarea class="task-title-edit" 
                                 data-task-id="${task.id}" 
                                 data-column-id="${columnId}"
@@ -1548,11 +1548,10 @@ function createTaskElement(task, columnId, taskIndex) {
             </div>
 
             <div class="task-description-container">
-                <div class="task-description-display markdown-content" 
-                        data-task-id="${task.id}" 
+                <div class="task-description-display markdown-content"
+                        data-task-id="${task.id}"
                         data-column-id="${columnId}"
-                        onclick="handleDescriptionClick(event, this)"
-                        style="${task.description ? '' : 'display: none;'}">${renderedDescription}</div>
+                        onclick="handleDescriptionClick(event, this)">${renderedDescription}</div>
                 <textarea class="task-description-edit" 
                             data-task-id="${task.id}" 
                             data-column-id="${columnId}"

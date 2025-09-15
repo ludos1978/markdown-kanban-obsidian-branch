@@ -900,13 +900,15 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 
-.task-title-placeholder {
+
+/* CSS-based placeholders for empty display elements */
+.column-title:empty::before {
+  content: "Add title...";
   color: var(--vscode-descriptionForeground);
   font-style: italic;
   opacity: 0.7;
 }
 
-/* CSS-based placeholders for empty display elements */
 .task-title-display:empty::before {
   content: "Add title...";
   color: var(--vscode-descriptionForeground);
@@ -2643,8 +2645,7 @@ h6 .kanban-tag {
   display: block;
 }
 
-.kanban-full-height-column.collapsed .column-title:empty::before,
-.kanban-full-height-column.collapsed .column-title:has(.task-title-placeholder)::before {
+.kanban-full-height-column.collapsed .column-title:empty::before {
   content: '\200B';
   display: inline-block;
   width: 1px;

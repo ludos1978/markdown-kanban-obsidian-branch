@@ -437,10 +437,9 @@ class TaskEditor {
                             this.currentEditor.displayElement.innerHTML = renderMarkdown(displayValue);
                             this.currentEditor.displayElement.style.display = 'block';
                         } else {
-                            // Handle empty values for both titles and descriptions
-                            // Ensure element is truly empty for CSS :empty selector
+                            // Handle empty values - must be truly empty for CSS :empty selector
+                            // Do NOT set textContent after innerHTML as it can add text nodes
                             this.currentEditor.displayElement.innerHTML = '';
-                            this.currentEditor.displayElement.textContent = '';
                             this.currentEditor.displayElement.style.display = 'block';
                         }
                     }

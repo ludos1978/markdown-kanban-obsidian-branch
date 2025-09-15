@@ -1595,7 +1595,7 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
         const displayTitle = newTitle.replace(/#row\d+/gi, '').trim();
         const renderedTitle = displayTitle ? 
             (window.renderMarkdown ? window.renderMarkdown(displayTitle) : displayTitle) : 
-            '<span class="task-title-placeholder">Add title...</span>';
+            '';
         const columnRow = window.getColumnRow ? window.getColumnRow(newTitle) : 1;
         const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
         titleElement.innerHTML = renderedTitle + rowIndicator;
@@ -1671,7 +1671,7 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
     if (titleElement) {
         const renderedTitle = newTitle ? 
             (window.renderMarkdown ? window.renderMarkdown(newTitle) : newTitle) :
-            '<span class="task-title-placeholder">Add title...</span>';
+            '';
         titleElement.innerHTML = renderedTitle;
     }
     

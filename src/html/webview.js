@@ -1305,7 +1305,7 @@ function updateColumnRowTag(columnId, newRow) {
         const titleElement = columnElement.querySelector('.column-title');
         if (titleElement) {
             const displayTitle = column.title.replace(/#row\d+/gi, '').trim();
-            const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
+            const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
             const rowIndicator = (window.showRowTags && newRow > 1) ? `<span class="column-row-tag">Row ${newRow}</span>` : '';
             titleElement.innerHTML = renderedTitle + rowIndicator;
         }
