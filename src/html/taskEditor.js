@@ -14,6 +14,79 @@ class TaskEditor {
     }
 
     /**
+     * Get current editing state and content for saving
+     * Purpose: Allow saving board while editing is in progress
+     * Returns: Object with edit details or null if nothing is being edited
+     */
+    getCurrentEditState() {
+        if (!this.currentEditor) {
+            return null;
+        }
+
+        const value = this.currentEditor.element.value || this.currentEditor.element.textContent;
+
+        return {
+            type: this.currentEditor.type,
+            taskId: this.currentEditor.taskId,
+            columnId: this.currentEditor.columnId,
+            value: value,
+            originalValue: this.currentEditor.originalValue
+        };
+    }
+
+    /**
+     * Apply current edit state to board before saving
+     * Purpose: Include in-progress edits when saving board
+     */
+    applyCurrentEditToBoard(board) {
+        const editState = this.getCurrentEditState();
+        if (!editState) {
+            return board; // No changes needed
+        }
+
+        // Make a deep copy to avoid modifying the original
+        const boardCopy = JSON.parse(JSON.stringify(board));
+
+        if (editState.type === 'task-title' || editState.type === 'task-description') {
+            const column = boardCopy.columns.find(c => c.id === editState.columnId);
+            if (column) {
+                const task = column.tasks.find(t => t.id === editState.taskId);
+                if (task) {
+                    if (editState.type === 'task-title') {
+                        task.title = editState.value;
+                    } else if (editState.type === 'task-description') {
+                        task.description = editState.value;
+                    }
+                }
+            }
+        } else if (editState.type === 'column-title') {
+            const column = boardCopy.columns.find(c => c.id === editState.columnId);
+            if (column) {
+                column.title = editState.value;
+            }
+        }
+
+        return boardCopy;
+    }
+
+    /**
+     * Update editor after save to maintain consistency
+     * Purpose: Keep editor in sync when content is saved while editing
+     */
+    handlePostSaveUpdate() {
+        if (!this.currentEditor) {
+            return;
+        }
+
+        // Update the original value to match what was just saved
+        // This prevents the editor from thinking there are still changes
+        const currentValue = this.currentEditor.element.value || this.currentEditor.element.textContent;
+        this.currentEditor.originalValue = currentValue;
+
+        console.log('📝 Updated editor state after save');
+    }
+
+    /**
      * Sets up global keyboard and mouse event handlers
      * Purpose: Handle editing interactions across the entire document
      * Used by: Constructor on initialization

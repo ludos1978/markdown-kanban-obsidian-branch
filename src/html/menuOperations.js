@@ -1922,23 +1922,41 @@ function compareBoards(savedBoard, cachedBoard) {
  * Note: Single source of truth - no more pending changes mess
  */
 function saveCachedBoard() {
-    
+
     if (!window.cachedBoard) {
         return;
     }
-    
-    
+
+    // Capture any in-progress edits and include them in the save
+    let boardToSave = window.cachedBoard;
+    let hadInProgressEdits = false;
+    if (window.taskEditor) {
+        const editState = window.taskEditor.getCurrentEditState();
+        if (editState) {
+            boardToSave = window.taskEditor.applyCurrentEditToBoard(window.cachedBoard);
+            hadInProgressEdits = true;
+            console.log('📝 Including in-progress edits in save:', editState.type);
+        }
+    }
+
     // Send the complete board state to VS Code using a simple message
     // This avoids complex sequential processing that might cause issues
     vscode.postMessage({
         type: 'saveBoardState',
-        board: window.cachedBoard
+        board: boardToSave
     });
     
     
     // Mark as saved and notify backend
-    if (window.cachedBoard) {
-        window.savedBoardState = JSON.parse(JSON.stringify(window.cachedBoard));
+    if (boardToSave) {
+        // Update our cached state to include the in-progress edits
+        window.cachedBoard = JSON.parse(JSON.stringify(boardToSave));
+        window.savedBoardState = JSON.parse(JSON.stringify(boardToSave));
+
+        // Update editor state if we had in-progress edits
+        if (hadInProgressEdits && window.taskEditor) {
+            window.taskEditor.handlePostSaveUpdate();
+        }
     }
     markSavedChanges();
     
