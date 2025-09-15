@@ -343,17 +343,46 @@ class TaskEditor {
                             }
                         }
 
-                        // Also update tag-based styling
-                        const newTag = window.extractFirstTag ? window.extractFirstTag(column.title) : null;
-                        if (newTag && !newTag.startsWith('row') && !newTag.startsWith('gather_') && !newTag.startsWith('span')) {
-                            columnElement.setAttribute('data-column-tag', newTag);
+                        // Update tag-based styling for columns
+                        const allTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(column.title || '') : [];
+
+                        // Update primary tag
+                        const primaryTag = window.extractFirstTag ? window.extractFirstTag(column.title) : null;
+                        if (primaryTag && !primaryTag.startsWith('row') && !primaryTag.startsWith('gather_') && !primaryTag.startsWith('span')) {
+                            columnElement.setAttribute('data-column-tag', primaryTag);
                         } else {
                             columnElement.removeAttribute('data-column-tag');
                         }
 
-                        // Regenerate tag styles to apply any new tag colors
-                        if (typeof applyTagStyles === 'function') {
-                            applyTagStyles();
+                        // Update all tags attribute
+                        if (allTags.length > 0) {
+                            columnElement.setAttribute('data-all-tags', allTags.join(' '));
+                        } else {
+                            columnElement.removeAttribute('data-all-tags');
+                        }
+
+                        // Ensure tag styles exist without full regeneration
+                        if (window.ensureTagStyleExists) {
+                            allTags.forEach(tag => window.ensureTagStyleExists(tag));
+                        }
+
+                        // Force style recalculation to apply new tag styles immediately
+                        if (allTags.length > 0) {
+                            // Gentle style refresh: toggle a temporary class to force re-evaluation
+                            columnElement.classList.add('tag-update-trigger');
+                            requestAnimationFrame(() => {
+                                columnElement.classList.remove('tag-update-trigger');
+                            });
+                        }
+
+                        // Update corner badges without re-render
+                        if (window.updateCornerBadgesImmediate) {
+                            window.updateCornerBadgesImmediate(columnId, 'column', column.title);
+                        }
+
+                        // Update tag counts in any open menus
+                        if (window.updateTagCategoryCounts) {
+                            window.updateTagCategoryCounts(columnId, 'column');
                         }
                     }
                     
@@ -442,22 +471,53 @@ class TaskEditor {
                         this.currentEditor.displayElement.style.display = 'block';
                     }
 
-                    // Update task element styling if this is a task title edit
-                    if (type === 'task-title') {
-                        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
-                        if (taskElement) {
-                            // Update tag-based styling
-                            const newTag = window.extractFirstTag ? window.extractFirstTag(task.title) : null;
-                            if (newTag && !newTag.startsWith('row') && !newTag.startsWith('gather_') && !newTag.startsWith('span')) {
-                                taskElement.setAttribute('data-task-tag', newTag);
-                            } else {
-                                taskElement.removeAttribute('data-task-tag');
-                            }
+                    // Update tag-based styling for both titles and descriptions
+                    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                    if (taskElement) {
+                        // Combine tags from title and description
+                        const titleTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(task.title || '') : [];
+                        const descTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(task.description || '') : [];
+                        const allTags = [...new Set([...titleTags, ...descTags])];
 
-                            // Regenerate tag styles to apply any new tag colors
-                            if (typeof applyTagStyles === 'function') {
-                                applyTagStyles();
-                            }
+                        // Update primary tag (first non-special tag from title)
+                        const primaryTag = window.extractFirstTag ? window.extractFirstTag(task.title) : null;
+                        if (primaryTag && !primaryTag.startsWith('row') && !primaryTag.startsWith('gather_') && !primaryTag.startsWith('span')) {
+                            taskElement.setAttribute('data-task-tag', primaryTag);
+                        } else {
+                            taskElement.removeAttribute('data-task-tag');
+                        }
+
+                        // Update all tags attribute for stacking features
+                        if (allTags.length > 0) {
+                            taskElement.setAttribute('data-all-tags', allTags.join(' '));
+                        } else {
+                            taskElement.removeAttribute('data-all-tags');
+                        }
+
+                        // Ensure tag styles exist without full regeneration
+                        if (window.ensureTagStyleExists) {
+                            allTags.forEach(tag => window.ensureTagStyleExists(tag));
+                        }
+
+                        // Force style recalculation to apply new tag styles immediately
+                        if (allTags.length > 0) {
+                            // Gentle style refresh: toggle a temporary class to force re-evaluation
+                            taskElement.classList.add('tag-update-trigger');
+                            requestAnimationFrame(() => {
+                                taskElement.classList.remove('tag-update-trigger');
+                            });
+                        }
+
+                        // Update corner badges without re-render (uses title+description combined)
+                        if (window.updateCornerBadgesImmediate) {
+                            // For tasks, we need to pass a combined text that includes both title and description tags
+                            const combinedText = [task.title, task.description].filter(Boolean).join(' ');
+                            window.updateCornerBadgesImmediate(taskId, 'task', combinedText);
+                        }
+
+                        // Update tag counts in any open menus
+                        if (window.updateTagCategoryCounts) {
+                            window.updateTagCategoryCounts(taskId, 'task', columnId);
                         }
                     }
                     
