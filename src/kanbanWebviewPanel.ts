@@ -10,6 +10,7 @@ import { LinkHandler } from './linkHandler';
 import { MessageHandler } from './messageHandler';
 import { BackupManager } from './backupManager';
 import { CacheManager } from './cacheManager';
+import { ExternalFileWatcher, FileChangeType } from './externalFileWatcher';
 
 export class KanbanWebviewPanel {
     private static panels: Map<string, KanbanWebviewPanel> = new Map();
@@ -44,10 +45,10 @@ export class KanbanWebviewPanel {
 
     // Include file tracking
     private _includedFiles: string[] = [];
-    private _includeFileWatchers: vscode.FileSystemWatcher[] = [];
     private _includeFilesChanged: boolean = false;
     private _changedIncludeFiles: Set<string> = new Set();
     private _includeFileContents: Map<string, string> = new Map();
+    private _fileWatcher: ExternalFileWatcher;
 
     // Method to force refresh webview content (useful during development)
     public async refreshWebviewContent() {
@@ -186,10 +187,13 @@ export class KanbanWebviewPanel {
         
         // REPLACE this line:
         this._linkHandler = new LinkHandler(
-            this._fileManager, 
+            this._fileManager,
             this._panel.webview,
             this.handleLinkReplacement.bind(this) // ADD callback
         );
+
+        // Get the file watcher instance
+        this._fileWatcher = ExternalFileWatcher.getInstance();
 
         // Initialize message handler with callbacks
         this._messageHandler = new MessageHandler(
@@ -509,8 +513,9 @@ export class KanbanWebviewPanel {
                 this._board = parseResult.board;
                 this._includedFiles = parseResult.includedFiles;
 
-                // Set up file watchers for included files
-                await this._setupIncludeFileWatchers();
+                // Register included files with the external file watcher
+                await this._initializeIncludeFileContents();
+                this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
 
                 this._boardOperations.setOriginalTaskOrder(this._board);
             } catch (error) {
@@ -553,22 +558,28 @@ export class KanbanWebviewPanel {
             }
         }
         
-        const documentChanged = this._fileManager.getDocument()?.uri.toString() !== document.uri.toString();
-        
-        // If document changed, update panel tracking
+        const previousDocument = this._fileManager.getDocument();
+        const documentChanged = previousDocument?.uri.toString() !== document.uri.toString();
+
+        // If document changed or this is the first document, update panel tracking
         if (documentChanged) {
             // Remove this panel from old document tracking
-            const oldDocUri = this._fileManager.getDocument()?.uri.toString();
+            const oldDocUri = previousDocument?.uri.toString();
             if (oldDocUri && KanbanWebviewPanel.panels.get(oldDocUri) === this) {
                 KanbanWebviewPanel.panels.delete(oldDocUri);
+                // Unregister the old main file from the watcher
+                this._fileWatcher.unregisterFile(previousDocument!.uri.fsPath, this);
             }
-            
+
             // Add to new document tracking
             KanbanWebviewPanel.panels.set(document.uri.toString(), this);
-            
+
             // Update panel title
             const fileName = path.basename(document.fileName);
             this._panel.title = `Kanban: ${fileName}`;
+
+            // Register the new main file with the external file watcher
+            this._fileWatcher.registerFile(document.uri.fsPath, 'main', this);
         }
         
         this._fileManager.setDocument(document);
@@ -595,10 +606,10 @@ export class KanbanWebviewPanel {
 
                 // Ask user what to do with external changes
                 const fileName = path.basename(document.fileName);
-                const discardChanges = { title: 'Discard changes and reload' };
-                const saveBackup = { title: 'Save as backup and reload' };
-                const discardExternal = { title: 'Discard external changes and overwrite' };
-                const ignoreExternal = { title: 'Ignore external changes', isCloseAffordance: true };
+                const discardChanges = { title: 'Discard kanban changes and reload' };
+                const saveBackup = { title: 'Save as backup and load external' };
+                const discardExternal = { title: 'Discard external changes and save kanban' };
+                const ignoreExternal = { title: 'Ignore external changes, dont overwrite (esc)', isCloseAffordance: true };
 
                 const choice = await vscode.window.showWarningMessage(
                     `The file "${fileName}" has been modified externally. Your current kanban changes may be lost if you reload the file.`,
@@ -630,7 +641,9 @@ export class KanbanWebviewPanel {
                     // Immediately update board and send to webview
                     this._board = parseResult.board;
                     this._includedFiles = parseResult.includedFiles;
-                    await this._setupIncludeFileWatchers();
+                    // Update included files with the external file watcher
+                    await this._initializeIncludeFileContents();
+                    this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
                     const wasModified = this._boardOperations.cleanupRowTags(this._board);
                     this._boardOperations.setOriginalTaskOrder(this._board);
                     await this.sendBoardUpdate(isExternalChange);
@@ -646,7 +659,9 @@ export class KanbanWebviewPanel {
                     // Immediately update board and send to webview
                     this._board = parseResult.board;
                     this._includedFiles = parseResult.includedFiles;
-                    await this._setupIncludeFileWatchers();
+                    // Update included files with the external file watcher
+                    await this._initializeIncludeFileContents();
+                    this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
                     const wasModified = this._boardOperations.cleanupRowTags(this._board);
                     this._boardOperations.setOriginalTaskOrder(this._board);
                     await this.sendBoardUpdate(isExternalChange);
@@ -674,8 +689,9 @@ export class KanbanWebviewPanel {
             this._board = parseResult.board;
             this._includedFiles = parseResult.includedFiles;
 
-            // Set up file watchers for included files
-            await this._setupIncludeFileWatchers();
+            // Update included files with the external file watcher
+            await this._initializeIncludeFileContents();
+            this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
 
             // Clean up any duplicate row tags
             const wasModified = this._boardOperations.cleanupRowTags(this._board);
@@ -1153,27 +1169,30 @@ export class KanbanWebviewPanel {
     }
 
     public async dispose() {
-        
+
         // Clear unsaved changes flag and prevent closing flags
         this._hasUnsavedChanges = false;
         this._isClosingPrevented = false;
-        
+
         // Stop unsaved changes monitoring
         if (this._unsavedChangesCheckInterval) {
             clearInterval(this._unsavedChangesCheckInterval);
             this._unsavedChangesCheckInterval = undefined;
         }
-        
+
+        // Unregister from external file watcher
+        this._fileWatcher.unregisterPanel(this);
+
         // Remove from panels map
         const documentUri = this._fileManager.getDocument()?.uri.toString();
         if (documentUri && KanbanWebviewPanel.panels.get(documentUri) === this) {
             KanbanWebviewPanel.panels.delete(documentUri);
         }
-        
+
         // Stop backup timer
         this._backupManager.dispose();
         this._cacheManager.dispose();
-        
+
         this._panel.dispose();
 
         while (this._disposables.length) {
@@ -1269,45 +1288,30 @@ export class KanbanWebviewPanel {
         return showRowTags;
     }
 
-    private async _setupIncludeFileWatchers() {
-        // Clean up existing watchers
-        this._cleanupIncludeFileWatchers();
-
-        // Set up watchers for each included file
+    /**
+     * Initialize include file contents when registering with the file watcher
+     */
+    private async _initializeIncludeFileContents(): Promise<void> {
         for (const filePath of this._includedFiles) {
-            try {
-                // Read initial content
-                const initialContent = await this._readFileContent(filePath);
-                if (initialContent !== null) {
-                    this._includeFileContents.set(filePath, initialContent);
-                }
-
-                const watcher = vscode.workspace.createFileSystemWatcher(filePath);
-
-                watcher.onDidChange(async () => {
-                    await this._handleIncludeFileChange(filePath);
-                });
-
-                watcher.onDidDelete(() => {
-                    this._changedIncludeFiles.add(filePath);
-                    this._includeFileContents.delete(filePath);
-                    this._includeFilesChanged = true;
-                    this._sendIncludeFileChangeNotification();
-                });
-
-                this._includeFileWatchers.push(watcher);
-                this._disposables.push(watcher);
-            } catch (error) {
-                console.error(`Failed to create watcher for ${filePath}:`, error);
+            const content = await this._readFileContent(filePath);
+            if (content !== null) {
+                this._includeFileContents.set(filePath, content);
             }
         }
     }
 
-    private _cleanupIncludeFileWatchers() {
-        for (const watcher of this._includeFileWatchers) {
-            watcher.dispose();
+    /**
+     * Handle include file changes from the external file watcher
+     */
+    public async handleIncludeFileChange(filePath: string, changeType: FileChangeType): Promise<void> {
+        if (changeType === 'deleted') {
+            this._changedIncludeFiles.add(filePath);
+            this._includeFileContents.delete(filePath);
+            this._includeFilesChanged = true;
+            this._sendIncludeFileChangeNotification();
+        } else if (changeType === 'modified' || changeType === 'created') {
+            await this._handleIncludeFileChange(filePath);
         }
-        this._includeFileWatchers = [];
     }
 
     private async _readFileContent(filePath: string): Promise<string | null> {
@@ -1366,8 +1370,9 @@ export class KanbanWebviewPanel {
                 this._board = parseResult.board;
                 this._includedFiles = parseResult.includedFiles;
 
-                // Set up file watchers for included files
-                await this._setupIncludeFileWatchers();
+                // Register included files with the external file watcher
+                await this._initializeIncludeFileContents();
+                this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
 
                 // Clean up any duplicate row tags
                 this._boardOperations.cleanupRowTags(this._board);
