@@ -564,36 +564,24 @@ export class MessageHandler {
     }
 
     private async handlePageHiddenWithUnsavedChanges(): Promise<void> {
-        
+
         try {
+            // Automatically create backup when page is hidden with unsaved changes
+            // This provides safety without interrupting the user's workflow
+            await this._saveWithBackup();
+
             const document = this._fileManager.getDocument();
-            const fileName = document ? path.basename(document.fileName) : 'the kanban board';
-            const choice = await vscode.window.showWarningMessage(
-                `You have unsaved changes in "${fileName}". Save them now?`,
-                { modal: true },
-                'Save Now',
-                'Save with Backup',
-                'Don\'t Save'
-            );
-            
-            if (choice === 'Save Now') {
-                await this._onSaveToMarkdown();
-                vscode.window.showInformationMessage(`"${fileName}" saved successfully!`);
-            } else if (choice === 'Save with Backup') {
-                await this._saveWithBackup();
-            }
-            // If 'Don't Save', just continue - the user chose to discard changes
-            
-            // Reset the close prompt flag in webview regardless of choice
+            const fileName = document ? path.basename(document.fileName) : 'kanban board';
+            console.log(`Created backup for "${fileName}" (page hidden with unsaved changes)`);
+
+            // Reset the close prompt flag in webview
             this._getWebviewPanel().webview.postMessage({
                 type: 'resetClosePromptFlag'
             });
-            
+
         } catch (error) {
-            console.error('Failed to handle unsaved changes:', error);
-            vscode.window.showErrorMessage('Failed to save kanban changes: ' + error);
-            
-            // Reset flag even on error
+            console.error('Error creating backup on page hidden:', error);
+            // Reset flag even if there was an error
             this._getWebviewPanel().webview.postMessage({
                 type: 'resetClosePromptFlag'
             });
