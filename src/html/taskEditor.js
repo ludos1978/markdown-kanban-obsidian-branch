@@ -271,8 +271,8 @@ class TaskEditor {
         
         // Update local state (undo state will be saved when editing completes)
         const value = this.currentEditor.element.value;
-        if (currentBoard && currentBoard.columns) {
-            const column = currentBoard.columns.find(c => c.id === columnId);
+        if (window.cachedBoard && window.cachedBoard.columns) {
+            const column = window.cachedBoard.columns.find(c => c.id === columnId);
             const task = column?.tasks.find(t => t.id === taskId);
             if (task) {
                 task.title = value;
@@ -335,9 +335,9 @@ class TaskEditor {
         const value = element.value;
 
         // Update local state for immediate feedback
-        if (currentBoard && currentBoard.columns) {
+        if (window.cachedBoard && window.cachedBoard.columns) {
             if (type === 'column-title') {
-                const column = currentBoard.columns.find(c => c.id === columnId);
+                const column = window.cachedBoard.columns.find(c => c.id === columnId);
                 if (column) {
                     // Get current row and span to preserve them
                     const currentRow = getColumnRow(column.title);
@@ -478,7 +478,7 @@ class TaskEditor {
                     
                 }
             } else if (type === 'task-title' || type === 'task-description') {
-                const column = currentBoard.columns.find(c => c.id === columnId);
+                const column = window.cachedBoard.columns.find(c => c.id === columnId);
                 const task = column?.tasks.find(t => t.id === taskId);
                 
                 if (task) {
@@ -518,22 +518,16 @@ class TaskEditor {
                                       (type === 'task-description' && (task.description || '') !== originalDescription);
 
                     if (wasChanged) {
+                        // Ensure currentBoard is synced with cachedBoard for markUnsavedChanges
+                        window.currentBoard = window.cachedBoard;
+
                         if (typeof markUnsavedChanges === 'function') {
                             markUnsavedChanges();
                         }
 
-                        // Send specific task update to backend
-                        if (typeof vscode !== 'undefined') {
-                            const field = type === 'task-title' ? 'title' : 'description';
-                            const valueToSend = type === 'task-description' ? task.description : value;
-                            vscode.postMessage({
-                                type: 'updateTaskInBackend',
-                                taskId: taskId,
-                                columnId: columnId,
-                                field: field,
-                                value: valueToSend
-                            });
-                        }
+                        // Note: No need to send updateTaskInBackend message here
+                        // The markUnsavedChanges() call above already sends the complete
+                        // updated board data via the cachedBoard parameter
                     }
                     
                     if (this.currentEditor.displayElement) {

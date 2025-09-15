@@ -222,6 +222,7 @@ export class KanbanWebviewPanel {
                 getWebviewPanel: () => this,
                 saveWithBackup: this._createUnifiedBackup.bind(this),
                 markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => {
+                    console.log(`[Save Debug] markUnsavedChanges callback - hasChanges: ${hasChanges}, previousHasUnsaved: ${this._hasUnsavedChanges}, hasCachedBoard: ${!!cachedBoard}`);
                     this._hasUnsavedChanges = hasChanges;
                     if (hasChanges) {
                         // Track when unsaved changes occur for backup timing
@@ -230,6 +231,7 @@ export class KanbanWebviewPanel {
                     if (cachedBoard) {
                         // CRITICAL: Store the cached board data immediately for saving
                         // This ensures we always have the latest data even if webview is disposed
+                        console.log(`[Save Debug] Updating board from cached data - title: ${cachedBoard.title}, columns: ${cachedBoard.columns?.length}`);
                         this._board = cachedBoard;
                         this._cachedBoardFromWebview = cachedBoard; // Keep a separate reference
                     }
@@ -493,10 +495,11 @@ export class KanbanWebviewPanel {
 
         this._panel.webview.onDidReceiveMessage(
             async (message) => {
-                
+                console.log(`[Cache Backend] Received message:`, message.type, message);
+
                 if (message.type === 'undo' || message.type === 'redo') {
                 }
-                
+
                 try {
                     await this._messageHandler.handleMessage(message);
                 } catch (error) {
@@ -774,6 +777,7 @@ export class KanbanWebviewPanel {
     }
 
     private async saveToMarkdown() {
+        console.log(`💾 Saving kanban to markdown... hasUnsavedChanges: ${this._hasUnsavedChanges}`);
         let document = this._fileManager.getDocument();
         if (!document || !this._board || !this._board.valid) {
             console.warn('Cannot save: no document or invalid board');
@@ -805,6 +809,7 @@ export class KanbanWebviewPanel {
             }
             
             const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
+            console.log(`[Save Debug] Generated markdown preview (first 200 chars): ${markdown.substring(0, 200)}...`);
 
             // Check for external unsaved changes before proceeding
             const canProceed = await this.checkForExternalUnsavedChanges();
@@ -815,6 +820,10 @@ export class KanbanWebviewPanel {
 
             // Check if content has actually changed before applying edit
             const currentContent = document.getText();
+            console.log(`[Save Debug] Current content length: ${currentContent.length}, Generated markdown length: ${markdown.length}`);
+            console.log(`[Save Debug] hasUnsavedChanges: ${this._hasUnsavedChanges}, hasExternalUnsaved: ${this._hasExternalUnsavedChanges}`);
+            console.log(`[Save Debug] Content comparison: ${currentContent === markdown ? 'EQUAL' : 'DIFFERENT'}`);
+
             if (currentContent === markdown) {
                 // No changes needed, skip the edit to avoid unnecessary re-renders
                 console.log('📄 No changes detected, skipping save');
@@ -892,6 +901,7 @@ export class KanbanWebviewPanel {
             this._hasUnsavedChanges = false;
 
             // Update our baseline after successful save
+            console.log(`[Save Debug] Updating known file content after successful save (length: ${markdown.length})`);
             this.updateKnownFileContent(markdown);
         } catch (error) {
             console.error('Error saving to markdown:', error);

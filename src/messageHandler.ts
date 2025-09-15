@@ -121,6 +121,7 @@ export class MessageHandler {
                 break;
             case 'markUnsavedChanges':
                 // Track unsaved changes at panel level and update cached board if provided
+                console.log(`[Save Debug] markUnsavedChanges called - hasUnsavedChanges: ${message.hasUnsavedChanges}, hasCachedBoard: ${!!message.cachedBoard}`);
                 this._markUnsavedChanges(message.hasUnsavedChanges, message.cachedBoard);
                 break;
             case 'saveUndoState':
@@ -291,8 +292,9 @@ export class MessageHandler {
                 await this.handleSaveBoardState(message.board);
                 break;
             case 'updateTaskInBackend':
-                // Update specific task in backend board
-                this.updateTaskInBackend(message.taskId, message.columnId, message.field, message.value);
+                // DEPRECATED: This is now handled via markUnsavedChanges with cachedBoard
+                // The complete board state is sent, which is more reliable than individual field updates
+                console.log('[DEBUG] updateTaskInBackend call received but ignored - using markUnsavedChanges instead');
                 break;
 
             default:
@@ -514,18 +516,20 @@ export class MessageHandler {
             console.warn('❌ No board data received for saving');
             return;
         }
-        
+
+        console.log(`[Save Debug] handleSaveBoardState called - board title: ${board.title}, columns: ${board.columns?.length}`);
+
         // NOTE: Do not save undo state here - individual operations already saved their undo states
         // before making changes. Saving here would create duplicate/grouped undo states.
-        
+
         // Replace the current board with the new one
         this._setBoard(board);
-        
+
         // Save to markdown file only - do NOT trigger board update
         // The webview already has the correct state (it sent us this board)
         // Triggering _onBoardUpdate() would cause folding state to be lost
         await this._onSaveToMarkdown();
-        
+
         // No board update needed - webview state is already correct
     }
 
