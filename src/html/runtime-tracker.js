@@ -368,11 +368,6 @@ class RuntimeTracker {
             });
         }
 
-        console.log('📊 Runtime tracking report saved:', {
-            functions: report.metadata.totalFunctions,
-            calls: report.summary.totalCalls,
-            duration: Math.round(report.metadata.duration / 1000) + 's'
-        });
     }
 
     /**

@@ -2311,7 +2311,6 @@ window.generateTagMenuItems = generateTagMenuItems;
 window.generateGroupTagItems = generateGroupTagItems;
 window.generateFlatTagItems = generateFlatTagItems;
 
-window.getAllCornerBadgesHtml = getAllCornerBadgesHtml;
 window.getTagConfig = getTagConfig;
 
 // Function to remove all tags from a card or column

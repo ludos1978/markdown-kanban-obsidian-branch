@@ -2542,7 +2542,7 @@ function undo() {
             const message = { type: 'undo' };
             const result = vscode.postMessage(message);
         } catch (error) {
-            console.error('[UNDO DEBUG] Error sending message:', error);
+            // Silently handle error
         }
     } else {
     }
@@ -2579,7 +2579,6 @@ window.addEventListener('beforeunload', function(e) {
 
 window.addEventListener('unload', function(e) {
     if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
-        console.warn('⚠️ Window closed with unsaved changes!');
     }
 });
 

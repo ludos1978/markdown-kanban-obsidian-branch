@@ -83,7 +83,6 @@ class TaskEditor {
         const currentValue = this.currentEditor.element.value || this.currentEditor.element.textContent;
         this.currentEditor.originalValue = currentValue;
 
-        console.log('📝 Updated editor state after save');
     }
 
     /**

@@ -158,7 +158,7 @@ function setupGlobalDragAndDrop() {
     const dropFeedback = document.getElementById('drop-zone-feedback');
     
     if (!boardContainer) {
-        console.error('[DROP DEBUG] No kanban-container found!');
+        // Board container not found
         return;
     }
     
@@ -241,7 +241,7 @@ function setupGlobalDragAndDrop() {
         
         const dt = e.dataTransfer;
         if (!dt) {
-            console.error('[DROP DEBUG] No dataTransfer');
+            // No dataTransfer available
             return;
         }
         
@@ -463,8 +463,7 @@ function handleClipboardCardDrop(e, clipboardData) {
             description
         );
     } catch (error) {
-        console.error('[DROP DEBUG] Failed to parse clipboard card data:', error);
-        console.error('[DROP DEBUG] Raw data was:', clipboardData);
+        // Failed to parse clipboard data
         // Fallback: treat as plain text
         createNewTaskWithContent(
             'Clipboard Content',
@@ -487,8 +486,7 @@ function handleEmptyCardDrop(e, emptyCardData) {
             ''
         );
     } catch (error) {
-        console.error('[DROP DEBUG] Failed to parse empty card data:', error);
-        console.error('[DROP DEBUG] Raw data was:', emptyCardData);
+        // Failed to parse empty card data
         // Fallback: create empty task anyway
         createNewTaskWithContent(
             '',
@@ -548,7 +546,7 @@ function handleVSCodeUriDrop(e, uriData) {
             }, index * 10);
         });
     } else {
-        console.warn('Could not process the dropped file URIs');
+        // Could not process dropped file URIs
     }
 }
 
@@ -619,7 +617,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     // Check board availability - NEW CACHE SYSTEM
     
     if (!window.cachedBoard) {
-        console.error('[DROP DEBUG] No board on window.cachedBoard');
+        // No cached board available
         vscode.postMessage({ 
             type: 'showMessage', 
             text: 'Cannot create task: No board loaded' 
@@ -628,7 +626,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     }
     
     if (!window.cachedBoard.columns || window.cachedBoard.columns.length === 0) {
-        console.error('[DROP DEBUG] Board has no columns');
+        // Board has no columns
         vscode.postMessage({ 
             type: 'showMessage', 
             text: 'Cannot create task: No columns available' 
@@ -754,7 +752,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             renderBoard();
         }
     } else {
-        console.error('[DROP DEBUG] Could not find any suitable column');
+        // Could not find suitable column
         vscode.postMessage({ 
             type: 'showMessage', 
             text: 'Could not find a suitable column. Please ensure at least one column is not collapsed.' 

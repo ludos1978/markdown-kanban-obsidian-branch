@@ -1935,7 +1935,6 @@ function saveCachedBoard() {
         if (editState) {
             boardToSave = window.taskEditor.applyCurrentEditToBoard(window.cachedBoard);
             hadInProgressEdits = true;
-            console.log('📝 Including in-progress edits in save:', editState.type);
         }
     }
 
@@ -2375,7 +2374,54 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
     }
 
     // Generate new badges HTML
-    const newBadgesHtml = getAllCornerBadgesHtml(activeTags, elementType);
+    let newBadgesHtml = '';
+    if (window.tagColors && activeTags.length > 0) {
+        const positions = {
+            'top-left': [],
+            'top-right': [],
+            'bottom-left': [],
+            'bottom-right': []
+        };
+
+        // Collect badges by position
+        activeTags.forEach(tag => {
+            const config = getTagConfig(tag);
+            if (config && config.cornerBadge) {
+                const position = config.cornerBadge.position || 'top-right';
+                positions[position].push({
+                    tag: tag,
+                    badge: config.cornerBadge
+                });
+            }
+        });
+
+        // Generate HTML for each position with proper vertical stacking
+        Object.entries(positions).forEach(([position, badgesAtPosition]) => {
+            badgesAtPosition.forEach((item, index) => {
+                const badge = item.badge;
+                const offsetMultiplier = 24; // Space between stacked badges
+                let positionStyle = '';
+
+                switch (position) {
+                    case 'top-left':
+                        positionStyle = `top: ${10 + (index * offsetMultiplier)}px; left: -8px;`;
+                        break;
+                    case 'top-right':
+                        positionStyle = `top: ${10 + (index * offsetMultiplier)}px; right: -8px;`;
+                        break;
+                    case 'bottom-left':
+                        positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; left: -8px;`;
+                        break;
+                    case 'bottom-right':
+                        positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; right: -8px;`;
+                        break;
+                }
+
+                const badgeContent = badge.image ? '' : (badge.label || '');
+                newBadgesHtml += `<div class="corner-badge corner-badge-${item.tag}" style="${positionStyle}" data-badge-position="${position}" data-badge-index="${index}">${badgeContent}</div>`;
+            });
+        });
+    }
 
     // Clear and update badges
     badgesContainer.innerHTML = newBadgesHtml;
@@ -2632,18 +2678,63 @@ function updateAllVisualTagElements(element, allTags, elementType) {
     
     // 3. CORNER BADGES - Update badges immediately
     let badgesContainer = element.querySelector('.corner-badges-container');
-    if (!badgesContainer && window.getAllCornerBadgesHtml) {
-        const badgesHtml = window.getAllCornerBadgesHtml(allTags, elementType);
+    if (!badgesContainer && window.getTagConfig) {
+        // Generate badges HTML inline
+        let badgesHtml = '';
+        if (window.tagColors && allTags.length > 0) {
+            const positions = {
+                'top-left': [],
+                'top-right': [],
+                'bottom-left': [],
+                'bottom-right': []
+            };
+
+            // Collect badges by position
+            allTags.forEach(tag => {
+                const config = window.getTagConfig(tag);
+                if (config && config.cornerBadge) {
+                    const position = config.cornerBadge.position || 'top-right';
+                    positions[position].push({
+                        tag: tag,
+                        badge: config.cornerBadge
+                    });
+                }
+            });
+
+            // Generate HTML for each position with proper vertical stacking
+            Object.entries(positions).forEach(([position, badgesAtPosition]) => {
+                badgesAtPosition.forEach((item, index) => {
+                    const badge = item.badge;
+                    const offsetMultiplier = 24; // Space between stacked badges
+                    let positionStyle = '';
+
+                    switch (position) {
+                        case 'top-left':
+                            positionStyle = `top: ${10 + (index * offsetMultiplier)}px; left: -8px;`;
+                            break;
+                        case 'top-right':
+                            positionStyle = `top: ${10 + (index * offsetMultiplier)}px; right: -8px;`;
+                            break;
+                        case 'bottom-left':
+                            positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; left: -8px;`;
+                            break;
+                        case 'bottom-right':
+                            positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; right: -8px;`;
+                            break;
+                    }
+
+                    const badgeContent = badge.image ? '' : (badge.label || '');
+                    badgesHtml += `<div class="corner-badge corner-badge-${item.tag}" style="${positionStyle}" data-badge-position="${position}" data-badge-index="${index}">${badgeContent}</div>`;
+                });
+            });
+        }
+
         if (badgesHtml && badgesHtml.trim() !== '') {
             badgesContainer = document.createElement('div');
             badgesContainer.className = 'corner-badges-container';
             badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
             badgesContainer.innerHTML = badgesHtml;
             element.appendChild(badgesContainer);
-            // Ensure parent has relative positioning
-            // if (!element.style.position || element.style.position === 'static') {
-            //     element.style.position = 'relative';
-            // }
         }
     }
     

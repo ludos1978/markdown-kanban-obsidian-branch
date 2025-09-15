@@ -40,7 +40,6 @@
       if (silent) {return true;}
 
       const filePath = match[1].trim();
-      console.log('Processing include:', filePath);
 
       // Try to get file content
       let content = getFileContent(filePath);
