@@ -161,7 +161,7 @@ export class MessageHandler {
         
             // Task operations
             case 'editTask':
-                await this.performBoardAction(() => 
+                await this.performBoardActionSilent(() =>
                     this._boardOperations.editTask(this._getCurrentBoard()!, message.taskId, message.columnId, message.taskData)
                 );
                 break;
@@ -258,7 +258,7 @@ export class MessageHandler {
                 );
                 break;
             case 'editColumnTitle':
-                await this.performBoardAction(() => 
+                await this.performBoardActionSilent(() =>
                     this._boardOperations.editColumnTitle(this._getCurrentBoard()!, message.columnId, message.title)
                 );
                 break;
@@ -532,17 +532,34 @@ export class MessageHandler {
     private async performBoardAction(action: () => boolean, saveUndo: boolean = true) {
         const board = this._getCurrentBoard();
         if (!board) return;
-        
+
         if (saveUndo) {
             this._undoRedoManager.saveStateForUndo(board);
         }
-        
+
         const success = action();
-        
+
         if (success) {
             // Use cache-first architecture: mark as unsaved instead of direct save
             this._markUnsavedChanges(true);
             await this._onBoardUpdate();
+        }
+    }
+
+    private async performBoardActionSilent(action: () => boolean, saveUndo: boolean = true) {
+        const board = this._getCurrentBoard();
+        if (!board) return;
+
+        if (saveUndo) {
+            this._undoRedoManager.saveStateForUndo(board);
+        }
+
+        const success = action();
+
+        if (success) {
+            // Use cache-first architecture: mark as unsaved but don't send board update
+            // The frontend already has the correct state from immediate updates
+            this._markUnsavedChanges(true);
         }
     }
 

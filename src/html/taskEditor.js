@@ -377,7 +377,10 @@ class TaskEditor {
 
                         // Update footer/header bars for top/bottom borders with labels
                         if (window.injectStackableBars) {
-                            window.injectStackableBars();
+                            const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+                            if (columnElement) {
+                                window.injectStackableBars(columnElement);
+                            }
                         }
 
                         // Update tag counts in any open menus
@@ -512,7 +515,10 @@ class TaskEditor {
 
                         // Update footer/header bars for top/bottom borders with labels
                         if (window.injectStackableBars) {
-                            window.injectStackableBars();
+                            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                            if (taskElement) {
+                                window.injectStackableBars(taskElement);
+                            }
                         }
 
                         // Update tag counts in any open menus

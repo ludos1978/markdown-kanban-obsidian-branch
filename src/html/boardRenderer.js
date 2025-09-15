@@ -2197,8 +2197,20 @@ function generateTagStyles() {
 
 // Function to inject header, footer bars, and border text after render
 // Modified injectStackableBars function
-function injectStackableBars() {
-    document.querySelectorAll('[data-all-tags]').forEach(element => {
+function injectStackableBars(targetElement = null) {
+    let elementsToProcess;
+    if (targetElement) {
+        // Only process the target element if it has data-all-tags attribute
+        if (targetElement.hasAttribute('data-all-tags')) {
+            elementsToProcess = [targetElement];
+        } else {
+            return; // Nothing to process
+        }
+    } else {
+        elementsToProcess = document.querySelectorAll('[data-all-tags]');
+    }
+
+    elementsToProcess.forEach(element => {
         const tags = element.getAttribute('data-all-tags').split(' ');
         const isColumn = element.classList.contains('kanban-full-height-column');
         const isCollapsed = isColumn && element.classList.contains('collapsed');
@@ -2311,16 +2323,16 @@ function injectStackableBars() {
                 }
             } 
 						
-						// For task items, insert header bars at the beginning and footer bars at the end
+						// For task items, use appendChild and rely on CSS flexbox order
 						if (element.classList.contains('task-item')) {
-								// Create header container and insert at the beginning
+								// Create header container and append (CSS order: -1 will position it first)
 								if (headerBars.length > 0) {
 										const headerContainer = document.createElement('div');
 										headerContainer.className = 'header-bars-container';
 										headerBars.forEach(bar => headerContainer.appendChild(bar));
-										element.insertBefore(headerContainer, element.firstChild);
+										element.appendChild(headerContainer);
 								}
-								
+
 								// Create footer container and append at the end
 								if (footerBars.length > 0) {
 										const footerContainer = document.createElement('div');
