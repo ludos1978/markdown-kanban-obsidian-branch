@@ -182,7 +182,7 @@ export class MarkdownKanbanParser {
   }
 
   private static finalizeCurrentTask(task: KanbanTask | null, column: KanbanColumn | null): void {
-    if (!task || !column) return;
+    if (!task || !column) {return;}
 
     // Clean up description
     if (task.description) {

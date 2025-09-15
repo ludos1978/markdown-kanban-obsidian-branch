@@ -1192,7 +1192,7 @@ export class KanbanWebviewPanel {
 
     private async _createUnifiedBackup(label: string = 'conflict'): Promise<void> {
         const document = this._fileManager.getDocument();
-        if (!document) return;
+        if (!document) {return;}
 
         try {
             if (label === 'conflict' && this._board) {

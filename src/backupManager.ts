@@ -247,7 +247,7 @@ export class BackupManager {
                 .filter(file => backupPattern.test(file))
                 .map(file => {
                     const match = file.match(backupPattern);
-                    if (!match) return null;
+                    if (!match) {return null;}
                     
                     const dateStr = match[1];
                     const timeStr = match[2];

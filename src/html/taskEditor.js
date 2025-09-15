@@ -96,7 +96,7 @@ class TaskEditor {
 
         // Single global keydown handler
         document.addEventListener('keydown', (e) => {
-            if (!this.currentEditor) return;
+            if (!this.currentEditor) {return;}
             
             const element = this.currentEditor.element;
             
@@ -160,7 +160,7 @@ class TaskEditor {
      */
     startEdit(element, type, taskId = null, columnId = null) {
         // If transitioning, don't interfere
-        if (this.isTransitioning) return;
+        if (this.isTransitioning) {return;}
         
         // Get the appropriate elements based on type
         let displayElement, editElement, containerElement;
@@ -179,7 +179,7 @@ class TaskEditor {
             editElement = containerElement.querySelector('.column-title-edit');
         }
 
-        if (!editElement) return;
+        if (!editElement) {return;}
 
         // Check if we're already editing this exact element
         const isAlreadyEditing = this.currentEditor && 
@@ -197,7 +197,7 @@ class TaskEditor {
         }
 
         // Show edit element, hide display
-        if (displayElement) displayElement.style.display = 'none';
+        if (displayElement) {displayElement.style.display = 'none';}
         editElement.style.display = 'block';
         
         // Auto-resize if textarea
@@ -261,7 +261,7 @@ class TaskEditor {
      * Side effects: Saves title, starts description edit
      */
     transitionToDescription() {
-        if (!this.currentEditor || this.currentEditor.type !== 'task-title') return;
+        if (!this.currentEditor || this.currentEditor.type !== 'task-title') {return;}
         
         this.isTransitioning = true;
         
@@ -314,14 +314,14 @@ class TaskEditor {
      * Side effects: Updates pending changes, closes editor
      */
     save() {
-        if (!this.currentEditor || this.isTransitioning) return;
+        if (!this.currentEditor || this.isTransitioning) {return;}
         
         this.saveCurrentField();
         this.closeEditor();
     }
 
     cancel() {
-        if (!this.currentEditor || this.isTransitioning) return;
+        if (!this.currentEditor || this.isTransitioning) {return;}
         
         // Restore original value
         this.currentEditor.element.value = this.currentEditor.originalValue;
@@ -329,7 +329,7 @@ class TaskEditor {
     }
 
     saveCurrentField() {
-        if (!this.currentEditor) return;
+        if (!this.currentEditor) {return;}
         
         const { element, type, taskId, columnId } = this.currentEditor;
         const value = element.value;
@@ -452,16 +452,20 @@ class TaskEditor {
                                 window.injectStackableBars(columnElement);
                             }
                         }
+                    }
 
-                        // Update corner badges without re-render
-                        if (window.updateCornerBadgesImmediate) {
-                            window.updateCornerBadgesImmediate(columnId, 'column', column.title);
-                        }
+                    // Update corner badges without re-render - do this for ANY column title save
+                    console.log(`[Badge Debug] Updating column badges for ${columnId}, title: "${column.title}"`);
+                    if (window.updateCornerBadgesImmediate) {
+                        window.updateCornerBadgesImmediate(columnId, 'column', column.title);
+                        console.log(`[Badge Debug] Called updateCornerBadgesImmediate for column`);
+                    } else {
+                        console.warn(`[Badge Debug] updateCornerBadgesImmediate function not available`);
+                    }
 
-                        // Update tag counts in any open menus
-                        if (window.updateTagCategoryCounts) {
-                            window.updateTagCategoryCounts(columnId, 'column');
-                        }
+                    // Update tag counts in any open menus
+                    if (window.updateTagCategoryCounts) {
+                        window.updateTagCategoryCounts(columnId, 'column');
                     }
                     
                     // Store pending change locally instead of sending immediately
@@ -616,7 +620,7 @@ class TaskEditor {
     }
 
     closeEditor() {
-        if (!this.currentEditor) return;
+        if (!this.currentEditor) {return;}
         
         const { element, displayElement, type } = this.currentEditor;
         

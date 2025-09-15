@@ -62,7 +62,7 @@ class RuntimeTracker {
      * Start function tracking
      */
     start() {
-        if (this.enabled) return;
+        if (this.enabled) {return;}
 
         this.enabled = true;
         this.startTime = Date.now();
@@ -95,7 +95,7 @@ class RuntimeTracker {
      * Stop function tracking
      */
     stop() {
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
 
         this.enabled = false;
 
@@ -200,7 +200,7 @@ class RuntimeTracker {
      */
     wrapFunction(obj, funcName, context) {
         const originalFunc = obj[funcName];
-        if (typeof originalFunc !== 'function') return;
+        if (typeof originalFunc !== 'function') {return;}
 
         const tracker = this;
 
@@ -348,7 +348,7 @@ class RuntimeTracker {
      * Save report to localStorage or send to backend
      */
     saveReport() {
-        if (!this.enabled) return;
+        if (!this.enabled) {return;}
 
         const report = this.generateReport();
 

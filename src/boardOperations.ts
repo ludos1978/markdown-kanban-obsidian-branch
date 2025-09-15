@@ -26,10 +26,10 @@ export class BoardOperations {
 
     private findTask(board: KanbanBoard, columnId: string, taskId: string): { column: KanbanColumn; task: KanbanTask; index: number } | undefined {
         const column = this.findColumn(board, columnId);
-        if (!column) return undefined;
+        if (!column) {return undefined;}
 
         const taskIndex = column.tasks.findIndex(task => task.id === taskId);
-        if (taskIndex === -1) return undefined;
+        if (taskIndex === -1) {return undefined;}
 
         return {
             column,
@@ -43,10 +43,10 @@ export class BoardOperations {
         const fromColumn = this.findColumn(board, fromColumnId);
         const toColumn = this.findColumn(board, toColumnId);
 
-        if (!fromColumn || !toColumn) return false;
+        if (!fromColumn || !toColumn) {return false;}
 
         const taskIndex = fromColumn.tasks.findIndex(task => task.id === taskId);
-        if (taskIndex === -1) return false;
+        if (taskIndex === -1) {return false;}
 
         const task = fromColumn.tasks.splice(taskIndex, 1)[0];
         toColumn.tasks.splice(newIndex, 0, task);
@@ -55,7 +55,7 @@ export class BoardOperations {
 
     public addTask(board: KanbanBoard, columnId: string, taskData: any): boolean {
         const column = this.findColumn(board, columnId);
-        if (!column) return false;
+        if (!column) {return false;}
 
         const newTask: KanbanTask = {
             id: this.generateId('task', columnId),
@@ -69,7 +69,7 @@ export class BoardOperations {
 
     public addTaskAtPosition(board: KanbanBoard, columnId: string, taskData: any, insertionIndex: number): boolean {
         const column = this.findColumn(board, columnId);
-        if (!column) return false;
+        if (!column) {return false;}
 
         const newTask: KanbanTask = {
             id: this.generateId('task', columnId),
@@ -87,10 +87,10 @@ export class BoardOperations {
 
     public deleteTask(board: KanbanBoard, taskId: string, columnId: string): boolean {
         const column = this.findColumn(board, columnId);
-        if (!column) return false;
+        if (!column) {return false;}
 
         const taskIndex = column.tasks.findIndex(task => task.id === taskId);
-        if (taskIndex === -1) return false;
+        if (taskIndex === -1) {return false;}
 
         column.tasks.splice(taskIndex, 1);
         return true;
@@ -98,10 +98,10 @@ export class BoardOperations {
 
     public editTask(board: KanbanBoard, taskId: string, columnId: string, taskData: Partial<KanbanTask>): boolean {
         const column = this.findColumn(board, columnId);
-        if (!column) return false;
+        if (!column) {return false;}
 
         const task = column.tasks.find(t => t.id === taskId);
-        if (!task) return false;
+        if (!task) {return false;}
 
         // Update task properties
         if (taskData.title !== undefined) {
@@ -116,7 +116,7 @@ export class BoardOperations {
 
     public duplicateTask(board: KanbanBoard, taskId: string, columnId: string): boolean {
         const result = this.findTask(board, columnId, taskId);
-        if (!result) return false;
+        if (!result) {return false;}
 
         const newTask: KanbanTask = {
             id: this.generateId('task', columnId),
@@ -130,7 +130,7 @@ export class BoardOperations {
 
     public insertTaskBefore(board: KanbanBoard, taskId: string, columnId: string): boolean {
         const result = this.findTask(board, columnId, taskId);
-        if (!result) return false;
+        if (!result) {return false;}
 
         const newTask: KanbanTask = {
             id: this.generateId('task', columnId),
@@ -144,7 +144,7 @@ export class BoardOperations {
 
     public insertTaskAfter(board: KanbanBoard, taskId: string, columnId: string): boolean {
         const result = this.findTask(board, columnId, taskId);
-        if (!result) return false;
+        if (!result) {return false;}
 
         const newTask: KanbanTask = {
             id: this.generateId('task', columnId),
@@ -158,7 +158,7 @@ export class BoardOperations {
 
     public moveTaskToTop(board: KanbanBoard, taskId: string, columnId: string): boolean {
         const result = this.findTask(board, columnId, taskId);
-        if (!result || result.index === 0) return false;
+        if (!result || result.index === 0) {return false;}
 
         const task = result.column.tasks.splice(result.index, 1)[0];
         result.column.tasks.unshift(task);
@@ -167,7 +167,7 @@ export class BoardOperations {
 
     public moveTaskUp(board: KanbanBoard, taskId: string, columnId: string): boolean {
         const result = this.findTask(board, columnId, taskId);
-        if (!result || result.index === 0) return false;
+        if (!result || result.index === 0) {return false;}
 
         const task = result.column.tasks[result.index];
         result.column.tasks[result.index] = result.column.tasks[result.index - 1];
@@ -177,7 +177,7 @@ export class BoardOperations {
 
     public moveTaskDown(board: KanbanBoard, taskId: string, columnId: string): boolean {
         const result = this.findTask(board, columnId, taskId);
-        if (!result || result.index === result.column.tasks.length - 1) return false;
+        if (!result || result.index === result.column.tasks.length - 1) {return false;}
 
         const task = result.column.tasks[result.index];
         result.column.tasks[result.index] = result.column.tasks[result.index + 1];
@@ -187,7 +187,7 @@ export class BoardOperations {
 
     public moveTaskToBottom(board: KanbanBoard, taskId: string, columnId: string): boolean {
         const result = this.findTask(board, columnId, taskId);
-        if (!result || result.index === result.column.tasks.length - 1) return false;
+        if (!result || result.index === result.column.tasks.length - 1) {return false;}
 
         const task = result.column.tasks.splice(result.index, 1)[0];
         result.column.tasks.push(task);
@@ -198,10 +198,10 @@ export class BoardOperations {
         const fromColumn = this.findColumn(board, fromColumnId);
         const toColumn = this.findColumn(board, toColumnId);
 
-        if (!fromColumn || !toColumn) return false;
+        if (!fromColumn || !toColumn) {return false;}
 
         const taskIndex = fromColumn.tasks.findIndex(task => task.id === taskId);
-        if (taskIndex === -1) return false;
+        if (taskIndex === -1) {return false;}
 
         const task = fromColumn.tasks.splice(taskIndex, 1)[0];
         toColumn.tasks.push(task);
@@ -222,7 +222,7 @@ export class BoardOperations {
     }
 
     public moveColumn(board: KanbanBoard, fromIndex: number, toIndex: number, fromRow: number, toRow: number): boolean {
-        if (fromIndex === toIndex) return false;
+        if (fromIndex === toIndex) {return false;}
 
         const columns = board.columns;
         const column = columns.splice(fromIndex, 1)[0];
@@ -232,7 +232,7 @@ export class BoardOperations {
 
     public deleteColumn(board: KanbanBoard, columnId: string): boolean {
         const index = board.columns.findIndex(col => col.id === columnId);
-        if (index === -1) return false;
+        if (index === -1) {return false;}
 
         board.columns.splice(index, 1);
         this._originalTaskOrder.delete(columnId);
@@ -241,7 +241,7 @@ export class BoardOperations {
 
     public insertColumnBefore(board: KanbanBoard, columnId: string, title: string): boolean {
         const index = board.columns.findIndex(col => col.id === columnId);
-        if (index === -1) return false;
+        if (index === -1) {return false;}
 
         const newColumn: KanbanColumn = {
             id: this.generateId('column'),
@@ -256,7 +256,7 @@ export class BoardOperations {
 
     public insertColumnAfter(board: KanbanBoard, columnId: string, title: string): boolean {
         const index = board.columns.findIndex(col => col.id === columnId);
-        if (index === -1) return false;
+        if (index === -1) {return false;}
 
         const newColumn: KanbanColumn = {
             id: this.generateId('column'),
@@ -271,7 +271,7 @@ export class BoardOperations {
 
     public editColumnTitle(board: KanbanBoard, columnId: string, title: string): boolean {
         const column = this.findColumn(board, columnId);
-        if (!column) return false;
+        if (!column) {return false;}
         
         // Preserve the current row tag
         const currentRow = this.getColumnRow(column);
@@ -296,7 +296,7 @@ export class BoardOperations {
 
     public sortColumn(board: KanbanBoard, columnId: string, sortType: 'unsorted' | 'title'): boolean {
         const column = this.findColumn(board, columnId);
-        if (!column) return false;
+        if (!column) {return false;}
 
         if (sortType === 'title') {
             column.tasks.sort((a, b) => {
@@ -329,7 +329,7 @@ export class BoardOperations {
     public reorderColumns(board: KanbanBoard, newOrder: string[], movedColumnId: string, targetRow: number): boolean {
         // Find the moved column
         const movedColumn = this.findColumn(board, movedColumnId);
-        if (!movedColumn) return false;
+        if (!movedColumn) {return false;}
         
         // Update row tag for the moved column
         let cleanTitle = movedColumn.title
@@ -367,7 +367,7 @@ export class BoardOperations {
 
     public moveColumnWithRowUpdate(board: KanbanBoard, columnId: string, newPosition: number, newRow: number): boolean {
         const column = this.findColumn(board, columnId);
-        if (!column) return false;
+        if (!column) {return false;}
         
         // First, update the row tag in the title
         let cleanTitle = column.title
@@ -386,7 +386,7 @@ export class BoardOperations {
         
         // Find current index of the column
         const currentIndex = board.columns.findIndex(col => col.id === columnId);
-        if (currentIndex === -1) return false;
+        if (currentIndex === -1) {return false;}
         
         // Build the desired order based on what calculateColumnNewPosition saw
         // We need to reconstruct what the frontend wants the order to be
@@ -421,7 +421,7 @@ export class BoardOperations {
 
     // Helper method to extract row number from column title
     public getColumnRow(column: KanbanColumn): number {
-        if (!column.title) return 1;
+        if (!column.title) {return 1;}
         
         const rowMatch = column.title.match(/#row(\d+)\b/i);
         if (rowMatch) {
@@ -463,7 +463,7 @@ export class BoardOperations {
     }
 
     private extractDate(text: string, dateType: string = 'due'): string | null {
-        if (!text) return null;
+        if (!text) {return null;}
         
         // Match shorthand format @YYYY-MM-DD or @DD-MM-YYYY (assumes it's a due date)
         if (dateType === 'due') {
@@ -496,13 +496,13 @@ export class BoardOperations {
     }
 
     private hasSticky(text: string): boolean {
-        if (!text) return false;
+        if (!text) {return false;}
         return /@sticky(?:\s|$)/.test(text);
     }
 
     // Add this method to extract person names from text
     private extractPersonNames(text: string): string[] {
-        if (!text) return [];
+        if (!text) {return [];}
         const matches = text.match(/@([a-zA-Z0-9_&-]+)/g) || [];
         // Filter out dates
         return matches
@@ -546,7 +546,7 @@ export class BoardOperations {
 
     // Main sort method
     public performAutomaticSort(board: KanbanBoard): boolean {
-        if (!board || !board.columns) return false;
+        if (!board || !board.columns) {return false;}
         
         // Track sticky tasks that shouldn't move
         const stickyTasks = new Set<string>();
@@ -573,7 +573,7 @@ export class BoardOperations {
         
         // Collect all rules from columns in order
         board.columns.forEach(column => {
-            if (!column.title) return;
+            if (!column.title) {return;}
             
             // Extract gather and ungathered tags
             const matches = column.title.match(/#(gather_[a-zA-Z0-9_&|=><!\-]+|ungathered)/g) || [];
@@ -675,7 +675,7 @@ export class BoardOperations {
         
         // THIRD PASS: Apply sorting to columns with sort tags
         board.columns.forEach(column => {
-            if (!column.title) return;
+            if (!column.title) {return;}
             
             const sortMatches = column.title.match(/#sort-([a-zA-Z]+)/g) || [];
             sortMatches.forEach(match => {
@@ -844,8 +844,8 @@ export class BoardOperations {
         for (let i = 0; i < expr.length; i++) {
             const char = expr[i];
             
-            if (char === '(') depth++;
-            else if (char === ')') depth--;
+            if (char === '(') {depth++;}
+            else if (char === ')') {depth--;}
             else if (char === operator && depth === 0) {
                 if (current.trim()) {
                     parts.push(current.trim());
@@ -874,17 +874,17 @@ export class BoardOperations {
         
         if (isDateProperty) {
             return (taskText: string, taskDate: string | null, personNames: string[]) => {
-                if (!taskDate) return false;
+                if (!taskDate) {return false;}
                 
                 const propValue = this.getDatePropertyValue(property.toLowerCase(), taskDate);
-                if (propValue === null) return false;
+                if (propValue === null) {return false;}
                 
                 // For weekday string comparison
                 if (property.toLowerCase() === 'weekday') {
                     const weekdays = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
                     if (weekdays.includes(value.toLowerCase())) {
-                        if (operator === '=') return propValue === value.toLowerCase();
-                        if (operator === '!=') return propValue !== value.toLowerCase();
+                        if (operator === '=') {return propValue === value.toLowerCase();}
+                        if (operator === '!=') {return propValue !== value.toLowerCase();}
                         return false;
                     }
                     // If value is a number, convert weekday to number
@@ -952,11 +952,11 @@ export class BoardOperations {
         const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
         
         board.columns.forEach(sourceColumn => {
-            if (sourceColumn.id === targetColumn.id) return;
+            if (sourceColumn.id === targetColumn.id) {return;}
             
             sourceColumn.tasks.forEach(task => {
                 // Skip if already moved
-                if (gatheredTasks.has(task.id)) return;
+                if (gatheredTasks.has(task.id)) {return;}
                 
                 const taskText = `${task.title || ''} ${task.description || ''}`;
                 
@@ -988,7 +988,7 @@ export class BoardOperations {
         const tasksToMove: Array<{ task: KanbanTask, fromColumn: KanbanColumn }> = [];
         
         board.columns.forEach(sourceColumn => {
-            if (sourceColumn.id === targetColumn.id) return;
+            if (sourceColumn.id === targetColumn.id) {return;}
             
             sourceColumn.tasks.forEach(task => {
                 // Only move tasks that haven't been gathered yet
@@ -1036,7 +1036,7 @@ export class BoardOperations {
             return true;
         } else if (baseTag === 'gather_dayoffset' || baseTag === 'gather_dayoffset') {
             // Handle dayoffset with conditions
-            if (!taskDate) return false;
+            if (!taskDate) {return false;}
             
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -1061,7 +1061,7 @@ export class BoardOperations {
                     matches = dayOffset === value;
                 }
                 
-                if (matches) return true; // Any matching condition satisfies the gather
+                if (matches) {return true;} // Any matching condition satisfies the gather
             }
             
             return false;
@@ -1098,7 +1098,7 @@ export class BoardOperations {
 
     // Get date property value
     private getDatePropertyValue(property: string, dateStr: string | null): number | string | null {
-        if (!dateStr) return null;
+        if (!dateStr) {return null;}
         
         const date = new Date(dateStr);
         const today = new Date();
@@ -1144,9 +1144,9 @@ export class BoardOperations {
             const dateB = this.extractDate(`${b.title || ''} ${b.description || ''}`);
             
             // Tasks without dates go to the bottom
-            if (!dateA && !dateB) return 0;
-            if (!dateA) return 1;
-            if (!dateB) return -1;
+            if (!dateA && !dateB) {return 0;}
+            if (!dateA) {return 1;}
+            if (!dateB) {return -1;}
             
             return dateA.localeCompare(dateB);
         });

@@ -18,7 +18,7 @@
         var start = state.bMarks[startLine] + state.tShift[startLine];
         //Quickly check
         var firstChar = state.src.charCodeAt(start);
-        if (firstChar != 45) {
+        if (firstChar !== 45) {
             return false;
         }
         var max = state.eMarks[startLine];

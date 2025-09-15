@@ -194,14 +194,14 @@ class KanbanSearch {
     }
     
     nextResult() {
-        if (this.searchResults.length === 0) return;
+        if (this.searchResults.length === 0) {return;}
         
         const nextIndex = (this.currentResultIndex + 1) % this.searchResults.length;
         this.navigateToResult(nextIndex);
     }
     
     previousResult() {
-        if (this.searchResults.length === 0) return;
+        if (this.searchResults.length === 0) {return;}
         
         const prevIndex = this.currentResultIndex - 1 < 0 
             ? this.searchResults.length - 1 

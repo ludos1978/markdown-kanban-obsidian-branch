@@ -140,7 +140,7 @@ class SimpleMenuManager {
      * @returns {Array} Parsed parameter values
      */
     parseParameters(paramString) {
-        if (!paramString || !paramString.trim()) return [];
+        if (!paramString || !paramString.trim()) {return [];}
         
         const params = [];
         let current = '';
@@ -188,10 +188,10 @@ class SimpleMenuManager {
         }
         
         // Boolean values
-        if (trimmed === 'true') return true;
-        if (trimmed === 'false') return false;
-        if (trimmed === 'null') return null;
-        if (trimmed === 'undefined') return undefined;
+        if (trimmed === 'true') {return true;}
+        if (trimmed === 'false') {return false;}
+        if (trimmed === 'null') {return null;}
+        if (trimmed === 'undefined') {return undefined;}
         
         // Return as string for everything else
         return trimmed;
@@ -285,7 +285,7 @@ class SimpleMenuManager {
     // Create move to list content
     createMoveToListContent(taskId, columnId) {
         const currentBoard = window.currentBoard;
-        if (!currentBoard?.columns) return '';
+        if (!currentBoard?.columns) {return '';}
         
         return currentBoard.columns
             .filter(col => col.id !== columnId)
@@ -610,7 +610,7 @@ function positionDropdown(triggerButton, dropdown) {
     let left = rect.right - dropdownWidth;
     
     // Check boundaries and adjust
-    if (left < 10) left = 10;
+    if (left < 10) {left = 10;}
     if (left + dropdownWidth > viewportWidth - 10) {
         left = viewportWidth - dropdownWidth - 10;
     }
@@ -624,7 +624,7 @@ function positionDropdown(triggerButton, dropdown) {
     }
     
     // Final boundary check
-    if (top < 10) top = 10;
+    if (top < 10) {top = 10;}
     if (top + dropdownHeight > viewportHeight - 10) {
         top = viewportHeight - dropdownHeight - 10;
     }
@@ -676,7 +676,7 @@ function positionFileBarDropdown(triggerButton, dropdown) {
     let left = rect.right - dropdownWidth;
     
     // Check horizontal boundaries
-    if (left < 10) left = 10;
+    if (left < 10) {left = 10;}
     if (left + dropdownWidth > viewportWidth - 10) {
         left = viewportWidth - dropdownWidth - 10;
     }
@@ -690,7 +690,7 @@ function positionFileBarDropdown(triggerButton, dropdown) {
     }
     
     // Final vertical boundary check
-    if (top < 10) top = 10;
+    if (top < 10) {top = 10;}
     if (top + dropdownHeight > viewportHeight - 10) {
         top = viewportHeight - dropdownHeight - 10;
     }
@@ -740,7 +740,7 @@ function insertColumnAfter(columnId) {
 }
 
 function moveColumnLeft(columnId) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
     
     // Flush pending tag changes before moving
     if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
@@ -768,7 +768,7 @@ function moveColumnLeft(columnId) {
 }
 
 function moveColumnRight(columnId) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
     
     // Flush pending tag changes before moving
     if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
@@ -796,10 +796,10 @@ function moveColumnRight(columnId) {
 }
 
 function changeColumnSpan(columnId, delta) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
 
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column) return;
+    if (!column) {return;}
 
     // Extract current span value
     const spanMatch = column.title.match(/#span(\d+)\b/i);
@@ -810,7 +810,7 @@ function changeColumnSpan(columnId, delta) {
     newSpan = Math.max(1, Math.min(4, newSpan));
 
     // If no change needed, return early
-    if (newSpan === currentSpan) return;
+    if (newSpan === currentSpan) {return;}
 
     // Flush pending tag changes first
     if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
@@ -923,9 +923,9 @@ function sortColumn(columnId, sortType) {
 
 // Copy operations
 function copyColumnAsMarkdown(columnId) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column) return;
+    if (!column) {return;}
     
     let markdown = `# ${column.title}\n`;
     column.tasks.forEach(task => {
@@ -942,10 +942,10 @@ function copyColumnAsMarkdown(columnId) {
 }
 
 function copyTaskAsMarkdown(taskId, columnId) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
     const column = currentBoard.columns.find(c => c.id === columnId);
     const task = column?.tasks.find(t => t.id === taskId);
-    if (!task) return;
+    if (!task) {return;}
     
     let markdown = task.title.startsWith('#') ? 
         `${task.title || ''}\n` : 
@@ -1857,7 +1857,7 @@ function compareBoards(savedBoard, cachedBoard) {
     // Compare each column
     cachedBoard.columns.forEach(cachedCol => {
         const savedCol = savedBoard.columns.find(col => col.id === cachedCol.id);
-        if (!savedCol) return; // New column (shouldn't happen in our cache system)
+        if (!savedCol) {return;} // New column (shouldn't happen in our cache system)
         
         // Check column title changes
         if (savedCol.title !== cachedCol.title) {
@@ -1885,7 +1885,7 @@ function compareBoards(savedBoard, cachedBoard) {
                 }
             }
             
-            if (!savedTask) return; // New task (shouldn't happen in our cache system)
+            if (!savedTask) {return;} // New task (shouldn't happen in our cache system)
             
             // Check if task moved between columns or changed position
             if (savedTaskColumn !== cachedCol.id || savedTaskIndex !== cachedIndex) {
@@ -1964,8 +1964,8 @@ function saveCachedBoard() {
     updateRefreshButtonState('saved');
     
     // Clear any old pending changes (obsolete system cleanup)
-    if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
-    if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
+    if (window.pendingColumnChanges) {window.pendingColumnChanges.clear();}
+    if (window.pendingTaskChanges) {window.pendingTaskChanges.clear();}
     
 }
 
@@ -2342,47 +2342,67 @@ function updateTagButtonAppearance(id, type, tagName, isActive) {
 
 // Update corner badges immediately for an element
 function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
-    
+    console.log(`[Badge Debug] updateCornerBadgesImmediate called - elementId: ${elementId}, elementType: ${elementType}, newTitle: "${newTitle}"`);
+
     // Find the element
     const selector = elementType === 'column' ? `[data-column-id="${elementId}"]` : `[data-task-id="${elementId}"]`;
     const element = document.querySelector(selector);
     if (!element) {
+        console.warn(`[Badge Debug] Element not found with selector: ${selector}`);
         return;
     }
-    
+
     // Get all active tags from the new title
     const activeTags = getActiveTagsInTitle(newTitle);
-    
-    
+    console.log(`[Badge Debug] Active tags found: [${activeTags.join(', ')}]`);
+
+
     // Update data-all-tags attribute
     if (activeTags.length > 0) {
         element.setAttribute('data-all-tags', activeTags.join(' '));
     } else {
         element.removeAttribute('data-all-tags');
     }
-    
-    // Find existing corner badges container or create one
+
+    // Find existing corner badges container
     let badgesContainer = element.querySelector('.corner-badges-container');
+
+    // If no tags, just remove existing container and return
+    if (activeTags.length === 0) {
+        if (badgesContainer) {
+            console.log(`[Badge Debug] No tags - removing existing badges container for element ${elementId}`);
+            badgesContainer.remove();
+        } else {
+            console.log(`[Badge Debug] No tags and no existing badges container for element ${elementId}`);
+        }
+        return;
+    }
+
+    // Create container only if we have tags and no container exists
     if (!badgesContainer) {
+        console.log(`[Badge Debug] Creating new badges container for element ${elementId}`);
         badgesContainer = document.createElement('div');
         badgesContainer.className = 'corner-badges-container';
         badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 9;';
         element.appendChild(badgesContainer);
-        // Ensure parent has relative positioning
-        // if (!element.style.position || element.style.position === 'static') {
-        //     element.style.position = 'relative';
-        // }
+    } else {
+        console.log(`[Badge Debug] Found existing badges container for element ${elementId}`);
     }
-    
+
     // Generate new badges HTML
     const newBadgesHtml = getAllCornerBadgesHtml(activeTags, elementType);
-    
-    // Clear and update badges
+    console.log(`[Badge Debug] Generated badges HTML length: ${newBadgesHtml.length}, content preview: ${newBadgesHtml.substring(0, 100)}...`);
+
+    // Update badges
     badgesContainer.innerHTML = newBadgesHtml;
-    
-    // If no badges, remove container to prevent empty space
+    console.log(`[Badge Debug] Updated badges container innerHTML`);
+
+    // Double-check: if somehow no HTML was generated, remove container
     if (!newBadgesHtml || newBadgesHtml.trim() === '') {
+        console.log(`[Badge Debug] Generated HTML was empty, removing badges container`);
         badgesContainer.remove();
+    } else {
+        console.log(`[Badge Debug] Badges container updated with content`);
     }
     
 }
@@ -2657,7 +2677,7 @@ function updateAllVisualTagElements(element, allTags, elementType) {
                 const headerBar = document.createElement('div');
                 headerBar.className = `header-bar header-bar-${tag.toLowerCase()}`;
                 headerBars.push(headerBar);
-                if (config.headerBar.label) hasHeaderLabel = true;
+                if (config.headerBar.label) {hasHeaderLabel = true;}
             }
         }
     });
@@ -2699,7 +2719,7 @@ function updateAllVisualTagElements(element, allTags, elementType) {
                 const footerBar = document.createElement('div');
                 footerBar.className = `footer-bar footer-bar-${tag.toLowerCase()}`;
                 footerBars.push(footerBar);
-                if (config.footerBar.label) hasFooterLabel = true;
+                if (config.footerBar.label) {hasFooterLabel = true;}
             }
         }
     });
@@ -2726,7 +2746,7 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             }
         }
         element.classList.add('has-footer-bar');
-        if (hasFooterLabel) element.classList.add('has-footer-label');
+        if (hasFooterLabel) {element.classList.add('has-footer-label');}
     }
     
 }

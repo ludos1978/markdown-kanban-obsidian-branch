@@ -89,7 +89,7 @@ export class ExternalFileWatcher implements vscode.Disposable {
      */
     public unregisterFile(path: string, panel: KanbanWebviewPanel): void {
         const watchedFile = this.watchedFiles.get(path);
-        if (!watchedFile) return;
+        if (!watchedFile) {return;}
 
         // Remove this panel from the watchers
         watchedFile.panels.delete(panel);
@@ -158,26 +158,26 @@ export class ExternalFileWatcher implements vscode.Disposable {
      */
     private createWatcher(path: string, type: FileType): void {
         // Don't create duplicate watchers
-        if (this.watchers.has(path)) return;
+        if (this.watchers.has(path)) {return;}
 
         try {
             const watcher = vscode.workspace.createFileSystemWatcher(path);
 
             // Handle file changes
             watcher.onDidChange(async () => {
-                if (!this.fileListenerEnabled) return;
+                if (!this.fileListenerEnabled) {return;}
                 await this.handleFileChange(path, 'modified');
             });
 
             // Handle file deletion
             watcher.onDidDelete(() => {
-                if (!this.fileListenerEnabled) return;
+                if (!this.fileListenerEnabled) {return;}
                 this.handleFileChange(path, 'deleted');
             });
 
             // Handle file creation (useful for recreated files)
             watcher.onDidCreate(() => {
-                if (!this.fileListenerEnabled) return;
+                if (!this.fileListenerEnabled) {return;}
                 this.handleFileChange(path, 'created');
             });
 
@@ -210,7 +210,7 @@ export class ExternalFileWatcher implements vscode.Disposable {
      */
     private async handleFileChange(path: string, changeType: FileChangeType): Promise<void> {
         const watchedFile = this.watchedFiles.get(path);
-        if (!watchedFile) return;
+        if (!watchedFile) {return;}
 
         // Convert Set to Array for the event
         const affectedPanels = Array.from(watchedFile.panels);
@@ -224,7 +224,7 @@ export class ExternalFileWatcher implements vscode.Disposable {
             return !isUpdating;
         });
 
-        if (panelsToNotify.length === 0) return;
+        if (panelsToNotify.length === 0) {return;}
 
         // Emit the change event
         const event: FileChangeEvent = {

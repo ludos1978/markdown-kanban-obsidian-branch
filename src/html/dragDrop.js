@@ -74,7 +74,7 @@ function showExternalDropIndicator(column, clientY) {
     const indicator = createExternalDropIndicator();
     const tasksContainer = column.querySelector('.tasks-container');
     
-    if (!tasksContainer) return;
+    if (!tasksContainer) {return;}
     
     // Calculate insertion position
     const containerRect = tasksContainer.getBoundingClientRect();
@@ -385,7 +385,7 @@ function setupGlobalDragAndDrop() {
             hideDropFeedback();
             hideExternalDropIndicator();
         }
-    }, false)
+    }, false);
     
     // Removed duplicate drop handler that was causing double card creation
     // The main handler at line 305 already handles all external drops
@@ -850,7 +850,7 @@ function setupRowDragAndDrop() {
     rows.forEach(row => {
         row.addEventListener('dragover', e => {
             // Only handle dragover for column dragging, let external drags bubble up  
-            if (!dragState.draggedColumn || dragState.draggedClipboardCard || dragState.draggedEmptyCard) return;
+            if (!dragState.draggedColumn || dragState.draggedClipboardCard || dragState.draggedEmptyCard) {return;}
             
             e.preventDefault();
             e.stopPropagation();
@@ -925,7 +925,7 @@ function setupRowDragAndDrop() {
 
 function calculateColumnDropIndexInRow(draggedColumn) {
 
-    if (!currentBoard || !currentBoard.columns) return -1;
+    if (!currentBoard || !currentBoard.columns) {return -1;}
     
     const boardElement = document.getElementById('kanban-board');
     const columnId = draggedColumn.getAttribute('data-column-id');
@@ -970,7 +970,7 @@ function calculateColumnDropIndex(boardElement, draggedColumn) {
     const columns = Array.from(boardElement.querySelectorAll('.kanban-full-height-column'));
     const currentIndex = columns.indexOf(draggedColumn);
     
-    if (!currentBoard || !currentBoard.columns) return -1;
+    if (!currentBoard || !currentBoard.columns) {return -1;}
     
     // Map DOM position to data model position
     const columnId = draggedColumn.getAttribute('data-column-id');
@@ -1004,12 +1004,12 @@ function setupTaskDragAndDrop() {
         const columnId = columnElement.dataset.columnId;
         const tasksContainer = columnElement.querySelector('.tasks-container');
 
-        if (!tasksContainer) return;
+        if (!tasksContainer) {return;}
 
         // Add dragover handler to the entire column for appending to end
         columnElement.addEventListener('dragover', e => {
             // Only process if we have a dragged task
-            if (!dragState.draggedTask) return;
+            if (!dragState.draggedTask) {return;}
             
             // Check if we're over the tasks container specifically
             const isOverTasksContainer = tasksContainer.contains(e.target);
@@ -1033,7 +1033,7 @@ function setupTaskDragAndDrop() {
 
         // Add drop handler to entire column
         columnElement.addEventListener('drop', e => {
-            if (!dragState.draggedTask) return;
+            if (!dragState.draggedTask) {return;}
             
             const isOverTasksContainer = tasksContainer.contains(e.target);
             if (!isOverTasksContainer) {
@@ -1058,14 +1058,14 @@ function setupTaskDragAndDrop() {
                 e.stopPropagation(); // Prevent column-level handler from interfering
             }
             
-            if (!dragState.draggedTask) return;
+            if (!dragState.draggedTask) {return;}
             
             // Remove any column-level visual feedback when over tasks
             columnElement.classList.remove('drag-over-append');
             
             const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY);
             
-            if (afterElement == null) {
+            if (afterElement === null) {
                 // Insert at the end, but before the add button if it exists
                 const addButton = tasksContainer.querySelector('.add-task-btn');
                 if (addButton) {
@@ -1325,7 +1325,7 @@ function calculateDropIndex(tasksContainer, clientY) {
 }
 
 function getOriginalColumnIndex(columnId) {
-    if (!currentBoard || !currentBoard.columns) return -1;
+    if (!currentBoard || !currentBoard.columns) {return -1;}
     return currentBoard.columns.findIndex(col => col.id === columnId);
 }
 
@@ -1382,7 +1382,7 @@ function setupColumnDragAndDrop() {
 
     columns.forEach(column => {
         const dragHandle = column.querySelector('.column-drag-handle');
-        if (!dragHandle) return;
+        if (!dragHandle) {return;}
 
         dragHandle.addEventListener('dragstart', e => {
             const columnElement = column;
@@ -1518,7 +1518,7 @@ function setupColumnDragAndDrop() {
         });
 
         column.addEventListener('dragover', e => {
-            if (!dragState.draggedColumn || dragState.draggedColumn === column) return;
+            if (!dragState.draggedColumn || dragState.draggedColumn === column) {return;}
             
             e.preventDefault();
             
@@ -1561,7 +1561,7 @@ function setupColumnDragAndDrop() {
 
 function calculateColumnNewPosition(draggedColumn) {
 
-    if (!currentBoard || !currentBoard.columns) return 0;
+    if (!currentBoard || !currentBoard.columns) {return 0;}
     
     const boardElement = document.getElementById('kanban-board');
     const columnId = draggedColumn.getAttribute('data-column-id');

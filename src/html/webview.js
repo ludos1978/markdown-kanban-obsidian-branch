@@ -163,7 +163,7 @@ const menuConfig = {
 // Helper function to generate menu HTML from configuration
 function generateMenuHTML(configKey, onClickFunction) {
     const config = menuConfig[configKey];
-    if (!config) return '';
+    if (!config) {return '';}
     
     let html = '';
     for (const item of config) {
@@ -294,7 +294,7 @@ window.showClipboardPreview = function() {
     const header = document.getElementById('clipboard-preview-header');
     const body = document.getElementById('clipboard-preview-body');
     
-    if (!preview || !clipboardCardData) return;
+    if (!preview || !clipboardCardData) {return;}
     
     // Update header based on content type
     if (clipboardCardData.isLink) {
@@ -531,7 +531,7 @@ function isImageFile(fileName) {
 }
 
 function escapeHtml(unsafe) {
-    if (!unsafe) return '';
+    if (!unsafe) {return '';}
     return unsafe
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -1063,7 +1063,7 @@ let currentTagVisibility = 'standard'; // Default to standard (exclude #span and
 
 // Helper function to filter tags from text based on current visibility setting
 function filterTagsFromText(text) {
-    if (!text) return text;
+    if (!text) {return text;}
 
     const setting = currentTagVisibility || 'standard';
 
@@ -1227,7 +1227,7 @@ function setTaskMinHeight(height) {
  * @returns {number} Detected number of rows
  */
 function detectRowsFromBoard(board) {
-    if (!board || !board.columns) return 1;
+    if (!board || !board.columns) {return 1;}
 
     let maxRow = 1;
     board.columns.forEach(column => {
@@ -1248,7 +1248,7 @@ function detectRowsFromBoard(board) {
 
 // Function to get column row from title
 function getColumnRow(title) {
-    if (!title) return 1;
+    if (!title) {return 1;}
     
     // More comprehensive regex to find row tags
     const rowMatches = title.match(/#row(\d+)\b/gi);
@@ -1263,10 +1263,10 @@ function getColumnRow(title) {
 
 // Function to update column row tag
 function updateColumnRowTag(columnId, newRow) {
-    if (!currentBoard || !currentBoard.columns) return;
+    if (!currentBoard || !currentBoard.columns) {return;}
 
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column) return;
+    if (!column) {return;}
 
     // Also update cachedBoard if it exists and is different
     let cachedColumn = null;
@@ -1327,7 +1327,7 @@ function updateColumnRowTag(columnId, newRow) {
 
 // Function to clean up any duplicate or invalid row tags
 function cleanupRowTags() {
-    if (!currentBoard || !currentBoard.columns) return;
+    if (!currentBoard || !currentBoard.columns) {return;}
     
     let needsUpdate = false;
     
@@ -1363,7 +1363,7 @@ function cleanupRowTags() {
 
 // Function to get current document folding state
 function getCurrentDocumentFoldingState() {
-    if (!currentDocumentUri) return null;
+    if (!currentDocumentUri) {return null;}
     
     if (!documentFoldingStates.has(currentDocumentUri)) {
         // Initialize empty state for new document
@@ -1387,10 +1387,10 @@ function getCurrentDocumentFoldingState() {
  * Side effects: Updates documentFoldingStates map
  */
 function saveCurrentFoldingState() {
-    if (!currentDocumentUri || !window.collapsedColumns) return;
+    if (!currentDocumentUri || !window.collapsedColumns) {return;}
     
     const state = getCurrentDocumentFoldingState();
-    if (!state) return;
+    if (!state) {return;}
     
     // Copy current state
     state.collapsedColumns = new Set(window.collapsedColumns);
@@ -1403,16 +1403,16 @@ function saveCurrentFoldingState() {
 
 // Function to restore folding state from document storage
 function restoreFoldingState() {
-    if (!currentDocumentUri) return false;
+    if (!currentDocumentUri) {return false;}
     
     const state = getCurrentDocumentFoldingState();
-    if (!state) return false;
+    if (!state) {return false;}
     
     // Initialize global folding variables if they don't exist
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
-    if (!window.collapsedTasks) window.collapsedTasks = new Set();
-    if (!window.columnFoldStates) window.columnFoldStates = new Map();
-    if (!window.globalColumnFoldState) window.globalColumnFoldState = 'fold-mixed';
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
+    if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
+    if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
+    if (!window.globalColumnFoldState) {window.globalColumnFoldState = 'fold-mixed';}
     
     if (state.isInitialized) {
         // Restore saved state
@@ -1429,7 +1429,7 @@ function restoreFoldingState() {
 
 // Function to apply default folding (empty columns folded) - only for truly new documents
 function applyDefaultFoldingToNewDocument() {
-    if (!currentBoard || !currentBoard.columns) return;
+    if (!currentBoard || !currentBoard.columns) {return;}
     
     // Don't reset existing state, just add empty columns to collapsed set
     currentBoard.columns.forEach(column => {
@@ -1638,7 +1638,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Global Alt+click handler for links/images (as fallback)
     document.addEventListener('click', (e) => {
         // Only handle Alt+click for opening links/images
-        if (!e.altKey) return;
+        if (!e.altKey) {return;}
         
         // Check if we're in a kanban element that has its own handler
         if (e.target.closest('.column-title') || 
@@ -2179,10 +2179,10 @@ function focusCard(card) {
 }
 
 function getCurrentCardPosition() {
-    if (!currentFocusedCard) return null;
+    if (!currentFocusedCard) {return null;}
     
     const column = currentFocusedCard.closest('.kanban-full-height-column');
-    if (!column) return null;
+    if (!column) {return null;}
     
     const columnCards = Array.from(column.querySelectorAll('[class*="task-item"]'));
     const cardIndex = columnCards.indexOf(currentFocusedCard);
@@ -2262,7 +2262,7 @@ function navigateToCard(direction) {
     }
     
     const position = getCurrentCardPosition();
-    if (!position) return;
+    if (!position) {return;}
     
     const { columnIndex, cardIndex, columnCards } = position;
     const columns = Array.from(document.querySelectorAll('.kanban-full-height-column'));
@@ -2501,8 +2501,8 @@ document.addEventListener('keydown', (e) => {
                     }
                     
                     // Clear old pending changes (legacy cleanup)
-                    if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
-                    if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
+                    if (window.pendingColumnChanges) {window.pendingColumnChanges.clear();}
+                    if (window.pendingTaskChanges) {window.pendingTaskChanges.clear();}
                     
                     // Remove modal
                     modal.remove();
@@ -2707,7 +2707,7 @@ function insertFileLink(fileInfo) {
  * Side effects: Updates DOM elements with file info
  */
 function updateFileInfoBar() {
-    if (!currentFileInfo) return;
+    if (!currentFileInfo) {return;}
 
     const fileNameElement = document.getElementById('file-name');
 
@@ -2753,7 +2753,7 @@ function calculateTaskDescriptionHeight() {
     // Get all task items
     document.querySelectorAll('.task-item').forEach(taskItem => {
         const descContainer = taskItem.querySelector('.task-description-container');
-        if (!descContainer) return;
+        if (!descContainer) {return;}
 
         // Calculate the total height of other elements in the task-item
         let usedHeight = 0;

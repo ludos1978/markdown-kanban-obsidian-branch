@@ -535,7 +535,7 @@ export class MessageHandler {
 
     private async performBoardAction(action: () => boolean, saveUndo: boolean = true) {
         const board = this._getCurrentBoard();
-        if (!board) return;
+        if (!board) {return;}
 
         if (saveUndo) {
             this._undoRedoManager.saveStateForUndo(board);
@@ -552,7 +552,7 @@ export class MessageHandler {
 
     private async performBoardActionSilent(action: () => boolean, saveUndo: boolean = true) {
         const board = this._getCurrentBoard();
-        if (!board) return;
+        if (!board) {return;}
 
         if (saveUndo) {
             this._undoRedoManager.saveStateForUndo(board);

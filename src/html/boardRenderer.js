@@ -19,14 +19,14 @@ let renderTimeout = null;
  * Note: Skips row tags (#rowN), span tags (#spanN), and gather tags (#gather_...)
  */
 function extractFirstTag(text) {
-    if (!text) return null;
+    if (!text) {return null;}
     const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
     let m;
     while ((m = re.exec(text)) !== null) {
         const raw = m[1];
         const baseMatch = raw.match(/^([a-zA-Z0-9_-]+)/);
         const base = (baseMatch ? baseMatch[1] : raw).toLowerCase();
-        if (base.startsWith('gather_')) continue; // do not use gather tags for styling
+        if (base.startsWith('gather_')) {continue;} // do not use gather tags for styling
         return base;
     }
     return null;
@@ -380,10 +380,10 @@ function debouncedRenderBoard() {
  * Side effects: Updates collapsedColumns set and DOM elements
  */
 function applyDefaultFoldingState() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {return;}
     
     // Ensure folding state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
     currentBoard.columns.forEach(column => {
         const hasNoTasks = !column.tasks || column.tasks.length === 0;
@@ -414,10 +414,10 @@ function applyDefaultFoldingState() {
  * Side effects: Updates collapsedColumns set based on column content
  */
 function setDefaultFoldingState() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {return;}
     
     // Ensure folding state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
     currentBoard.columns.forEach(column => {
         const hasNoTasks = !column.tasks || column.tasks.length === 0;
@@ -477,10 +477,10 @@ function getGlobalColumnFoldState() {
  * Side effects: Updates collapsedColumns set, re-renders board
  */
 function toggleAllColumns() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {return;}
     
     // Ensure state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
     const currentState = getGlobalColumnFoldState();
     const collapsedCount = currentBoard.columns.filter(column => window.collapsedColumns.has(column.id)).length;
@@ -542,7 +542,7 @@ function updateGlobalColumnFoldButton() {
     const globalFoldButton = document.getElementById('global-fold-btn');
     const globalFoldIcon = document.getElementById('global-fold-icon');
     
-    if (!globalFoldButton || !globalFoldIcon) return;
+    if (!globalFoldButton || !globalFoldIcon) {return;}
     
     // Remove all state classes
     globalFoldButton.classList.remove('fold-collapsed', 'fold-expanded', 'fold-mixed');
@@ -573,9 +573,9 @@ function updateGlobalColumnFoldButton() {
  */
 function applyFoldingStates() {
     // Ensure folding state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
-    if (!window.collapsedTasks) window.collapsedTasks = new Set();
-    if (!window.columnFoldStates) window.columnFoldStates = new Map();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
+    if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
+    if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
     
     if (!currentBoard || !currentBoard.columns) {
         return;
@@ -594,7 +594,7 @@ function applyFoldingStates() {
         
         if (columnElement) {
             columnElement.classList.add('collapsed');
-            if (toggle) toggle.classList.add('rotated');
+            if (toggle) {toggle.classList.add('rotated');}
         }
     });
     
@@ -605,7 +605,7 @@ function applyFoldingStates() {
         
         if (taskElement) {
             taskElement.classList.add('collapsed');
-            if (toggle) toggle.classList.add('rotated');
+            if (toggle) {toggle.classList.add('rotated');}
         }
     });
     
@@ -629,7 +629,7 @@ function applyFoldingStates() {
  * @returns {Array<string>} Lowercase tag names without #
  */
 function getActiveTagsInTitle(text) {
-    if (!text) return [];
+    if (!text) {return [];}
     // Match all tags - for gather tags, include the full expression until next space
     // Skip row tags and span tags
     const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
@@ -654,7 +654,7 @@ function getActiveTagsInTitle(text) {
  * @returns {Array<string>} Complete tag strings with parameters
  */
 function getFullTagContent(text) {
-    if (!text) return [];
+    if (!text) {return [];}
     // Match tags including full gather expressions
     const matches = text.match(/#(?!row\d+\b)(gather_[a-zA-Z0-9_&|=><-]+|[a-zA-Z0-9_-]+)/g) || [];
     return matches.map(tag => tag.substring(1));
@@ -670,7 +670,7 @@ function getFullTagContent(text) {
 function getAllTagsInUse() {
     const tagsInUse = new Set();
     
-    if (!currentBoard || !currentBoard.columns) return tagsInUse;
+    if (!currentBoard || !currentBoard.columns) {return tagsInUse;}
     
     // Collect tags from all columns and tasks
     currentBoard.columns.forEach(column => {
@@ -915,7 +915,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         const title = isConfigured ? tagName : `Custom tag: ${tagName}`;
         
         // Store the handler in a global object
-        if (!window.tagHandlers) window.tagHandlers = {};
+        if (!window.tagHandlers) {window.tagHandlers = {};}
         window.tagHandlers[buttonId] = function(event) {
             event.stopPropagation();
             event.preventDefault();
@@ -1186,10 +1186,10 @@ function renderBoard() {
 }
 
 function getFoldAllButtonState(columnId) {
-    if (!currentBoard || !currentBoard.columns) return 'fold-mixed';
+    if (!currentBoard || !currentBoard.columns) {return 'fold-mixed';}
     
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column || column.tasks.length === 0) return 'fold-mixed';
+    if (!column || column.tasks.length === 0) {return 'fold-mixed';}
     
     const collapsedCount = column.tasks.filter(task => window.collapsedTasks.has(task.id)).length;
     const totalTasks = column.tasks.length;
@@ -1206,14 +1206,14 @@ function getFoldAllButtonState(columnId) {
 }
 
 function toggleAllTasksInColumn(columnId) {
-    if (!currentBoard || !currentBoard.columns) return;
+    if (!currentBoard || !currentBoard.columns) {return;}
     
     // Ensure state variables are initialized
-    if (!window.collapsedTasks) window.collapsedTasks = new Set();
-    if (!window.columnFoldStates) window.columnFoldStates = new Map();
+    if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
+    if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
     
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column || column.tasks.length === 0) return;
+    if (!column || column.tasks.length === 0) {return;}
     
     const collapsedCount = column.tasks.filter(task => window.collapsedTasks.has(task.id)).length;
     const totalTasks = column.tasks.length;
@@ -1238,7 +1238,7 @@ function toggleAllTasksInColumn(columnId) {
     
     // Apply the action to all tasks - scope to this column only
     const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
-    if (!columnElement) return;
+    if (!columnElement) {return;}
     
     column.tasks.forEach(task => {
         const taskElement = columnElement.querySelector(`[data-task-id="${task.id}"]`);
@@ -1269,7 +1269,7 @@ function toggleAllTasksInColumn(columnId) {
 
 function updateFoldAllButton(columnId) {
     const foldButton = document.querySelector(`[data-column-id="${columnId}"] .fold-all-btn`);
-    if (!foldButton) return;
+    if (!foldButton) {return;}
     
     // Remove all state classes
     foldButton.classList.remove('fold-collapsed', 'fold-expanded', 'fold-mixed');
@@ -1330,11 +1330,11 @@ function createColumnElement(column, columnIndex) {
     
     if (headerBarsHtml) {
         headerClasses = 'has-header-bar';
-        if (headerBarsHtml.includes('label')) headerClasses += ' has-header-label';
+        if (headerBarsHtml.includes('label')) {headerClasses += ' has-header-label';}
     }
     if (footerBarsHtml) {
         footerClasses = 'has-footer-bar';
-        if (footerBarsHtml.includes('label')) footerClasses += ' has-footer-label';
+        if (footerBarsHtml.includes('label')) {footerClasses += ' has-footer-label';}
     }
     
     // Check for span tag to set column width (only blocked by viewport-based widths, not pixel widths)
@@ -1489,12 +1489,12 @@ function createTaskElement(task, columnId, taskIndex) {
     if (headerBarsData && headerBarsData.totalHeight) {
         paddingTopStyle = `padding-top: ${headerBarsData.totalHeight}px);`; /*calc(var(--whitespace-div2) + */
         headerClasses = 'has-header-bar';
-        if (headerBarsData.hasLabel) headerClasses += ' has-header-label';
+        if (headerBarsData.hasLabel) {headerClasses += ' has-header-label';}
     }
     if (footerBarsData && footerBarsData.totalHeight) {
         paddingBottomStyle = `padding-bottom: ${footerBarsData.totalHeight}px);`; /*calc(var(--whitespace-div2) + */
         footerClasses = 'has-footer-bar';
-        if (footerBarsData.hasLabel) footerClasses += ' has-footer-label';
+        if (footerBarsData.hasLabel) {footerClasses += ' has-footer-label';}
     }
     
     const headerBarsHtml = headerBarsData.html || '';
@@ -1598,7 +1598,7 @@ function toggleColumnCollapse(columnId) {
     toggle.classList.toggle('rotated');
     
     // Ensure state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
     // Store state
     const isNowCollapsed = column.classList.contains('collapsed');
@@ -1649,7 +1649,7 @@ function toggleTaskCollapse(taskId) {
     toggle.classList.toggle('rotated');
     
     // Ensure state variables are initialized
-    if (!window.collapsedTasks) window.collapsedTasks = new Set();
+    if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
     
     // Store state
     if (task.classList.contains('collapsed')) {
@@ -1726,7 +1726,7 @@ function handleLinkOrImageOpen(event, target) {
 function handleColumnTitleClick(event, columnId) {
     if (event.altKey) {
         // Alt+click: open link/image
-        if (handleLinkOrImageOpen(event, event.target)) return;
+        if (handleLinkOrImageOpen(event, event.target)) {return;}
         return; // Don't edit if Alt is pressed
     }
 
@@ -1751,7 +1751,7 @@ function handleColumnTitleClick(event, columnId) {
 function handleTaskTitleClick(event, element, taskId, columnId) {
     if (event.altKey) {
         // Alt+click: open link/image
-        if (handleLinkOrImageOpen(event, event.target)) return;
+        if (handleLinkOrImageOpen(event, event.target)) {return;}
         return; // Don't edit if Alt is pressed
     }
     
@@ -1764,7 +1764,7 @@ function handleTaskTitleClick(event, element, taskId, columnId) {
 function handleDescriptionClick(event, element, taskId, columnId) {
     if (event.altKey) {
         // Alt+click: open link/image
-        if (handleLinkOrImageOpen(event, event.target)) return;
+        if (handleLinkOrImageOpen(event, event.target)) {return;}
         return; // Don't edit if Alt is pressed
     }
     
@@ -1780,7 +1780,7 @@ function handleDescriptionClick(event, element, taskId, columnId) {
 
 // Helper function to get all corner badges HTML for multiple tags
 function getAllCornerBadgesHtml(tags, elementType) {
-    if (!window.tagColors || tags.length === 0) return '';
+    if (!window.tagColors || tags.length === 0) {return '';}
     
     const badges = [];
     const positions = {
@@ -1841,10 +1841,10 @@ function getAllCornerBadgesHtml(tags, elementType) {
 
 // Helper function to get tag configuration from grouped or flat structure
 function getTagConfig(tagName) {
-    if (!window.tagColors) return null;
+    if (!window.tagColors) {return null;}
     
     // Skip default configuration
-    if (tagName === 'default') return null;
+    if (tagName === 'default') {return null;}
     
     // Check grouped structure
     const groups = ['status', 'type', 'priority', 'category', 'colors'];
@@ -1964,7 +1964,7 @@ function generateTagStyles() {
     const processTags = (tags, groupName = null) => {
         for (const [tagName, config] of Object.entries(tags)) {
             // Skip the default configuration
-            if (tagName === 'default') continue;
+            if (tagName === 'default') {continue;}
             
             // Skip if this is a group (has nested objects with light/dark themes)
             if (config.light || config.dark) {
@@ -2242,7 +2242,7 @@ function injectStackableBars(targetElement = null) {
                 }
                 
                 headerBars.push(headerBar);
-                if (config.headerBar.label) hasHeaderLabel = true;
+                if (config.headerBar.label) {hasHeaderLabel = true;}
             }
             
             if (config && config.footerBar) {
@@ -2260,7 +2260,7 @@ function injectStackableBars(targetElement = null) {
                 }
                 
                 footerBars.push(footerBar);
-                if (config.footerBar.label) hasFooterLabel = true;
+                if (config.footerBar.label) {hasFooterLabel = true;}
             }
         });
         
@@ -2278,7 +2278,7 @@ function injectStackableBars(targetElement = null) {
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
                 columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
                 element.classList.add('has-header-bar');
-                if (hasHeaderLabel) element.classList.add('has-header-label');
+                if (hasHeaderLabel) {element.classList.add('has-header-label');}
             }
             
             // Create and append footer container at the end of column-inner
@@ -2288,7 +2288,7 @@ function injectStackableBars(targetElement = null) {
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
                 kanbanFullHeight.appendChild(footerContainer);
                 element.classList.add('has-footer-bar');
-                if (hasFooterLabel) element.classList.add('has-footer-label');
+                if (hasFooterLabel) {element.classList.add('has-footer-label');}
             }
             
             // Clear any inline padding styles for collapsed columns
@@ -2346,13 +2346,13 @@ function injectStackableBars(targetElement = null) {
             // Set CSS classes for header bars (no padding needed with flex layout)
             if (headerBars.length > 0) {
                 element.classList.add('has-header-bar');
-                if (hasHeaderLabel) element.classList.add('has-header-label');
+                if (hasHeaderLabel) {element.classList.add('has-header-label');}
             }
             
             // Set CSS classes for footer bars (no padding needed with flex layout)
             if (footerBars.length > 0) {
                 element.classList.add('has-footer-bar');
-                if (hasFooterLabel) element.classList.add('has-footer-label');
+                if (hasFooterLabel) {element.classList.add('has-footer-label');}
             }
         }
     });
@@ -2360,7 +2360,7 @@ function injectStackableBars(targetElement = null) {
 
 // Helper function to get all header bars HTML for multiple tags
 function getAllHeaderBarsHtml(tags, elementType, isCollapsed) {
-    if (!window.tagColors || tags.length === 0) return '';
+    if (!window.tagColors || tags.length === 0) {return '';}
     
     const headerBars = [];
     
@@ -2372,7 +2372,7 @@ function getAllHeaderBarsHtml(tags, elementType, isCollapsed) {
         }
     });
     
-    if (headerBars.length === 0) return '';
+    if (headerBars.length === 0) {return '';}
     
     // Always return container structure
     return `<div class="header-bars-container">${headerBars.join('')}</div>`;
@@ -2380,7 +2380,7 @@ function getAllHeaderBarsHtml(tags, elementType, isCollapsed) {
 
 // Helper function to get all footer bars HTML for multiple tags
 function getAllFooterBarsHtml(tags, elementType, isCollapsed) {
-    if (!window.tagColors || tags.length === 0) return '';
+    if (!window.tagColors || tags.length === 0) {return '';}
     
     const footerBars = [];
     
@@ -2392,7 +2392,7 @@ function getAllFooterBarsHtml(tags, elementType, isCollapsed) {
         }
     });
     
-    if (footerBars.length === 0) return '';
+    if (footerBars.length === 0) {return '';}
     
     // Always return container structure
     return `<div class="footer-bars-container">${footerBars.join('')}</div>`;
