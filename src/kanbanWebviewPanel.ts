@@ -541,17 +541,34 @@ export class KanbanWebviewPanel {
 
 
     public async loadMarkdownFile(document: vscode.TextDocument, isFromEditorFocus: boolean = false, forceReload: boolean = false) {
+        console.log(`[loadMarkdownFile] Called - isFromEditorFocus: ${isFromEditorFocus}, forceReload: ${forceReload}, isUpdatingFromPanel: ${this._isUpdatingFromPanel}`);
+
         if (this._isUpdatingFromPanel) {
+            console.log('[loadMarkdownFile] Skipping - currently updating from panel');
             return;
         }
         
+        // Ensure file watcher is always set up for the current document
+        const currentDocumentUri = this._fileManager.getDocument()?.uri.toString();
+        const isDifferentDocument = currentDocumentUri !== document.uri.toString();
+        const isFirstFileLoad = !this._fileManager.getDocument();
+
+        // Set up file watcher if needed (first load or different document)
+        if (isFirstFileLoad || isDifferentDocument) {
+            console.log(`[File Watcher] Setting up watcher - firstLoad: ${isFirstFileLoad}, different: ${isDifferentDocument}`);
+
+            // Clean up old watcher if switching documents
+            if (isDifferentDocument && currentDocumentUri) {
+                console.log(`[File Watcher] Cleaning up old watcher for: ${currentDocumentUri}`);
+                // Note: We'll clean this up in the document changed section below
+            }
+        }
+
         // 🛑 STRICT POLICY: Only reload board in these specific cases:
         // 1. Initial panel creation (no existing board)
         // 2. Switching to a different document
         // 3. User explicitly forces reload via dialog
         const isInitialLoad = !this._board;
-        const currentDocumentUri = this._fileManager.getDocument()?.uri.toString();
-        const isDifferentDocument = currentDocumentUri !== document.uri.toString();
 
         if (!isInitialLoad && !isDifferentDocument && !forceReload) {
             // 🚫 NEVER auto-reload: Preserve existing board state
@@ -559,9 +576,13 @@ export class KanbanWebviewPanel {
             // But notify user if external changes detected
             const hasExternalChanges = this._lastDocumentVersion !== -1 &&
                                      this._lastDocumentVersion < document.version &&
-                                     !this._isUndoRedoOperation;
+                                     !this._isUndoRedoOperation &&
+                                     !this._isUpdatingFromPanel;
+
+            console.log(`[External Change Check] lastVersion: ${this._lastDocumentVersion}, currentVersion: ${document.version}, isUndoRedo: ${this._isUndoRedoOperation}, isUpdating: ${this._isUpdatingFromPanel}, hasChanges: ${hasExternalChanges}`);
 
             if (hasExternalChanges) {
+                console.log('[External Change] Showing notification dialog');
                 await this.notifyExternalChanges(document);
             }
 
@@ -571,9 +592,10 @@ export class KanbanWebviewPanel {
         
         const previousDocument = this._fileManager.getDocument();
         const documentChanged = previousDocument?.uri.toString() !== document.uri.toString();
+        const isFirstDocumentLoad = !previousDocument;
 
         // If document changed or this is the first document, update panel tracking
-        if (documentChanged) {
+        if (documentChanged || isFirstDocumentLoad) {
             // Remove this panel from old document tracking
             const oldDocUri = previousDocument?.uri.toString();
             if (oldDocUri && KanbanWebviewPanel.panels.get(oldDocUri) === this) {
@@ -590,6 +612,7 @@ export class KanbanWebviewPanel {
             this._panel.title = `Kanban: ${fileName}`;
 
             // Register the new main file with the external file watcher
+            console.log(`[File Watcher] Registering main file: ${document.uri.fsPath}`);
             this._fileWatcher.registerFile(document.uri.fsPath, 'main', this);
         }
         
