@@ -1856,7 +1856,8 @@ window.addEventListener('message', event => {
             
             // Initialize cache system - this is the SINGLE source of truth
             const isInitialLoad = !window.cachedBoard;
-            if (isInitialLoad) {
+            const isFullRefresh = message.isFullRefresh;
+            if (isInitialLoad || isFullRefresh) {
                 window.cachedBoard = JSON.parse(JSON.stringify(message.board)); // Deep clone
                 window.currentBoard = window.cachedBoard; // Keep for compatibility
                 window.savedBoardState = JSON.parse(JSON.stringify(message.board)); // Reference for unsaved detection

@@ -50,6 +50,10 @@ export class KanbanWebviewPanel {
     private _includeFileContents: Map<string, string> = new Map();
     private _fileWatcher: ExternalFileWatcher;
 
+    // External modification tracking
+    private _lastKnownFileContent: string = '';
+    private _hasExternalUnsavedChanges: boolean = false;
+
     // Method to force refresh webview content (useful during development)
     public async refreshWebviewContent() {
         if (this._panel && this._board) {
@@ -194,6 +198,9 @@ export class KanbanWebviewPanel {
 
         // Get the file watcher instance
         this._fileWatcher = ExternalFileWatcher.getInstance();
+
+        // Set up document change listener to track external unsaved modifications
+        this.setupDocumentChangeListener();
 
         // Initialize message handler with callbacks
         this._messageHandler = new MessageHandler(
@@ -616,6 +623,9 @@ export class KanbanWebviewPanel {
             this._board = parseResult.board;
             this._includedFiles = parseResult.includedFiles;
 
+            // Update our baseline of known file content
+            this.updateKnownFileContent(document.getText());
+
             // Update included files with the external file watcher
             await this._initializeIncludeFileContents();
             this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
@@ -623,6 +633,11 @@ export class KanbanWebviewPanel {
             // Clean up any duplicate row tags
             const wasModified = this._boardOperations.cleanupRowTags(this._board);
             this._boardOperations.setOriginalTaskOrder(this._board);
+
+            // Clear unsaved changes flag after successful reload
+            if (forceReload) {
+                this._hasUnsavedChanges = false;
+            }
         } catch (error) {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
             this._board = { 
@@ -637,11 +652,11 @@ export class KanbanWebviewPanel {
         // Connect UndoRedoManager with CacheManager for undo cache persistence
         this._undoRedoManager.setCacheManager(this._cacheManager, document);
         
-        await this.sendBoardUpdate(false);
+        await this.sendBoardUpdate(false, forceReload);
         this._fileManager.sendFileInfo();
     }
 
-    private async sendBoardUpdate(applyDefaultFolding: boolean = false) {
+    private async sendBoardUpdate(applyDefaultFolding: boolean = false, isFullRefresh: boolean = false) {
         if (!this._panel.webview) { return; }
 
         let board = this._board || { 
@@ -691,7 +706,8 @@ export class KanbanWebviewPanel {
                 rowHeight: rowHeight,
                 showRowTags: showRowTags,
                 maxRowHeight: maxRowHeight,
-                applyDefaultFolding: applyDefaultFolding
+                applyDefaultFolding: applyDefaultFolding,
+                isFullRefresh: isFullRefresh
             });
         }, 10);
 
@@ -766,6 +782,13 @@ export class KanbanWebviewPanel {
             }
             
             const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
+
+            // Check for external unsaved changes before proceeding
+            const canProceed = await this.checkForExternalUnsavedChanges();
+            if (!canProceed) {
+                console.log('📄 Save cancelled due to external conflicts');
+                return;
+            }
 
             // Check if content has actually changed before applying edit
             const currentContent = document.getText();
@@ -844,6 +867,9 @@ export class KanbanWebviewPanel {
             
             // Clear unsaved changes flag after successful save
             this._hasUnsavedChanges = false;
+
+            // Update our baseline after successful save
+            this.updateKnownFileContent(markdown);
         } catch (error) {
             console.error('Error saving to markdown:', error);
             
@@ -1282,6 +1308,61 @@ export class KanbanWebviewPanel {
             // User pressed escape or no choice - default to ignore external changes
             return;
         }
+    }
+
+    /**
+     * Setup document change listener to track external modifications
+     */
+    private setupDocumentChangeListener(): void {
+        const disposable = vscode.workspace.onDidChangeTextDocument((event) => {
+            const currentDocument = this._fileManager.getDocument();
+            if (currentDocument && event.document === currentDocument) {
+                // Document was modified externally (not by our kanban save operation)
+                if (!this._isUpdatingFromPanel) {
+                    this._hasExternalUnsavedChanges = true;
+                    console.log('[External Modification] Detected unsaved external changes');
+                }
+            }
+        });
+        this._disposables.push(disposable);
+    }
+
+    /**
+     * Check for external unsaved changes when about to save
+     */
+    private async checkForExternalUnsavedChanges(): Promise<boolean> {
+        const document = this._fileManager.getDocument();
+        if (!document || !this._hasExternalUnsavedChanges) {
+            return true; // No conflicts, safe to save
+        }
+
+        const currentContent = document.getText();
+        const hasRealChanges = currentContent !== this._lastKnownFileContent;
+
+        if (!hasRealChanges) {
+            // False alarm - no real external changes
+            this._hasExternalUnsavedChanges = false;
+            return true;
+        }
+
+        // Real external unsaved changes detected
+        const fileName = path.basename(document.fileName);
+        const choice = await vscode.window.showWarningMessage(
+            `⚠️ CONFLICT: The file "${fileName}" has unsaved external modifications. Saving kanban changes will overwrite these external changes.`,
+            { modal: true },
+            'Overwrite external changes',
+            'Cancel save'
+        );
+
+        return choice === 'Overwrite external changes';
+    }
+
+    /**
+     * Update the known file content baseline
+     */
+    private updateKnownFileContent(content: string): void {
+        this._lastKnownFileContent = content;
+        this._hasExternalUnsavedChanges = false;
     }
 
     /**
