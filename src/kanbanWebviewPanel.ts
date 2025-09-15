@@ -533,29 +533,33 @@ export class KanbanWebviewPanel {
     }
 
 
-    public async loadMarkdownFile(document: vscode.TextDocument, isFromEditorFocus: boolean = false) {
+    public async loadMarkdownFile(document: vscode.TextDocument, isFromEditorFocus: boolean = false, forceReload: boolean = false) {
         if (this._isUpdatingFromPanel) {
             return;
         }
         
-        // Check if this is a genuine external change
-        const currentVersion = document.version;
-        // Don't treat editor focus as external change, and be more lenient with version jumps from auto-save
-        const isExternalChange = !isFromEditorFocus &&
-                                this._lastDocumentVersion !== -1 && 
-                                this._lastDocumentVersion < currentVersion &&
-                                !this._isUndoRedoOperation &&
-                                !this._isUpdatingFromPanel;
-        
-        if (isExternalChange) {
-        } else if (this._isUndoRedoOperation) {
-        } else if (isFromEditorFocus) {
-            // Check if this is the same document that's already loaded
-            const currentDocumentUri = this._fileManager.getDocument()?.uri.toString();
-            if (currentDocumentUri === document.uri.toString()) {
-                this._lastDocumentVersion = currentVersion;
-                return; // Don't reload the board, preserve all unsaved changes and folding state
+        // 🛑 STRICT POLICY: Only reload board in these specific cases:
+        // 1. Initial panel creation (no existing board)
+        // 2. Switching to a different document
+        // 3. User explicitly forces reload via dialog
+        const isInitialLoad = !this._board;
+        const currentDocumentUri = this._fileManager.getDocument()?.uri.toString();
+        const isDifferentDocument = currentDocumentUri !== document.uri.toString();
+
+        if (!isInitialLoad && !isDifferentDocument && !forceReload) {
+            // 🚫 NEVER auto-reload: Preserve existing board state
+
+            // But notify user if external changes detected
+            const hasExternalChanges = this._lastDocumentVersion !== -1 &&
+                                     this._lastDocumentVersion < document.version &&
+                                     !this._isUndoRedoOperation;
+
+            if (hasExternalChanges) {
+                await this.notifyExternalChanges(document);
             }
+
+            this._lastDocumentVersion = document.version;
+            return;
         }
         
         const previousDocument = this._fileManager.getDocument();
@@ -595,97 +599,20 @@ export class KanbanWebviewPanel {
         }
         
         try {
-            // Parse the document content first to get the external content
+            // ✅ ALLOWED: Loading board (initial load, different document, or force reload)
             const basePath = path.dirname(document.uri.fsPath);
             const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
 
-            // Handle external changes - check user choice BEFORE updating this._board
-            if (isExternalChange && this._board) {
-                // Ensure unsaved changes marker is active since we have internal changes
-                this._hasUnsavedChanges = true;
+            // Update version tracking
+            this._lastDocumentVersion = document.version;
 
-                // Ask user what to do with external changes
-                const fileName = path.basename(document.fileName);
-                const discardChanges = { title: 'Discard kanban changes and reload' };
-                const saveBackup = { title: 'Save as backup and load external' };
-                const discardExternal = { title: 'Discard external changes and save kanban' };
-                const ignoreExternal = { title: 'Ignore external changes, dont overwrite (esc)', isCloseAffordance: true };
-
-                const choice = await vscode.window.showWarningMessage(
-                    `The file "${fileName}" has been modified externally. Your current kanban changes may be lost if you reload the file.`,
-                    { modal: true },
-                    discardChanges,
-                    saveBackup,
-                    discardExternal,
-                    ignoreExternal
-                );
-
-                if (choice === ignoreExternal) {
-                    // User wants to keep working with current state - don't reload or update version
-                    return;
-                } else if (choice === discardExternal) {
-                    // User wants to save current kanban state and ignore external changes
-                    // Update version to prevent future prompts for this external change
-                    this._lastDocumentVersion = currentVersion;
-                    // Save current board state to file, overwriting external changes
-                    await this.saveToMarkdown();
-                    return;
-                } else if (choice === saveBackup) {
-                    // Save current board state as backup before reloading
-                    await this._createUnifiedBackup('conflict');
-                    // Save current state to undo history before reloading
-                    this._undoRedoManager.saveStateForUndo(this._board);
-                    // Update version since we're proceeding with the reload
-                    this._lastDocumentVersion = currentVersion;
-
-                    // Immediately update board and send to webview
-                    this._board = parseResult.board;
-                    this._includedFiles = parseResult.includedFiles;
-                    // Update included files with the external file watcher
-                    await this._initializeIncludeFileContents();
-                    this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
-                    const wasModified = this._boardOperations.cleanupRowTags(this._board);
-                    this._boardOperations.setOriginalTaskOrder(this._board);
-                    await this.sendBoardUpdate(isExternalChange);
-                    return; // Exit early since we've already handled everything
-
-                } else if (choice === discardChanges) {
-                    // User explicitly chose to discard - continue with reload
-                    // Save current state to undo history before reloading
-                    this._undoRedoManager.saveStateForUndo(this._board);
-                    // Update version since we're proceeding with the reload
-                    this._lastDocumentVersion = currentVersion;
-
-                    // Immediately update board and send to webview
-                    this._board = parseResult.board;
-                    this._includedFiles = parseResult.includedFiles;
-                    // Update included files with the external file watcher
-                    await this._initializeIncludeFileContents();
-                    this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
-                    const wasModified = this._boardOperations.cleanupRowTags(this._board);
-                    this._boardOperations.setOriginalTaskOrder(this._board);
-                    await this.sendBoardUpdate(isExternalChange);
-                    return; // Exit early since we've already handled everything
-
-                } else {
-                    // User cancelled or closed dialog - don't reload or update version
-                    return;
-                }
-            } else {
-                // For non-external changes, update version normally
-                this._lastDocumentVersion = currentVersion;
-
-                if (documentChanged && !this._isUndoRedoOperation && !this._isUpdatingFromPanel) {
-                    // Only clear history when switching to completely different documents
-                    this._undoRedoManager.clear();
-                } else if (this._isUndoRedoOperation) {
-                    // Preserve undo history during undo/redo operation
-                } else if (this._isUpdatingFromPanel) {
-                    // Preserve undo history during save operation
-                }
+            // Handle undo/redo history
+            if (isDifferentDocument && !this._isUndoRedoOperation && !this._isUpdatingFromPanel) {
+                // Only clear history when switching to completely different documents
+                this._undoRedoManager.clear();
             }
 
-            // Now update the board with external content (after user confirmed they want to proceed)
+            // Update the board
             this._board = parseResult.board;
             this._includedFiles = parseResult.includedFiles;
 
@@ -695,7 +622,6 @@ export class KanbanWebviewPanel {
 
             // Clean up any duplicate row tags
             const wasModified = this._boardOperations.cleanupRowTags(this._board);
-
             this._boardOperations.setOriginalTaskOrder(this._board);
         } catch (error) {
             vscode.window.showErrorMessage(`Kanban parsing error: ${error instanceof Error ? error.message : String(error)}`);
@@ -711,7 +637,7 @@ export class KanbanWebviewPanel {
         // Connect UndoRedoManager with CacheManager for undo cache persistence
         this._undoRedoManager.setCacheManager(this._cacheManager, document);
         
-        await this.sendBoardUpdate(isExternalChange);
+        await this.sendBoardUpdate(false);
         this._fileManager.sendFileInfo();
     }
 
@@ -1286,6 +1212,86 @@ export class KanbanWebviewPanel {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
         const showRowTags = config.get<boolean>('showRowTags', false);
         return showRowTags;
+    }
+
+
+    /**
+     * Notify user about external changes without forcing reload
+     */
+    private async notifyExternalChanges(document: vscode.TextDocument): Promise<void> {
+        const fileName = path.basename(document.fileName);
+        // const hasUnsavedChanges = this._hasUnsavedChanges;
+
+        // if (!hasUnsavedChanges) {
+        //     // No unsaved changes - simple reload option
+        //     const reloadButton = { title: 'Reload from file' };
+        //     const ignoreButton = { title: 'Ignore external changes' };
+
+        //     const choice = await vscode.window.showInformationMessage(
+        //         `The file "${fileName}" has been modified externally.`,
+        //         reloadButton,
+        //         ignoreButton
+        //     );
+
+        //     if (choice === reloadButton) {
+        //         await this.forceReloadFromFile();
+        //     }
+        //     return;
+        // }
+
+        // Has unsaved changes - full option set
+        const discardChanges = { title: 'Discard kanban changes and reload' };
+        const saveBackup = { title: 'Save as backup and load external' };
+        const discardExternal = { title: 'Discard external changes and save kanban' };
+        const ignoreExternal = { title: 'Ignore external changes, dont overwrite (esc)', isCloseAffordance: true };
+
+        const choice = await vscode.window.showWarningMessage(
+            `The file "${fileName}" has been modified externally. Your current kanban changes may be lost if you reload the file.`,
+            { modal: true },
+            discardChanges,
+            saveBackup,
+            discardExternal,
+            ignoreExternal
+        );
+
+        if (choice === ignoreExternal) {
+            // User wants to keep working with current state - do nothing
+            return;
+        } else if (choice === discardExternal) {
+            // User wants to save current kanban state and ignore external changes
+            await this.saveToMarkdown();
+            return;
+        } else if (choice === saveBackup) {
+            // Save current board state as backup before reloading
+            await this._createUnifiedBackup('conflict');
+            // Save current state to undo history before reloading
+            if (this._board) {
+                this._undoRedoManager.saveStateForUndo(this._board);
+            }
+            await this.forceReloadFromFile();
+            return;
+        } else if (choice === discardChanges) {
+            // User chose to discard current changes and reload from external file
+            // Save current state to undo history before reloading
+            if (this._board) {
+                this._undoRedoManager.saveStateForUndo(this._board);
+            }
+            await this.forceReloadFromFile();
+            return;
+        } else {
+            // User pressed escape or no choice - default to ignore external changes
+            return;
+        }
+    }
+
+    /**
+     * Force reload the board from file (user-initiated)
+     */
+    public async forceReloadFromFile(): Promise<void> {
+        const document = this._fileManager.getDocument();
+        if (document) {
+            await this.loadMarkdownFile(document, false, true); // forceReload = true
+        }
     }
 
     /**

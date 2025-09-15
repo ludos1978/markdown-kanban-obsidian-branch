@@ -4,7 +4,7 @@ kanban-plugin: board
 
 ## Open Bugs
 
-if i modify the kanban by dragging the card, it should send and update to the backend cache. if the source markdown file is then saved it should see a change between the backend cache and the markdown source which then should be handled equally to a modified external file.
+if i modify the kanban by dragging the card, it should send and update the change into the backend cache. if the source markdown of the kanban file is then saved (unmodified), then the backend should see a difference the backend cache and the markdown source, this should be handled as if there is an external change (because internal the file has changed). but right now the kanban gets reset to the state from the external file, the card i moved is put back into it's original position. why does this happen, find the source of the problem first by tracing the path the events&functions are called BEFORE DOING ANY CHANGE!!!
 
 ## File Watcher Consolidation ✅
 
