@@ -1146,8 +1146,10 @@ export class KanbanWebviewPanel {
                 this._board = this._cachedBoardFromWebview;
             }
             
+            const document = this._fileManager.getDocument();
+            const fileName = document ? path.basename(document.fileName) : 'the kanban board';
             const choice = await vscode.window.showWarningMessage(
-                'You have unsaved changes in the kanban board. Do you want to save before closing?',
+                `You have unsaved changes in "${fileName}". Do you want to save before closing?`,
                 { modal: true },
                 { title: 'Save and close' },
                 { title: 'Close without saving', isCloseAffordance: true }

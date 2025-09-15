@@ -566,8 +566,10 @@ export class MessageHandler {
     private async handlePageHiddenWithUnsavedChanges(): Promise<void> {
         
         try {
+            const document = this._fileManager.getDocument();
+            const fileName = document ? path.basename(document.fileName) : 'the kanban board';
             const choice = await vscode.window.showWarningMessage(
-                'You have unsaved kanban board changes. Save them now?',
+                `You have unsaved changes in "${fileName}". Save them now?`,
                 { modal: true },
                 'Save Now',
                 'Save with Backup',
@@ -576,7 +578,7 @@ export class MessageHandler {
             
             if (choice === 'Save Now') {
                 await this._onSaveToMarkdown();
-                vscode.window.showInformationMessage('Kanban board saved successfully!');
+                vscode.window.showInformationMessage(`"${fileName}" saved successfully!`);
             } else if (choice === 'Save with Backup') {
                 await this._saveWithBackup();
             }
