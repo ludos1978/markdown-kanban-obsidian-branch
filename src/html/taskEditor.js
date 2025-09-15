@@ -431,17 +431,15 @@ class TaskEditor {
                     
                     if (this.currentEditor.displayElement) {
                         if (value.trim()) {
-                            // For task descriptions, render the processed description (with includes expanded)
-                            // For task titles, render the value as-is
-                            const displayValue = (type === 'task-description') ? task.description || value : value;
+                            // Use the current value which has already been saved to the task object
+                            const displayValue = value;
                             this.currentEditor.displayElement.innerHTML = renderMarkdown(displayValue);
-                            this.currentEditor.displayElement.style.display = 'block';
                         } else {
                             // Handle empty values - must be truly empty for CSS :empty selector
-                            // Do NOT set textContent after innerHTML as it can add text nodes
                             this.currentEditor.displayElement.innerHTML = '';
-                            this.currentEditor.displayElement.style.display = 'block';
                         }
+                        // Ensure display element is visible
+                        this.currentEditor.displayElement.style.display = 'block';
                     }
 
                     // Update task element styling if this is a task title edit
