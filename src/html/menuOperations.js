@@ -2342,19 +2342,16 @@ function updateTagButtonAppearance(id, type, tagName, isActive) {
 
 // Update corner badges immediately for an element
 function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
-    console.log(`[Badge Debug] updateCornerBadgesImmediate called - elementId: ${elementId}, elementType: ${elementType}, newTitle: "${newTitle}"`);
 
     // Find the element
     const selector = elementType === 'column' ? `[data-column-id="${elementId}"]` : `[data-task-id="${elementId}"]`;
     const element = document.querySelector(selector);
     if (!element) {
-        console.warn(`[Badge Debug] Element not found with selector: ${selector}`);
         return;
     }
 
     // Get all active tags from the new title
     const activeTags = getActiveTagsInTitle(newTitle);
-    console.log(`[Badge Debug] Active tags found: [${activeTags.join(', ')}]`);
 
 
     // Update data-all-tags attribute
@@ -2364,47 +2361,30 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
         element.removeAttribute('data-all-tags');
     }
 
-    // Find existing corner badges container
+    // Find existing corner badges container or create one
     let badgesContainer = element.querySelector('.corner-badges-container');
-
-    // If no tags, just remove existing container and return
-    if (activeTags.length === 0) {
-        if (badgesContainer) {
-            console.log(`[Badge Debug] No tags - removing existing badges container for element ${elementId}`);
-            badgesContainer.remove();
-        } else {
-            console.log(`[Badge Debug] No tags and no existing badges container for element ${elementId}`);
-        }
-        return;
-    }
-
-    // Create container only if we have tags and no container exists
     if (!badgesContainer) {
-        console.log(`[Badge Debug] Creating new badges container for element ${elementId}`);
         badgesContainer = document.createElement('div');
         badgesContainer.className = 'corner-badges-container';
         badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 9;';
         element.appendChild(badgesContainer);
-    } else {
-        console.log(`[Badge Debug] Found existing badges container for element ${elementId}`);
+        // Ensure parent has relative positioning
+        // if (!element.style.position || element.style.position === 'static') {
+        //     element.style.position = 'relative';
+        // }
     }
 
     // Generate new badges HTML
     const newBadgesHtml = getAllCornerBadgesHtml(activeTags, elementType);
-    console.log(`[Badge Debug] Generated badges HTML length: ${newBadgesHtml.length}, content preview: ${newBadgesHtml.substring(0, 100)}...`);
 
-    // Update badges
+    // Clear and update badges
     badgesContainer.innerHTML = newBadgesHtml;
-    console.log(`[Badge Debug] Updated badges container innerHTML`);
 
-    // Double-check: if somehow no HTML was generated, remove container
+    // If no badges, remove container to prevent empty space
     if (!newBadgesHtml || newBadgesHtml.trim() === '') {
-        console.log(`[Badge Debug] Generated HTML was empty, removing badges container`);
         badgesContainer.remove();
-    } else {
-        console.log(`[Badge Debug] Badges container updated with content`);
     }
-    
+
 }
 
 // Update tag category counts in the open dropdown menu

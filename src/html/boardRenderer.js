@@ -1320,9 +1320,9 @@ function createColumnElement(column, columnIndex) {
     const columnDiv = document.createElement('div');
     const isCollapsed = window.collapsedColumns.has(column.id);
     
-    // Skip header/footer bars HTML generation - handled by immediate update system
-    const headerBarsHtml = ''; // getAllHeaderBarsHtml(allTags, 'column', true); 
-    const footerBarsHtml = ''; // getAllFooterBarsHtml(allTags, 'column', true);
+    // Header/footer bars handled by immediate update system
+    const headerBarsHtml = '';
+    const footerBarsHtml = '';
     
     // Determine classes
     let headerClasses = '';
@@ -1363,8 +1363,8 @@ function createColumnElement(column, columnIndex) {
         columnDiv.setAttribute('data-all-tags', allTags.join(' '));
     }
 
-    // Skip corner badges HTML generation - handled by immediate update system
-    const cornerBadgesHtml = ''; // getAllCornerBadgesHtml(allTags, 'column');
+    // Corner badges handled by immediate update system
+    const cornerBadgesHtml = '';
 
     // Filter tags from displayed title based on visibility setting
     const displayTitle = column.title ? window.filterTagsFromText(column.title) : '';
@@ -1473,12 +1473,10 @@ function createTaskElement(task, columnId, taskIndex) {
     // Add all tags attribute for stacking features
     const allTagsAttribute = allTags.length > 0 ? ` data-all-tags="${allTags.join(' ')}"` : '';
     
-    // Skip corner badges HTML generation - handled by immediate update system
-    const cornerBadgesHtml = ''; // getAllCornerBadgesHtml(allTags, 'task');
-    
-    // Skip header/footer bars HTML generation - handled by immediate update system  
-    const headerBarsData = { html: '', totalHeight: 0, hasLabel: false }; // getAllHeaderBarsHtml(allTags, 'task', false);
-    const footerBarsData = { html: '', totalHeight: 0, hasLabel: false }; // getAllFooterBarsHtml(allTags, 'task', false);
+    // Corner badges and header/footer bars handled by immediate update system
+    const cornerBadgesHtml = '';
+    const headerBarsData = { html: '', totalHeight: 0, hasLabel: false };
+    const footerBarsData = { html: '', totalHeight: 0, hasLabel: false };
     
     // Calculate padding
     let paddingTopStyle = '';
@@ -1776,67 +1774,6 @@ function handleDescriptionClick(event, element, taskId, columnId) {
     } else {
         editDescription(element);
     }
-}
-
-// Helper function to get all corner badges HTML for multiple tags
-function getAllCornerBadgesHtml(tags, elementType) {
-    if (!window.tagColors || tags.length === 0) {return '';}
-    
-    const badges = [];
-    const positions = {
-        'top-left': [],
-        'top-right': [],
-        'bottom-left': [],
-        'bottom-right': []
-    };
-    
-    // Collect badges by position
-    tags.forEach(tag => {
-        const config = getTagConfig(tag);
-        if (config && config.cornerBadge) {
-            const position = config.cornerBadge.position || 'top-right';
-            positions[position].push({
-                tag: tag,
-                badge: config.cornerBadge
-            });
-        }
-    });
-    
-    // Generate HTML for each position with proper vertical stacking
-    let html = '';
-    Object.entries(positions).forEach(([position, badgesAtPosition]) => {
-        badgesAtPosition.forEach((item, index) => {
-            const badge = item.badge;
-            const offsetMultiplier = 24; // Space between stacked badges
-            let positionStyle = '';
-            
-            switch (position) {
-                case 'top-left':
-                    // Stack vertically downward, keep left position constant
-                    positionStyle = `top: ${10 + (index * offsetMultiplier)}px; left: -8px;`;
-                    break;
-                case 'top-right':
-                    // Stack vertically downward, keep right position constant
-                    positionStyle = `top: ${10 + (index * offsetMultiplier)}px; right: -8px;`;
-                    break;
-                case 'bottom-left':
-                    // Stack vertically upward, keep left position constant
-                    positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; left: -8px;`;
-                    break;
-                case 'bottom-right':
-                    // Stack vertically upward, keep right position constant
-                    positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; right: -8px;`;
-                    break;
-            }
-            
-            // Use label for text content, or empty if using image
-            const badgeContent = badge.image ? '' : (badge.label || '');
-            
-            html += `<div class="corner-badge corner-badge-${item.tag}" style="${positionStyle}" data-badge-position="${position}" data-badge-index="${index}">${badgeContent}</div>`;
-        });
-    });
-    
-    return html;
 }
 
 // Helper function to get tag configuration from grouped or flat structure
@@ -2356,46 +2293,6 @@ function injectStackableBars(targetElement = null) {
             }
         }
     });
-}
-
-// Helper function to get all header bars HTML for multiple tags
-function getAllHeaderBarsHtml(tags, elementType, isCollapsed) {
-    if (!window.tagColors || tags.length === 0) {return '';}
-    
-    const headerBars = [];
-    
-    tags.forEach(tag => {
-        const config = getTagConfig(tag);
-        
-        if (config && config.headerBar) {
-            headerBars.push(`<div class="header-bar header-bar-${tag}"></div>`);
-        }
-    });
-    
-    if (headerBars.length === 0) {return '';}
-    
-    // Always return container structure
-    return `<div class="header-bars-container">${headerBars.join('')}</div>`;
-}
-
-// Helper function to get all footer bars HTML for multiple tags
-function getAllFooterBarsHtml(tags, elementType, isCollapsed) {
-    if (!window.tagColors || tags.length === 0) {return '';}
-    
-    const footerBars = [];
-    
-    tags.forEach(tag => {
-        const config = getTagConfig(tag);
-        
-        if (config && config.footerBar) {
-            footerBars.push(`<div class="footer-bar footer-bar-${tag}"></div>`);
-        }
-    });
-    
-    if (footerBars.length === 0) {return '';}
-    
-    // Always return container structure
-    return `<div class="footer-bars-container">${footerBars.join('')}</div>`;
 }
 
 // Helper function to check if dark theme

@@ -415,57 +415,61 @@ class TaskEditor {
                                 columnElement.classList.add(`column-span-${spanCount}`);
                             }
                         }
+                    }
 
-                        // Update tag-based styling for columns
-                        const allTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(column.title || '') : [];
+                    // Update tag-based styling for columns (following task pattern)
+                    const columnElement2 = document.querySelector(`[data-column-id="${columnId}"]`);
+                    if (columnElement2) {
+                        // Get tags from column title and description (like tasks do)
+                        const titleTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(column.title || '') : [];
+                        const descTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(column.description || '') : [];
+                        const allTags = [...new Set([...titleTags, ...descTags])];
 
-                        // Update primary tag
+                        // Update primary tag (first non-special tag from title)
                         const primaryTag = window.extractFirstTag ? window.extractFirstTag(column.title) : null;
                         if (primaryTag && !primaryTag.startsWith('row') && !primaryTag.startsWith('gather_') && !primaryTag.startsWith('span')) {
-                            columnElement.setAttribute('data-column-tag', primaryTag);
+                            columnElement2.setAttribute('data-column-tag', primaryTag);
                         } else {
-                            columnElement.removeAttribute('data-column-tag');
+                            columnElement2.removeAttribute('data-column-tag');
                         }
 
-                        // Update all tags attribute
+                        // Update all tags attribute for stacking features
                         if (allTags.length > 0) {
-                            columnElement.setAttribute('data-all-tags', allTags.join(' '));
+                            columnElement2.setAttribute('data-all-tags', allTags.join(' '));
                         } else {
-                            columnElement.removeAttribute('data-all-tags');
+                            columnElement2.removeAttribute('data-all-tags');
                         }
 
                         // Force style recalculation and update header/footer bars
                         if (allTags.length > 0) {
                             // Gentle style refresh: toggle a temporary class to force re-evaluation
-                            columnElement.classList.add('tag-update-trigger');
+                            columnElement2.classList.add('tag-update-trigger');
                             requestAnimationFrame(() => {
-                                columnElement.classList.remove('tag-update-trigger');
+                                columnElement2.classList.remove('tag-update-trigger');
 
                                 // Update footer/header bars after DOM updates complete
                                 if (window.injectStackableBars) {
-                                    window.injectStackableBars(columnElement);
+                                    window.injectStackableBars(columnElement2);
                                 }
                             });
                         } else {
                             // If no tags, still update header/footer bars to remove any existing ones
                             if (window.injectStackableBars) {
-                                window.injectStackableBars(columnElement);
+                                window.injectStackableBars(columnElement2);
                             }
                         }
-                    }
 
-                    // Update corner badges without re-render - do this for ANY column title save
-                    console.log(`[Badge Debug] Updating column badges for ${columnId}, title: "${column.title}"`);
-                    if (window.updateCornerBadgesImmediate) {
-                        window.updateCornerBadgesImmediate(columnId, 'column', column.title);
-                        console.log(`[Badge Debug] Called updateCornerBadgesImmediate for column`);
-                    } else {
-                        console.warn(`[Badge Debug] updateCornerBadgesImmediate function not available`);
-                    }
+                        // Update corner badges without re-render (uses title+description combined like tasks)
+                        if (window.updateCornerBadgesImmediate) {
+                            // For columns, we need to pass a combined text that includes both title and description tags
+                            const combinedText = [column.title, column.description].filter(Boolean).join(' ');
+                            window.updateCornerBadgesImmediate(columnId, 'column', combinedText);
+                        }
 
-                    // Update tag counts in any open menus
-                    if (window.updateTagCategoryCounts) {
-                        window.updateTagCategoryCounts(columnId, 'column');
+                        // Update tag counts in any open menus
+                        if (window.updateTagCategoryCounts) {
+                            window.updateTagCategoryCounts(columnId, 'column');
+                        }
                     }
                     
                     // Store pending change locally instead of sending immediately
