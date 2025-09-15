@@ -77,6 +77,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 			// Create or show kanban panel in center area
 			KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
+			// Set up external file watcher for this document
+			setupMainFileWatcher(document.uri.toString());
 
 			vscode.window.showInformationMessage(`Kanban loaded from: ${document.fileName}`);
 		} catch (error) {
@@ -163,6 +165,8 @@ export function activate(context: vscode.ExtensionContext) {
 				const document = await vscode.workspace.openTextDocument(targetUri);
 				// This will create a new panel or reuse existing one for this document
 				KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
+				// Set up external file watcher for this document
+				setupMainFileWatcher(document.uri.toString());
 				vscode.window.showInformationMessage(`Kanban opened for: ${document.fileName}`);
 			} catch (error) {
 				vscode.window.showErrorMessage(`Failed to open file: ${error}`);
@@ -193,6 +197,8 @@ export function activate(context: vscode.ExtensionContext) {
 				const document = await vscode.workspace.openTextDocument(targetUri);
 				// This will create a new panel or reuse existing one
 				KanbanWebviewPanel.createOrShow(context.extensionUri, context, document);
+				// Set up external file watcher for this document
+				setupMainFileWatcher(document.uri.toString());
 				vscode.window.showInformationMessage(`Kanban opened for: ${document.fileName}`);
 			} catch (error) {
 				vscode.window.showErrorMessage(`Failed to open file: ${error}`);
@@ -200,13 +206,38 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// Disabled automatic document change listener to prevent losing kanban changes
-	// Only the save listener will update the kanban board now
-	const documentChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {
-		// Document change listener disabled - we only respond to saves and editor focus
-		// This prevents automatic reloading that loses unsaved kanban changes
-		return;
-	});
+	// External file change detection using file system watcher
+	// This detects changes made outside VS Code (git pulls, external editors, etc.)
+	// Note: Include file changes are handled separately in KanbanWebviewPanel._setupIncludeFileWatchers
+	const externalFileWatchers = new Map<string, vscode.FileSystemWatcher>();
+
+	function setupMainFileWatcher(documentUri: string) {
+		// Clean up existing watcher for this document
+		const existingWatcher = externalFileWatchers.get(documentUri);
+		if (existingWatcher) {
+			existingWatcher.dispose();
+		}
+
+		// Create file system watcher for main document
+		const watcher = vscode.workspace.createFileSystemWatcher(documentUri);
+		watcher.onDidChange(async () => {
+			if (fileListenerEnabled) {
+				const document = vscode.workspace.textDocuments.find(doc => doc.uri.toString() === documentUri);
+				if (document) {
+					const panel = KanbanWebviewPanel.getPanelForDocument(documentUri);
+					if (panel) {
+						const isUpdatingFromPanel = (panel as any)._isUpdatingFromPanel;
+						if (!isUpdatingFromPanel) {
+							// External file change detected
+							panel.loadMarkdownFile(document, false);
+						}
+					}
+				}
+			}
+		});
+		externalFileWatchers.set(documentUri, watcher);
+		return watcher;
+	}
 
 	// Listen for document saves to update kanban with saved changes
 	const documentSaveListener = vscode.workspace.onDidSaveTextDocument((document) => {
@@ -246,8 +277,7 @@ export function activate(context: vscode.ExtensionContext) {
 		toggleFileLockCommand,
 		openKanbanFromPanelCommand,
 		switchFileCommand,
-		debugPermissionsCommand,  // Add this line
-		documentChangeListener,
+		debugPermissionsCommand,
 		documentSaveListener,
 		activeEditorChangeListener,
 	);
@@ -285,6 +315,14 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(configChangeListener);
+
+	// Clean up external file watchers on disposal
+	context.subscriptions.push({
+		dispose: () => {
+			externalFileWatchers.forEach(watcher => watcher.dispose());
+			externalFileWatchers.clear();
+		}
+	});
 
 	// If current active editor is markdown, auto-activate kanban
 	if (vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.languageId === 'markdown') {

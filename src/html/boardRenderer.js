@@ -2200,18 +2200,15 @@ function generateTagStyles() {
 function injectStackableBars(targetElement = null) {
     let elementsToProcess;
     if (targetElement) {
-        // Only process the target element if it has data-all-tags attribute
-        if (targetElement.hasAttribute('data-all-tags')) {
-            elementsToProcess = [targetElement];
-        } else {
-            return; // Nothing to process
-        }
+        // Always process the target element (even without data-all-tags) to clean up existing bars
+        elementsToProcess = [targetElement];
     } else {
         elementsToProcess = document.querySelectorAll('[data-all-tags]');
     }
 
     elementsToProcess.forEach(element => {
-        const tags = element.getAttribute('data-all-tags').split(' ');
+        const allTagsAttr = element.getAttribute('data-all-tags');
+        const tags = allTagsAttr ? allTagsAttr.split(' ').filter(tag => tag.trim()) : [];
         const isColumn = element.classList.contains('kanban-full-height-column');
         const isCollapsed = isColumn && element.classList.contains('collapsed');
         

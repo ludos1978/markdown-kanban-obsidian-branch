@@ -2,32 +2,63 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
+export interface BackupOptions {
+    label?: string;           // 'backup', 'conflict', etc.
+    forceCreate?: boolean;    // Skip time/content checks
+    minIntervalMinutes?: number;  // Minimum time since last backup
+}
+
 export class BackupManager {
     private _backupTimer: NodeJS.Timer | null = null;
     private _lastBackupTime: Date | null = null;
     private _lastContentHash: string | null = null;
+    private _lastUnsavedChangeTime: Date | null = null;
 
     constructor() {}
 
     /**
+     * Mark when unsaved changes occurred (for page hidden logic)
+     */
+    public markUnsavedChanges(): void {
+        this._lastUnsavedChangeTime = new Date();
+    }
+
+    /**
+     * Check if enough time has passed since unsaved changes for page hidden backup
+     */
+    public shouldCreatePageHiddenBackup(): boolean {
+        if (!this._lastUnsavedChangeTime) {
+            return false;
+        }
+
+        const now = new Date();
+        const timeSinceUnsaved = now.getTime() - this._lastUnsavedChangeTime.getTime();
+        const fiveMinutesMs = 5 * 60 * 1000;
+
+        return timeSinceUnsaved >= fiveMinutesMs;
+    }
+
+    /**
      * Create a backup of the given document
      */
-    public async createBackup(document: vscode.TextDocument): Promise<boolean> {
+    public async createBackup(document: vscode.TextDocument, options: BackupOptions = {}): Promise<boolean> {
         try {
             const config = vscode.workspace.getConfiguration('markdown-kanban');
             const enableBackups = config.get<boolean>('enableBackups', true);
-            const intervalMinutes = config.get<number>('backupInterval', 15);
-            
-            if (!enableBackups) {
+            const defaultIntervalMinutes = config.get<number>('backupInterval', 15);
+
+            if (!enableBackups && !options.forceCreate) {
                 return false;
             }
 
-            // Check if enough time has passed since last backup
-            if (this._lastBackupTime) {
-                const now = new Date();
+            const now = new Date();
+            const intervalMinutes = options.minIntervalMinutes ?? defaultIntervalMinutes;
+
+            // Check if enough time has passed since last backup (unless forced)
+            if (!options.forceCreate && this._lastBackupTime) {
                 const timeSinceLastBackup = now.getTime() - this._lastBackupTime.getTime();
                 const intervalMs = intervalMinutes * 60 * 1000;
-                
+
                 if (timeSinceLastBackup < intervalMs) {
                     return false;
                 }
@@ -35,13 +66,13 @@ export class BackupManager {
 
             const content = document.getText();
             const contentHash = this.hashContent(content);
-            
-            // Skip backup if content hasn't changed
-            if (this._lastContentHash === contentHash) {
+
+            // Skip backup if content hasn't changed (unless forced)
+            if (!options.forceCreate && this._lastContentHash === contentHash) {
                 return false;
             }
 
-            const backupPath = this.generateBackupPath(document);
+            const backupPath = this.generateBackupPath(document, options.label || 'backup');
             
             // Ensure backup directory exists
             const backupDir = path.dirname(backupPath);
@@ -71,35 +102,36 @@ export class BackupManager {
     /**
      * Generate backup file path
      */
-    private generateBackupPath(document: vscode.TextDocument): string {
+    private generateBackupPath(document: vscode.TextDocument, label: string = 'backup'): string {
         const originalPath = document.uri.fsPath;
         const dir = path.dirname(originalPath);
         const basename = path.basename(originalPath, '.md');
-        
-        // Generate timestamp in format: 20250902-2349
+
+        // Generate timestamp in format: YYYYMMDDTHHmmss
         const now = new Date();
         const timestamp = this.formatTimestamp(now);
-        
+
         const config = vscode.workspace.getConfiguration('markdown-kanban');
         const backupLocation = config.get<string>('backupLocation', 'same-folder');
-        
+
         let backupDir = dir;
-        
+
         if (backupLocation === 'workspace-folder') {
             const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
             if (workspaceFolder) {
                 backupDir = path.join(workspaceFolder.uri.fsPath, '.kanban-backups');
             }
         }
-        
-        // Hidden file with . prefix
-        const backupFileName = `.${basename}-backup-${timestamp}.md`;
-        
+
+        // Hidden file with . prefix for periodic backups, normal files for conflicts
+        const prefix = label === 'backup' ? '.' : '';
+        const backupFileName = `${prefix}${basename}-${label}-${timestamp}.md`;
+
         return path.join(backupDir, backupFileName);
     }
 
     /**
-     * Format timestamp as YYYYMMDD-HHMM
+     * Format timestamp as YYYYMMDDTHHmmss
      */
     private formatTimestamp(date: Date): string {
         const year = date.getFullYear();
@@ -107,8 +139,9 @@ export class BackupManager {
         const day = String(date.getDate()).padStart(2, '0');
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-        
-        return `${year}${month}${day}-${hours}${minutes}`;
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+
+        return `${year}${month}${day}T${hours}${minutes}${seconds}`;
     }
 
     /**

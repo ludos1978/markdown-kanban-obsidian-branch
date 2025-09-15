@@ -566,13 +566,18 @@ export class MessageHandler {
     private async handlePageHiddenWithUnsavedChanges(): Promise<void> {
 
         try {
-            // Automatically create backup when page is hidden with unsaved changes
-            // This provides safety without interrupting the user's workflow
-            await this._saveWithBackup();
-
             const document = this._fileManager.getDocument();
             const fileName = document ? path.basename(document.fileName) : 'kanban board';
-            console.log(`Created backup for "${fileName}" (page hidden with unsaved changes)`);
+
+            // Only create backup if 5+ minutes have passed since unsaved changes
+            // This uses the BackupManager to check timing and creates a regular backup
+            const webviewPanel = this._getWebviewPanel();
+            if (webviewPanel.backupManager && webviewPanel.backupManager.shouldCreatePageHiddenBackup()) {
+                await webviewPanel.backupManager.createBackup(document, { label: 'backup' });
+                console.log(`Created periodic backup for "${fileName}" (page hidden, 5+ min unsaved)`);
+            } else {
+                console.log(`Skipped backup for "${fileName}" (page hidden, <5 min since unsaved changes)`);
+            }
 
             // Reset the close prompt flag in webview
             this._getWebviewPanel().webview.postMessage({
@@ -580,7 +585,7 @@ export class MessageHandler {
             });
 
         } catch (error) {
-            console.error('Error creating backup on page hidden:', error);
+            console.error('Error handling page hidden backup:', error);
             // Reset flag even if there was an error
             this._getWebviewPanel().webview.postMessage({
                 type: 'resetClosePromptFlag'

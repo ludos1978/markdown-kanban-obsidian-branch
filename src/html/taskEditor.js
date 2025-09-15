@@ -361,26 +361,28 @@ class TaskEditor {
                             columnElement.removeAttribute('data-all-tags');
                         }
 
-                        // Force style recalculation to apply tag styles immediately
+                        // Force style recalculation and update header/footer bars
                         if (allTags.length > 0) {
                             // Gentle style refresh: toggle a temporary class to force re-evaluation
                             columnElement.classList.add('tag-update-trigger');
                             requestAnimationFrame(() => {
                                 columnElement.classList.remove('tag-update-trigger');
+
+                                // Update footer/header bars after DOM updates complete
+                                if (window.injectStackableBars) {
+                                    window.injectStackableBars(columnElement);
+                                }
                             });
+                        } else {
+                            // If no tags, still update header/footer bars to remove any existing ones
+                            if (window.injectStackableBars) {
+                                window.injectStackableBars(columnElement);
+                            }
                         }
 
                         // Update corner badges without re-render
                         if (window.updateCornerBadgesImmediate) {
                             window.updateCornerBadgesImmediate(columnId, 'column', column.title);
-                        }
-
-                        // Update footer/header bars for top/bottom borders with labels
-                        if (window.injectStackableBars) {
-                            const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
-                            if (columnElement) {
-                                window.injectStackableBars(columnElement);
-                            }
                         }
 
                         // Update tag counts in any open menus
@@ -497,13 +499,23 @@ class TaskEditor {
                             taskElement.removeAttribute('data-all-tags');
                         }
 
-                        // Force style recalculation to apply tag styles immediately
+                        // Force style recalculation and update header/footer bars
                         if (allTags.length > 0) {
                             // Gentle style refresh: toggle a temporary class to force re-evaluation
                             taskElement.classList.add('tag-update-trigger');
                             requestAnimationFrame(() => {
                                 taskElement.classList.remove('tag-update-trigger');
+
+                                // Update footer/header bars after DOM updates complete
+                                if (window.injectStackableBars) {
+                                    window.injectStackableBars(taskElement);
+                                }
                             });
+                        } else {
+                            // If no tags, still update header/footer bars to remove any existing ones
+                            if (window.injectStackableBars) {
+                                window.injectStackableBars(taskElement);
+                            }
                         }
 
                         // Update corner badges without re-render (uses title+description combined)
@@ -511,14 +523,6 @@ class TaskEditor {
                             // For tasks, we need to pass a combined text that includes both title and description tags
                             const combinedText = [task.title, task.description].filter(Boolean).join(' ');
                             window.updateCornerBadgesImmediate(taskId, 'task', combinedText);
-                        }
-
-                        // Update footer/header bars for top/bottom borders with labels
-                        if (window.injectStackableBars) {
-                            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
-                            if (taskElement) {
-                                window.injectStackableBars(taskElement);
-                            }
                         }
 
                         // Update tag counts in any open menus

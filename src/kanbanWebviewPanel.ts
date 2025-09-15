@@ -209,9 +209,13 @@ export class KanbanWebviewPanel {
                     this._isUndoRedoOperation = isOperation;
                 },
                 getWebviewPanel: () => this,
-                saveWithBackup: this._saveWithConflictBackup.bind(this),
+                saveWithBackup: this._createUnifiedBackup.bind(this),
                 markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => {
                     this._hasUnsavedChanges = hasChanges;
+                    if (hasChanges) {
+                        // Track when unsaved changes occur for backup timing
+                        this._backupManager.markUnsavedChanges();
+                    }
                     if (cachedBoard) {
                         // CRITICAL: Store the cached board data immediately for saving
                         // This ensures we always have the latest data even if webview is disposed
@@ -523,40 +527,6 @@ export class KanbanWebviewPanel {
         await this.sendBoardUpdate();
     }
 
-    private async createBackupBeforeExternalReload(document: vscode.TextDocument) {
-        if (!this._board || !this._fileManager.getDocument()) return;
-
-        try {
-            // Get current kanban board state and convert to markdown (this preserves unsaved internal changes)
-            const currentBoardMarkdown = MarkdownKanbanParser.generateMarkdown(this._board);
-
-            // Create backup filename with timestamp - use current document path, not external document
-            const currentDocument = this._fileManager.getDocument()!;
-            const originalPath = currentDocument.uri.fsPath;
-            const pathParts = originalPath.split('.');
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '-').split('Z')[0];
-            const backupPath = `${pathParts.slice(0, -1).join('.')}-backup-${timestamp}.${pathParts[pathParts.length - 1]}`;
-
-            // Write backup file with current board state as markdown
-            const backupUri = vscode.Uri.file(backupPath);
-            await vscode.workspace.fs.writeFile(backupUri, Buffer.from(currentBoardMarkdown, 'utf8'));
-            
-            // Show non-blocking success message with option to open backup
-            vscode.window.showInformationMessage(
-                `Internal kanban changes backed up as: ${backupPath.split('/').pop()}`,
-                'Open backup file'
-            ).then((choice) => {
-                if (choice === 'Open backup file') {
-                    vscode.workspace.openTextDocument(backupUri).then(backupDocument => {
-                        vscode.window.showTextDocument(backupDocument);
-                    });
-                }
-            });
-            
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to create backup: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
 
     public async loadMarkdownFile(document: vscode.TextDocument, isFromEditorFocus: boolean = false) {
         if (this._isUpdatingFromPanel) {
@@ -651,7 +621,7 @@ export class KanbanWebviewPanel {
                     return;
                 } else if (choice === saveBackup) {
                     // Save current board state as backup before reloading
-                    await this.createBackupBeforeExternalReload(document);
+                    await this._createUnifiedBackup('conflict');
                     // Save current state to undo history before reloading
                     this._undoRedoManager.saveStateForUndo(this._board);
                     // Update version since we're proceeding with the reload
@@ -1212,34 +1182,65 @@ export class KanbanWebviewPanel {
         }
     }
 
+    public get backupManager(): BackupManager {
+        return this._backupManager;
+    }
 
-
-
-    private async _saveWithConflictBackup(): Promise<void> {
+    private async _createUnifiedBackup(label: string = 'conflict'): Promise<void> {
         const document = this._fileManager.getDocument();
         if (!document) return;
 
         try {
-            // Generate conflict filename
-            const now = new Date();
-            const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '-').slice(0, -5);
-            const originalPath = document.uri.fsPath;
-            const pathParts = originalPath.split('.');
-            const extension = pathParts.pop();
-            const basePath = pathParts.join('.');
-            const conflictPath = `${basePath}-conflict-${timestamp}.${extension}`;
+            if (label === 'conflict' && this._board) {
+                // For conflict backups, save the current board state (before external reload)
+                // This preserves unsaved internal changes
+                const currentBoardMarkdown = MarkdownKanbanParser.generateMarkdown(this._board);
+                const backupPath = await this._createBoardStateBackup(currentBoardMarkdown, label);
 
-            // Send message to webview to save with conflict filename
-            this._panel.webview.postMessage({
-                type: 'saveWithConflictFilename',
-                originalPath: originalPath,
-                conflictPath: conflictPath
-            });
+                // Show notification with backup filename (like the old system did)
+                const backupFileName = path.basename(backupPath);
+                vscode.window.showInformationMessage(
+                    `Internal kanban changes backed up as: ${backupFileName}`,
+                    'Open backup file'
+                ).then((choice) => {
+                    if (choice === 'Open backup file') {
+                        const backupUri = vscode.Uri.file(backupPath);
+                        vscode.workspace.openTextDocument(backupUri).then(backupDocument => {
+                            vscode.window.showTextDocument(backupDocument);
+                        });
+                    }
+                });
+            } else {
+                // For other backup types (page hidden, etc.), use document content
+                await this._backupManager.createBackup(document, {
+                    label: label,
+                    forceCreate: true
+                });
+            }
 
-            vscode.window.showInformationMessage(`Saved with backup filename: ${conflictPath}`);
+            console.log(`Created ${label} backup for "${path.basename(document.fileName)}"`);
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to save with backup filename: ${error}`);
+            console.error(`Error creating ${label} backup:`, error);
         }
+    }
+
+    private async _createBoardStateBackup(boardMarkdown: string, label: string): Promise<string> {
+        const document = this._fileManager.getDocument()!;
+        const originalPath = document.uri.fsPath;
+        const pathParts = originalPath.split('.');
+        const extension = pathParts.pop();
+        const basePath = pathParts.join('.');
+
+        // Use standardized timestamp format: YYYYMMDDTHHmmss
+        const now = new Date();
+        const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+        const backupPath = `${basePath}-${label}-${timestamp}.${extension}`;
+
+        // Write backup file with board state as markdown
+        const backupUri = vscode.Uri.file(backupPath);
+        await vscode.workspace.fs.writeFile(backupUri, Buffer.from(boardMarkdown, 'utf8'));
+
+        return backupPath;
     }
 
     /**
