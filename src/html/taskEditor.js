@@ -361,12 +361,7 @@ class TaskEditor {
                             columnElement.removeAttribute('data-all-tags');
                         }
 
-                        // Ensure tag styles exist without full regeneration
-                        if (window.ensureTagStyleExists) {
-                            allTags.forEach(tag => window.ensureTagStyleExists(tag));
-                        }
-
-                        // Force style recalculation to apply new tag styles immediately
+                        // Force style recalculation to apply tag styles immediately
                         if (allTags.length > 0) {
                             // Gentle style refresh: toggle a temporary class to force re-evaluation
                             columnElement.classList.add('tag-update-trigger');
@@ -378,6 +373,11 @@ class TaskEditor {
                         // Update corner badges without re-render
                         if (window.updateCornerBadgesImmediate) {
                             window.updateCornerBadgesImmediate(columnId, 'column', column.title);
+                        }
+
+                        // Update footer/header bars for top/bottom borders with labels
+                        if (window.injectStackableBars) {
+                            window.injectStackableBars();
                         }
 
                         // Update tag counts in any open menus
@@ -494,12 +494,7 @@ class TaskEditor {
                             taskElement.removeAttribute('data-all-tags');
                         }
 
-                        // Ensure tag styles exist without full regeneration
-                        if (window.ensureTagStyleExists) {
-                            allTags.forEach(tag => window.ensureTagStyleExists(tag));
-                        }
-
-                        // Force style recalculation to apply new tag styles immediately
+                        // Force style recalculation to apply tag styles immediately
                         if (allTags.length > 0) {
                             // Gentle style refresh: toggle a temporary class to force re-evaluation
                             taskElement.classList.add('tag-update-trigger');
@@ -513,6 +508,11 @@ class TaskEditor {
                             // For tasks, we need to pass a combined text that includes both title and description tags
                             const combinedText = [task.title, task.description].filter(Boolean).join(' ');
                             window.updateCornerBadgesImmediate(taskId, 'task', combinedText);
+                        }
+
+                        // Update footer/header bars for top/bottom borders with labels
+                        if (window.injectStackableBars) {
+                            window.injectStackableBars();
                         }
 
                         // Update tag counts in any open menus
