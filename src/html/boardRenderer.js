@@ -2151,8 +2151,30 @@ function injectStackableBars(targetElement = null) {
         const isColumn = element.classList.contains('kanban-full-height-column');
         const isCollapsed = isColumn && element.classList.contains('collapsed');
         
-        // Remove existing bars/containers
-        element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container').forEach(bar => bar.remove());
+        // Remove existing bars/containers - only from appropriate areas
+        if (isColumn) {
+            // For columns: only remove from column-header and column-footer, not from nested task cards
+            const columnHeader = element.querySelector('.column-header');
+            if (columnHeader) {
+                columnHeader.querySelectorAll('.header-bar, .header-bars-container').forEach(el => el.remove());
+            }
+            const columnFooter = element.querySelector('.column-footer');
+            if (columnFooter) {
+                columnFooter.querySelectorAll('.footer-bar, .footer-bars-container').forEach(el => el.remove());
+            }
+            // Also remove any direct children that are visual elements (for collapsed state)
+            Array.from(element.children).forEach(child => {
+                if (child.classList.contains('header-bar') ||
+                    child.classList.contains('footer-bar') ||
+                    child.classList.contains('header-bars-container') ||
+                    child.classList.contains('footer-bars-container')) {
+                    child.remove();
+                }
+            });
+        } else {
+            // For non-column elements (tasks), safe to remove all
+            element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container').forEach(bar => bar.remove());
+        }
         
         // Also remove old classes
         element.classList.remove('has-header-bar', 'has-footer-bar', 'has-header-label', 'has-footer-label');
