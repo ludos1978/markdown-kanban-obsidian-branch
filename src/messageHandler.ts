@@ -3,6 +3,7 @@ import { UndoRedoManager } from './undoRedoManager';
 import { BoardOperations } from './boardOperations';
 import { LinkHandler } from './linkHandler';
 import { KanbanBoard } from './markdownParser';
+import { ExternalFileWatcher } from './externalFileWatcher';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -657,6 +658,10 @@ export class MessageHandler {
                 }
 
                 content = fs.readFileSync(absolutePath, 'utf8');
+
+                // Register the include file with the file watcher
+                const watcher = ExternalFileWatcher.getInstance();
+                watcher.registerFile(absolutePath, 'include', panel);
 
                 // Send the content back to the frontend
                 await panel._panel.webview.postMessage({

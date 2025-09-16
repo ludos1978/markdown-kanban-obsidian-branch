@@ -2867,4 +2867,5 @@ window.submenuGenerator = window.menuManager; // Compatibility alias
 window.manualRefresh = manualRefresh;
 window.updateVisualTagState = updateVisualTagState;
 window.updateAllVisualTagElements = updateAllVisualTagElements;
+window.refreshIncludes = refreshIncludes;
 

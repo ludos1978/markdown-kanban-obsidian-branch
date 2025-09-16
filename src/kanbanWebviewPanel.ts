@@ -1424,13 +1424,21 @@ export class KanbanWebviewPanel {
      * Handle include file changes from the external file watcher
      */
     public async handleIncludeFileChange(filePath: string, changeType: FileChangeType): Promise<void> {
+        // Convert absolute path back to relative path for internal tracking
+        const document = this._fileManager.getDocument();
+        let relativePath = filePath;
+        if (document) {
+            const basePath = path.dirname(document.uri.fsPath);
+            relativePath = path.relative(basePath, filePath);
+        }
+
         if (changeType === 'deleted') {
-            this._changedIncludeFiles.add(filePath);
-            this._includeFileContents.delete(filePath);
+            this._changedIncludeFiles.add(relativePath);
+            this._includeFileContents.delete(relativePath);
             this._includeFilesChanged = true;
             this._sendIncludeFileChangeNotification();
         } else if (changeType === 'modified' || changeType === 'created') {
-            await this._handleIncludeFileChange(filePath);
+            await this._handleIncludeFileChange(relativePath);
         }
     }
 
@@ -1445,18 +1453,26 @@ export class KanbanWebviewPanel {
         }
     }
 
-    private async _handleIncludeFileChange(filePath: string) {
-        const newContent = await this._readFileContent(filePath);
+    private async _handleIncludeFileChange(relativePath: string) {
+        // Convert relative path to absolute for file reading
+        const document = this._fileManager.getDocument();
+        if (!document) {
+            return;
+        }
+        const basePath = path.dirname(document.uri.fsPath);
+        const absolutePath = path.resolve(basePath, relativePath);
+
+        const newContent = await this._readFileContent(absolutePath);
         if (newContent === null) {
             return;
         }
 
-        const oldContent = this._includeFileContents.get(filePath);
+        const oldContent = this._includeFileContents.get(relativePath);
 
         // Only mark as changed if content actually differs
         if (oldContent !== newContent) {
-            this._includeFileContents.set(filePath, newContent);
-            this._changedIncludeFiles.add(filePath);
+            this._includeFileContents.set(relativePath, newContent);
+            this._changedIncludeFiles.add(relativePath);
             this._includeFilesChanged = true;
             this._sendIncludeFileChangeNotification();
         }
@@ -1479,33 +1495,54 @@ export class KanbanWebviewPanel {
         this._includeFilesChanged = false;
         this._changedIncludeFiles.clear();
 
-        // Force re-parse the markdown to get fresh includes
-        const document = this._fileManager.getDocument();
-        if (document) {
-            try {
-                const basePath = path.dirname(document.uri.fsPath);
-                const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
+        // Lightweight refresh: just update include file cache and notify frontend
+        // This preserves any unsaved changes in the webview
+        try {
+            // Re-read all include file contents to get latest versions
+            await this._refreshIncludeFileContents();
 
+            // Send updated include file contents to frontend
+            if (this._panel && this._panel.webview) {
+                for (const [filePath, content] of this._includeFileContents) {
+                    this._panel.webview.postMessage({
+                        type: 'includeFileContent',
+                        filePath: filePath,
+                        content: content
+                    });
+                }
 
-                this._board = parseResult.board;
-                this._includedFiles = parseResult.includedFiles;
-
-                // Register included files with the external file watcher
-                await this._initializeIncludeFileContents();
-                this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
-
-                // Clean up any duplicate row tags
-                this._boardOperations.cleanupRowTags(this._board);
-                this._boardOperations.setOriginalTaskOrder(this._board);
-
-                // Force send the updated board to webview
-                await this.sendBoardUpdate();
-            } catch (error) {
-                console.error('[REFRESH INCLUDES] Error refreshing includes:', error);
+                // Then trigger re-render
+                this._panel.webview.postMessage({
+                    type: 'refreshIncludesOnly',
+                    message: 'Include files refreshed'
+                });
             }
+        } catch (error) {
+            console.error('[REFRESH INCLUDES] Error refreshing includes:', error);
         }
 
         // Send notification to hide the button
         this._sendIncludeFileChangeNotification();
+    }
+
+    /**
+     * Refresh include file contents without affecting the board
+     */
+    private async _refreshIncludeFileContents(): Promise<void> {
+        // Get all include files that have been requested by the frontend
+        const includeFilePaths = Array.from(this._includeFileContents.keys());
+
+        // Re-read each include file
+        for (const relativePath of includeFilePaths) {
+            const document = this._fileManager.getDocument();
+            if (document) {
+                const basePath = path.dirname(document.uri.fsPath);
+                const absolutePath = path.resolve(basePath, relativePath);
+                const content = await this._readFileContent(absolutePath);
+                if (content !== null) {
+                    this._includeFileContents.set(relativePath, content);
+                }
+            }
+        }
     }
 }

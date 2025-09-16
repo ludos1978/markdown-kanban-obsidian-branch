@@ -2103,6 +2103,12 @@ window.addEventListener('message', event => {
                 window.updateIncludeFileCache(message.filePath, message.content);
             }
             break;
+        case 'refreshIncludesOnly':
+            // Lightweight include refresh - just re-render markdown without board changes
+            if (typeof window.renderBoard === 'function') {
+                window.renderBoard();
+            }
+            break;
     }
 });
 
