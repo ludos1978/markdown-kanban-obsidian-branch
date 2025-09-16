@@ -222,7 +222,7 @@ export class KanbanWebviewPanel {
                 getWebviewPanel: () => this,
                 saveWithBackup: this._createUnifiedBackup.bind(this),
                 markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => {
-                    console.log(`[Save Debug] markUnsavedChanges callback - hasChanges: ${hasChanges}, previousHasUnsaved: ${this._hasUnsavedChanges}, hasCachedBoard: ${!!cachedBoard}`);
+                    // console.log(`[Save Debug] markUnsavedChanges callback - hasChanges: ${hasChanges}, previousHasUnsaved: ${this._hasUnsavedChanges}, hasCachedBoard: ${!!cachedBoard}`);
                     this._hasUnsavedChanges = hasChanges;
                     if (hasChanges) {
                         // Track when unsaved changes occur for backup timing
@@ -231,7 +231,7 @@ export class KanbanWebviewPanel {
                     if (cachedBoard) {
                         // CRITICAL: Store the cached board data immediately for saving
                         // This ensures we always have the latest data even if webview is disposed
-                        console.log(`[Save Debug] Updating board from cached data - title: ${cachedBoard.title}, columns: ${cachedBoard.columns?.length}`);
+                        // console.log(`[Save Debug] Updating board from cached data - title: ${cachedBoard.title}, columns: ${cachedBoard.columns?.length}`);
                         this._board = cachedBoard;
                         this._cachedBoardFromWebview = cachedBoard; // Keep a separate reference
                     }

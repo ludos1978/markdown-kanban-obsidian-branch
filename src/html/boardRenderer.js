@@ -629,7 +629,7 @@ function applyFoldingStates() {
  * @returns {Array<string>} Lowercase tag names without #
  */
 function getActiveTagsInTitle(text) {
-    if (!text) {return [];}
+    if (!text || typeof text !== 'string') {return [];}
     // Match all tags - for gather tags, include the full expression until next space
     // Skip row tags and span tags
     const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
@@ -920,9 +920,17 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
             event.stopPropagation();
             event.preventDefault();
             if (type === 'column') {
-                handleColumnTagClick(id, tagName, event);
+                if (typeof handleColumnTagClick === 'function') {
+                    handleColumnTagClick(id, tagName, event);
+                } else if (typeof window.handleColumnTagClick === 'function') {
+                    window.handleColumnTagClick(id, tagName, event);
+                }
             } else {
-                handleTaskTagClick(id, columnId, tagName, event);
+                if (typeof handleTaskTagClick === 'function') {
+                    handleTaskTagClick(id, columnId, tagName, event);
+                } else if (typeof window.handleTaskTagClick === 'function') {
+                    window.handleTaskTagClick(id, columnId, tagName, event);
+                }
             }
             return false;
         };
@@ -1461,8 +1469,8 @@ function createTaskElement(task, columnId, taskIndex) {
         return '';
     }
 
-    const renderedDescription = (task.description && task.description.trim()) ? renderMarkdown(task.description) : '';
-    const renderedTitle = (task.title && task.title.trim()) ? renderMarkdown(task.title) : '';
+    const renderedDescription = (task.description && typeof task.description === 'string' && task.description.trim()) ? renderMarkdown(task.description) : '';
+    const renderedTitle = (task.title && typeof task.title === 'string' && task.title.trim()) ? renderMarkdown(task.title) : '';
     const isCollapsed = window.collapsedTasks.has(task.id);
     
     // Extract ALL tags for stacking features

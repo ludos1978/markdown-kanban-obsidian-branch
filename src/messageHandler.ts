@@ -122,7 +122,7 @@ export class MessageHandler {
                 break;
             case 'markUnsavedChanges':
                 // Track unsaved changes at panel level and update cached board if provided
-                console.log(`[Save Debug] markUnsavedChanges called - hasUnsavedChanges: ${message.hasUnsavedChanges}, hasCachedBoard: ${!!message.cachedBoard}`);
+                // console.log(`[Save Debug] markUnsavedChanges called - hasUnsavedChanges: ${message.hasUnsavedChanges}, hasCachedBoard: ${!!message.cachedBoard}`);
                 this._markUnsavedChanges(message.hasUnsavedChanges, message.cachedBoard);
                 break;
             case 'saveUndoState':
@@ -296,6 +296,25 @@ export class MessageHandler {
                 // DEPRECATED: This is now handled via markUnsavedChanges with cachedBoard
                 // The complete board state is sent, which is more reliable than individual field updates
                 console.log('[DEBUG] updateTaskInBackend call received but ignored - using markUnsavedChanges instead');
+                break;
+
+            case 'saveClipboardImage':
+                await this.handleSaveClipboardImage(
+                    message.imageData,
+                    message.imagePath,
+                    message.mediaFolderPath,
+                    message.dropPosition,
+                    message.imageFileName,
+                    message.mediaFolderName
+                );
+                break;
+
+            case 'saveClipboardImageWithPath':
+                await this.handleSaveClipboardImageWithPath(
+                    message.imageData,
+                    message.imageType,
+                    message.dropPosition
+                );
                 break;
 
             default:
@@ -715,6 +734,166 @@ export class MessageHandler {
 
         } catch (error) {
             console.error('[MESSAGE HANDLER] Error saving runtime tracking report:', error);
+        }
+    }
+
+    private async handleSaveClipboardImage(
+        imageData: string,
+        imagePath: string,
+        mediaFolderPath: string,
+        dropPosition: { x: number; y: number },
+        imageFileName: string,
+        mediaFolderName: string
+    ): Promise<void> {
+        try {
+            console.log('[DEBUG] Saving image with paths:', {
+                mediaFolderPath,
+                imagePath,
+                imageFileName,
+                mediaFolderName
+            });
+
+            // Ensure the media folder exists
+            if (!fs.existsSync(mediaFolderPath)) {
+                fs.mkdirSync(mediaFolderPath, { recursive: true });
+                console.log('[DEBUG] Created media folder:', mediaFolderPath);
+            }
+
+            // Convert base64 to buffer
+            const buffer = Buffer.from(imageData, 'base64');
+
+            // Write the image file
+            fs.writeFileSync(imagePath, buffer);
+            console.log('[DEBUG] Image saved successfully to:', imagePath);
+
+            // Notify the webview that the image was saved successfully
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                const message = {
+                    type: 'clipboardImageSaved',
+                    success: true,
+                    imagePath: imagePath,
+                    relativePath: `./${mediaFolderName}/${imageFileName}`,
+                    dropPosition: dropPosition
+                };
+                console.log('[DEBUG] Sending clipboardImageSaved message to webview:', message);
+                panel._panel.webview.postMessage(message);
+            } else {
+                console.error('[DEBUG] Cannot send clipboardImageSaved message - no webview panel available');
+            }
+
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error saving clipboard image:', error);
+
+            // Notify the webview that there was an error
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                panel._panel.webview.postMessage({
+                    type: 'clipboardImageSaved',
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    dropPosition: dropPosition
+                });
+            }
+        }
+    }
+
+    private async handleSaveClipboardImageWithPath(
+        imageData: string,
+        imageType: string,
+        dropPosition: { x: number; y: number }
+    ): Promise<void> {
+        try {
+            // Get current file path from the file manager
+            const document = this._fileManager.getDocument();
+            const currentFilePath = document?.uri.fsPath;
+            if (!currentFilePath) {
+                console.error('[MESSAGE HANDLER] No current file path available');
+
+                // Notify the webview that there was an error
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'clipboardImageSaved',
+                        success: false,
+                        error: 'No current file path available',
+                        dropPosition: dropPosition
+                    });
+                }
+                return;
+            }
+
+            console.log('[DEBUG] Got current file path:', currentFilePath);
+
+            // Extract base filename without extension
+            const pathParts = currentFilePath.split(/[\/\\]/);
+            const fileName = pathParts.pop() || 'kanban';
+            const baseFileName = fileName.replace(/\.[^/.]+$/, '');
+            const directory = pathParts.join('/'); // Always use forward slash for consistency
+
+            // Generate unique filename for the image
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + 'T' +
+                             new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].split('-')[0];
+            const extension = imageType.split('/')[1] || 'png';
+            const imageFileName = `clipboard-image-${timestamp}.${extension}`;
+
+            // Create the media folder path
+            const mediaFolderName = `${baseFileName}-MEDIA`;
+            const mediaFolderPath = `${directory}/${mediaFolderName}`;
+            const imagePath = `${mediaFolderPath}/${imageFileName}`;
+
+            console.log('[DEBUG] Image paths:', {
+                currentFilePath,
+                baseFileName,
+                mediaFolderName,
+                mediaFolderPath,
+                imagePath,
+                imageFileName
+            });
+
+            // Ensure the media folder exists
+            if (!fs.existsSync(mediaFolderPath)) {
+                fs.mkdirSync(mediaFolderPath, { recursive: true });
+                console.log('[DEBUG] Created media folder:', mediaFolderPath);
+            }
+
+            // Convert base64 to buffer (remove data URL prefix if present)
+            const base64Only = imageData.includes(',') ? imageData.split(',')[1] : imageData;
+            const buffer = Buffer.from(base64Only, 'base64');
+
+            // Write the image file
+            fs.writeFileSync(imagePath, buffer);
+            console.log('[DEBUG] Image saved successfully to:', imagePath);
+
+            // Notify the webview that the image was saved successfully
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                const message = {
+                    type: 'clipboardImageSaved',
+                    success: true,
+                    imagePath: imagePath,
+                    relativePath: `./${mediaFolderName}/${imageFileName}`,
+                    dropPosition: dropPosition
+                };
+                console.log('[DEBUG] Sending clipboardImageSaved message to webview:', message);
+                panel._panel.webview.postMessage(message);
+            } else {
+                console.error('[DEBUG] Cannot send clipboardImageSaved message - no webview panel available');
+            }
+
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error saving clipboard image with path:', error);
+
+            // Notify the webview that there was an error
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                panel._panel.webview.postMessage({
+                    type: 'clipboardImageSaved',
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    dropPosition: dropPosition
+                });
+            }
         }
     }
 }

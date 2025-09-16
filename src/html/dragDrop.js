@@ -215,7 +215,8 @@ function setupGlobalDragAndDrop() {
     
     // Main drop handler function  
     function handleExternalDrop(e) {
-        
+        // Handle external drop event
+
         // Prevent default browser behavior
         e.preventDefault();
         
@@ -246,8 +247,23 @@ function setupGlobalDragAndDrop() {
         }
         
         
-        // Priority 1: Check dragState for clipboard/empty cards (most reliable)
+        // Priority 1: Check for clipboard images via dataTransfer (most reliable for images)
+        const textData = dt.getData('text/plain');
+        console.log('=== DROP HANDLER: textData =', textData ? textData.substring(0, 50) + '...' : 'NULL');
+        if (textData && textData.startsWith('CLIPBOARD_IMAGE:')) {
+            console.log('=== FOUND CLIPBOARD_IMAGE, calling handleClipboardImageDrop ===');
+            const imageData = textData.substring('CLIPBOARD_IMAGE:'.length);
+            handleClipboardImageDrop(e, imageData);
+            if (dragState.draggedClipboardCard) {
+                dragState.draggedClipboardCard = null;
+                dragState.isDragging = false;
+            }
+            return;
+        }
+
+        // Priority 2: Check dragState for text clipboard/empty cards
         if (dragState.draggedClipboardCard) {
+            // Regular clipboard card (text only)
             const clipboardData = JSON.stringify({
                 type: 'clipboard-card',
                 task: dragState.draggedClipboardCard
@@ -276,25 +292,28 @@ function setupGlobalDragAndDrop() {
         }
         
         // Priority 3: Check text data for special formats
-        const textData = dt.getData('text/plain');
+        const textData2 = dt.getData('text/plain');
         
-        if (textData) {
-            if (textData.startsWith('CLIPBOARD_CARD:')) {
-                const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
+        if (textData2) {
+            if (textData2.startsWith('CLIPBOARD_CARD:')) {
+                const clipboardData = textData2.substring('CLIPBOARD_CARD:'.length);
                 handleClipboardCardDrop(e, clipboardData);
-            } else if (textData.startsWith('EMPTY_CARD:')) {
-                const emptyCardData = textData.substring('EMPTY_CARD:'.length);
+            } else if (textData2.startsWith('EMPTY_CARD:')) {
+                const emptyCardData = textData2.substring('EMPTY_CARD:'.length);
                 handleEmptyCardDrop(e, emptyCardData);
-            } else if (textData.startsWith('MULTIPLE_FILES:')) {
-                const filesContent = textData.substring('MULTIPLE_FILES:'.length);
+            } else if (textData2.startsWith('MULTIPLE_FILES:')) {
+                const filesContent = textData2.substring('MULTIPLE_FILES:'.length);
                 handleMultipleFilesDrop(e, filesContent);
-            } else if (textData.includes('/')) {
+            } else if (textData2.startsWith('CLIPBOARD_IMAGE:')) {
+                const imageData = textData2.substring('CLIPBOARD_IMAGE:'.length);
+                handleClipboardImageDrop(e, imageData);
+            } else if (textData2.includes('/')) {
                 // Looks like a file path
-                handleVSCodeUriDrop(e, textData);
+                handleVSCodeUriDrop(e, textData2);
             } else {
                 // Plain text - create a new card
                 createNewTaskWithContent(
-                    textData,
+                    textData2,
                     { x: e.clientX, y: e.clientY },
                     ''
                 );
@@ -449,17 +468,24 @@ function setupGlobalDragAndDrop() {
 
 
 function handleClipboardCardDrop(e, clipboardData) {
-    
+
     try {
         const parsedData = JSON.parse(clipboardData);
-        
+
         // Extract the task data
         const taskData = parsedData.task || parsedData;
-        
+
         const title = taskData.title || taskData.content || parsedData.content || 'New Card';
-        const description = taskData.description || '';
-        
-        
+
+        // Ensure description is always a string, never a blob object
+        let description = taskData.description || '';
+        if (typeof description !== 'string') {
+            description = taskData.content || '';
+            if (typeof description !== 'string') {
+                description = 'Clipboard content';
+            }
+        }
+
         createNewTaskWithContent(
             title,
             { x: e.clientX, y: e.clientY },
@@ -471,7 +497,7 @@ function handleClipboardCardDrop(e, clipboardData) {
         createNewTaskWithContent(
             'Clipboard Content',
             { x: e.clientX, y: e.clientY },
-            clipboardData
+            typeof clipboardData === 'string' ? clipboardData : 'Clipboard content'
         );
     }
 }
@@ -549,6 +575,113 @@ function handleMultipleFilesDrop(e, filesContent) {
             );
         }, index * 10);
     });
+}
+
+function handleClipboardImageDrop(e, imageData) {
+    try {
+        // Parse the image data
+        const parsedData = JSON.parse(imageData);
+        console.log('[DEBUG] Parsed clipboard image data:', parsedData);
+
+        const base64Data = parsedData.data;
+        const imageType = parsedData.imageType || 'image/png';
+
+        if (!base64Data) {
+            console.error('No image data found in parsed data');
+            createNewTaskWithContent(
+                'Clipboard Image',
+                { x: e.clientX, y: e.clientY },
+                'Failed to save image: No image data found'
+            );
+            return;
+        }
+
+        // Extract the base64 part (remove data:image/png;base64, prefix if present)
+        const base64Only = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+        console.log('[DEBUG] Base64 data length:', base64Only.length);
+
+        processImageSave(e, base64Only, imageType);
+
+    } catch (error) {
+        console.error('Failed to handle clipboard image drop:', error);
+        createNewTaskWithContent(
+            'Clipboard Image',
+            { x: e.clientX, y: e.clientY },
+            'Failed to process clipboard image'
+        );
+    }
+}
+
+function processImageSave(e, base64Data, imageType) {
+    try {
+
+        // Get the current markdown file information
+        console.log('=== DEBUG currentFileInfo:', window.currentFileInfo);
+        let currentFilePath = window.currentFileInfo?.filePath;
+        console.log('=== DEBUG currentFilePath:', currentFilePath);
+
+        // Fallback: Request file path from backend if not available
+        if (!currentFilePath) {
+            console.log('=== DEBUG: Requesting file path from backend ===');
+            // Send message to backend to get current file path and save image
+            vscode.postMessage({
+                type: 'saveClipboardImageWithPath',
+                imageData: base64Data,
+                imageType: imageType,
+                dropPosition: { x: e.clientX, y: e.clientY }
+            });
+            return;
+        }
+
+        // Extract base filename without extension
+        const pathParts = currentFilePath.split(/[\/\\]/);
+        const fileName = pathParts.pop() || 'kanban';
+        const baseFileName = fileName.replace(/\.[^/.]+$/, '');
+        const directory = pathParts.join('/'); // Always use forward slash for consistency
+
+        // Generate unique filename for the image
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + 'T' +
+                         new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].split('-')[0];
+        const extension = imageType.split('/')[1] || 'png';
+        const imageFileName = `clipboard-image-${timestamp}.${extension}`;
+
+        // Create the media folder path
+        const mediaFolderName = `${baseFileName}-MEDIA`;
+        const mediaFolderPath = `${directory}/${mediaFolderName}`;
+        const imagePath = `${mediaFolderPath}/${imageFileName}`;
+
+        console.log('[DEBUG] Image paths:', {
+            currentFilePath,
+            baseFileName,
+            mediaFolderName,
+            mediaFolderPath,
+            imagePath,
+            imageFileName
+        });
+
+        // Send message to VS Code to save the image
+        // The task card will be created by the 'clipboardImageSaved' message handler
+        // after the backend confirms the file was saved successfully
+        vscode.postMessage({
+            type: 'saveClipboardImage',
+            imageData: base64Data,
+            imagePath: imagePath,
+            mediaFolderPath: mediaFolderPath,
+            dropPosition: { x: e.clientX, y: e.clientY },
+            imageFileName: imageFileName,
+            mediaFolderName: mediaFolderName
+        });
+
+    } catch (error) {
+        console.error('Failed to process clipboard image save:', error);
+
+        // Fallback: create a text card indicating the error
+        createNewTaskWithContent(
+            'Clipboard Image',
+            { x: e.clientX, y: e.clientY },
+            'Failed to process clipboard image'
+        );
+    }
 }
 
 function handleVSCodeFileDrop(e, files) {
@@ -781,10 +914,11 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     
     if (targetColumnId) {
         // Create new task with cache-first approach (no VS Code message)
+        // Ensure all task fields are strings, not blobs or other objects
         const newTask = {
             id: `temp-drop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            title: content,
-            description: description
+            title: typeof content === 'string' ? content : 'New Task',
+            description: typeof description === 'string' ? description : ''
         };
 
         // Update cached board directly

@@ -228,7 +228,8 @@ window.handleClipboardMouseDown = function(e) {
  * Side effects: Sets drag state, formats clipboard data
  */
 window.handleClipboardDragStart = function(e) {
-    
+    console.log('=== DRAG START: clipboardCardData =', clipboardCardData ? clipboardCardData.isImage ? 'IMAGE' : 'TEXT' : 'NULL');
+
     // Create default data if no clipboard data
     if (!clipboardCardData) {
         clipboardCardData = {
@@ -238,6 +239,33 @@ window.handleClipboardDragStart = function(e) {
         };
     }
     
+    // Handle clipboard images
+    if (clipboardCardData && clipboardCardData.isImage) {
+        console.log('=== USING IMAGE PATH in drag start ===');
+        // For images, we have the base64 data already
+        const imageData = clipboardCardData.content; // This is base64 now
+
+        // Create data transfer with the base64 image data
+        e.dataTransfer.setData('text/plain', `CLIPBOARD_IMAGE:${JSON.stringify({
+            title: clipboardCardData.title,
+            type: 'base64',
+            imageType: clipboardCardData.imageType,
+            data: imageData // Include the actual base64 data
+        })}`);
+
+        e.dataTransfer.effectAllowed = 'copy';
+
+        if (window.dragState) {
+            window.dragState.isDragging = true;
+            // Don't set draggedClipboardCard for images - let dataTransfer handle it
+        }
+
+        e.target.classList.add('dragging');
+        console.log('=== IMAGE PATH COMPLETE - SHOULD NOT CONTINUE ===');
+        return;
+    }
+
+    console.log('=== CONTINUING TO TEXT PATH ===');
     // Handle multiple files by passing pre-formatted links
     if (clipboardCardData && clipboardCardData.multipleFiles) {
         e.dataTransfer.setData('text/plain', `MULTIPLE_FILES:${clipboardCardData.content}`);
@@ -432,16 +460,65 @@ window.handleEmptyCardDragEnd = function(e) {
 
 async function readClipboardContent() {
     try {
+        console.log('=== READING CLIPBOARD ===');
+        // First check for clipboard images
+        const clipboardItems = await navigator.clipboard.read();
+        console.log('=== CLIPBOARD ITEMS:', clipboardItems.length, '===');
+
+        for (const clipboardItem of clipboardItems) {
+            console.log('=== ITEM TYPES:', clipboardItem.types, '===');
+            for (const type of clipboardItem.types) {
+                console.log('=== CHECKING TYPE:', type, '===');
+                if (type.startsWith('image/')) {
+                    console.log('=== FOUND IMAGE TYPE, getting blob ===');
+                    const blob = await clipboardItem.getType(type);
+
+                    // Convert blob to base64 immediately to avoid blob being discarded
+                    const reader = new FileReader();
+                    const base64Promise = new Promise((resolve) => {
+                        reader.onloadend = () => {
+                            const base64String = reader.result;
+                            resolve(base64String);
+                        };
+                        reader.readAsDataURL(blob);
+                    });
+
+                    const base64Data = await base64Promise;
+                    console.log('=== RETURNING IMAGE DATA ===');
+
+                    return {
+                        title: 'Clipboard Image',
+                        content: base64Data, // Store base64 instead of blob
+                        isLink: false,
+                        isImage: true,
+                        imageType: type,
+                        isBase64: true
+                    };
+                }
+            }
+        }
+
+        // If no images, check for text
+        console.log('=== NO IMAGES FOUND, CHECKING TEXT ===');
         const text = await navigator.clipboard.readText();
-        
+        console.log('=== FOUND TEXT, length:', text ? text.length : 0, '===');
+
         if (!text || text.trim() === '') {
             return null;
         }
-        
+
         return await processClipboardText(text.trim());
     } catch (error) {
-        // Don't return error object, just null
-        return null;
+        // Fallback to text-only clipboard reading
+        try {
+            const text = await navigator.clipboard.readText();
+            if (!text || text.trim() === '') {
+                return null;
+            }
+            return await processClipboardText(text.trim());
+        } catch {
+            return null;
+        }
     }
 }
 
@@ -628,7 +705,10 @@ async function fetchUrlTitle(url) {
 }
 
 async function updateClipboardCardSource() {
+    console.log('=== CLIPBOARD UPDATE START ===');
+    // Update clipboard content
     clipboardCardData = await readClipboardContent();
+    console.log('=== CLIPBOARD DATA:', clipboardCardData ? 'FOUND' : 'NULL', '===');
     const clipboardSource = document.getElementById('clipboard-card-source');
     
     if (clipboardSource) {
@@ -648,7 +728,10 @@ async function updateClipboardCardSource() {
             const preview = escapeHtml(rawPreview);
             
             // Update visual indicator based on content type
-            if (clipboardCardData.isLink) {
+            if (clipboardCardData.isImage) {
+                iconSpan.textContent = '🖼️';
+                textSpan.textContent = 'Image';
+            } else if (clipboardCardData.isLink) {
                 // Check if it's an image file or URL
                 if (clipboardCardData.content.startsWith('![')) {
                     iconSpan.textContent = '🖼️';
@@ -679,6 +762,13 @@ function initializeClipboardCardSource() {
     }
     
     clipboardSource.addEventListener('dragstart', (e) => {
+        // Check if this is an image - if so, don't override the image handling
+        if (clipboardCardData && clipboardCardData.isImage) {
+            console.log('=== CONFLICTING HANDLER: Skipping for image ===');
+            return; // Let the main handler deal with images
+        }
+
+        console.log('=== CONFLICTING HANDLER: Processing as text ===');
         // For testing - create dummy data if no clipboard data
         if (!clipboardCardData) {
             clipboardCardData = {
@@ -687,7 +777,7 @@ function initializeClipboardCardSource() {
                 isLink: false
             };
         }
-        
+
         // Create a temporary task object for the drag operation
         const tempTask = {
             id: 'temp-clipboard-' + Date.now(),
@@ -695,14 +785,14 @@ function initializeClipboardCardSource() {
             description: clipboardCardData.content,
             isFromClipboard: true
         };
-        
-        
+
+
         // Store in drag data
         const dragData = JSON.stringify({
             type: 'clipboard-card',
             task: tempTask
         });
-        
+
         // Use text/plain with a special prefix for clipboard cards
         // Custom MIME types don't work reliably across browsers
         e.dataTransfer.setData('text/plain', `CLIPBOARD_CARD:${dragData}`);
@@ -1625,25 +1715,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
             // Wait a bit for the clipboard to be updated
             setTimeout(async () => {
-                try {
-                    const text = await navigator.clipboard.readText();
-                    if (text && text.trim()) {
-                        clipboardCardData = {
-                            title: text.trim().substring(0, 50),
-                            content: text.trim(),
-                            isLink: false
-                        };
-                        updateClipboardCardSource();
-                    }
-                } catch (error) {
-                    // Try fallback - set dummy content to test the UI
-                    clipboardCardData = {
-                        title: 'Test Content',
-                        content: 'This is test clipboard content from Ctrl+C',
-                        isLink: false
-                    };
-                    updateClipboardCardSource();
-                }
+                // Use the main clipboard reader to preserve image detection
+                await updateClipboardCardSource();
             }, 200);
         }
     });
@@ -1654,48 +1727,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000); // Delay to ensure everything is initialized
     
     // Add a simple test to verify clipboard functionality is working
-    setTimeout(() => {
-        const clipboardSource = document.getElementById('clipboard-card-source');
-        if (clipboardSource) {
-            // Force update with test data
-            clipboardCardData = {
-                title: 'Test Update',
-                content: 'Testing clipboard update functionality',
-                isLink: false
-            };
-            // Update UI without trying to read clipboard again
-            const iconSpan = clipboardSource.querySelector('.clipboard-icon');
-            const textSpan = clipboardSource.querySelector('.clipboard-text');
+    // setTimeout(() => {
+    //     const clipboardSource = document.getElementById('clipboard-card-source');
+    //     if (clipboardSource) {
+    //         // Force update with test data
+    //         clipboardCardData = {
+    //             title: 'Test Update',
+    //             content: 'Testing clipboard update functionality',
+    //             isLink: false
+    //         };
+    //         // Update UI without trying to read clipboard again
+    //         const iconSpan = clipboardSource.querySelector('.clipboard-icon');
+    //         const textSpan = clipboardSource.querySelector('.clipboard-text');
             
-            if (iconSpan && textSpan) {
-                const rawPreview = clipboardCardData.content.length > 15 
-                    ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
-                    : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
+    //         if (iconSpan && textSpan) {
+    //             const rawPreview = clipboardCardData.content.length > 15 
+    //                 ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
+    //                 : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
                 
-                // Escape preview content to prevent HTML rendering
-                const preview = escapeHtml(rawPreview);
+    //             // Escape preview content to prevent HTML rendering
+    //             const preview = escapeHtml(rawPreview);
                 
-                iconSpan.textContent = '📋';
-                textSpan.textContent = preview;
-                clipboardSource.style.opacity = '1';
-                clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
-            }
-        } else {
-        }
-    }, 2000);
+    //             iconSpan.textContent = '📋';
+    //             textSpan.textContent = preview;
+    //             clipboardSource.style.opacity = '1';
+    //             clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
+    //         }
+    //     } else {
+    //     }
+    // }, 2000);
     
     // Add click handler to read clipboard (user interaction required for clipboard API)
     const clipboardSource = document.getElementById('clipboard-card-source');
     if (clipboardSource) {
         clipboardSource.addEventListener('click', async () => {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (text && text.trim()) {
-                    clipboardCardData = await processClipboardText(text.trim());
-                    await updateClipboardCardSource();
-                }
-            } catch (error) {
-            }
+            // Use the main clipboard reader to preserve image detection
+            await updateClipboardCardSource();
         });
     }
  
@@ -2171,6 +2238,30 @@ window.addEventListener('message', event => {
             // Lightweight include refresh - just re-render markdown without board changes
             if (typeof window.renderBoard === 'function') {
                 window.renderBoard();
+            }
+            break;
+        case 'clipboardImageSaved':
+            // Handle clipboard image save response from backend
+            console.log('[DEBUG] Received clipboardImageSaved message:', message);
+            if (message.success) {
+                // Create a new task with the image filename as title and markdown link as description
+                const imageFileName = message.relativePath.split('/').pop().replace(/\.[^/.]+$/, ''); // Remove extension
+                const markdownLink = `![](${message.relativePath})`;
+
+                console.log('[DEBUG] Creating task with title:', imageFileName, 'and markdown:', markdownLink);
+                createNewTaskWithContent(
+                    imageFileName,
+                    message.dropPosition,
+                    markdownLink
+                );
+            } else {
+                // Create error task if save failed
+                console.log('[DEBUG] Image save failed, creating error task');
+                createNewTaskWithContent(
+                    'Clipboard Image (Error)',
+                    message.dropPosition,
+                    `Failed to save image: ${message.error || 'Unknown error'}`
+                );
             }
             break;
     }

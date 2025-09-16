@@ -4,10 +4,10 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] if there is an image in the clipboard, and the user drags it into the kanban board. can you create the image within an subfolder named "basefilename-MEDIA" and include in the board with this new file?
-- [ ] if there are multiple filenames/paths in the clipboard, can you make links out of all them automatically, there is already a conversion based on filetype happening, but only for single file-path-names. assume newlines to be eigher \r, \r\n or \n (all types). consider windows, linux and osx paths as paths to convert to link style (also consider c:\... paths, make sure to escape filepaths in %escape / url escaping if they have invalid characters in them such as brackets, curly, etc...)
+- [ ] if there is an image in the clipboard, and the user drags the clipboard-new-card it into the kanban board. can you create the image from the clipboard within an subfolder named "{basefilename}-MEDIA" and include in the board with this new filepath?
+- [x] if there are multiple filenames/paths in the clipboard, can you make links out of all them automatically, there is already a conversion based on filetype happening, but only for single file-path-names. assume newlines to be eigher \r, \r\n or \n (all types). consider windows, linux and osx paths as paths to convert to link style (also consider c:\... paths, make sure to escape filepaths in %escape / url escaping if they have invalid characters in them such as brackets, curly, etc...)
   it's not required to resolve the paths. also in here it tries to make a absolute path by adding the local path to an already absolute path. can you verify on what os we are on and depending on that do different path handling.
-- [ ] when opening a new kanban the clipboard is correctly initialized, but shortly after it gets overwritten by "Testing clipboard ..."
+- [ ] when opening a new kanban the clipboard is correctly initialized, but shortly after the kanban board is loaded it gets overwritten by "Test Update"/"Testing clipboard update functionality". dont overwrite the 
 - [ ] saving during editing a markdown content does not work correctly. it should already be implemented, but doesnt seem to work. if it's too complicated to do while staying in edit mode, it's acceptable to end editing and then save. make sure you handle the end-edit functions.
 
 
