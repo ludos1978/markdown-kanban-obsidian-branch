@@ -216,9 +216,6 @@ function setupGlobalDragAndDrop() {
     // Main drop handler function  
     function handleExternalDrop(e) {
         // Handle external drop event
-        console.log('=== EXTERNAL DROP HANDLER CALLED ===');
-        console.log('=== DROP EVENT TARGET:', e.target);
-        console.log('=== DRAG STATE:', dragState);
 
         // Prevent default browser behavior
         e.preventDefault();
@@ -252,11 +249,7 @@ function setupGlobalDragAndDrop() {
         
         // Priority 1: Check for clipboard images via dataTransfer (most reliable for images)
         const textData = dt.getData('text/plain');
-        console.log('=== DROP HANDLER: textData =', textData ? textData.substring(0, 50) + '...' : 'NULL');
-        console.log('=== DROP HANDLER: Available dataTransfer types =', Array.from(dt.types));
-        console.log('=== DROP HANDLER: CLIPBOARD_IMAGE check =', textData ? textData.startsWith('CLIPBOARD_IMAGE:') : 'no textData');
         if (textData && textData.startsWith('CLIPBOARD_IMAGE:')) {
-            console.log('=== FOUND CLIPBOARD_IMAGE, calling handleClipboardImageDrop ===');
             const imageData = textData.substring('CLIPBOARD_IMAGE:'.length);
             handleClipboardImageDrop(e, imageData);
             if (dragState.draggedClipboardCard) {

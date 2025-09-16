@@ -232,11 +232,8 @@ let clipboardCardData = null;
  * @param {MouseEvent} e - Mouse event
  */
 window.handleClipboardMouseDown = async function(e) {
-    console.log('=== MOUSE DOWN: Refreshing clipboard data for drag ===');
-
     // Refresh clipboard data immediately when user starts interacting
     clipboardCardData = await readClipboardContent();
-    console.log('=== REFRESHED CLIPBOARD DATA:', clipboardCardData ? clipboardCardData.isImage ? 'IMAGE' : 'TEXT' : 'NULL');
 
     // Update the visual indicator immediately after refresh
     const clipboardSource = document.getElementById('clipboard-card-source');
@@ -258,8 +255,6 @@ window.handleClipboardMouseDown = async function(e) {
  * Side effects: Sets drag state, formats clipboard data
  */
 window.handleClipboardDragStart = function(e) {
-    console.log('=== DRAG START: Using cached clipboard data ===');
-    console.log('=== CLIPBOARD DATA:', clipboardCardData ? clipboardCardData.isImage ? 'IMAGE' : 'TEXT' : 'NULL');
 
     // Create default data if no clipboard data
     if (!clipboardCardData) {
@@ -272,7 +267,6 @@ window.handleClipboardDragStart = function(e) {
     
     // Handle clipboard images
     if (clipboardCardData && clipboardCardData.isImage) {
-        console.log('=== USING IMAGE PATH in drag start ===');
         // For images, we have the base64 data already
         const imageData = clipboardCardData.content; // This is base64 now
 
@@ -293,11 +287,8 @@ window.handleClipboardDragStart = function(e) {
         }
 
         e.target.classList.add('dragging');
-        console.log('=== IMAGE PATH COMPLETE - SHOULD NOT CONTINUE ===');
         return;
     }
-
-    console.log('=== CONTINUING TO TEXT PATH ===');
     // Handle multiple files by passing pre-formatted links
     if (clipboardCardData && clipboardCardData.multipleFiles) {
         e.dataTransfer.setData('text/plain', `MULTIPLE_FILES:${clipboardCardData.content}`);
@@ -514,17 +505,7 @@ window.handleEmptyCardDragEnd = function(e) {
 };
 
 async function readClipboardContent() {
-    const startTime = performance.now();
     try {
-        console.log('=== READING CLIPBOARD ===');
-        console.log('📝 Environment info:', {
-            userAgent: navigator.userAgent.substring(0, 100) + '...',
-            isSecureContext: window.isSecureContext,
-            protocol: window.location.protocol,
-            permissions: !!navigator.permissions,
-            clipboard: !!navigator.clipboard
-        });
-
         // Check clipboard permissions first
         if (!navigator.clipboard) {
             console.error('❌ Clipboard API not available');
@@ -534,7 +515,6 @@ async function readClipboardContent() {
         // Check if we have clipboard permissions
         try {
             const permission = await navigator.permissions.query({ name: 'clipboard-read' });
-            console.log('📋 Clipboard permission state:', permission.state);
             if (permission.state === 'denied') {
                 console.warn('⚠️ Clipboard read permission denied');
                 return null;
@@ -547,14 +527,12 @@ async function readClipboardContent() {
         let clipboardItems;
         try {
             clipboardItems = await navigator.clipboard.read();
-            console.log('✅ Successfully read clipboard items:', clipboardItems.length);
         } catch (error) {
             console.error('❌ Failed to read clipboard items:', error.message);
             // Fall back to text reading
             try {
                 const text = await navigator.clipboard.readText();
                 if (text && text.trim()) {
-                    console.log('✅ Fallback: Successfully read clipboard text, length:', text.length);
                     return await processClipboardText(text.trim());
                 }
             } catch (textError) {
@@ -564,18 +542,11 @@ async function readClipboardContent() {
         }
 
         for (const clipboardItem of clipboardItems) {
-            console.log('=== ITEM TYPES:', clipboardItem.types, '===');
-
             for (const type of clipboardItem.types) {
-                console.log('=== CHECKING TYPE:', type, '===');
-
                 if (type.startsWith('image/')) {
-                    console.log('✅ FOUND IMAGE TYPE, getting blob ===');
-
                     let blob;
                     try {
                         blob = await clipboardItem.getType(type);
-                        console.log('✅ Successfully got blob, size:', blob.size);
                     } catch (error) {
                         console.error('❌ Failed to get blob for type', type, ':', error.message);
                         continue;
@@ -591,7 +562,6 @@ async function readClipboardContent() {
                         });
 
                         const base64Data = await base64Promise;
-                        console.log('✅ Successfully converted to base64, length:', base64Data.length);
 
                         // Generate MD5 hash from blob data for consistent filename
                         const arrayBufferReader = new FileReader();
@@ -603,10 +573,6 @@ async function readClipboardContent() {
 
                         const arrayBuffer = await arrayBufferPromise;
                         const md5Hash = await generateMD5Hash(arrayBuffer);
-                        console.log('✅ Generated MD5 hash:', md5Hash);
-
-                        const endTime = performance.now();
-                        console.log(`⏱️ Clipboard read completed in ${(endTime - startTime).toFixed(2)}ms (image found)`);
 
                         return {
                             title: 'Clipboard Image',
@@ -626,40 +592,26 @@ async function readClipboardContent() {
         }
 
         // If no images, check for text
-        console.log('=== NO IMAGES FOUND, CHECKING TEXT ===');
         try {
             const text = await navigator.clipboard.readText();
-            console.log('✅ Successfully read text, length:', text ? text.length : 0);
 
             if (!text || text.trim() === '') {
-                console.log('⚠️ Clipboard text is empty');
-                const endTime = performance.now();
-                console.log(`⏱️ Clipboard read completed in ${(endTime - startTime).toFixed(2)}ms (empty result)`);
                 return null;
             }
 
-            const result = await processClipboardText(text.trim());
-            const endTime = performance.now();
-            console.log(`⏱️ Clipboard read completed in ${(endTime - startTime).toFixed(2)}ms (text found)`);
-            return result;
+            return await processClipboardText(text.trim());
         } catch (error) {
             console.error('❌ Failed to read clipboard text:', error.message);
-            const endTime = performance.now();
-            console.log(`⏱️ Clipboard read completed in ${(endTime - startTime).toFixed(2)}ms (error)`);
             return null;
         }
 
     } catch (error) {
         console.error('❌ Unexpected error in readClipboardContent:', error.message);
-        const endTime = performance.now();
-        console.log(`⏱️ Clipboard read failed in ${(endTime - startTime).toFixed(2)}ms (unexpected error)`);
 
         // Last resort fallback to text-only clipboard reading
         try {
-            console.log('🔄 Attempting last resort text reading...');
             const text = await navigator.clipboard.readText();
             if (text && text.trim()) {
-                console.log('✅ Last resort: Successfully read text, length:', text.length);
                 return await processClipboardText(text.trim());
             }
         } catch (fallbackError) {
@@ -853,10 +805,8 @@ async function fetchUrlTitle(url) {
 }
 
 async function updateClipboardCardSource() {
-    console.log('=== CLIPBOARD UPDATE START ===');
     // Update clipboard content
     clipboardCardData = await readClipboardContent();
-    console.log('=== CLIPBOARD DATA:', clipboardCardData ? 'FOUND' : 'NULL', '===');
     const clipboardSource = document.getElementById('clipboard-card-source');
     
     if (clipboardSource) {
