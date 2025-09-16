@@ -238,20 +238,34 @@ window.handleClipboardDragStart = function(e) {
         };
     }
     
-    // Create task data
+    // Handle multiple files by passing pre-formatted links
+    if (clipboardCardData && clipboardCardData.multipleFiles) {
+        e.dataTransfer.setData('text/plain', `MULTIPLE_FILES:${clipboardCardData.content}`);
+        e.dataTransfer.effectAllowed = 'copy';
+
+        // Set drag state but don't set clipboard card
+        if (window.dragState) {
+            window.dragState.isDragging = true;
+        }
+
+        e.target.classList.add('dragging');
+        return;
+    }
+
+    // Create task data for single content
     const tempTask = {
         id: 'temp-clipboard-' + Date.now(),
         title: clipboardCardData.title,
         description: clipboardCardData.content,
         isFromClipboard: true
     };
-    
+
     // Set drag state
     if (window.dragState) {
         window.dragState.isDragging = true;
         window.dragState.draggedClipboardCard = tempTask;
     }
-    
+
     // Set drag data
     const dragData = JSON.stringify({
         type: 'clipboard-card',
@@ -431,7 +445,87 @@ async function readClipboardContent() {
     }
 }
 
+// Helper functions for file path processing
+function isFilePath(text) {
+    // Don't try to validate or resolve paths - just check if it looks like a filename/path
+
+    // Has file extension
+    if (!/\.[a-zA-Z0-9]{1,10}$/.test(text)) return false;
+
+    // Basic checks to avoid false positives
+    if (text.includes('://')) return false; // URLs
+    if (text.startsWith('mailto:')) return false; // Email links
+    if (text.includes('@') && !text.includes('/') && !text.includes('\\')) return false; // Email addresses
+
+    return true;
+}
+
+function escapeFilePath(filePath) {
+    // Don't resolve or modify paths - just escape special characters that break markdown
+    // Only escape characters that actually break markdown syntax, not the whole path
+    return filePath
+        .replace(/\(/g, '\\(')
+        .replace(/\)/g, '\\)')
+        .replace(/\[/g, '\\[')
+        .replace(/\]/g, '\\]')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"');
+}
+
+function createFileMarkdownLink(filePath) {
+    const fileName = filePath.split(/[\/\\]/).pop() || filePath;
+    const extension = fileName.toLowerCase().split('.').pop();
+
+    // Image file extensions
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif'];
+    // Markdown file extensions
+    const markdownExtensions = ['md', 'markdown', 'mdown', 'mkd', 'mdx'];
+
+    // Use original path without modification - let the system handle path resolution
+    const safePath = escapeFilePath(filePath);
+
+    if (imageExtensions.includes(extension)) {
+        // Image: ![](path) - use original path
+        return `![](${safePath})`;
+    } else if (markdownExtensions.includes(extension)) {
+        // Markdown: [[filename]] - for relative paths use just filename, for absolute paths use full path
+        if (filePath.includes('/') || filePath.includes('\\')) {
+            return `[[${safePath}]]`;
+        } else {
+            return `[[${fileName}]]`;
+        }
+    } else if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        // URL: <url>
+        return `<${filePath}>`;
+    } else {
+        // Other files: [filename](path)
+        const baseName = fileName.replace(/\.[^/.]+$/, "");
+        return `[${baseName}](${safePath})`;
+    }
+}
+
 async function processClipboardText(text) {
+    // Handle multiple lines - check for multiple file paths first
+    const lines = text.split(/\r\n|\r|\n/).map(line => line.trim()).filter(line => line.length > 0);
+
+    if (lines.length > 1) {
+        const filePaths = lines.filter(line => isFilePath(line));
+
+        if (filePaths.length > 1) {
+            // Multiple file paths - create links for each
+            const links = filePaths.map(filePath => createFileMarkdownLink(filePath));
+            const content = links.join('\n');
+
+            return {
+                title: `${filePaths.length} Files`,
+                content: content,
+                isLink: true,
+                multipleFiles: true
+            };
+        }
+    }
+
+    // Single line processing
     // Check if it's a URL
     const urlRegex = /^https?:\/\/[^\s]+$/;
     if (urlRegex.test(text)) {
@@ -452,48 +546,18 @@ async function processClipboardText(text) {
             };
         }
     }
-    
-    // Check if it's a filename (contains file extension)
-    const fileRegex = /^[^\/\\\n]*\.[a-zA-Z0-9]{1,10}$/;
-    if (fileRegex.test(text.trim())) {
-        const fileName = text.trim();
-        const isImage = isImageFile(fileName);
-        
-        if (isImage) {
-            return {
-                title: fileName,
-                content: `![${fileName}](${fileName})`,
-                isLink: true
-            };
-        } else {
-            return {
-                title: fileName,
-                content: `[${fileName}](${fileName})`,
-                isLink: true
-            };
-        }
-    }
-    
-    // Check if it's a file path (contains path separators and file extension)
-    const filePathRegex = /^[^<>:"|?*\n]*[\/\\][^\/\\\n]*\.[a-zA-Z0-9]{1,10}$/;
-    if (filePathRegex.test(text.trim())) {
+
+    // Check if it's a single file path
+    if (isFilePath(text.trim())) {
         const filePath = text.trim();
         const fileName = filePath.split(/[\/\\]/).pop();
-        const isImage = isImageFile(fileName);
-        
-        if (isImage) {
-            return {
-                title: fileName,
-                content: `![${fileName}](${filePath})`,
-                isLink: true
-            };
-        } else {
-            return {
-                title: fileName,
-                content: `[${fileName}](${filePath})`,
-                isLink: true
-            };
-        }
+        const content = createFileMarkdownLink(filePath);
+
+        return {
+            title: fileName,
+            content: content,
+            isLink: true
+        };
     }
     
     // Check if it contains a URL within text
@@ -511,8 +575,8 @@ async function processClipboardText(text) {
     }
     
     // Regular text content
-    const lines = text.split('\n');
-    const title = lines[0].length > 50 ? lines[0].substring(0, 50) + '...' : lines[0];
+    const textLines = text.split('\n');
+    const title = textLines[0].length > 50 ? textLines[0].substring(0, 50) + '...' : textLines[0];
     
     return {
         title: title || 'Clipboard Content',

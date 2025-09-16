@@ -2426,8 +2426,9 @@ function removeAllTags(id, type, columnId = null) {
 
 window.removeAllTags = removeAllTags;
 
-window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
-window.getAllFooterBarsHtml = getAllFooterBarsHtml;
+// TODO: These functions are not defined - commenting out to prevent errors
+// window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
+// window.getAllFooterBarsHtml = getAllFooterBarsHtml;
 window.injectStackableBars = injectStackableBars;
 window.isDarkTheme = isDarkTheme;
 

@@ -285,6 +285,9 @@ function setupGlobalDragAndDrop() {
             } else if (textData.startsWith('EMPTY_CARD:')) {
                 const emptyCardData = textData.substring('EMPTY_CARD:'.length);
                 handleEmptyCardDrop(e, emptyCardData);
+            } else if (textData.startsWith('MULTIPLE_FILES:')) {
+                const filesContent = textData.substring('MULTIPLE_FILES:'.length);
+                handleMultipleFilesDrop(e, filesContent);
             } else if (textData.includes('/')) {
                 // Looks like a file path
                 handleVSCodeUriDrop(e, textData);
@@ -474,12 +477,12 @@ function handleClipboardCardDrop(e, clipboardData) {
 }
 
 function handleEmptyCardDrop(e, emptyCardData) {
-    
+
     try {
         const parsedData = JSON.parse(emptyCardData);
-        
+
         // Create empty task
-        
+
         createNewTaskWithContent(
             '',
             { x: e.clientX, y: e.clientY },
@@ -494,6 +497,58 @@ function handleEmptyCardDrop(e, emptyCardData) {
             ''
         );
     }
+}
+
+function handleMultipleFilesDrop(e, filesContent) {
+    // Split the pre-formatted markdown links by lines
+    const links = filesContent.split(/\r\n|\r|\n/).filter(line => line.trim().length > 0);
+
+    links.forEach((link, index) => {
+        // Extract title from the markdown link format
+        let title = 'File';
+
+        // Try to extract filename from different link formats
+        if (link.startsWith('![](')) {
+            // Image: ![](path) - extract filename from path
+            const pathMatch = link.match(/!\[\]\(([^)]+)\)/);
+            if (pathMatch) {
+                const path = decodeURIComponent(pathMatch[1]);
+                title = path.split(/[\/\\]/).pop() || 'Image';
+            }
+        } else if (link.startsWith('[[')) {
+            // Wiki link: [[filename]] - extract filename
+            const fileMatch = link.match(/\[\[([^\]]+)\]\]/);
+            if (fileMatch) {
+                title = fileMatch[1];
+            }
+        } else if (link.startsWith('[') && link.includes('](')) {
+            // Standard link: [title](path) - extract title
+            const titleMatch = link.match(/\[([^\]]+)\]/);
+            if (titleMatch) {
+                title = titleMatch[1];
+            }
+        } else if (link.startsWith('<') && link.endsWith('>')) {
+            // URL: <url> - extract domain
+            const urlMatch = link.match(/<([^>]+)>/);
+            if (urlMatch) {
+                try {
+                    const url = new URL(urlMatch[1]);
+                    title = url.hostname.replace('www.', '');
+                } catch {
+                    title = 'URL';
+                }
+            }
+        }
+
+        // Stagger creation slightly if multiple files
+        setTimeout(() => {
+            createNewTaskWithContent(
+                title,
+                { x: e.clientX, y: e.clientY },
+                link
+            );
+        }, index * 10);
+    });
 }
 
 function handleVSCodeFileDrop(e, files) {
