@@ -164,31 +164,48 @@ export class BackupManager {
         try {
             const config = vscode.workspace.getConfiguration('markdown-kanban');
             const maxBackups = config.get<number>('maxBackupsPerFile', 10);
-            
+            const backupLocation = config.get<string>('backupLocation', 'same-folder');
+
             const originalPath = document.uri.fsPath;
-            const dir = path.dirname(originalPath);
             const basename = path.basename(originalPath, '.md');
-            
+
+            // Determine backup directory (same logic as generateBackupPath)
+            let backupDir = path.dirname(originalPath);
+            if (backupLocation === 'workspace-folder') {
+                const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+                if (workspaceFolder) {
+                    backupDir = path.join(workspaceFolder.uri.fsPath, '.kanban-backups');
+                }
+            }
+
+            // Check if backup directory exists
+            if (!fs.existsSync(backupDir)) {
+                return;
+            }
+
             // Find all backup files for this document
-            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-backup-\\d{8}-\\d{4}\\.md$`);
-            
-            const files = fs.readdirSync(dir);
+            // Pattern matches: .basename-backup-YYYYMMDDTHHmmss.md
+            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-backup-\\d{8}T\\d{6}\\.md$`);
+
+            const files = fs.readdirSync(backupDir);
             const backupFiles = files
                 .filter(file => backupPattern.test(file))
                 .map(file => ({
                     name: file,
-                    path: path.join(dir, file),
-                    stats: fs.statSync(path.join(dir, file))
+                    path: path.join(backupDir, file),
+                    stats: fs.statSync(path.join(backupDir, file))
                 }))
                 .sort((a, b) => b.stats.mtime.getTime() - a.stats.mtime.getTime()); // Sort by modification time, newest first
-            
+
             // Delete old backups if we exceed the maximum
             if (backupFiles.length > maxBackups) {
                 const filesToDelete = backupFiles.slice(maxBackups);
-                
+                console.log(`Cleaning up ${filesToDelete.length} old backups (keeping ${maxBackups} newest)`);
+
                 for (const file of filesToDelete) {
                     try {
                         fs.unlinkSync(file.path);
+                        console.log(`Deleted old backup: ${file.name}`);
                     } catch (error) {
                         console.error(`Failed to delete backup ${file.name}:`, error);
                     }

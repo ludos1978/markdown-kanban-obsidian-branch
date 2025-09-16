@@ -4,7 +4,11 @@ kanban-plugin: board
 
 ## Open Bugs
 
-if i modify the kanban by dragging the card, it should send and update the change into the backend cache. if the source markdown of the kanban file is then saved (unmodified), then the backend should see a difference the backend cache and the markdown source, this should be handled as if there is an external change (because internal the file has changed). but right now the kanban gets reset to the state from the external file, the card i moved is put back into it's original position. why does this happen, find the source of the problem first by tracing the path the events&functions are called BEFORE DOING ANY CHANGE!!!
+- [ ] if there is an image in the clipboard, and the user drags it into the kanban board. can you create the image within an subfolder named "basefilename-MEDIA" and include in the board with this new file?
+- [ ] if there are multiple filenames/paths in the clipboard can you make links out of all them automatically, there is already a conversion based on filetype happening, but only for single file-path-names. currently it's making all paths into one link which is broken. 
+- [ ] when opening a new kanban the clipboard is correctly initialized, but shortly after it gets overwritten by "Testing clipboard ..."
+- [ ] saving during editing a markdown content does not work correctly. it should already be implemented, but doesnt seem to work. if it's too complicated to do while staying in edit mode, it's acceptable to end editing and then save. make sure you handle the end-edit functions.
+
 
 ## File Watcher Consolidation ✅
 
