@@ -576,13 +576,14 @@ export class KanbanWebviewPanel {
         if (!isInitialLoad && !isDifferentDocument && !forceReload) {
             // 🚫 NEVER auto-reload: Preserve existing board state
 
-            // But notify user if external changes detected
+            // But notify user if external changes detected (but NOT on editor focus)
             const hasExternalChanges = this._lastDocumentVersion !== -1 &&
                                      this._lastDocumentVersion < document.version &&
                                      !this._isUndoRedoOperation &&
-                                     !this._isUpdatingFromPanel;
+                                     !this._isUpdatingFromPanel &&
+                                     !isFromEditorFocus; // Don't show dialog on editor focus
 
-            console.log(`[External Change Check] lastVersion: ${this._lastDocumentVersion}, currentVersion: ${document.version}, isUndoRedo: ${this._isUndoRedoOperation}, isUpdating: ${this._isUpdatingFromPanel}, hasChanges: ${hasExternalChanges}`);
+            console.log(`[External Change Check] lastVersion: ${this._lastDocumentVersion}, currentVersion: ${document.version}, isUndoRedo: ${this._isUndoRedoOperation}, isUpdating: ${this._isUpdatingFromPanel}, isFromFocus: ${isFromEditorFocus}, hasChanges: ${hasExternalChanges}`);
 
             if (hasExternalChanges) {
                 console.log('[External Change] Showing notification dialog');
