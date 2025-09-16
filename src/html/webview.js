@@ -2,6 +2,21 @@ const vscode = acquireVsCodeApi();
 
 // Global variables
 let currentFileInfo = null;
+
+// MD5 hash generation function using Web Crypto API
+async function generateMD5Hash(arrayBuffer) {
+    try {
+        // Use SHA-256 instead of MD5 as it's more widely supported and secure
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex.substring(0, 16); // Take first 16 characters to simulate MD5 length
+    } catch (error) {
+        console.error('❌ Failed to generate hash:', error.message);
+        // Fallback to timestamp if crypto fails
+        return Date.now().toString(16);
+    }
+}
 let canUndo = false;
 let canRedo = false;
 window.currentImageMappings = {};
@@ -216,8 +231,23 @@ let clipboardCardData = null;
  * Used by: Clipboard card source (now unused)
  * @param {MouseEvent} e - Mouse event
  */
-window.handleClipboardMouseDown = function(e) {
-    // Empty - clipboard is read on focus and Cmd/Ctrl+C
+window.handleClipboardMouseDown = async function(e) {
+    console.log('=== MOUSE DOWN: Refreshing clipboard data for drag ===');
+
+    // Refresh clipboard data immediately when user starts interacting
+    clipboardCardData = await readClipboardContent();
+    console.log('=== REFRESHED CLIPBOARD DATA:', clipboardCardData ? clipboardCardData.isImage ? 'IMAGE' : 'TEXT' : 'NULL');
+
+    // Update the visual indicator immediately after refresh
+    const clipboardSource = document.getElementById('clipboard-card-source');
+    if (clipboardSource) {
+        const iconSpan = clipboardSource.querySelector('.clipboard-icon');
+        if (clipboardCardData && clipboardCardData.isImage) {
+            iconSpan.textContent = '🖼️';
+        } else if (clipboardCardData) {
+            iconSpan.textContent = '📋';
+        }
+    }
 };
 
 /**
@@ -228,7 +258,8 @@ window.handleClipboardMouseDown = function(e) {
  * Side effects: Sets drag state, formats clipboard data
  */
 window.handleClipboardDragStart = function(e) {
-    console.log('=== DRAG START: clipboardCardData =', clipboardCardData ? clipboardCardData.isImage ? 'IMAGE' : 'TEXT' : 'NULL');
+    console.log('=== DRAG START: Using cached clipboard data ===');
+    console.log('=== CLIPBOARD DATA:', clipboardCardData ? clipboardCardData.isImage ? 'IMAGE' : 'TEXT' : 'NULL');
 
     // Create default data if no clipboard data
     if (!clipboardCardData) {
@@ -250,7 +281,8 @@ window.handleClipboardDragStart = function(e) {
             title: clipboardCardData.title,
             type: 'base64',
             imageType: clipboardCardData.imageType,
-            data: imageData // Include the actual base64 data
+            data: imageData, // Include the actual base64 data
+            md5Hash: clipboardCardData.md5Hash // Include the MD5 hash for filename
         })}`);
 
         e.dataTransfer.effectAllowed = 'copy';
@@ -284,7 +316,7 @@ window.handleClipboardDragStart = function(e) {
     const tempTask = {
         id: 'temp-clipboard-' + Date.now(),
         title: clipboardCardData.title,
-        description: clipboardCardData.content,
+        description: clipboardCardData.isImage ? '[Image from clipboard]' : clipboardCardData.content,
         isFromClipboard: true
     };
 
@@ -339,7 +371,9 @@ window.showClipboardPreview = function() {
     if (!preview || !clipboardCardData) {return;}
     
     // Update header based on content type
-    if (clipboardCardData.isLink) {
+    if (clipboardCardData.isImage) {
+        header.textContent = 'Clipboard Image';
+    } else if (clipboardCardData.isLink) {
         if (clipboardCardData.content.startsWith('![')) {
             header.textContent = 'Image Link';
         } else if (clipboardCardData.content.startsWith('[')) {
@@ -353,9 +387,30 @@ window.showClipboardPreview = function() {
     
     // Clear previous content
     body.innerHTML = '';
-    
+
+    // Show image preview for clipboard images (base64)
+    if (clipboardCardData.isImage && clipboardCardData.content) {
+        const img = document.createElement('img');
+        img.className = 'clipboard-preview-image';
+        img.src = clipboardCardData.content; // This is base64 data URL
+
+        const textDiv = document.createElement('div');
+        textDiv.className = 'clipboard-preview-text';
+        textDiv.textContent = '[Image from clipboard - will be saved when dropped]';
+
+        img.onload = function() {
+            body.appendChild(img);
+            body.appendChild(textDiv);
+        };
+
+        img.onerror = function() {
+            // If image fails to load, show fallback text
+            textDiv.textContent = '[Clipboard contains image data]';
+            body.appendChild(textDiv);
+        };
+
     // Show image preview if it's an image link
-    if (clipboardCardData.isLink && clipboardCardData.content.startsWith('![')) {
+    } else if (clipboardCardData.isLink && clipboardCardData.content.startsWith('![')) {
         // Extract image path from markdown ![alt](path)
         const imageMatch = clipboardCardData.content.match(/!\[.*?\]\((.*?)\)/);
         if (imageMatch && imageMatch[1]) {
@@ -459,66 +514,159 @@ window.handleEmptyCardDragEnd = function(e) {
 };
 
 async function readClipboardContent() {
+    const startTime = performance.now();
     try {
         console.log('=== READING CLIPBOARD ===');
+        console.log('📝 Environment info:', {
+            userAgent: navigator.userAgent.substring(0, 100) + '...',
+            isSecureContext: window.isSecureContext,
+            protocol: window.location.protocol,
+            permissions: !!navigator.permissions,
+            clipboard: !!navigator.clipboard
+        });
+
+        // Check clipboard permissions first
+        if (!navigator.clipboard) {
+            console.error('❌ Clipboard API not available');
+            return null;
+        }
+
+        // Check if we have clipboard permissions
+        try {
+            const permission = await navigator.permissions.query({ name: 'clipboard-read' });
+            console.log('📋 Clipboard permission state:', permission.state);
+            if (permission.state === 'denied') {
+                console.warn('⚠️ Clipboard read permission denied');
+                return null;
+            }
+        } catch (permError) {
+            console.warn('⚠️ Could not check clipboard permissions:', permError.message);
+        }
+
         // First check for clipboard images
-        const clipboardItems = await navigator.clipboard.read();
-        console.log('=== CLIPBOARD ITEMS:', clipboardItems.length, '===');
+        let clipboardItems;
+        try {
+            clipboardItems = await navigator.clipboard.read();
+            console.log('✅ Successfully read clipboard items:', clipboardItems.length);
+        } catch (error) {
+            console.error('❌ Failed to read clipboard items:', error.message);
+            // Fall back to text reading
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text && text.trim()) {
+                    console.log('✅ Fallback: Successfully read clipboard text, length:', text.length);
+                    return await processClipboardText(text.trim());
+                }
+            } catch (textError) {
+                console.error('❌ Failed to read clipboard text as fallback:', textError.message);
+            }
+            return null;
+        }
 
         for (const clipboardItem of clipboardItems) {
             console.log('=== ITEM TYPES:', clipboardItem.types, '===');
+
             for (const type of clipboardItem.types) {
                 console.log('=== CHECKING TYPE:', type, '===');
+
                 if (type.startsWith('image/')) {
-                    console.log('=== FOUND IMAGE TYPE, getting blob ===');
-                    const blob = await clipboardItem.getType(type);
+                    console.log('✅ FOUND IMAGE TYPE, getting blob ===');
+
+                    let blob;
+                    try {
+                        blob = await clipboardItem.getType(type);
+                        console.log('✅ Successfully got blob, size:', blob.size);
+                    } catch (error) {
+                        console.error('❌ Failed to get blob for type', type, ':', error.message);
+                        continue;
+                    }
 
                     // Convert blob to base64 immediately to avoid blob being discarded
-                    const reader = new FileReader();
-                    const base64Promise = new Promise((resolve) => {
-                        reader.onloadend = () => {
-                            const base64String = reader.result;
-                            resolve(base64String);
+                    try {
+                        const reader = new FileReader();
+                        const base64Promise = new Promise((resolve, reject) => {
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.onerror = () => reject(new Error('Failed to read blob as base64'));
+                            reader.readAsDataURL(blob);
+                        });
+
+                        const base64Data = await base64Promise;
+                        console.log('✅ Successfully converted to base64, length:', base64Data.length);
+
+                        // Generate MD5 hash from blob data for consistent filename
+                        const arrayBufferReader = new FileReader();
+                        const arrayBufferPromise = new Promise((resolve, reject) => {
+                            arrayBufferReader.onloadend = () => resolve(arrayBufferReader.result);
+                            arrayBufferReader.onerror = () => reject(new Error('Failed to read blob as array buffer'));
+                            arrayBufferReader.readAsArrayBuffer(blob);
+                        });
+
+                        const arrayBuffer = await arrayBufferPromise;
+                        const md5Hash = await generateMD5Hash(arrayBuffer);
+                        console.log('✅ Generated MD5 hash:', md5Hash);
+
+                        const endTime = performance.now();
+                        console.log(`⏱️ Clipboard read completed in ${(endTime - startTime).toFixed(2)}ms (image found)`);
+
+                        return {
+                            title: 'Clipboard Image',
+                            content: base64Data,
+                            isLink: false,
+                            isImage: true,
+                            imageType: type,
+                            isBase64: true,
+                            md5Hash: md5Hash
                         };
-                        reader.readAsDataURL(blob);
-                    });
-
-                    const base64Data = await base64Promise;
-                    console.log('=== RETURNING IMAGE DATA ===');
-
-                    return {
-                        title: 'Clipboard Image',
-                        content: base64Data, // Store base64 instead of blob
-                        isLink: false,
-                        isImage: true,
-                        imageType: type,
-                        isBase64: true
-                    };
+                    } catch (error) {
+                        console.error('❌ Failed to convert blob to base64:', error.message);
+                        continue;
+                    }
                 }
             }
         }
 
         // If no images, check for text
         console.log('=== NO IMAGES FOUND, CHECKING TEXT ===');
-        const text = await navigator.clipboard.readText();
-        console.log('=== FOUND TEXT, length:', text ? text.length : 0, '===');
-
-        if (!text || text.trim() === '') {
-            return null;
-        }
-
-        return await processClipboardText(text.trim());
-    } catch (error) {
-        // Fallback to text-only clipboard reading
         try {
             const text = await navigator.clipboard.readText();
+            console.log('✅ Successfully read text, length:', text ? text.length : 0);
+
             if (!text || text.trim() === '') {
+                console.log('⚠️ Clipboard text is empty');
+                const endTime = performance.now();
+                console.log(`⏱️ Clipboard read completed in ${(endTime - startTime).toFixed(2)}ms (empty result)`);
                 return null;
             }
-            return await processClipboardText(text.trim());
-        } catch {
+
+            const result = await processClipboardText(text.trim());
+            const endTime = performance.now();
+            console.log(`⏱️ Clipboard read completed in ${(endTime - startTime).toFixed(2)}ms (text found)`);
+            return result;
+        } catch (error) {
+            console.error('❌ Failed to read clipboard text:', error.message);
+            const endTime = performance.now();
+            console.log(`⏱️ Clipboard read completed in ${(endTime - startTime).toFixed(2)}ms (error)`);
             return null;
         }
+
+    } catch (error) {
+        console.error('❌ Unexpected error in readClipboardContent:', error.message);
+        const endTime = performance.now();
+        console.log(`⏱️ Clipboard read failed in ${(endTime - startTime).toFixed(2)}ms (unexpected error)`);
+
+        // Last resort fallback to text-only clipboard reading
+        try {
+            console.log('🔄 Attempting last resort text reading...');
+            const text = await navigator.clipboard.readText();
+            if (text && text.trim()) {
+                console.log('✅ Last resort: Successfully read text, length:', text.length);
+                return await processClipboardText(text.trim());
+            }
+        } catch (fallbackError) {
+            console.error('❌ Last resort text reading failed:', fallbackError.message);
+        }
+
+        return null;
     }
 }
 
@@ -782,7 +930,7 @@ function initializeClipboardCardSource() {
         const tempTask = {
             id: 'temp-clipboard-' + Date.now(),
             title: clipboardCardData.title,
-            description: clipboardCardData.content,
+            description: clipboardCardData.isImage ? '[Image from clipboard]' : clipboardCardData.content,
             isFromClipboard: true
         };
 

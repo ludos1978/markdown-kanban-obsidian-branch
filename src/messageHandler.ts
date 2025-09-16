@@ -313,7 +313,8 @@ export class MessageHandler {
                 await this.handleSaveClipboardImageWithPath(
                     message.imageData,
                     message.imageType,
-                    message.dropPosition
+                    message.dropPosition,
+                    message.md5Hash
                 );
                 break;
 
@@ -801,7 +802,8 @@ export class MessageHandler {
     private async handleSaveClipboardImageWithPath(
         imageData: string,
         imageType: string,
-        dropPosition: { x: number; y: number }
+        dropPosition: { x: number; y: number },
+        md5Hash?: string
     ): Promise<void> {
         try {
             // Get current file path from the file manager
@@ -831,11 +833,9 @@ export class MessageHandler {
             const baseFileName = fileName.replace(/\.[^/.]+$/, '');
             const directory = pathParts.join('/'); // Always use forward slash for consistency
 
-            // Generate unique filename for the image
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + 'T' +
-                             new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].split('-')[0];
+            // Generate filename from MD5 hash if available, otherwise use timestamp
             const extension = imageType.split('/')[1] || 'png';
-            const imageFileName = `clipboard-image-${timestamp}.${extension}`;
+            const imageFileName = md5Hash ? `${md5Hash}.${extension}` : `clipboard-image-${Date.now()}.${extension}`;
 
             // Create the media folder path
             const mediaFolderName = `${baseFileName}-MEDIA`;

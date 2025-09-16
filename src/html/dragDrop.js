@@ -216,6 +216,9 @@ function setupGlobalDragAndDrop() {
     // Main drop handler function  
     function handleExternalDrop(e) {
         // Handle external drop event
+        console.log('=== EXTERNAL DROP HANDLER CALLED ===');
+        console.log('=== DROP EVENT TARGET:', e.target);
+        console.log('=== DRAG STATE:', dragState);
 
         // Prevent default browser behavior
         e.preventDefault();
@@ -250,6 +253,8 @@ function setupGlobalDragAndDrop() {
         // Priority 1: Check for clipboard images via dataTransfer (most reliable for images)
         const textData = dt.getData('text/plain');
         console.log('=== DROP HANDLER: textData =', textData ? textData.substring(0, 50) + '...' : 'NULL');
+        console.log('=== DROP HANDLER: Available dataTransfer types =', Array.from(dt.types));
+        console.log('=== DROP HANDLER: CLIPBOARD_IMAGE check =', textData ? textData.startsWith('CLIPBOARD_IMAGE:') : 'no textData');
         if (textData && textData.startsWith('CLIPBOARD_IMAGE:')) {
             console.log('=== FOUND CLIPBOARD_IMAGE, calling handleClipboardImageDrop ===');
             const imageData = textData.substring('CLIPBOARD_IMAGE:'.length);
@@ -600,7 +605,7 @@ function handleClipboardImageDrop(e, imageData) {
         const base64Only = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
         console.log('[DEBUG] Base64 data length:', base64Only.length);
 
-        processImageSave(e, base64Only, imageType);
+        processImageSave(e, base64Only, imageType, parsedData.md5Hash);
 
     } catch (error) {
         console.error('Failed to handle clipboard image drop:', error);
@@ -612,7 +617,7 @@ function handleClipboardImageDrop(e, imageData) {
     }
 }
 
-function processImageSave(e, base64Data, imageType) {
+function processImageSave(e, base64Data, imageType, md5Hash) {
     try {
 
         // Get the current markdown file information
@@ -628,7 +633,8 @@ function processImageSave(e, base64Data, imageType) {
                 type: 'saveClipboardImageWithPath',
                 imageData: base64Data,
                 imageType: imageType,
-                dropPosition: { x: e.clientX, y: e.clientY }
+                dropPosition: { x: e.clientX, y: e.clientY },
+                md5Hash: md5Hash // Pass MD5 hash for filename
             });
             return;
         }
