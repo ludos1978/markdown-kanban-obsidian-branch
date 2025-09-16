@@ -1123,10 +1123,18 @@ export class KanbanWebviewPanel {
                 `You have unsaved changes in "${fileName}". Do you want to save before closing?`,
                 { modal: true },
                 { title: 'Save and close' },
-                { title: 'Close without saving', isCloseAffordance: true }
+                { title: 'Close without saving' },
+                { title: 'Repeat this question (Esc)', isCloseAffordance: true }
             );
-						
-            if (choice && (choice.title === 'Save and close')) {
+
+            if (!choice || choice.title === 'Repeat this question (Esc)') {
+                // User pressed Escape or clicked the repeat option - reset and try again
+                this._isClosingPrevented = false;
+                this._handlePanelClose(); // Recursively call to show dialog again
+                return;
+            }
+
+            if (choice.title === 'Save and close') {
                 try {
                     // Save the changes before closing
                     await this.saveToMarkdown();
@@ -1138,11 +1146,10 @@ export class KanbanWebviewPanel {
                     // If save fails, show error and prevent closing
                     vscode.window.showErrorMessage(`Failed to save changes: ${error instanceof Error ? error.message : String(error)}`);
                     this._isClosingPrevented = false;
-                    // Try to reopen the panel (though it may already be disposed)
                     return;
                 }
-            } else {
-                // Handle both 'Close without saving' and undefined (dialog closed) as close without saving
+            } else if (choice.title === 'Close without saving') {
+                // User explicitly chose to close without saving
                 this._hasUnsavedChanges = false;
                 this._cachedBoardFromWebview = null; // Clear cached board
                 this.dispose();
