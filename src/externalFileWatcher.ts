@@ -129,6 +129,7 @@ export class ExternalFileWatcher implements vscode.Disposable {
      * This will unregister old includes and register new ones
      */
     public updateIncludeFiles(panel: KanbanWebviewPanel, newIncludeFiles: string[]): void {
+        console.log(`[FileWatcher Debug] updateIncludeFiles called with ${newIncludeFiles.length} files:`, newIncludeFiles);
         // Find current include files for this panel
         const currentIncludes: string[] = [];
 

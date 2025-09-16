@@ -527,6 +527,9 @@ export class KanbanWebviewPanel {
                 await this._initializeIncludeFileContents();
                 this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
 
+                // Re-check if any include files have changed after load
+                await this._recheckIncludeFileChanges();
+
                 this._boardOperations.setOriginalTaskOrder(this._board);
             } catch (error) {
                 this._board = { 
@@ -588,9 +591,10 @@ export class KanbanWebviewPanel {
             if (hasExternalChanges) {
                 console.log('[External Change] Showing notification dialog');
                 await this.notifyExternalChanges(document);
+            } else {
+                // Only update version if no external changes were detected (to avoid blocking future detections)
+                this._lastDocumentVersion = document.version;
             }
-
-            this._lastDocumentVersion = document.version;
             return;
         }
         
@@ -654,8 +658,16 @@ export class KanbanWebviewPanel {
             this.updateKnownFileContent(document.getText());
 
             // Update included files with the external file watcher
+            // First, preserve existing include file content baselines to maintain change detection
+            const preservedContents = new Map(this._includeFileContents);
+
             await this._initializeIncludeFileContents();
+            console.log(`[Include Debug] Registering ${this._includedFiles.length} include files:`, this._includedFiles);
             this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
+
+            // Re-check if any include files have changed after reload/update
+            // Use preserved baselines to maintain change detection across reloads
+            await this._recheckIncludeFileChanges(preservedContents);
 
             // Clean up any duplicate row tags
             const wasModified = this._boardOperations.cleanupRowTags(this._board);
@@ -777,7 +789,7 @@ export class KanbanWebviewPanel {
         return mappings;
     }
 
-    private async saveToMarkdown() {
+    private async saveToMarkdown(updateVersionTracking: boolean = true) {
         console.log(`💾 Saving kanban to markdown... hasUnsavedChanges: ${this._hasUnsavedChanges}`);
         let document = this._fileManager.getDocument();
         if (!document || !this._board || !this._board.valid) {
@@ -868,8 +880,10 @@ export class KanbanWebviewPanel {
                 }
             }
             
-            // Update document version after successful edit
-            this._lastDocumentVersion = document.version + 1;
+            // Update document version after successful edit (only if tracking is enabled)
+            if (updateVersionTracking) {
+                this._lastDocumentVersion = document.version + 1;
+            }
             
             // Try to save the document
             try {
@@ -1326,7 +1340,8 @@ export class KanbanWebviewPanel {
             return;
         } else if (choice === discardExternal) {
             // User wants to save current kanban state and ignore external changes
-            await this.saveToMarkdown();
+            // Don't update version tracking to continue detecting future external changes
+            await this.saveToMarkdown(false);
             return;
         } else if (choice === saveBackup) {
             // Save current board state as backup before reloading
@@ -1336,6 +1351,7 @@ export class KanbanWebviewPanel {
                 this._undoRedoManager.saveStateForUndo(this._board);
             }
             await this.forceReloadFromFile();
+            // Version tracking is already handled by forceReloadFromFile
             return;
         } else if (choice === discardChanges) {
             // User chose to discard current changes and reload from external file
@@ -1344,6 +1360,7 @@ export class KanbanWebviewPanel {
                 this._undoRedoManager.saveStateForUndo(this._board);
             }
             await this.forceReloadFromFile();
+            // Version tracking is already handled by forceReloadFromFile
             return;
         } else {
             // User pressed escape or no choice - default to ignore external changes
@@ -1429,9 +1446,46 @@ export class KanbanWebviewPanel {
     }
 
     /**
+     * Re-check if any include files have changed after a reload/update operation
+     * This ensures that include file change tracking is maintained across document operations
+     */
+    private async _recheckIncludeFileChanges(): Promise<void> {
+        let hasChanges = false;
+        const changedFiles = new Set<string>();
+
+        for (const filePath of this._includedFiles) {
+            const currentContent = await this._readFileContent(filePath);
+            const previousContent = this._includeFileContents.get(filePath);
+
+            if (currentContent !== previousContent) {
+                hasChanges = true;
+                changedFiles.add(filePath);
+                console.log(`[Include Debug] Detected change in ${filePath}`);
+
+                // Update the stored content
+                if (currentContent !== null) {
+                    this._includeFileContents.set(filePath, currentContent);
+                }
+            }
+        }
+
+        // Update tracking state if changes were found
+        if (hasChanges) {
+            this._includeFilesChanged = true;
+            // Merge with existing changed files (don't clear existing ones)
+            for (const file of changedFiles) {
+                this._changedIncludeFiles.add(file);
+            }
+            this._sendIncludeFileChangeNotification();
+            console.log(`[Include Debug] Re-check found ${changedFiles.size} changed include files`);
+        }
+    }
+
+    /**
      * Handle include file changes from the external file watcher
      */
     public async handleIncludeFileChange(filePath: string, changeType: FileChangeType): Promise<void> {
+        console.log(`[Include Debug] handleIncludeFileChange called for ${filePath} with changeType ${changeType}`);
         // Convert absolute path back to relative path for internal tracking
         const document = this._fileManager.getDocument();
         let relativePath = filePath;
