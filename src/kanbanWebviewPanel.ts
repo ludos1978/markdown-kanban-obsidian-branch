@@ -524,11 +524,42 @@ export class KanbanWebviewPanel {
                 this._includedFiles = parseResult.includedFiles;
 
                 // Register included files with the external file watcher
-                await this._initializeIncludeFileContents();
+                // First, preserve existing include file content baselines to maintain change detection
+                const preservedContents = new Map(this._includeFileContents);
+                const preservedChangeState = this._includeFilesChanged;
+                const preservedChangedFiles = new Set(this._changedIncludeFiles);
+                console.log(`[Include Debug] Initial load - preserving ${preservedContents.size} baseline contents`);
+                console.log(`[Include Debug] Initial load - current change state: changed=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
+
+                // DON'T reinitialize content if we have preserved baselines - we'll compare against those
+                if (preservedContents.size === 0) {
+                    // Only initialize if we have no preserved baselines (true initial load)
+                    await this._initializeIncludeFileContents();
+                    console.log(`[Include Debug] Initial load - initialized include file contents (no preserved baselines)`);
+                } else {
+                    // Keep the preserved baselines, don't overwrite with current content
+                    console.log(`[Include Debug] Initial load - keeping preserved baselines, NOT reinitializing content`);
+                    this._includeFileContents = preservedContents;
+                }
+
                 this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
 
+                // Restore preserved change state if we had changes before
+                if (preservedChangeState) {
+                    this._includeFilesChanged = true;
+                    this._changedIncludeFiles = preservedChangedFiles;
+                }
+
                 // Re-check if any include files have changed after load
-                await this._recheckIncludeFileChanges();
+                // This will compare CURRENT content against preserved baselines
+                await this._recheckIncludeFileChanges(preservedContents.size > 0);  // Pass true if we have preserved baselines
+                console.log(`[Include Debug] Initial load - after recheck: changed=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
+
+                // Send notification again in case it was lost
+                if (this._includeFilesChanged) {
+                    console.log(`[Include Debug] Sending notification again after initial load`);
+                    this._sendIncludeFileChangeNotification();
+                }
 
                 this._boardOperations.setOriginalTaskOrder(this._board);
             } catch (error) {
@@ -575,6 +606,7 @@ export class KanbanWebviewPanel {
         // 2. Switching to a different document
         // 3. User explicitly forces reload via dialog
         const isInitialLoad = !this._board;
+        console.log(`[Include Debug] loadMarkdownFile() - isInitialLoad=${isInitialLoad}, isDifferentDocument=${isDifferentDocument}, forceReload=${forceReload}`);
 
         if (!isInitialLoad && !isDifferentDocument && !forceReload) {
             // 🚫 NEVER auto-reload: Preserve existing board state
@@ -601,6 +633,7 @@ export class KanbanWebviewPanel {
         const previousDocument = this._fileManager.getDocument();
         const documentChanged = previousDocument?.uri.toString() !== document.uri.toString();
         const isFirstDocumentLoad = !previousDocument;
+        console.log(`[Include Debug] loadMarkdownFile() path decision - documentChanged=${documentChanged}, isFirstDocumentLoad=${isFirstDocumentLoad}, isInitialLoad=${isInitialLoad}`);
 
         // If document changed or this is the first document, update panel tracking
         if (documentChanged || isFirstDocumentLoad) {
@@ -660,14 +693,41 @@ export class KanbanWebviewPanel {
             // Update included files with the external file watcher
             // First, preserve existing include file content baselines to maintain change detection
             const preservedContents = new Map(this._includeFileContents);
+            const preservedChangeState = this._includeFilesChanged;
+            const preservedChangedFiles = new Set(this._changedIncludeFiles);
+            console.log(`[Include Debug] Preserving ${preservedContents.size} baseline contents before reload`);
+            console.log(`[Include Debug] Current change state before reload: changed=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
 
-            await this._initializeIncludeFileContents();
+            // DON'T reinitialize content if we have preserved baselines - we'll compare against those
+            if (preservedContents.size === 0) {
+                // Only initialize if we have no preserved baselines (first load)
+                await this._initializeIncludeFileContents();
+                console.log(`[Include Debug] Initialized include file contents (no preserved baselines)`);
+            } else {
+                // Keep the preserved baselines, don't overwrite with current content
+                console.log(`[Include Debug] Keeping preserved baselines, NOT reinitializing content`);
+                this._includeFileContents = preservedContents;
+            }
+
             console.log(`[Include Debug] Registering ${this._includedFiles.length} include files:`, this._includedFiles);
             this._fileWatcher.updateIncludeFiles(this, this._includedFiles);
 
+            // Restore preserved change state if we had changes before
+            if (preservedChangeState) {
+                this._includeFilesChanged = true;
+                this._changedIncludeFiles = preservedChangedFiles;
+            }
+
             // Re-check if any include files have changed after reload/update
-            // Use preserved baselines to maintain change detection across reloads
-            await this._recheckIncludeFileChanges(preservedContents);
+            // This will compare CURRENT content against preserved baselines
+            await this._recheckIncludeFileChanges(true);  // Pass true to indicate we're using preserved baselines
+            console.log(`[Include Debug] After recheck: changed=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
+
+            // Send notification again in case it was lost
+            if (this._includeFilesChanged) {
+                console.log(`[Include Debug] Sending notification again after reload`);
+                this._sendIncludeFileChangeNotification();
+            }
 
             // Clean up any duplicate row tags
             const wasModified = this._boardOperations.cleanupRowTags(this._board);
@@ -1427,58 +1487,93 @@ export class KanbanWebviewPanel {
      * Force reload the board from file (user-initiated)
      */
     public async forceReloadFromFile(): Promise<void> {
+        console.log(`[Include Debug] forceReloadFromFile() - BEFORE reload state: changed=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
         const document = this._fileManager.getDocument();
         if (document) {
             await this.loadMarkdownFile(document, false, true); // forceReload = true
         }
+        console.log(`[Include Debug] forceReloadFromFile() - AFTER reload state: changed=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
     }
 
     /**
      * Initialize include file contents when registering with the file watcher
      */
     private async _initializeIncludeFileContents(): Promise<void> {
+        console.log(`[Include Debug] _initializeIncludeFileContents() called with ${this._includedFiles.length} files`);
         for (const filePath of this._includedFiles) {
             const content = await this._readFileContent(filePath);
             if (content !== null) {
+                console.log(`[Include Debug]   Storing content for ${filePath}: ${content.substring(0, 30)}...`);
                 this._includeFileContents.set(filePath, content);
+            } else {
+                console.log(`[Include Debug]   Failed to read ${filePath}`);
             }
         }
+        console.log(`[Include Debug] _initializeIncludeFileContents() done, map has ${this._includeFileContents.size} entries`);
     }
 
     /**
      * Re-check if any include files have changed after a reload/update operation
      * This ensures that include file change tracking is maintained across document operations
      */
-    private async _recheckIncludeFileChanges(): Promise<void> {
+    private async _recheckIncludeFileChanges(usingPreservedBaselines: boolean = false): Promise<void> {
+        console.log(`[Include Debug] === _recheckIncludeFileChanges() STARTING ===`);
+        console.log(`[Include Debug] Using preserved baselines: ${usingPreservedBaselines}`);
+        console.log(`[Include Debug] Current _includedFiles (${this._includedFiles.length}):`, this._includedFiles);
+        console.log(`[Include Debug] Current _includeFileContents has ${this._includeFileContents.size} entries`);
+        console.log(`[Include Debug] Current _includeFileContents keys:`, Array.from(this._includeFileContents.keys()));
+
         let hasChanges = false;
         const changedFiles = new Set<string>();
 
         for (const filePath of this._includedFiles) {
+            console.log(`[Include Debug] --- Checking file: ${filePath} ---`);
             const currentContent = await this._readFileContent(filePath);
-            const previousContent = this._includeFileContents.get(filePath);
 
-            if (currentContent !== previousContent) {
+            // Get baseline from our stored content (which are the preserved baselines when usingPreservedBaselines is true)
+            const baselineContent = this._includeFileContents.get(filePath);
+            const baselineSource = usingPreservedBaselines ? 'preserved' : 'stored';
+
+            if (baselineContent === undefined) {
+                console.log(`[Include Debug]   No baseline found for ${filePath}`);
+            }
+
+            console.log(`[Include Debug]   Current content: ${currentContent?.substring(0, 50)}...`);
+            console.log(`[Include Debug]   Baseline content (${baselineSource}): ${baselineContent?.substring(0, 50)}...`);
+            console.log(`[Include Debug]   Are equal: ${currentContent === baselineContent}`);
+
+            if (currentContent !== baselineContent) {
                 hasChanges = true;
                 changedFiles.add(filePath);
-                console.log(`[Include Debug] Detected change in ${filePath}`);
+                console.log(`[Include Debug] ✓✓✓ CHANGE DETECTED in ${filePath} (baseline: ${baselineSource})`);
 
-                // Update the stored content
-                if (currentContent !== null) {
+                // Only update stored content if we're not using preserved baselines
+                if (!usingPreservedBaselines && currentContent !== null) {
+                    console.log(`[Include Debug]   Updating stored content for ${filePath}`);
                     this._includeFileContents.set(filePath, currentContent);
                 }
+            } else {
+                console.log(`[Include Debug] ✗ No change in ${filePath}`);
             }
         }
 
         // Update tracking state if changes were found
         if (hasChanges) {
+            console.log(`[Include Debug] === CHANGES FOUND: ${changedFiles.size} files changed ===`);
             this._includeFilesChanged = true;
             // Merge with existing changed files (don't clear existing ones)
             for (const file of changedFiles) {
                 this._changedIncludeFiles.add(file);
             }
+            console.log(`[Include Debug] Setting _includeFilesChanged = true`);
+            console.log(`[Include Debug] _changedIncludeFiles now has:`, Array.from(this._changedIncludeFiles));
             this._sendIncludeFileChangeNotification();
-            console.log(`[Include Debug] Re-check found ${changedFiles.size} changed include files`);
+            console.log(`[Include Debug] ✓✓✓ Notification sent`);
+        } else {
+            console.log(`[Include Debug] === NO CHANGES FOUND ===`);
         }
+
+        console.log(`[Include Debug] === _recheckIncludeFileChanges() DONE ===`);
     }
 
     /**
@@ -1506,11 +1601,22 @@ export class KanbanWebviewPanel {
 
     private async _readFileContent(filePath: string): Promise<string | null> {
         try {
-            const uri = vscode.Uri.file(filePath);
+            // Check if it's a relative path and convert to absolute if needed
+            let absolutePath = filePath;
+            if (!path.isAbsolute(filePath)) {
+                const document = this._fileManager.getDocument();
+                if (document) {
+                    const basePath = path.dirname(document.uri.fsPath);
+                    absolutePath = path.resolve(basePath, filePath);
+                    console.log(`[Include Debug] _readFileContent converting relative ${filePath} to absolute ${absolutePath}`);
+                }
+            }
+
+            const uri = vscode.Uri.file(absolutePath);
             const content = await vscode.workspace.fs.readFile(uri);
             return Buffer.from(content).toString('utf8');
         } catch (error) {
-            console.error(`Failed to read file ${filePath}:`, error);
+            console.error(`[Include Debug] Failed to read file ${filePath}:`, error);
             return null;
         }
     }
@@ -1541,13 +1647,23 @@ export class KanbanWebviewPanel {
     }
 
     private _sendIncludeFileChangeNotification() {
+        console.log(`[Include Debug] _sendIncludeFileChangeNotification() called`);
+        console.log(`[Include Debug]   _includeFilesChanged: ${this._includeFilesChanged}`);
+        console.log(`[Include Debug]   _changedIncludeFiles: ${Array.from(this._changedIncludeFiles)}`);
+        console.log(`[Include Debug]   _panel exists: ${!!this._panel}`);
+        console.log(`[Include Debug]   webview exists: ${!!this._panel?.webview}`);
+
         if (this._panel && this._panel.webview) {
             const changedFiles = Array.from(this._changedIncludeFiles);
-            this._panel.webview.postMessage({
+            const message = {
                 type: 'includeFilesChanged',
                 hasChanges: this._includeFilesChanged,
                 changedFiles: changedFiles
-            });
+            };
+            console.log(`[Include Debug] Sending notification message:`, message);
+            this._panel.webview.postMessage(message);
+        } else {
+            console.log(`[Include Debug] Cannot send notification - panel or webview not available`);
         }
     }
 

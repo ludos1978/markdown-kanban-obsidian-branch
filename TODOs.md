@@ -4,12 +4,18 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] if there is an image in the clipboard, and the user drags the clipboard-new-card it into the kanban board. can you create the image from the clipboard within an subfolder named "{basefilename}-MEDIA" and include in the board with this new filepath?
+- [ ] The clipboard should be read when focussing the kanban board, or when meta+c / ctrl+c is pressed. it should not be required to press the button to reload it.
+- [ ] saving the outside file, ignoring the change in the dialogue, and saving it again does not trigger the "file has been modified externally" again.
+- [ ]  it's still not working properly, make sure that all ways of handling the file (loading after an external changes, saving and continuing with the file) all continue or restart tracking the included files.
+
+## Closed Bugs
+
+- [x] saving during editing a markdown content does not work correctly. it should already be implemented, but doesnt seem to work. if it's too complicated to do while staying in edit mode, it's acceptable to end editing and then save. make sure you handle the end-edit functions.
+- [x] if i focus the markdown the the kanban is opened from it asks me if i want to discard kanban, save as backup, discard external, ignore. this should only come up when saving the markdown file, not when focussing it, is the event wrong?
+- [x] if there is an image in the clipboard, and the user drags the clipboard-new-card it into the kanban board. can you create the image from the clipboard within an subfolder named "{basefilename}-MEDIA" and include in the board with this new filepath?
 - [x] if there are multiple filenames/paths in the clipboard, can you make links out of all them automatically, there is already a conversion based on filetype happening, but only for single file-path-names. assume newlines to be eigher \r, \r\n or \n (all types). consider windows, linux and osx paths as paths to convert to link style (also consider c:\... paths, make sure to escape filepaths in %escape / url escaping if they have invalid characters in them such as brackets, curly, etc...)
   it's not required to resolve the paths. also in here it tries to make a absolute path by adding the local path to an already absolute path. can you verify on what os we are on and depending on that do different path handling.
-- [ ] when opening a new kanban the clipboard is correctly initialized, but shortly after the kanban board is loaded it gets overwritten by "Test Update"/"Testing clipboard update functionality". dont overwrite the 
-- [ ] saving during editing a markdown content does not work correctly. it should already be implemented, but doesnt seem to work. if it's too complicated to do while staying in edit mode, it's acceptable to end editing and then save. make sure you handle the end-edit functions.
-
+- [x] when opening a new kanban the clipboard is correctly initialized, but shortly after the kanban board is loaded it gets overwritten by "Test Update"/"Testing clipboard update functionality". dont overwrite the 
 
 ## File Watcher Consolidation ✅
 
@@ -55,7 +61,7 @@ kanban-plugin: board
 ### Benefits
 
 - Single source of truth for external file changes
-- Eliminate ~200 lines of duplicate watcher code
+- Eliminate ~200 lines of duplicate dwatcher code
 - Better resource management (one watcher per file)
 - Simplified debugging and error handling
 - No functionality loss

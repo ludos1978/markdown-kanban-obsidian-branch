@@ -30,8 +30,17 @@ export class MarkdownKanbanParser {
       // First parse with original content to preserve raw descriptions
       const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
 
-      // No include processing in backend - handled by frontend
+      // Detect all include files in the content
       let includedFiles: string[] = [];
+      const includeRegex = /!!!include\(([^)]+)\)!!!/gi;
+      let match;
+      while ((match = includeRegex.exec(content)) !== null) {
+          const includeFile = match[1].trim();
+          if (!includedFiles.includes(includeFile)) {
+              includedFiles.push(includeFile);
+              console.log(`[Parser] Found include file: ${includeFile}`);
+          }
+      }
       const board: KanbanBoard = {
         valid: false,
         title: '',
