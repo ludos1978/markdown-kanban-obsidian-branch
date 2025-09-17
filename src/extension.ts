@@ -39,8 +39,8 @@ export function activate(context: vscode.ExtensionContext) {
 					panel.loadMarkdownFile(document, false);
 				}
 			} else if (event.fileType === 'include') {
-				// Handle include file changes - panel will handle this internally
-				panel.handleIncludeFileChange(event.path, event.changeType);
+				// Include file changes are now handled directly by each panel's file watcher subscription
+				// No need to call panel.handleIncludeFileChange() - this would cause duplicate dialogs
 			}
 		}
 	});

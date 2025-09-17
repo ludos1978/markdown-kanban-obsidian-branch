@@ -1046,7 +1046,28 @@ function renderSingleColumn(columnId, columnData) {
         updateImageSources();
     }
 
-    console.log(`[RenderSingleColumn] Completed render for column ${columnId}`);
+    // Re-initialize drag & drop for the new column elements
+    // Since we replaced the entire column DOM element, we need to re-setup all drag & drop
+    // handlers that were attached to the old element and its children
+
+    // Setup drag handles for tasks in this column
+    newColumnElement.querySelectorAll('.task-drag-handle').forEach(handle => {
+        if (typeof setupTaskDragHandle === 'function') {
+            setupTaskDragHandle(handle);
+        }
+    });
+
+    // Re-setup drag & drop for all columns and tasks to ensure event handlers are properly attached
+    // This is needed because setupTaskDragAndDrop() also sets up drop zones on the tasks container
+    if (typeof setupTaskDragAndDrop === 'function') {
+        setupTaskDragAndDrop();
+    }
+
+    if (typeof setupColumnDragAndDrop === 'function') {
+        setupColumnDragAndDrop();
+    }
+
+    console.log(`[RenderSingleColumn] Completed render for column ${columnId}, drag & drop re-initialized`);
 }
 
 // Render Kanban board
