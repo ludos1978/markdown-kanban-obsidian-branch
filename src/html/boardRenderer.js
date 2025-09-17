@@ -998,6 +998,57 @@ function generateFlatTagItems(tags, id, type, columnId = null) {
 }
 
 
+/**
+ * Render a single column - used for targeted updates of include columns
+ * Purpose: Updates just one column without losing overall board state
+ * Used by: Include file changes, targeted column updates
+ * Side effects: Updates DOM for specific column, preserves styles
+ */
+function renderSingleColumn(columnId, columnData) {
+    console.log(`[RenderSingleColumn] Starting render for column ${columnId}`);
+
+    // Find the existing column element
+    const existingColumnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (!existingColumnElement) {
+        console.warn(`[RenderSingleColumn] Column element not found for ${columnId}`);
+        return;
+    }
+
+    // Get the column index to maintain positioning
+    const allColumns = Array.from(document.querySelectorAll('[data-column-id]'));
+    const columnIndex = allColumns.indexOf(existingColumnElement);
+
+    // Create new column element
+    const newColumnElement = createColumnElement(columnData, columnIndex);
+
+    // Preserve scroll position
+    const tasksContainer = existingColumnElement.querySelector(`#tasks-${columnId}`);
+    const scrollTop = tasksContainer ? tasksContainer.scrollTop : 0;
+
+    // Replace the old element with the new one
+    existingColumnElement.parentNode.replaceChild(newColumnElement, existingColumnElement);
+
+    // Restore scroll position
+    const newTasksContainer = newColumnElement.querySelector(`#tasks-${columnId}`);
+    if (newTasksContainer) {
+        newTasksContainer.scrollTop = scrollTop;
+    }
+
+    // Apply current column state (collapsed/expanded)
+    if (window.collapsedColumns && window.collapsedColumns.has(columnId)) {
+        newColumnElement.classList.add('collapsed');
+        const toggle = newColumnElement.querySelector('.collapse-toggle');
+        if (toggle) toggle.classList.add('rotated');
+    }
+
+    // Update image sources for the new content
+    if (typeof updateImageSources === 'function') {
+        updateImageSources();
+    }
+
+    console.log(`[RenderSingleColumn] Completed render for column ${columnId}`);
+}
+
 // Render Kanban board
 /**
  * Main board rendering function - creates entire kanban UI
@@ -1374,9 +1425,12 @@ function createColumnElement(column, columnIndex) {
     // Corner badges handled by immediate update system
     const cornerBadgesHtml = '';
 
-    // Filter tags from displayed title based on visibility setting
-    const displayTitle = column.title ? window.filterTagsFromText(column.title) : '';
+    // Use displayTitle from column data if available (for include columns), otherwise filter tags
+    const displayTitle = column.displayTitle || (column.title ? window.filterTagsFromText(column.title) : '');
     const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
+
+    // For editing, always use the full title including include syntax
+    const editTitle = column.title || '';
     const foldButtonState = getFoldAllButtonState(column.id);
 
     // Only show row indicator for rows 2, 3, 4 if configuration allows (not row 1)
@@ -1393,9 +1447,9 @@ function createColumnElement(column, columnIndex) {
 								<span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
 								<div class="column-title-container">
 										<div class="column-title markdown-content" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
-										<textarea class="column-title-edit" 
+										<textarea class="column-title-edit"
 																data-column-id="${column.id}"
-																style="display: none;">${escapeHtml(displayTitle)}</textarea>
+																style="display: none;">${escapeHtml(editTitle)}</textarea>
 								</div>
 								<span class="task-count">${column.tasks.length}
 										<button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
@@ -1425,6 +1479,19 @@ function createColumnElement(column, columnIndex) {
 														<button class="span-width-btn" onclick="changeColumnSpan('${column.id}', 1)">+</button>
 													</div>
 												</div>
+												<div class="donut-menu-divider"></div>
+												${column.includeMode ? `
+													<button class="donut-menu-item" onclick="editColumnIncludeFile('${column.id}')">
+														Edit include file
+													</button>
+													<button class="donut-menu-item" onclick="toggleColumnIncludeMode('${column.id}')">
+														Disable include mode
+													</button>
+												` : `
+													<button class="donut-menu-item" onclick="toggleColumnIncludeMode('${column.id}')">
+														Enable include mode
+													</button>
+												`}
 												<div class="donut-menu-divider"></div>
 												<div class="donut-menu-item has-submenu" data-submenu-type="sort" data-id="${column.id}" data-type="column" data-column-id="${column.id}">
 														Sort by

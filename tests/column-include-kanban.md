@@ -5,13 +5,13 @@ kanban-plugin: board
 ---
 
 ## Column 1
-- [ ] Card 1.1
-  - A
-- [ ] content include
+- [ ] Card 1
   !!!include(include.md)!!!
 
-## !!!include(some-presentation.md)!!!
+## !!!columninclude(a-presentation.md)!!!
 
 ## Column 3
+- [ ] content include
+  !!!include(include.md)!!!
 
 

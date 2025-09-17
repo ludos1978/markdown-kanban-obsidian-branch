@@ -272,10 +272,10 @@ export class BoardOperations {
     public editColumnTitle(board: KanbanBoard, columnId: string, title: string): boolean {
         const column = this.findColumn(board, columnId);
         if (!column) {return false;}
-        
+
         // Preserve the current row tag
         const currentRow = this.getColumnRow(column);
-        
+
         // Clean the input title of any row tags the user might have accidentally included
         let cleanTitle = title
             .replace(/#row\d+\b/gi, '')  // Remove any row tags
@@ -283,14 +283,54 @@ export class BoardOperations {
             .replace(/#row\d+\s+/gi, '')  // Remove with following space
             .replace(/\s{2,}/g, ' ')      // Clean up multiple spaces
             .trim();                      // Remove leading/trailing spaces
-        
+
         // Re-add the row tag if the column is not in row 1
         if (currentRow > 1) {
             column.title = cleanTitle + ` #row${currentRow}`;
         } else {
             column.title = cleanTitle;
         }
-        
+
+        // Check for column include syntax changes
+        const columnIncludeMatches = column.title.match(/!!!columninclude\(([^)]+)\)!!!/g);
+
+        if (columnIncludeMatches && columnIncludeMatches.length > 0) {
+            // Extract new include files from the title
+            const newIncludeFiles: string[] = [];
+            columnIncludeMatches.forEach(match => {
+                const filePath = match.replace(/!!!columninclude\(([^)]+)\)!!!/, '$1').trim();
+                newIncludeFiles.push(filePath);
+            });
+
+            // Update include mode properties
+            column.includeMode = true;
+            column.includeFiles = newIncludeFiles;
+            column.originalTitle = column.title;
+
+            // Generate display title without include syntax
+            let displayTitle = column.title;
+            columnIncludeMatches.forEach(match => {
+                displayTitle = displayTitle.replace(match, '').trim();
+            });
+
+            // If no display title provided, use filename as title
+            if (!displayTitle && newIncludeFiles.length > 0) {
+                const path = require('path');
+                displayTitle = path.basename(newIncludeFiles[0], path.extname(newIncludeFiles[0]));
+            }
+
+            column.displayTitle = displayTitle || 'Included Column';
+
+            console.log(`[BoardOperations] Updated include files for column "${column.title}": [${newIncludeFiles.join(', ')}]`);
+        } else if (column.includeMode) {
+            // Title no longer contains include syntax - disable include mode
+            column.includeMode = false;
+            column.includeFiles = undefined;
+            column.originalTitle = undefined;
+            column.displayTitle = undefined;
+            console.log(`[BoardOperations] Disabled include mode for column "${column.title}"`);
+        }
+
         return true;
     }
 

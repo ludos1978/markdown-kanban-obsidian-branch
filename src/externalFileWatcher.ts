@@ -29,12 +29,16 @@ export class ExternalFileWatcher implements vscode.Disposable {
     private watchedFiles: Map<string, WatchedFile> = new Map();
     private disposables: vscode.Disposable[] = [];
     private fileListenerEnabled: boolean = true;
+    private documentSaveListener: vscode.Disposable | undefined;
 
     // Event emitter for file changes
     private _onFileChanged = new vscode.EventEmitter<FileChangeEvent>();
     public readonly onFileChanged = this._onFileChanged.event;
 
-    private constructor() {}
+    private constructor() {
+        // Set up document save listener for immediate file change detection
+        this.setupDocumentSaveListener();
+    }
 
     /**
      * Get or create the singleton instance
@@ -61,15 +65,50 @@ export class ExternalFileWatcher implements vscode.Disposable {
     }
 
     /**
+     * Set up document save listener for immediate change detection
+     */
+    private setupDocumentSaveListener(): void {
+        this.documentSaveListener = vscode.workspace.onDidSaveTextDocument((document) => {
+            if (!this.fileListenerEnabled) {
+                console.log(`[FileWatcher Debug] Document save ignored - listener disabled: ${document.uri.fsPath}`);
+                return;
+            }
+
+            const documentPath = document.uri.fsPath;
+            console.log(`[FileWatcher Debug] Document saved: ${documentPath}`);
+
+            // Check if this document is in our watched files
+            const watchedFile = this.watchedFiles.get(documentPath);
+            if (watchedFile) {
+                console.log(`[ExternalFileWatcher] Document saved (immediate): ${documentPath} - type: ${watchedFile.type}, panels: ${watchedFile.panels.size}`);
+                // Fire the change event immediately on save
+                this.handleFileChange(documentPath, 'modified');
+            } else {
+                console.log(`[FileWatcher Debug] Document not in watched files. Watched files:`, Array.from(this.watchedFiles.keys()));
+            }
+        });
+
+        this.disposables.push(this.documentSaveListener);
+    }
+
+    /**
      * Register a file for watching
      */
     public registerFile(path: string, type: FileType, panel: KanbanWebviewPanel): void {
+        console.log(`[FileWatcher Debug] Registering file for watching:`, {
+            path: path,
+            type: type,
+            panelId: (panel as any).id || 'unknown',
+            alreadyWatched: this.watchedFiles.has(path)
+        });
+
         // Check if this file is already being watched
         let watchedFile = this.watchedFiles.get(path);
 
         if (watchedFile) {
             // File already watched, just add this panel to the set
             watchedFile.panels.add(panel);
+            console.log(`[FileWatcher Debug] Added panel to existing watcher. Total panels: ${watchedFile.panels.size}`);
         } else {
             // New file to watch
             watchedFile = {
@@ -79,9 +118,13 @@ export class ExternalFileWatcher implements vscode.Disposable {
             };
             this.watchedFiles.set(path, watchedFile);
 
+            console.log(`[FileWatcher Debug] Created new watcher for file: ${path}`);
+
             // Create the actual file system watcher
             this.createWatcher(path, type);
         }
+
+        console.log(`[FileWatcher Debug] Total watched files: ${this.watchedFiles.size}`);
     }
 
     /**
@@ -250,6 +293,12 @@ export class ExternalFileWatcher implements vscode.Disposable {
         }
         this.watchers.clear();
         this.watchedFiles.clear();
+
+        // Dispose document save listener
+        if (this.documentSaveListener) {
+            this.documentSaveListener.dispose();
+            this.documentSaveListener = undefined;
+        }
 
         // Dispose event emitter
         this._onFileChanged.dispose();

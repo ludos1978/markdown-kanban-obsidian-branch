@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-import { MarkdownKanbanParser, KanbanBoard } from './markdownParser';
+import { MarkdownKanbanParser, KanbanBoard, KanbanColumn, KanbanTask } from './markdownParser';
+import { PresentationParser } from './presentationParser';
 import { FileManager, ImagePathMapping } from './fileManager';
 import { UndoRedoManager } from './undoRedoManager';
 import { BoardOperations } from './boardOperations';
@@ -49,6 +50,10 @@ export class KanbanWebviewPanel {
     private _changedIncludeFiles: Set<string> = new Set();
     private _includeFileContents: Map<string, string> = new Map();
     private _fileWatcher: ExternalFileWatcher;
+
+    // Column include file tracking
+    private _columnIncludeFiles: string[] = [];
+    private _columnIncludeFileContents: Map<string, string> = new Map();
 
     // External modification tracking
     private _lastKnownFileContent: string = '';
@@ -200,6 +205,11 @@ export class KanbanWebviewPanel {
 
         // Get the file watcher instance
         this._fileWatcher = ExternalFileWatcher.getInstance();
+
+        // Subscribe to file change events
+        this._disposables.push(
+            this._fileWatcher.onFileChanged(this.handleExternalFileChange.bind(this))
+        );
 
         // Set up document change listener to track external unsaved modifications
         this.setupDocumentChangeListener();
@@ -587,6 +597,7 @@ export class KanbanWebviewPanel {
                 const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
                 this._board = parseResult.board;
                 this._includedFiles = parseResult.includedFiles;
+                this._columnIncludeFiles = parseResult.columnIncludeFiles;
 
                 // Register included files with the external file watcher
                 // First, preserve existing include file content baselines to maintain change detection
@@ -611,6 +622,14 @@ export class KanbanWebviewPanel {
                         return path.resolve(basePath, relativePath);
                     });
                     this._fileWatcher.updateIncludeFiles(this, absoluteIncludePaths);
+
+                    // Also register column include files
+                    const absoluteColumnIncludePaths = this._columnIncludeFiles.map(relativePath => {
+                        return path.resolve(basePath, relativePath);
+                    });
+                    absoluteColumnIncludePaths.forEach(absolutePath => {
+                        this._fileWatcher.registerFile(absolutePath, 'include', this);
+                    });
                 }
 
                 // Always send notification to update tracked files list
@@ -754,6 +773,7 @@ export class KanbanWebviewPanel {
             // Update the board
             this._board = parseResult.board;
             this._includedFiles = parseResult.includedFiles;
+            this._columnIncludeFiles = parseResult.columnIncludeFiles;
 
             // Update our baseline of known file content
             this.updateKnownFileContent(document.getText());
@@ -792,6 +812,14 @@ export class KanbanWebviewPanel {
                     return path.resolve(basePath, relativePath);
                 });
                 this._fileWatcher.updateIncludeFiles(this, absoluteIncludePaths);
+
+                // Also register column include files
+                const absoluteColumnIncludePaths = this._columnIncludeFiles.map(relativePath => {
+                    return path.resolve(basePath, relativePath);
+                });
+                absoluteColumnIncludePaths.forEach(absolutePath => {
+                    this._fileWatcher.registerFile(absolutePath, 'include', this);
+                });
             }
 
             // Always send notification to update tracked files list
@@ -968,7 +996,10 @@ export class KanbanWebviewPanel {
                     return;
                 }
             }
-            
+
+            // First, save any changes to column include files (bidirectional editing)
+            await this.saveAllColumnIncludeChanges();
+
             const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
             console.log(`[Save Debug] Generated markdown preview (first 200 chars): ${markdown.substring(0, 200)}...`);
 
@@ -1789,6 +1820,242 @@ export class KanbanWebviewPanel {
 
         // Send notification after refresh to update button state
         this._sendIncludeFileChangeNotification();
+    }
+
+    /**
+     * Save modifications from include columns back to their original presentation files
+     * This enables bidirectional editing
+     */
+    public async saveColumnIncludeChanges(column: KanbanColumn): Promise<boolean> {
+        if (!column.includeMode || !column.includeFiles || column.includeFiles.length === 0) {
+            return false;
+        }
+
+        try {
+            const currentDocument = this._fileManager.getDocument();
+            if (!currentDocument) {
+                return false;
+            }
+
+            const basePath = path.dirname(currentDocument.uri.fsPath);
+
+            // For now, handle single file includes (could be extended for multi-file)
+            const includeFile = column.includeFiles[0];
+            const absolutePath = path.resolve(basePath, includeFile);
+
+            // Check if the file exists - if not, this might be a new file path that hasn't been loaded yet
+            if (!fs.existsSync(absolutePath)) {
+                console.log(`[Column Include] Skipping save to non-existent file: ${absolutePath}`);
+                return false;
+            }
+
+            // CRITICAL FIX: Check if the current tasks actually came from this file
+            // Read the current file content and compare with what we would generate
+            const currentFileContent = fs.readFileSync(absolutePath, 'utf8');
+            const currentFileTasks = PresentationParser.parseMarkdownToTasks(currentFileContent);
+
+            console.log(`[Save Debug] Checking file content match for ${includeFile}:`, {
+                fileTaskCount: currentFileTasks.length,
+                columnTaskCount: column.tasks.length,
+                fileTasks: currentFileTasks.map(t => t.title),
+                columnTasks: column.tasks.map(t => t.title)
+            });
+
+            // Smart validation: Only skip save if task count differs significantly
+            // This indicates a file path change where content wasn't reloaded properly
+            const taskCountDifference = Math.abs(currentFileTasks.length - column.tasks.length);
+            const hasSignificantCountDifference = taskCountDifference > 0;
+
+            // Additional check: if count is same, compare first task titles to detect file path changes
+            let isLikelyFilePathChange = false;
+            if (currentFileTasks.length > 0 && column.tasks.length > 0 && currentFileTasks.length === column.tasks.length) {
+                // If all task titles are completely different, it's likely a file path change
+                const firstFileTask = currentFileTasks[0]?.title || '';
+                const firstColumnTask = column.tasks[0]?.title || '';
+                const titlesSimilar = firstFileTask === firstColumnTask ||
+                                    firstFileTask.includes(firstColumnTask) ||
+                                    firstColumnTask.includes(firstFileTask);
+                isLikelyFilePathChange = !titlesSimilar;
+            }
+
+            if (hasSignificantCountDifference || isLikelyFilePathChange) {
+                console.log(`[Column Include] Detected likely file path change, skipping save to prevent overwrite`);
+                console.log(`[Column Include] File tasks: ${currentFileTasks.length}, Column tasks: ${column.tasks.length}`);
+                console.log(`[Save Debug] Validation details:`, {
+                    taskCountDifference: taskCountDifference,
+                    hasSignificantCountDifference: hasSignificantCountDifference,
+                    isLikelyFilePathChange: isLikelyFilePathChange,
+                    firstFileTask: currentFileTasks[0]?.title,
+                    firstColumnTask: column.tasks[0]?.title
+                });
+                return false;
+            }
+
+            console.log(`[Save Debug] Content validation passed - proceeding with bidirectional save`);
+
+            // Check if we have any actual task changes to save
+            // If the tasks came from a file include and haven't been modified, don't overwrite
+            if (column.tasks.length === 0) {
+                console.log(`[Column Include] No tasks to save for ${includeFile}`);
+                return false;
+            }
+
+            // Convert tasks back to presentation format
+            const presentationContent = PresentationParser.tasksToPresentation(column.tasks);
+
+            // Don't write if the content would be empty or just separators
+            if (!presentationContent || presentationContent.trim() === '' || presentationContent.trim() === '---') {
+                console.log(`[Column Include] Skipping save of empty content to ${includeFile}`);
+                return false;
+            }
+
+            // Additional safety check: don't write if the generated content is identical to current file
+            if (currentFileContent.trim() === presentationContent.trim()) {
+                console.log(`[Column Include] Content unchanged, skipping save to ${includeFile}`);
+                return false;
+            }
+
+            // Write to file
+            fs.writeFileSync(absolutePath, presentationContent, 'utf8');
+
+            // Update our tracking to prevent unnecessary change notifications
+            this._columnIncludeFileContents.set(includeFile, presentationContent);
+
+            console.log(`[Column Include] Saved changes to ${includeFile} (${column.tasks.length} slides)`);
+            return true;
+
+        } catch (error) {
+            console.error(`[Column Include] Error saving changes to ${column.includeFiles[0]}:`, error);
+            vscode.window.showErrorMessage(`Failed to save changes to column include file: ${error}`);
+            return false;
+        }
+    }
+
+    /**
+     * Load new content into a column when its include files change
+     */
+    public async loadNewIncludeContent(column: KanbanColumn, newIncludeFiles: string[]): Promise<void> {
+        console.log(`[LoadNewInclude Debug] Starting load for column:`, {
+            columnId: column.id,
+            columnTitle: column.title,
+            includeMode: column.includeMode,
+            newIncludeFiles: newIncludeFiles,
+            currentTaskCount: column.tasks?.length || 0
+        });
+
+        try {
+            const currentDocument = this._fileManager.getDocument();
+            if (!currentDocument) {
+                console.log(`[LoadNewInclude Debug] No current document found`);
+                return;
+            }
+
+            const basePath = path.dirname(currentDocument.uri.fsPath);
+            console.log(`[LoadNewInclude Debug] Base path: ${basePath}`);
+
+            // For now, handle single file includes
+            const includeFile = newIncludeFiles[0];
+            const absolutePath = path.resolve(basePath, includeFile);
+
+            console.log(`[LoadNewInclude Debug] Trying to load file: ${absolutePath}`);
+
+            if (fs.existsSync(absolutePath)) {
+                const fileContent = fs.readFileSync(absolutePath, 'utf8');
+                console.log(`[LoadNewInclude Debug] File content loaded, length: ${fileContent.length}`);
+
+                const newTasks = PresentationParser.parseMarkdownToTasks(fileContent);
+                console.log(`[LoadNewInclude Debug] Parsed ${newTasks.length} tasks:`, newTasks.map(t => t.title));
+
+                // Update the column's tasks directly
+                column.tasks = newTasks;
+
+                console.log(`[LoadNewInclude] Loaded ${newTasks.length} tasks from ${includeFile}`);
+
+                // Send targeted update message to frontend instead of full refresh
+                this._panel.webview.postMessage({
+                    type: 'updateColumnContent',
+                    columnId: column.id,
+                    tasks: newTasks,
+                    includeFile: includeFile,
+                    columnTitle: column.title,
+                    displayTitle: column.displayTitle,
+                    includeMode: column.includeMode,
+                    includeFiles: column.includeFiles
+                });
+
+                console.log(`[LoadNewInclude Debug] Sent targeted column update message`);
+            } else {
+                console.warn(`[LoadNewInclude] Include file not found: ${absolutePath}`);
+                // Clear tasks if file doesn't exist
+                column.tasks = [];
+
+                // Send targeted update with empty tasks
+                this._panel.webview.postMessage({
+                    type: 'updateColumnContent',
+                    columnId: column.id,
+                    tasks: [],
+                    includeFile: includeFile,
+                    columnTitle: column.title,
+                    displayTitle: column.displayTitle,
+                    includeMode: column.includeMode,
+                    includeFiles: column.includeFiles
+                });
+            }
+        } catch (error) {
+            console.error(`[LoadNewInclude] Error loading new include content:`, error);
+        }
+    }
+
+    /**
+     * Save all modified column includes when the board is saved
+     */
+    public async saveAllColumnIncludeChanges(): Promise<void> {
+        if (!this._board) {
+            return;
+        }
+
+        const includeColumns = this._board.columns.filter(col => col.includeMode);
+        const savePromises = includeColumns.map(col => this.saveColumnIncludeChanges(col));
+
+        try {
+            await Promise.all(savePromises);
+        } catch (error) {
+            console.error('[Column Include] Error saving column include changes:', error);
+        }
+    }
+
+    /**
+     * Handle external file changes from the file watcher
+     */
+    private async handleExternalFileChange(event: import('./externalFileWatcher').FileChangeEvent): Promise<void> {
+        try {
+            console.log(`[ExternalFileChange] File ${event.changeType}: ${event.path} (${event.fileType})`);
+
+            // Check if this panel is affected by the change
+            if (!event.panels.includes(this)) {
+                return;
+            }
+
+            // Handle different types of file changes
+            if (event.fileType === 'include') {
+                // This is a column include file - reload the board
+                const currentDocument = this._fileManager.getDocument();
+                if (currentDocument) {
+                    console.log(`[ExternalFileChange] Reloading board due to column include file change: ${event.path}`);
+                    await this.loadMarkdownFile(currentDocument, false, true); // Force reload
+                }
+            } else if (event.fileType === 'main') {
+                // This is the main kanban file - handle external changes
+                const currentDocument = this._fileManager.getDocument();
+                if (currentDocument) {
+                    console.log(`[ExternalFileChange] Main file changed: ${event.path}`);
+                    await this.notifyExternalChanges(currentDocument);
+                }
+            }
+
+        } catch (error) {
+            console.error('[ExternalFileChange] Error handling file change:', error);
+        }
     }
 
     /**

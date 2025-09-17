@@ -95,6 +95,26 @@ export class MessageHandler {
                 this._fileManager.sendFileInfo();
                 break;
 
+            // Update board with new data (used for immediate column include changes)
+            case 'updateBoard':
+                await this.handleUpdateBoard(message);
+                break;
+
+            // Confirm disable include mode (uses VS Code dialog)
+            case 'confirmDisableIncludeMode':
+                await this.handleConfirmDisableIncludeMode(message);
+                break;
+
+            // Request include file name for enabling include mode
+            case 'requestIncludeFileName':
+                await this.handleRequestIncludeFileName(message);
+                break;
+
+            // Request edit include file name for changing include files
+            case 'requestEditIncludeFileName':
+                await this.handleRequestEditIncludeFileName(message);
+                break;
+
             // Enhanced file and link handling
             case 'openFileLink':
                 await this._linkHandler.handleFileLink(message.href);
@@ -267,9 +287,52 @@ export class MessageHandler {
                 );
                 break;
             case 'editColumnTitle':
+                console.log(`[MessageHandler Debug] editColumnTitle received:`, {
+                    columnId: message.columnId,
+                    title: message.title
+                });
+
+                // Check if this might be a column include file change
+                const currentBoard = this._getCurrentBoard();
+                const column = currentBoard?.columns.find(col => col.id === message.columnId);
+                const oldIncludeFiles = column?.includeFiles ? [...column.includeFiles] : [];
+
+                console.log(`[MessageHandler Debug] Column before edit:`, {
+                    columnId: message.columnId,
+                    currentTitle: column?.title,
+                    includeMode: column?.includeMode,
+                    oldIncludeFiles: oldIncludeFiles,
+                    currentTasks: column?.tasks?.length || 0
+                });
+
                 await this.performBoardActionSilent(() =>
-                    this._boardOperations.editColumnTitle(this._getCurrentBoard()!, message.columnId, message.title)
+                    this._boardOperations.editColumnTitle(currentBoard!, message.columnId, message.title)
                 );
+
+                console.log(`[MessageHandler Debug] Column after edit:`, {
+                    columnId: message.columnId,
+                    newTitle: column?.title,
+                    includeMode: column?.includeMode,
+                    newIncludeFiles: column?.includeFiles,
+                    currentTasks: column?.tasks?.length || 0
+                });
+
+                // If include files changed, load new content immediately
+                const newIncludeFiles = column?.includeFiles || [];
+                const includeFilesChanged = JSON.stringify(oldIncludeFiles) !== JSON.stringify(newIncludeFiles);
+
+                console.log(`[MessageHandler Debug] Include files changed: ${includeFilesChanged}`, {
+                    oldIncludeFiles: oldIncludeFiles,
+                    newIncludeFiles: newIncludeFiles
+                });
+
+                if (includeFilesChanged && column && newIncludeFiles.length > 0) {
+                    console.log(`[MessageHandler] Include files changed, loading new content from: ${newIncludeFiles.join(', ')}`);
+
+                    // Use the webview panel to load the new content
+                    const panel = this._getWebviewPanel();
+                    await panel.loadNewIncludeContent(column, newIncludeFiles);
+                }
                 break;
             case 'moveColumnWithRowUpdate':
                 await this.performBoardAction(() => 
@@ -1202,6 +1265,133 @@ export class MessageHandler {
                     dropPosition: dropPosition
                 });
             }
+        }
+    }
+
+    private async handleUpdateBoard(message: any): Promise<void> {
+        try {
+            const board = message.board;
+            if (!board) {
+                console.error('[updateBoard] No board data provided');
+                return;
+            }
+
+            // Set the updated board
+            this._setBoard(board);
+
+            // If this is an immediate update (like column include changes), trigger a save and reload
+            if (message.immediate) {
+                console.log('[updateBoard] Immediate update requested - triggering save and reload');
+
+                // Save the changes to markdown
+                await this._onSaveToMarkdown();
+
+                // Trigger a board update to reload with new include files
+                await this._onBoardUpdate();
+            } else {
+                // Regular update - just mark as unsaved
+                this._markUnsavedChanges(true, board);
+            }
+
+        } catch (error) {
+            console.error('[updateBoard] Error handling board update:', error);
+        }
+    }
+
+    private async handleConfirmDisableIncludeMode(message: any): Promise<void> {
+        try {
+            const confirmation = await vscode.window.showWarningMessage(
+                message.message,
+                { modal: true },
+                'Disable Include Mode',
+                'Cancel'
+            );
+
+            if (confirmation === 'Disable Include Mode') {
+                // User confirmed - send message back to webview to proceed
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'proceedDisableIncludeMode',
+                        columnId: message.columnId
+                    });
+                }
+            }
+            // If cancelled, do nothing
+
+        } catch (error) {
+            console.error('[confirmDisableIncludeMode] Error handling confirmation:', error);
+        }
+    }
+
+    private async handleRequestIncludeFileName(message: any): Promise<void> {
+        try {
+            const fileName = await vscode.window.showInputBox({
+                prompt: 'Enter the path to the presentation file',
+                placeHolder: 'e.g., presentation.md or slides/intro.md',
+                validateInput: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Please enter a file path';
+                    }
+                    if (!value.endsWith('.md')) {
+                        return 'File should be a markdown file (.md)';
+                    }
+                    return undefined;
+                }
+            });
+
+            if (fileName && fileName.trim()) {
+                // User provided a file name - send message back to webview to proceed
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'proceedEnableIncludeMode',
+                        columnId: message.columnId,
+                        fileName: fileName.trim()
+                    });
+                }
+            }
+            // If cancelled, do nothing
+
+        } catch (error) {
+            console.error('[requestIncludeFileName] Error handling input request:', error);
+        }
+    }
+
+    private async handleRequestEditIncludeFileName(message: any): Promise<void> {
+        try {
+            const currentFile = message.currentFile || '';
+            const fileName = await vscode.window.showInputBox({
+                prompt: 'Edit the path to the presentation file',
+                value: currentFile,
+                placeHolder: 'e.g., presentation.md or slides/intro.md',
+                validateInput: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Please enter a file path';
+                    }
+                    if (!value.endsWith('.md')) {
+                        return 'File should be a markdown file (.md)';
+                    }
+                    return undefined;
+                }
+            });
+
+            if (fileName && fileName.trim()) {
+                // User provided a file name - send message back to webview to proceed
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'proceedUpdateIncludeFile',
+                        columnId: message.columnId,
+                        newFileName: fileName.trim(),
+                        currentFile: currentFile
+                    });
+                }
+            }
+            // If cancelled, do nothing
+
+        } catch (error) {
+            console.error('[requestEditIncludeFileName] Error handling input request:', error);
         }
     }
 }

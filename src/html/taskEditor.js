@@ -298,6 +298,32 @@ class TaskEditor {
             this.save();
         }
 
+        // For column title editing, ensure we have the full title with include syntax
+        if (type === 'column-title' && columnId) {
+            const column = window.cachedBoard?.columns.find(col => col.id === columnId);
+            if (column && column.title) {
+                console.log(`[TaskEditor] Setting column title for editing: "${column.title}"`);
+                editElement.value = column.title; // Use full title, not filtered
+            } else {
+                console.log(`[TaskEditor] Column not found in cachedBoard for columnId: ${columnId}`);
+                // Fallback: check if the current textarea value looks filtered
+                const currentValue = editElement.value;
+                console.log(`[TaskEditor] Current textarea value: "${currentValue}"`);
+
+                // If the current value doesn't contain include syntax but we're editing an include column,
+                // we need to find the full title from the DOM or board
+                const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+                if (columnElement) {
+                    // Try to get the original title from the board data or column element
+                    const boardColumn = window.currentBoard?.columns.find(col => col.id === columnId);
+                    if (boardColumn && boardColumn.title && boardColumn.title !== currentValue) {
+                        console.log(`[TaskEditor] Using currentBoard title: "${boardColumn.title}"`);
+                        editElement.value = boardColumn.title;
+                    }
+                }
+            }
+        }
+
         // Show edit element, hide display
         if (displayElement) {displayElement.style.display = 'none';}
         editElement.style.display = 'block';
@@ -497,8 +523,41 @@ class TaskEditor {
                             newTitle += ` ${currentSpan}`;
                         }
 
+                        // Check for column include syntax changes
+                        const oldIncludeMatches = (column.title || '').match(/!!!columninclude\(([^)]+)\)!!!/g) || [];
+                        const newIncludeMatches = newTitle.match(/!!!columninclude\(([^)]+)\)!!!/g) || [];
+
+                        console.log(`[TaskEditor Debug] Column ${columnId} title change:`, {
+                            oldTitle: column.title,
+                            newTitle: newTitle,
+                            oldIncludeMatches: oldIncludeMatches,
+                            newIncludeMatches: newIncludeMatches
+                        });
+
+                        const hasIncludeChanges =
+                            oldIncludeMatches.length !== newIncludeMatches.length ||
+                            oldIncludeMatches.some((match, index) => match !== newIncludeMatches[index]);
+
+                        console.log(`[TaskEditor Debug] Has include changes: ${hasIncludeChanges}`);
+
                         column.title = newTitle;
-                        
+
+                        // If include syntax changed, send editColumnTitle message immediately for backend processing
+                        if (hasIncludeChanges) {
+                            console.log('[Column Include] Detected include syntax change, sending to backend...');
+                            console.log('[TaskEditor Debug] Sending editColumnTitle message for include change');
+
+                            // Send editColumnTitle message to trigger proper include handling in backend
+                            vscode.postMessage({
+                                type: 'editColumnTitle',
+                                columnId: columnId,
+                                title: newTitle
+                            });
+
+                            // Don't update local state here - let the backend handle it and reload
+                            return; // Skip the rest of the local updates for include changes
+                        }
+
                         // Mark as unsaved since we made a change
                         if (typeof markUnsavedChanges === 'function') {
                             markUnsavedChanges();

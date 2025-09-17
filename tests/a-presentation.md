@@ -1,17 +1,17 @@
-# Heading 1
+# A Heading 1
 
-> Quote
+> A Quote
 
 ---
 
-## Heading 2
+# A Heading 2
 
 - some
 - list
 
 ---
 
-### Heading 3
+# A Heading 3
 
 ---:
 
@@ -25,9 +25,8 @@ Right
 
 ---
 
-#### Heading 4
+# A Heading 4
 
-==highlighted text===
+==highlighted text==
 
 Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
-

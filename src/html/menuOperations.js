@@ -966,6 +966,226 @@ function copyToClipboard(text) {
     }
 }
 
+// Column include mode operations
+function toggleColumnIncludeMode(columnId) {
+    // Close all menus properly
+    closeAllMenus();
+
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    if (column.includeMode) {
+        // Disable include mode - convert included tasks to regular tasks
+        // Send confirmation request to VS Code since webview is sandboxed
+        vscode.postMessage({
+            type: 'confirmDisableIncludeMode',
+            columnId: columnId,
+            message: 'Disable include mode? This will convert all included slides to regular cards. The original presentation file will not be modified.'
+        });
+        return; // Exit here, the backend will handle the confirmation and response
+    } else {
+        // Enable include mode - request file path via VS Code dialog
+        vscode.postMessage({
+            type: 'requestIncludeFileName',
+            columnId: columnId
+        });
+        return; // Exit here, the backend will handle the input and response
+    }
+}
+
+// Function called from backend after user provides include file name
+function enableColumnIncludeMode(columnId, fileName) {
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+		// Update column title to include the syntax
+		const currentTitle = column.title || '';
+		const newTitle = `${currentTitle} !!!columninclude(${fileName.trim()})!!!`.trim();
+
+		// Update the cached board
+		column.originalTitle = currentTitle;
+		column.title = newTitle;
+
+		// Also update currentBoard for compatibility
+		if (window.currentBoard !== window.cachedBoard) {
+				const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+				if (currentColumn) {
+						currentColumn.originalTitle = currentTitle;
+						currentColumn.title = newTitle;
+				}
+		}
+
+		// Send update to backend
+		vscode.postMessage({
+				type: 'updateBoard',
+				board: window.cachedBoard
+		});
+
+		// Update button state to show unsaved changes
+		updateRefreshButtonState('unsaved', 1);
+}
+
+// Edit column include file
+function editColumnIncludeFile(columnId) {
+    // Close all menus properly
+    closeAllMenus();
+
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    if (!column.includeMode || !column.includeFiles || column.includeFiles.length === 0) {
+        vscode.postMessage({
+            type: 'showMessage',
+            text: 'This column is not in include mode or has no include files.'
+        });
+        return;
+    }
+
+    // Get current include file path
+    const currentFile = column.includeFiles[0]; // For now, handle single file includes
+
+    // Request new file path via VS Code dialog
+    vscode.postMessage({
+        type: 'requestEditIncludeFileName',
+        columnId: columnId,
+        currentFile: currentFile
+    });
+    return; // Exit here, the backend will handle the input and response
+}
+
+// Function called from backend after user provides edited include file name
+function updateColumnIncludeFile(columnId, newFileName, currentFile) {
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    if (newFileName && newFileName.trim() && newFileName.trim() !== currentFile) {
+        // Extract the clean title (without include syntax)
+        let cleanTitle = column.title || '';
+
+        // Remove all existing columninclude patterns
+        cleanTitle = cleanTitle.replace(/!!!columninclude\([^)]+\)!!!/g, '').trim();
+
+        // Create new title with updated include syntax
+        const newTitle = `${cleanTitle} !!!columninclude(${newFileName.trim()})!!!`.trim();
+
+        // Update the cached board
+        column.title = newTitle;
+        column.includeFiles = [newFileName.trim()];
+        column.originalTitle = newTitle;
+
+        // Also update currentBoard for compatibility
+        if (window.currentBoard !== window.cachedBoard) {
+            const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+            if (currentColumn) {
+                currentColumn.title = newTitle;
+                currentColumn.includeFiles = [newFileName.trim()];
+                currentColumn.originalTitle = newTitle;
+            }
+        }
+
+        // Send update to backend
+        vscode.postMessage({
+            type: 'updateBoard',
+            board: window.cachedBoard
+        });
+
+        // Update button state to show unsaved changes
+        updateRefreshButtonState('unsaved', 1);
+
+        vscode.postMessage({
+            type: 'showMessage',
+            text: `Column include file updated to: ${newFileName.trim()}`
+        });
+    }
+}
+
+// Function called from backend after user confirms disable include mode
+function disableColumnIncludeMode(columnId) {
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    // Extract the clean title (without include syntax)
+    let cleanTitle = column.title || '';
+    cleanTitle = cleanTitle.replace(/!!!columninclude\([^)]+\)!!!/g, '').trim();
+
+    // If no clean title remains, use the filename
+    if (!cleanTitle && column.includeFiles && column.includeFiles.length > 0) {
+        const fileName = column.includeFiles[0].split('/').pop().replace(/\.[^/.]+$/, '');
+        cleanTitle = fileName;
+    }
+
+    // Update the column to regular mode
+    column.title = cleanTitle || 'Untitled Column';
+    column.includeMode = false;
+    delete column.includeFiles;
+    delete column.originalTitle;
+
+    // Also update currentBoard for compatibility
+    if (window.currentBoard !== window.cachedBoard) {
+        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+        if (currentColumn) {
+            currentColumn.title = cleanTitle || 'Untitled Column';
+            currentColumn.includeMode = false;
+            delete currentColumn.includeFiles;
+            delete currentColumn.originalTitle;
+        }
+    }
+
+    // Send update to backend
+    vscode.postMessage({
+        type: 'updateBoard',
+        board: window.cachedBoard
+    });
+
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+
+    vscode.postMessage({
+        type: 'showMessage',
+        text: 'Include mode disabled. Tasks converted to regular cards.'
+    });
+}
+
 // Task operations
 function duplicateTask(taskId, columnId) {
     // Close all menus properly

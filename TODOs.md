@@ -19,7 +19,7 @@ kanban-plugin: board
 	- sends the modifications to the frontend.
 	- parses and generates / provides the cards.
 
-  important is that the include file handling should be considered as a separate file edit within the kanban editor. so if it's changed and unsaved it should ask to save or discard when closing (or removing the file). also if it's edited externally it should ask wether the data should be read from source or backed up and reread (the same as with the kanban file itself).
+  important is that the include file handling should be considered as a separate file edit within the kanban editor. so if it's changed and unsaved it should ask to save or discard when closing (or removing the file). also if it's edited externally it should ask wether the data should be read from source or backed up and reread (the same as with the kanban file itself). i must be able to modify the !!!columninclude(file.md)!!! in the header and switch the file that is included without any delay.
 
 - [ ] add a tag, what makes a column not be moved on a new line, but stay below the column previous to it. 
 

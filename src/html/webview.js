@@ -1379,7 +1379,7 @@ function filterTagsFromText(text) {
             // Show all tags - don't filter anything
             return text;
         case 'standard':
-            // Hide #span and #row tags only
+            // Hide #span and #row tags only, but preserve include syntax
             return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
         case 'custom':
             // Hide #span, #row, and configured tags (but show @ tags)
@@ -2540,6 +2540,68 @@ window.addEventListener('message', event => {
         case 'insertSnippetContent':
             // Insert VS Code snippet content into the active editor
             insertVSCodeSnippetContent(message.content, message.fieldType, message.taskId);
+            break;
+        case 'proceedDisableIncludeMode':
+            // User confirmed disable include mode in VS Code dialog - proceed with the action
+            if (typeof disableColumnIncludeMode === 'function') {
+                disableColumnIncludeMode(message.columnId);
+            }
+            break;
+        case 'proceedEnableIncludeMode':
+            // User provided file name in VS Code dialog - proceed with enabling include mode
+            if (typeof enableColumnIncludeMode === 'function') {
+                enableColumnIncludeMode(message.columnId, message.fileName);
+            }
+            break;
+        case 'proceedUpdateIncludeFile':
+            // User provided new file name in VS Code dialog - proceed with updating include file
+            if (typeof updateColumnIncludeFile === 'function') {
+                updateColumnIncludeFile(message.columnId, message.newFileName, message.currentFile);
+            }
+            break;
+        case 'updateColumnContent':
+            // Handle targeted column content update for include file changes
+            console.log(`[Frontend Debug] Received updateColumnContent for column ${message.columnId}:`, {
+                taskCount: message.tasks?.length || 0,
+                includeFile: message.includeFile,
+                tasks: message.tasks?.map(t => t.title) || []
+            });
+
+            // Update the column in cached board
+            if (window.cachedBoard && window.cachedBoard.columns) {
+                const column = window.cachedBoard.columns.find(c => c.id === message.columnId);
+                if (column) {
+                    // Update tasks and column metadata
+                    column.tasks = message.tasks || [];
+                    column.title = message.columnTitle || column.title;
+                    column.displayTitle = message.displayTitle || column.displayTitle;
+                    column.includeMode = message.includeMode;
+                    column.includeFiles = message.includeFiles;
+
+                    console.log(`[Frontend Debug] Updated column ${message.columnId}:`, {
+                        taskCount: column.tasks.length,
+                        title: column.title,
+                        displayTitle: column.displayTitle,
+                        includeMode: column.includeMode,
+                        includeFiles: column.includeFiles
+                    });
+
+                    // Re-render just this column
+                    if (typeof renderSingleColumn === 'function') {
+                        renderSingleColumn(message.columnId, column);
+                        console.log(`[Frontend Debug] Re-rendered column ${message.columnId}`);
+                    } else {
+                        console.warn(`[Frontend Debug] renderSingleColumn function not available, falling back to full render`);
+                        if (typeof window.renderBoard === 'function') {
+                            window.renderBoard();
+                        }
+                    }
+                } else {
+                    console.warn(`[Frontend Debug] Column ${message.columnId} not found in cached board`);
+                }
+            } else {
+                console.warn(`[Frontend Debug] No cached board available for column update`);
+            }
             break;
     }
 });
