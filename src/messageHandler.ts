@@ -3,9 +3,11 @@ import { UndoRedoManager } from './undoRedoManager';
 import { BoardOperations } from './boardOperations';
 import { LinkHandler } from './linkHandler';
 import { KanbanBoard } from './markdownParser';
+import { ExternalFileWatcher } from './externalFileWatcher';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 interface FocusTarget {
     type: 'task' | 'column';
@@ -93,6 +95,26 @@ export class MessageHandler {
                 this._fileManager.sendFileInfo();
                 break;
 
+            // Update board with new data (used for immediate column include changes)
+            case 'updateBoard':
+                await this.handleUpdateBoard(message);
+                break;
+
+            // Confirm disable include mode (uses VS Code dialog)
+            case 'confirmDisableIncludeMode':
+                await this.handleConfirmDisableIncludeMode(message);
+                break;
+
+            // Request include file name for enabling include mode
+            case 'requestIncludeFileName':
+                await this.handleRequestIncludeFileName(message);
+                break;
+
+            // Request edit include file name for changing include files
+            case 'requestEditIncludeFileName':
+                await this.handleRequestEditIncludeFileName(message);
+                break;
+
             // Enhanced file and link handling
             case 'openFileLink':
                 await this._linkHandler.handleFileLink(message.href);
@@ -121,6 +143,7 @@ export class MessageHandler {
                 break;
             case 'markUnsavedChanges':
                 // Track unsaved changes at panel level and update cached board if provided
+                // console.log(`[Save Debug] markUnsavedChanges called - hasUnsavedChanges: ${message.hasUnsavedChanges}, hasCachedBoard: ${!!message.cachedBoard}`);
                 this._markUnsavedChanges(message.hasUnsavedChanges, message.cachedBoard);
                 break;
             case 'saveUndoState':
@@ -149,6 +172,12 @@ export class MessageHandler {
             case 'setPreference':
                 await this.handleSetPreference(message.key, message.value);
                 break;
+            case 'setContext':
+                await this.handleSetContext(message.contextVariable, message.value);
+                break;
+            case 'triggerVSCodeSnippet':
+                await this.handleVSCodeSnippet(message);
+                break;
             case 'resolveAndCopyPath':
                 const resolution = await this._fileManager.resolveFilePath(message.path);
                 if (resolution && resolution.exists) {
@@ -161,7 +190,7 @@ export class MessageHandler {
         
             // Task operations
             case 'editTask':
-                await this.performBoardAction(() => 
+                await this.performBoardActionSilent(() =>
                     this._boardOperations.editTask(this._getCurrentBoard()!, message.taskId, message.columnId, message.taskData)
                 );
                 break;
@@ -258,9 +287,52 @@ export class MessageHandler {
                 );
                 break;
             case 'editColumnTitle':
-                await this.performBoardAction(() => 
-                    this._boardOperations.editColumnTitle(this._getCurrentBoard()!, message.columnId, message.title)
+                console.log(`[MessageHandler Debug] editColumnTitle received:`, {
+                    columnId: message.columnId,
+                    title: message.title
+                });
+
+                // Check if this might be a column include file change
+                const currentBoard = this._getCurrentBoard();
+                const column = currentBoard?.columns.find(col => col.id === message.columnId);
+                const oldIncludeFiles = column?.includeFiles ? [...column.includeFiles] : [];
+
+                console.log(`[MessageHandler Debug] Column before edit:`, {
+                    columnId: message.columnId,
+                    currentTitle: column?.title,
+                    includeMode: column?.includeMode,
+                    oldIncludeFiles: oldIncludeFiles,
+                    currentTasks: column?.tasks?.length || 0
+                });
+
+                await this.performBoardActionSilent(() =>
+                    this._boardOperations.editColumnTitle(currentBoard!, message.columnId, message.title)
                 );
+
+                console.log(`[MessageHandler Debug] Column after edit:`, {
+                    columnId: message.columnId,
+                    newTitle: column?.title,
+                    includeMode: column?.includeMode,
+                    newIncludeFiles: column?.includeFiles,
+                    currentTasks: column?.tasks?.length || 0
+                });
+
+                // If include files changed, load new content immediately
+                const newIncludeFiles = column?.includeFiles || [];
+                const includeFilesChanged = JSON.stringify(oldIncludeFiles) !== JSON.stringify(newIncludeFiles);
+
+                console.log(`[MessageHandler Debug] Include files changed: ${includeFilesChanged}`, {
+                    oldIncludeFiles: oldIncludeFiles,
+                    newIncludeFiles: newIncludeFiles
+                });
+
+                if (includeFilesChanged && column && newIncludeFiles.length > 0) {
+                    console.log(`[MessageHandler] Include files changed, loading new content from: ${newIncludeFiles.join(', ')}`);
+
+                    // Use the webview panel to load the new content
+                    const panel = this._getWebviewPanel();
+                    await panel.loadNewIncludeContent(column, newIncludeFiles);
+                }
                 break;
             case 'moveColumnWithRowUpdate':
                 await this.performBoardAction(() => 
@@ -291,8 +363,29 @@ export class MessageHandler {
                 await this.handleSaveBoardState(message.board);
                 break;
             case 'updateTaskInBackend':
-                // Update specific task in backend board
-                this.updateTaskInBackend(message.taskId, message.columnId, message.field, message.value);
+                // DEPRECATED: This is now handled via markUnsavedChanges with cachedBoard
+                // The complete board state is sent, which is more reliable than individual field updates
+                console.log('[DEBUG] updateTaskInBackend call received but ignored - using markUnsavedChanges instead');
+                break;
+
+            case 'saveClipboardImage':
+                await this.handleSaveClipboardImage(
+                    message.imageData,
+                    message.imagePath,
+                    message.mediaFolderPath,
+                    message.dropPosition,
+                    message.imageFileName,
+                    message.mediaFolderName
+                );
+                break;
+
+            case 'saveClipboardImageWithPath':
+                await this.handleSaveClipboardImageWithPath(
+                    message.imageData,
+                    message.imageType,
+                    message.dropPosition,
+                    message.md5Hash
+                );
                 break;
 
             default:
@@ -514,31 +607,33 @@ export class MessageHandler {
             console.warn('❌ No board data received for saving');
             return;
         }
-        
+
+        console.log(`[Save Debug] handleSaveBoardState called - board title: ${board.title}, columns: ${board.columns?.length}`);
+
         // NOTE: Do not save undo state here - individual operations already saved their undo states
         // before making changes. Saving here would create duplicate/grouped undo states.
-        
+
         // Replace the current board with the new one
         this._setBoard(board);
-        
+
         // Save to markdown file only - do NOT trigger board update
         // The webview already has the correct state (it sent us this board)
         // Triggering _onBoardUpdate() would cause folding state to be lost
         await this._onSaveToMarkdown();
-        
+
         // No board update needed - webview state is already correct
     }
 
     private async performBoardAction(action: () => boolean, saveUndo: boolean = true) {
         const board = this._getCurrentBoard();
-        if (!board) return;
-        
+        if (!board) {return;}
+
         if (saveUndo) {
             this._undoRedoManager.saveStateForUndo(board);
         }
-        
+
         const success = action();
-        
+
         if (success) {
             // Use cache-first architecture: mark as unsaved instead of direct save
             this._markUnsavedChanges(true);
@@ -546,35 +641,47 @@ export class MessageHandler {
         }
     }
 
+    private async performBoardActionSilent(action: () => boolean, saveUndo: boolean = true) {
+        const board = this._getCurrentBoard();
+        if (!board) {return;}
+
+        if (saveUndo) {
+            this._undoRedoManager.saveStateForUndo(board);
+        }
+
+        const success = action();
+
+        if (success) {
+            // Use cache-first architecture: mark as unsaved but don't send board update
+            // The frontend already has the correct state from immediate updates
+            this._markUnsavedChanges(true);
+        }
+    }
+
     private async handlePageHiddenWithUnsavedChanges(): Promise<void> {
-        
+
         try {
-            const choice = await vscode.window.showWarningMessage(
-                'You have unsaved kanban board changes. Save them now?',
-                { modal: true },
-                'Save Now',
-                'Save with Backup',
-                'Don\'t Save'
-            );
-            
-            if (choice === 'Save Now') {
-                await this._onSaveToMarkdown();
-                vscode.window.showInformationMessage('Kanban board saved successfully!');
-            } else if (choice === 'Save with Backup') {
-                await this._saveWithBackup();
+            const document = this._fileManager.getDocument();
+            const fileName = document ? path.basename(document.fileName) : 'kanban board';
+
+            // Only create backup if 5+ minutes have passed since unsaved changes
+            // This uses the BackupManager to check timing and creates a regular backup
+            const webviewPanel = this._getWebviewPanel();
+            if (webviewPanel.backupManager && webviewPanel.backupManager.shouldCreatePageHiddenBackup()) {
+                await webviewPanel.backupManager.createBackup(document, { label: 'backup' });
+                console.log(`Created periodic backup for "${fileName}" (page hidden, 5+ min unsaved)`);
+            } else {
+                console.log(`Skipped backup for "${fileName}" (page hidden, <5 min since unsaved changes)`);
             }
-            // If 'Don't Save', just continue - the user chose to discard changes
-            
-            // Reset the close prompt flag in webview regardless of choice
+
+            // Reset the close prompt flag in webview
             this._getWebviewPanel().webview.postMessage({
                 type: 'resetClosePromptFlag'
             });
-            
+
         } catch (error) {
-            console.error('Failed to handle unsaved changes:', error);
-            vscode.window.showErrorMessage('Failed to save kanban changes: ' + error);
-            
-            // Reset flag even on error
+            console.error('Error handling page hidden backup:', error);
+            // Reset flag even if there was an error
             this._getWebviewPanel().webview.postMessage({
                 type: 'resetClosePromptFlag'
             });
@@ -589,6 +696,307 @@ export class MessageHandler {
             console.error(`Failed to update preference ${key}:`, error);
             vscode.window.showErrorMessage(`Failed to update ${key} preference: ${error}`);
         }
+    }
+
+    private async handleSetContext(contextVariable: string, value: boolean): Promise<void> {
+        try {
+            await vscode.commands.executeCommand('setContext', contextVariable, value);
+        } catch (error) {
+            console.error(`Failed to set context variable ${contextVariable}:`, error);
+        }
+    }
+
+    private async handleVSCodeSnippet(message: any): Promise<void> {
+        try {
+            // Use VS Code's snippet resolution to get the actual snippet content
+            // This leverages VS Code's built-in snippet system
+            const snippetName = await this.getSnippetNameForShortcut(message.shortcut);
+
+            if (!snippetName) {
+                vscode.window.showInformationMessage(
+                    `No snippet configured for ${message.shortcut}. Add a keybinding with "editor.action.insertSnippet" command.`
+                );
+                return;
+            }
+
+            // Resolve the snippet content from VS Code's markdown snippet configuration
+            const resolvedContent = await this.resolveSnippetContent(snippetName);
+
+            if (resolvedContent) {
+                const panel = this._getWebviewPanel();
+                if (panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'insertSnippetContent',
+                        content: resolvedContent,
+                        fieldType: message.fieldType,
+                        taskId: message.taskId
+                    });
+                }
+            }
+
+        } catch (error) {
+            console.error('Failed to handle VS Code snippet:', error);
+            vscode.window.showInformationMessage(
+                `Use Ctrl+Space in the kanban editor for snippet picker.`
+            );
+        }
+    }
+
+    private async getSnippetNameForShortcut(shortcut: string): Promise<string | null> {
+        try {
+            // Read VS Code's actual keybindings configuration
+            const keybindings = await this.loadVSCodeKeybindings();
+
+            // Find keybinding that matches our shortcut and uses editor.action.insertSnippet
+            for (const binding of keybindings) {
+                if (this.matchesShortcut(binding.key, shortcut) &&
+                    binding.command === 'editor.action.insertSnippet' &&
+                    binding.args?.name) {
+
+                    console.log(`Found snippet "${binding.args.name}" for shortcut ${shortcut}`);
+                    return binding.args.name;
+                }
+            }
+
+            console.log(`No snippet keybinding found for shortcut: ${shortcut}`);
+            return null;
+
+        } catch (error) {
+            console.error('Failed to read VS Code keybindings:', error);
+            return null;
+        }
+    }
+
+    private async loadVSCodeKeybindings(): Promise<any[]> {
+        try {
+            // Load user keybindings
+            const userKeybindingsPath = this.getUserKeybindingsPath();
+            let keybindings: any[] = [];
+
+            if (userKeybindingsPath && fs.existsSync(userKeybindingsPath)) {
+                const content = fs.readFileSync(userKeybindingsPath, 'utf8');
+                // Handle JSON with comments
+                const jsonContent = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+                const userKeybindings = JSON.parse(jsonContent);
+                if (Array.isArray(userKeybindings)) {
+                    keybindings = keybindings.concat(userKeybindings);
+                }
+            }
+
+            // Also load workspace keybindings if they exist
+            const workspaceKeybindingsPath = this.getWorkspaceKeybindingsPath();
+            if (workspaceKeybindingsPath && fs.existsSync(workspaceKeybindingsPath)) {
+                const content = fs.readFileSync(workspaceKeybindingsPath, 'utf8');
+                const jsonContent = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+                const workspaceKeybindings = JSON.parse(jsonContent);
+                if (Array.isArray(workspaceKeybindings)) {
+                    keybindings = keybindings.concat(workspaceKeybindings);
+                }
+            }
+
+            console.log(`Loaded ${keybindings.length} keybindings from VS Code configuration`);
+            return keybindings;
+
+        } catch (error) {
+            console.error('Failed to load VS Code keybindings:', error);
+            return [];
+        }
+    }
+
+    private getUserKeybindingsPath(): string | null {
+        try {
+            const userDataDir = this.getVSCodeUserDataDir();
+            if (userDataDir) {
+                return path.join(userDataDir, 'User', 'keybindings.json');
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get user keybindings path:', error);
+            return null;
+        }
+    }
+
+    private getWorkspaceKeybindingsPath(): string | null {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                return path.join(workspaceFolders[0].uri.fsPath, '.vscode', 'keybindings.json');
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get workspace keybindings path:', error);
+            return null;
+        }
+    }
+
+    private matchesShortcut(keybindingKey: string, shortcut: string): boolean {
+        // Normalize the keybinding format
+        // VS Code uses "cmd+6" on Mac, we use "meta+6"
+        const normalizedKeybinding = keybindingKey
+            .toLowerCase()
+            .replace(/cmd/g, 'meta')
+            .replace(/ctrl/g, 'ctrl')
+            .replace(/\s+/g, '');
+
+        const normalizedShortcut = shortcut
+            .toLowerCase()
+            .replace(/\s+/g, '');
+
+        return normalizedKeybinding === normalizedShortcut;
+    }
+
+    private async resolveSnippetContent(snippetName: string): Promise<string> {
+        try {
+            // Load all markdown snippets from VS Code's configuration
+            const allSnippets = await this.loadMarkdownSnippets();
+
+            // Find the specific snippet
+            const snippet = allSnippets[snippetName];
+            if (!snippet) {
+                console.log(`Snippet "${snippetName}" not found in markdown snippets`);
+                return '';
+            }
+
+            // Process the snippet body
+            let body = '';
+            if (Array.isArray(snippet.body)) {
+                body = snippet.body.join('\n');
+            } else if (typeof snippet.body === 'string') {
+                body = snippet.body;
+            } else {
+                console.log(`Invalid snippet body format for "${snippetName}"`);
+                return '';
+            }
+
+            // Process VS Code snippet variables and syntax
+            return this.processSnippetBody(body);
+
+        } catch (error) {
+            console.error(`Failed to resolve snippet "${snippetName}":`, error);
+            return '';
+        }
+    }
+
+    private async loadMarkdownSnippets(): Promise<any> {
+        const allSnippets: any = {};
+
+        try {
+            // 1. Load user snippets from VS Code user directory
+            const userSnippetsPath = this.getUserSnippetsPath();
+            if (userSnippetsPath && fs.existsSync(userSnippetsPath)) {
+                const userSnippets = await this.loadSnippetsFromFile(userSnippetsPath);
+                Object.assign(allSnippets, userSnippets);
+            }
+
+            // 2. Load workspace snippets if in a workspace
+            const workspaceSnippetsPath = this.getWorkspaceSnippetsPath();
+            if (workspaceSnippetsPath && fs.existsSync(workspaceSnippetsPath)) {
+                const workspaceSnippets = await this.loadSnippetsFromFile(workspaceSnippetsPath);
+                Object.assign(allSnippets, workspaceSnippets);
+            }
+
+            // 3. Load extension snippets (built-in markdown snippets)
+            const extensionSnippets = await this.loadExtensionSnippets();
+            Object.assign(allSnippets, extensionSnippets);
+
+            console.log(`Loaded ${Object.keys(allSnippets).length} markdown snippets`);
+            return allSnippets;
+
+        } catch (error) {
+            console.error('Failed to load markdown snippets:', error);
+            return {};
+        }
+    }
+
+    private getUserSnippetsPath(): string | null {
+        try {
+            // VS Code user snippets are stored in different locations per platform
+            const userDataDir = this.getVSCodeUserDataDir();
+            if (userDataDir) {
+                return path.join(userDataDir, 'User', 'snippets', 'markdown.json');
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get user snippets path:', error);
+            return null;
+        }
+    }
+
+    private getWorkspaceSnippetsPath(): string | null {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                return path.join(workspaceFolders[0].uri.fsPath, '.vscode', 'snippets', 'markdown.json');
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get workspace snippets path:', error);
+            return null;
+        }
+    }
+
+    private getVSCodeUserDataDir(): string | null {
+        const platform = os.platform();
+        const homeDir = os.homedir();
+
+        switch (platform) {
+            case 'win32':
+                return path.join(process.env.APPDATA || '', 'Code');
+            case 'darwin':
+                return path.join(homeDir, 'Library', 'Application Support', 'Code');
+            case 'linux':
+                return path.join(homeDir, '.config', 'Code');
+            default:
+                return null;
+        }
+    }
+
+    private async loadSnippetsFromFile(filePath: string): Promise<any> {
+        try {
+            const content = fs.readFileSync(filePath, 'utf8');
+            // Handle JSON with comments (VS Code snippets support comments)
+            const jsonContent = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+            return JSON.parse(jsonContent);
+        } catch (error) {
+            console.error(`Failed to load snippets from ${filePath}:`, error);
+            return {};
+        }
+    }
+
+    private async loadExtensionSnippets(): Promise<any> {
+        // VS Code built-in markdown snippets are not easily accessible from extensions
+        // For now, return empty object. Users should define their own snippets.
+        return {};
+    }
+
+    private processSnippetBody(body: string): string {
+        // Process VS Code snippet variables
+        const now = new Date();
+
+        return body
+            // Date/time variables
+            .replace(/\$CURRENT_YEAR/g, now.getFullYear().toString())
+            .replace(/\$CURRENT_MONTH/g, (now.getMonth() + 1).toString().padStart(2, '0'))
+            .replace(/\$CURRENT_DATE/g, now.getDate().toString().padStart(2, '0'))
+            .replace(/\$CURRENT_HOUR/g, now.getHours().toString().padStart(2, '0'))
+            .replace(/\$CURRENT_MINUTE/g, now.getMinutes().toString().padStart(2, '0'))
+            .replace(/\$CURRENT_SECOND/g, now.getSeconds().toString().padStart(2, '0'))
+
+            // Workspace variables
+            .replace(/\$WORKSPACE_NAME/g, vscode.workspace.name || 'workspace')
+            .replace(/\$WORKSPACE_FOLDER/g, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '')
+
+            // File variables (using placeholder since we're in webview)
+            .replace(/\$TM_FILENAME/g, 'untitled.md')
+            .replace(/\$TM_FILENAME_BASE/g, 'untitled')
+            .replace(/\$TM_DIRECTORY/g, '')
+            .replace(/\$TM_FILEPATH/g, 'untitled.md')
+
+            // Process placeholders: ${1:default} -> default, ${1} -> empty
+            .replace(/\$\{(\d+):([^}]*)\}/g, '$2') // ${1:default} -> default
+            .replace(/\$\{\d+\}/g, '') // ${1} -> empty
+            .replace(/\$\d+/g, '') // $1 -> empty
+            .replace(/\$0/g, ''); // Final cursor position -> empty
     }
 
     private async handleRefreshIncludes(): Promise<void> {
@@ -642,6 +1050,10 @@ export class MessageHandler {
 
                 content = fs.readFileSync(absolutePath, 'utf8');
 
+                // Register the include file with the file watcher
+                const watcher = ExternalFileWatcher.getInstance();
+                watcher.registerFile(absolutePath, 'include', panel);
+
                 // Send the content back to the frontend
                 await panel._panel.webview.postMessage({
                     type: 'includeFileContent',
@@ -694,6 +1106,292 @@ export class MessageHandler {
 
         } catch (error) {
             console.error('[MESSAGE HANDLER] Error saving runtime tracking report:', error);
+        }
+    }
+
+    private async handleSaveClipboardImage(
+        imageData: string,
+        imagePath: string,
+        mediaFolderPath: string,
+        dropPosition: { x: number; y: number },
+        imageFileName: string,
+        mediaFolderName: string
+    ): Promise<void> {
+        try {
+            console.log('[DEBUG] Saving image with paths:', {
+                mediaFolderPath,
+                imagePath,
+                imageFileName,
+                mediaFolderName
+            });
+
+            // Ensure the media folder exists
+            if (!fs.existsSync(mediaFolderPath)) {
+                fs.mkdirSync(mediaFolderPath, { recursive: true });
+                console.log('[DEBUG] Created media folder:', mediaFolderPath);
+            }
+
+            // Convert base64 to buffer
+            const buffer = Buffer.from(imageData, 'base64');
+
+            // Write the image file
+            fs.writeFileSync(imagePath, buffer);
+            console.log('[DEBUG] Image saved successfully to:', imagePath);
+
+            // Notify the webview that the image was saved successfully
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                const message = {
+                    type: 'clipboardImageSaved',
+                    success: true,
+                    imagePath: imagePath,
+                    relativePath: `./${mediaFolderName}/${imageFileName}`,
+                    dropPosition: dropPosition
+                };
+                console.log('[DEBUG] Sending clipboardImageSaved message to webview:', message);
+                panel._panel.webview.postMessage(message);
+            } else {
+                console.error('[DEBUG] Cannot send clipboardImageSaved message - no webview panel available');
+            }
+
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error saving clipboard image:', error);
+
+            // Notify the webview that there was an error
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                panel._panel.webview.postMessage({
+                    type: 'clipboardImageSaved',
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    dropPosition: dropPosition
+                });
+            }
+        }
+    }
+
+    private async handleSaveClipboardImageWithPath(
+        imageData: string,
+        imageType: string,
+        dropPosition: { x: number; y: number },
+        md5Hash?: string
+    ): Promise<void> {
+        try {
+            // Get current file path from the file manager
+            const document = this._fileManager.getDocument();
+            const currentFilePath = document?.uri.fsPath;
+            if (!currentFilePath) {
+                console.error('[MESSAGE HANDLER] No current file path available');
+
+                // Notify the webview that there was an error
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'clipboardImageSaved',
+                        success: false,
+                        error: 'No current file path available',
+                        dropPosition: dropPosition
+                    });
+                }
+                return;
+            }
+
+            console.log('[DEBUG] Got current file path:', currentFilePath);
+
+            // Extract base filename without extension
+            const pathParts = currentFilePath.split(/[\/\\]/);
+            const fileName = pathParts.pop() || 'kanban';
+            const baseFileName = fileName.replace(/\.[^/.]+$/, '');
+            const directory = pathParts.join('/'); // Always use forward slash for consistency
+
+            // Generate filename from MD5 hash if available, otherwise use timestamp
+            const extension = imageType.split('/')[1] || 'png';
+            const imageFileName = md5Hash ? `${md5Hash}.${extension}` : `clipboard-image-${Date.now()}.${extension}`;
+
+            // Create the media folder path
+            const mediaFolderName = `${baseFileName}-MEDIA`;
+            const mediaFolderPath = `${directory}/${mediaFolderName}`;
+            const imagePath = `${mediaFolderPath}/${imageFileName}`;
+
+            console.log('[DEBUG] Image paths:', {
+                currentFilePath,
+                baseFileName,
+                mediaFolderName,
+                mediaFolderPath,
+                imagePath,
+                imageFileName
+            });
+
+            // Ensure the media folder exists
+            if (!fs.existsSync(mediaFolderPath)) {
+                fs.mkdirSync(mediaFolderPath, { recursive: true });
+                console.log('[DEBUG] Created media folder:', mediaFolderPath);
+            }
+
+            // Convert base64 to buffer (remove data URL prefix if present)
+            const base64Only = imageData.includes(',') ? imageData.split(',')[1] : imageData;
+            const buffer = Buffer.from(base64Only, 'base64');
+
+            // Write the image file
+            fs.writeFileSync(imagePath, buffer);
+            console.log('[DEBUG] Image saved successfully to:', imagePath);
+
+            // Notify the webview that the image was saved successfully
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                const message = {
+                    type: 'clipboardImageSaved',
+                    success: true,
+                    imagePath: imagePath,
+                    relativePath: `./${mediaFolderName}/${imageFileName}`,
+                    dropPosition: dropPosition
+                };
+                console.log('[DEBUG] Sending clipboardImageSaved message to webview:', message);
+                panel._panel.webview.postMessage(message);
+            } else {
+                console.error('[DEBUG] Cannot send clipboardImageSaved message - no webview panel available');
+            }
+
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error saving clipboard image with path:', error);
+
+            // Notify the webview that there was an error
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                panel._panel.webview.postMessage({
+                    type: 'clipboardImageSaved',
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    dropPosition: dropPosition
+                });
+            }
+        }
+    }
+
+    private async handleUpdateBoard(message: any): Promise<void> {
+        try {
+            const board = message.board;
+            if (!board) {
+                console.error('[updateBoard] No board data provided');
+                return;
+            }
+
+            // Set the updated board
+            this._setBoard(board);
+
+            // If this is an immediate update (like column include changes), trigger a save and reload
+            if (message.immediate) {
+                console.log('[updateBoard] Immediate update requested - triggering save and reload');
+
+                // Save the changes to markdown
+                await this._onSaveToMarkdown();
+
+                // Trigger a board update to reload with new include files
+                await this._onBoardUpdate();
+            } else {
+                // Regular update - just mark as unsaved
+                this._markUnsavedChanges(true, board);
+            }
+
+        } catch (error) {
+            console.error('[updateBoard] Error handling board update:', error);
+        }
+    }
+
+    private async handleConfirmDisableIncludeMode(message: any): Promise<void> {
+        try {
+            const confirmation = await vscode.window.showWarningMessage(
+                message.message,
+                { modal: true },
+                'Disable Include Mode',
+                'Cancel'
+            );
+
+            if (confirmation === 'Disable Include Mode') {
+                // User confirmed - send message back to webview to proceed
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'proceedDisableIncludeMode',
+                        columnId: message.columnId
+                    });
+                }
+            }
+            // If cancelled, do nothing
+
+        } catch (error) {
+            console.error('[confirmDisableIncludeMode] Error handling confirmation:', error);
+        }
+    }
+
+    private async handleRequestIncludeFileName(message: any): Promise<void> {
+        try {
+            const fileName = await vscode.window.showInputBox({
+                prompt: 'Enter the path to the presentation file',
+                placeHolder: 'e.g., presentation.md or slides/intro.md',
+                validateInput: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Please enter a file path';
+                    }
+                    if (!value.endsWith('.md')) {
+                        return 'File should be a markdown file (.md)';
+                    }
+                    return undefined;
+                }
+            });
+
+            if (fileName && fileName.trim()) {
+                // User provided a file name - send message back to webview to proceed
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'proceedEnableIncludeMode',
+                        columnId: message.columnId,
+                        fileName: fileName.trim()
+                    });
+                }
+            }
+            // If cancelled, do nothing
+
+        } catch (error) {
+            console.error('[requestIncludeFileName] Error handling input request:', error);
+        }
+    }
+
+    private async handleRequestEditIncludeFileName(message: any): Promise<void> {
+        try {
+            const currentFile = message.currentFile || '';
+            const fileName = await vscode.window.showInputBox({
+                prompt: 'Edit the path to the presentation file',
+                value: currentFile,
+                placeHolder: 'e.g., presentation.md or slides/intro.md',
+                validateInput: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Please enter a file path';
+                    }
+                    if (!value.endsWith('.md')) {
+                        return 'File should be a markdown file (.md)';
+                    }
+                    return undefined;
+                }
+            });
+
+            if (fileName && fileName.trim()) {
+                // User provided a file name - send message back to webview to proceed
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'proceedUpdateIncludeFile',
+                        columnId: message.columnId,
+                        newFileName: fileName.trim(),
+                        currentFile: currentFile
+                    });
+                }
+            }
+            // If cancelled, do nothing
+
+        } catch (error) {
+            console.error('[requestEditIncludeFileName] Error handling input request:', error);
         }
     }
 }

@@ -37,10 +37,9 @@
         return false;
       }
 
-      if (silent) return true;
+      if (silent) {return true;}
 
       const filePath = match[1].trim();
-      console.log('Processing include:', filePath);
 
       // Try to get file content
       let content = getFileContent(filePath);
@@ -155,7 +154,7 @@
 
   // Helper function for HTML escaping
   function escapeHtml(text) {
-    if (!text) return '';
+    if (!text) {return '';}
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;

@@ -24,7 +24,7 @@ export class UndoRedoManager {
     }
 
     public saveStateForUndo(board: KanbanBoard) {
-        if (!board || !board.valid) return;
+        if (!board || !board.valid) {return;}
         
         this._undoStack.push(deepCloneBoard(board));
         if (this._undoStack.length > this._maxUndoStackSize) {

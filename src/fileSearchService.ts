@@ -43,8 +43,8 @@ export class FileSearchService {
                 const maxResults = 100;
 
                 const scan = async (dirFsPath: string) => {
-                    if (foundCount >= maxResults) return;
-                    if (visited.has(dirFsPath)) return;
+                    if (foundCount >= maxResults) {return;}
+                    if (visited.has(dirFsPath)) {return;}
                     visited.add(dirFsPath);
 
                     // Skip common large or irrelevant folders
@@ -61,7 +61,7 @@ export class FileSearchService {
                     }
 
                     for (const [name, type] of entries) {
-                        if (foundCount >= maxResults) break;
+                        if (foundCount >= maxResults) {break;}
                         const childPath = path.join(dirFsPath, name);
                         if (type === vscode.FileType.Directory) {
                             await scan(childPath);
@@ -251,7 +251,7 @@ export class FileSearchService {
 
         let previewEditor: vscode.TextEditor | undefined;
         const cleanup = async () => {
-            if (!previewEditor) return;
+            if (!previewEditor) {return;}
             try {
                 const targetUri = previewEditor.document.uri.toString();
                 const tabsToClose: vscode.Tab[] = [];
@@ -291,7 +291,7 @@ export class FileSearchService {
             const acceptPromise = new Promise<vscode.Uri | undefined>((resolve) => {
                 disposables.push(quickPick.onDidAccept(() => {
                     const selected = quickPick.selectedItems[0];
-                    if (!selected) return;
+                    if (!selected) {return;}
                     if (selected.detail) {
                         resolve(vscode.Uri.file(selected.detail));
                         quickPick.hide();
@@ -332,7 +332,7 @@ export class FileSearchService {
                     }
                 };
                 const nameMatches = (uri: vscode.Uri) => {
-                    if (!rawTerm) return true;
+                    if (!rawTerm) {return true;}
                     const base = path.basename(uri.fsPath);
                     const parsed = path.parse(base);
                     const baseNoExt = parsed.name;
@@ -341,20 +341,20 @@ export class FileSearchService {
 
                     if (useRegex) {
                         const rx = makeRegex(rawTerm);
-                        if (!rx) return false;
+                        if (!rx) {return false;}
                         return rx.test(baseNoExt) || rx.test(base);
                     }
                     if (wholeWord) {
                         const rx = makeRegex(`\\b${escapeRegExp(rawTerm)}\\b`);
-                        if (!rx) return false;
+                        if (!rx) {return false;}
                         return rx.test(baseNoExt) || rx.test(base);
                     }
                     return candidateA.includes(normalized) || candidateB.includes(normalized);
                 };
 
                 const addIfActive = (uri: vscode.Uri) => {
-                    if (seq !== searchSeq) return; // stale
-                    if (!nameMatches(uri)) return;
+                    if (seq !== searchSeq) {return;} // stale
+                    if (!nameMatches(uri)) {return;}
                     const key = uri.fsPath;
                     if (!itemsMap.has(key)) {
                         itemsMap.set(key, toItem(uri));
@@ -383,33 +383,33 @@ export class FileSearchService {
                         const ops = patterns.map(p => vscode.workspace.findFiles(p, excludePattern, maxPerPattern));
                         const batches = await Promise.all(ops);
                         for (const batch of batches) {
-                            for (const uri of batch) addIfActive(uri);
+                            for (const uri of batch) {addIfActive(uri);}
                         }
                     } catch (error) {
-                        if (seq === searchSeq) console.warn('[FileSearchService] Workspace search failed:', error);
+                        if (seq === searchSeq) {console.warn('[FileSearchService] Workspace search failed:', error);}
                     }
                 })();
 
                 const baseDirScan = (async () => {
-                    if (!baseDir) return;
+                    if (!baseDir) {return;}
                     try {
                         const visited = new Set<string>();
                         let foundCount = 0;
                         const maxResults = 200;
                         const scan = async (dirFsPath: string) => {
-                            if (seq !== searchSeq) return; // cancel
-                            if (foundCount >= maxResults) return;
-                            if (visited.has(dirFsPath)) return;
+                            if (seq !== searchSeq) {return;} // cancel
+                            if (foundCount >= maxResults) {return;}
+                            if (visited.has(dirFsPath)) {return;}
                             visited.add(dirFsPath);
                             const baseName = path.basename(dirFsPath);
-                            if (baseName === 'node_modules' || baseName === '.git' || baseName === 'dist' || baseName === 'out') return;
+                            if (baseName === 'node_modules' || baseName === '.git' || baseName === 'dist' || baseName === 'out') {return;}
                             let entries: [string, vscode.FileType][];
                             try {
                                 entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirFsPath));
                             } catch { return; }
                             for (const [name, type] of entries) {
-                                if (seq !== searchSeq) return; // cancel
-                                if (foundCount >= maxResults) break;
+                                if (seq !== searchSeq) {return;} // cancel
+                                if (foundCount >= maxResults) {break;}
                                 const childPath = path.join(dirFsPath, name);
                                 if (type === vscode.FileType.Directory) {
                                     await scan(childPath);
@@ -430,12 +430,12 @@ export class FileSearchService {
                         };
                         await scan(baseDir);
                     } catch (error) {
-                        if (seq === searchSeq) console.warn('[FileSearchService] BaseDir scan failed:', error);
+                        if (seq === searchSeq) {console.warn('[FileSearchService] BaseDir scan failed:', error);}
                     }
                 })();
 
                 Promise.all([workspaceSearch, baseDirScan]).finally(() => {
-                    if (seq !== searchSeq) return; // stale completion
+                    if (seq !== searchSeq) {return;} // stale completion
                     quickPick.busy = false;
                     if (itemsMap.size === 0) {
                         quickPick.placeholder = normalized
@@ -452,7 +452,7 @@ export class FileSearchService {
 
             // Debounced dynamic term handling and button toggles
             disposables.push(quickPick.onDidChangeValue((value) => {
-                if (debounceTimer) clearTimeout(debounceTimer);
+                if (debounceTimer) {clearTimeout(debounceTimer);}
                 debounceTimer = setTimeout(() => startSearch(value), 200);
             }));
 
@@ -468,7 +468,7 @@ export class FileSearchService {
                 }
                 updateButtons();
                 // Restart search immediately with current term
-                if (debounceTimer) clearTimeout(debounceTimer);
+                if (debounceTimer) {clearTimeout(debounceTimer);}
                 startSearch(quickPick.value);
             }));
 

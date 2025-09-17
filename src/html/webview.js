@@ -2,6 +2,21 @@ const vscode = acquireVsCodeApi();
 
 // Global variables
 let currentFileInfo = null;
+
+// MD5 hash generation function using Web Crypto API
+async function generateMD5Hash(arrayBuffer) {
+    try {
+        // Use SHA-256 instead of MD5 as it's more widely supported and secure
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex.substring(0, 16); // Take first 16 characters to simulate MD5 length
+    } catch (error) {
+        console.error('❌ Failed to generate hash:', error.message);
+        // Fallback to timestamp if crypto fails
+        return Date.now().toString(16);
+    }
+}
 let canUndo = false;
 let canRedo = false;
 window.currentImageMappings = {};
@@ -16,8 +31,8 @@ let documentFoldingStates = new Map(); // Map<documentUri, {collapsedColumns: Se
 let currentDocumentUri = null;
 
 // Layout preferences
-let currentColumnWidth = 'medium';
-let currentWhitespace = '4px';
+let currentColumnWidth = '350px';
+let currentWhitespace = '8px';
 let currentTaskMinHeight = 'auto';
 let currentLayoutRows = 1;
 
@@ -70,34 +85,33 @@ function injectFontSizeCSS() {
 
 const menuConfig = {
     columnWidth: [
-        { label: "Small (250px)", value: "small", description: "250px" },
-        { label: "Medium (350px)", value: "medium", description: "350px" },
-        { label: "Wide (450px)", value: "wide", description: "450px" },
+        { label: "Small (250px)", value: "250px", description: "250px" },
+        { label: "Medium (350px)", value: "350px", description: "350px" },
+        { label: "Wide (450px)", value: "450px", description: "450px" },
         { separator: true },
-        { label: "Third Screen (30.5%)", value: "40", description: "30.5%" },
-        { label: "Half Screen (48.5%)", value: "66", description: "48.5%" },
-        { label: "Full Width (98%)", value: "100", description: "98%" }
+        { label: "1/3 Screen (33%)", value: "33percent", description: "33%" },
+        { label: "1/2 Screen (50%)", value: "50percent", description: "50%" },
+        { label: "Full Width (100%)", value: "100percent", description: "100%" }
     ],
     cardHeight: [
         { label: "Auto Height", value: "auto" },
         { separator: true },
-        { label: "200px", value: "200px" },
-        { label: "400px", value: "400px" },
+        { label: "Small (200px)", value: "200px" },
+        { label: "Medium (400px)", value: "400px" },
+        { label: "Large (600px)", value: "600px" },
         { separator: true },
-        { label: "1/3 Screen (26.5vh)", value: "26.5vh" },
-        { label: "1/2 Screen (43.5vh)", value: "43.5vh" },
-        { label: "Full Screen (89vh)", value: "89vh" }
+        { label: "1/3 Screen (26.5%)", value: "33percent" },
+        { label: "1/2 Screen (43.5%)", value: "50percent" },
+        { label: "Full Screen (89%)", value: "100percent" }
     ],
     whitespace: [
-        { label: "Compact (2px)", value: "2px" },
-        { label: "Default (4px)", value: "4px" },
-        { label: "Comfortable (8px)", value: "8px" },
-        { label: "Spacious (12px)", value: "12px" },
-        { separator: true },
-        { label: "10px", value: "10px" },
-        { label: "20px", value: "20px" },
-        { label: "40px", value: "40px" },
-        { label: "60px", value: "60px" }
+        { label: "Compact (4px)", value: "4px" },
+        { label: "Default (8px)", value: "8px" },
+        { label: "Comfortable (12px)", value: "12px" },
+        { label: "Spacious (16px)", value: "16px" },
+        { label: "Large (24px)", value: "24px" },
+        { label: "Extra Large (36px)", value: "36px" },
+        { label: "Maximum (48px)", value: "48px" }
     ],
     fontSize: fontSizeMultipliers.map((multiplier, index) => ({
         label: `${multiplier}x`,
@@ -132,16 +146,16 @@ const menuConfig = {
         { label: "6 Rows", value: 6 }
     ],
     rowHeight: [
-        { label: "100% Screen", value: "95vh" },
-        { label: "2/3 Screen", value: "63vh" },
-        { label: "1/2 Screen", value: "48vh" },
-        { label: "1/3 Screen", value: "31.5vh" },
+        { label: "Auto Height", value: "auto" },
         { separator: true },
-        { label: "700px (~47em)", value: "44em" },
-        { label: "500px (~31em)", value: "31em" },
-        { label: "300px (~19em)", value: "19em" },
+        { label: "Small (300px)", value: "300px" },
+        { label: "Medium (500px)", value: "500px" },
+        { label: "Large (700px)", value: "700px" },
         { separator: true },
-        { label: "Auto Height", value: "auto" }
+        { label: "1/3 Screen (31.5%)", value: "33percent" },
+        { label: "1/2 Screen (48%)", value: "50percent" },
+        { label: "2/3 Screen (63%)", value: "67percent" },
+        { label: "Full Screen (95%)", value: "100percent" }
     ],
     stickyHeaders: [
         { label: "Enabled", value: "enabled", description: "Headers stick to top when scrolling" },
@@ -149,9 +163,9 @@ const menuConfig = {
     ],
     tagVisibility: [
         { label: "All Tags", value: "all", description: "Show all tags including #span, #row, and @ tags" },
-        { label: "Standard Tags", value: "standard", description: "Show all except #span and #row (includes @ tags)" },
-        { label: "Custom Tags Only", value: "custom", description: "Show only custom tags (not configured ones) and @ tags" },
-        { label: "@ Tags Only", value: "mentions", description: "Show only @ tags" },
+        { label: "All Excluding Layout", value: "allexcludinglayout", description: "Show all except #span and #row (includes @ tags)" },
+        { label: "Custom Tags Only", value: "customonly", description: "Show only custom tags (not configured ones) and @ tags" },
+        { label: "@ Tags Only", value: "mentionsonly", description: "Show only @ tags" },
         { label: "No Tags", value: "none", description: "Hide all tags" }
     ],
     imageFill: [
@@ -160,32 +174,39 @@ const menuConfig = {
     ]
 };
 
-// Helper function to generate menu HTML from configuration
-function generateMenuHTML(configKey, onClickFunction) {
-    const config = menuConfig[configKey];
-    if (!config) return '';
-    
-    let html = '';
-    for (const item of config) {
-        if (item.separator) {
-            html += '<div class="file-bar-menu-divider"></div>';
-        } else {
-            const iconHtml = item.icon ? `<span class="menu-icon"${item.iconStyle ? ` style="${item.iconStyle}"` : ''}>${item.icon}</span> ` : '';
-            html += `<button class="file-bar-menu-item" onclick="${onClickFunction}('${item.value}')">${iconHtml}${item.label}</button>`;
-        }
+// Layout Presets Configuration (will be loaded from backend)
+let layoutPresets = {};
+
+// Function to get current setting value for menu indicators
+function getCurrentSettingValue(configKey) {
+    switch (configKey) {
+        case 'columnWidth':
+            return window.currentColumnWidth || '350px';
+        case 'cardHeight':
+            return window.currentTaskMinHeight || 'auto';
+        case 'whitespace':
+            return window.currentWhitespace || '8px';
+        case 'fontSize':
+            return window.currentFontSize || '1x';
+        case 'fontFamily':
+            return window.currentFontFamily || 'system';
+        case 'layoutRows':
+            return window.currentLayoutRows || 1;
+        case 'rowHeight':
+            return window.currentRowHeight || 'auto';
+        case 'stickyHeaders':
+            return window.currentStickyHeaders || 'enabled';
+        case 'tagVisibility':
+            return window.currentTagVisibility || 'allexcludinglayout';
+        case 'imageFill':
+            return window.currentImageFill || 'fit';
+        default:
+            return null;
     }
-    return html;
 }
 
-// Function to populate dynamic menus
-function populateDynamicMenus() {
-    // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', populateDynamicMenus);
-        return;
-    }
-    
-    // Populate each menu based on configuration
+// Single function to update all menu indicators
+function updateAllMenuIndicators() {
     const menuMappings = [
         { selector: '[data-menu="columnWidth"]', config: 'columnWidth', function: 'setColumnWidth' },
         { selector: '[data-menu="cardHeight"]', config: 'cardHeight', function: 'setTaskMinHeight' },
@@ -198,13 +219,47 @@ function populateDynamicMenus() {
         { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
         { selector: '[data-menu="imageFill"]', config: 'imageFill', function: 'setImageFill' }
     ];
-    
+
     menuMappings.forEach(mapping => {
         const container = document.querySelector(mapping.selector);
         if (container) {
             container.innerHTML = generateMenuHTML(mapping.config, mapping.function);
         }
     });
+}
+
+// Helper function to generate menu HTML from configuration
+function generateMenuHTML(configKey, onClickFunction) {
+    const config = menuConfig[configKey];
+    if (!config) {return '';}
+
+    const currentValue = getCurrentSettingValue(configKey);
+
+    let html = '';
+    for (const item of config) {
+        if (item.separator) {
+            html += '<div class="file-bar-menu-divider"></div>';
+        } else {
+            const iconHtml = item.icon ? `<span class="menu-icon"${item.iconStyle ? ` style="${item.iconStyle}"` : ''}>${item.icon}</span> ` : '';
+            const isSelected = item.value === currentValue;
+            const selectedClass = isSelected ? ' selected' : '';
+            const checkmark = isSelected ? '<span class="menu-checkmark">✓</span>' : '';
+            html += `<button class="file-bar-menu-item${selectedClass}" onclick="${onClickFunction}('${item.value}')">${iconHtml}${item.label}${checkmark}</button>`;
+        }
+    }
+    return html;
+}
+
+// Function to populate dynamic menus
+function populateDynamicMenus() {
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', populateDynamicMenus);
+        return;
+    }
+
+    // Use the shared update function
+    updateAllMenuIndicators();
 }
 
 // Clipboard card source functionality
@@ -216,8 +271,20 @@ let clipboardCardData = null;
  * Used by: Clipboard card source (now unused)
  * @param {MouseEvent} e - Mouse event
  */
-window.handleClipboardMouseDown = function(e) {
-    // Empty - clipboard is read on focus and Cmd/Ctrl+C
+window.handleClipboardMouseDown = async function(e) {
+    // Refresh clipboard data immediately when user starts interacting
+    clipboardCardData = await readClipboardContent();
+
+    // Update the visual indicator immediately after refresh
+    const clipboardSource = document.getElementById('clipboard-card-source');
+    if (clipboardSource) {
+        const iconSpan = clipboardSource.querySelector('.clipboard-icon');
+        if (clipboardCardData && clipboardCardData.isImage) {
+            iconSpan.textContent = '🖼️';
+        } else if (clipboardCardData) {
+            iconSpan.textContent = '📋';
+        }
+    }
 };
 
 /**
@@ -228,7 +295,7 @@ window.handleClipboardMouseDown = function(e) {
  * Side effects: Sets drag state, formats clipboard data
  */
 window.handleClipboardDragStart = function(e) {
-    
+
     // Create default data if no clipboard data
     if (!clipboardCardData) {
         clipboardCardData = {
@@ -238,20 +305,58 @@ window.handleClipboardDragStart = function(e) {
         };
     }
     
-    // Create task data
+    // Handle clipboard images
+    if (clipboardCardData && clipboardCardData.isImage) {
+        // For images, we have the base64 data already
+        const imageData = clipboardCardData.content; // This is base64 now
+
+        // Create data transfer with the base64 image data
+        e.dataTransfer.setData('text/plain', `CLIPBOARD_IMAGE:${JSON.stringify({
+            title: clipboardCardData.title,
+            type: 'base64',
+            imageType: clipboardCardData.imageType,
+            data: imageData, // Include the actual base64 data
+            md5Hash: clipboardCardData.md5Hash // Include the MD5 hash for filename
+        })}`);
+
+        e.dataTransfer.effectAllowed = 'copy';
+
+        if (window.dragState) {
+            window.dragState.isDragging = true;
+            // Don't set draggedClipboardCard for images - let dataTransfer handle it
+        }
+
+        e.target.classList.add('dragging');
+        return;
+    }
+    // Handle multiple files by passing pre-formatted links
+    if (clipboardCardData && clipboardCardData.multipleFiles) {
+        e.dataTransfer.setData('text/plain', `MULTIPLE_FILES:${clipboardCardData.content}`);
+        e.dataTransfer.effectAllowed = 'copy';
+
+        // Set drag state but don't set clipboard card
+        if (window.dragState) {
+            window.dragState.isDragging = true;
+        }
+
+        e.target.classList.add('dragging');
+        return;
+    }
+
+    // Create task data for single content
     const tempTask = {
         id: 'temp-clipboard-' + Date.now(),
         title: clipboardCardData.title,
-        description: clipboardCardData.content,
+        description: clipboardCardData.isImage ? '[Image from clipboard]' : clipboardCardData.content,
         isFromClipboard: true
     };
-    
+
     // Set drag state
     if (window.dragState) {
         window.dragState.isDragging = true;
         window.dragState.draggedClipboardCard = tempTask;
     }
-    
+
     // Set drag data
     const dragData = JSON.stringify({
         type: 'clipboard-card',
@@ -294,10 +399,12 @@ window.showClipboardPreview = function() {
     const header = document.getElementById('clipboard-preview-header');
     const body = document.getElementById('clipboard-preview-body');
     
-    if (!preview || !clipboardCardData) return;
+    if (!preview || !clipboardCardData) {return;}
     
     // Update header based on content type
-    if (clipboardCardData.isLink) {
+    if (clipboardCardData.isImage) {
+        header.textContent = 'Clipboard Image';
+    } else if (clipboardCardData.isLink) {
         if (clipboardCardData.content.startsWith('![')) {
             header.textContent = 'Image Link';
         } else if (clipboardCardData.content.startsWith('[')) {
@@ -311,9 +418,30 @@ window.showClipboardPreview = function() {
     
     // Clear previous content
     body.innerHTML = '';
-    
+
+    // Show image preview for clipboard images (base64)
+    if (clipboardCardData.isImage && clipboardCardData.content) {
+        const img = document.createElement('img');
+        img.className = 'clipboard-preview-image';
+        img.src = clipboardCardData.content; // This is base64 data URL
+
+        const textDiv = document.createElement('div');
+        textDiv.className = 'clipboard-preview-text';
+        textDiv.textContent = '[Image from clipboard - will be saved when dropped]';
+
+        img.onload = function() {
+            body.appendChild(img);
+            body.appendChild(textDiv);
+        };
+
+        img.onerror = function() {
+            // If image fails to load, show fallback text
+            textDiv.textContent = '[Clipboard contains image data]';
+            body.appendChild(textDiv);
+        };
+
     // Show image preview if it's an image link
-    if (clipboardCardData.isLink && clipboardCardData.content.startsWith('![')) {
+    } else if (clipboardCardData.isLink && clipboardCardData.content.startsWith('![')) {
         // Extract image path from markdown ![alt](path)
         const imageMatch = clipboardCardData.content.match(/!\[.*?\]\((.*?)\)/);
         if (imageMatch && imageMatch[1]) {
@@ -418,20 +546,203 @@ window.handleEmptyCardDragEnd = function(e) {
 
 async function readClipboardContent() {
     try {
-        const text = await navigator.clipboard.readText();
-        
-        if (!text || text.trim() === '') {
+        // Check clipboard permissions first
+        if (!navigator.clipboard) {
+            console.error('❌ Clipboard API not available');
             return null;
         }
-        
-        return await processClipboardText(text.trim());
+
+        // Check if we have clipboard permissions
+        try {
+            const permission = await navigator.permissions.query({ name: 'clipboard-read' });
+            if (permission.state === 'denied') {
+                console.warn('⚠️ Clipboard read permission denied');
+                return null;
+            }
+        } catch (permError) {
+            console.warn('⚠️ Could not check clipboard permissions:', permError.message);
+        }
+
+        // First check for clipboard images
+        let clipboardItems;
+        try {
+            clipboardItems = await navigator.clipboard.read();
+        } catch (error) {
+            console.error('❌ Failed to read clipboard items:', error.message);
+            // Fall back to text reading
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text && text.trim()) {
+                    return await processClipboardText(text.trim());
+                }
+            } catch (textError) {
+                console.error('❌ Failed to read clipboard text as fallback:', textError.message);
+            }
+            return null;
+        }
+
+        for (const clipboardItem of clipboardItems) {
+            for (const type of clipboardItem.types) {
+                if (type.startsWith('image/')) {
+                    let blob;
+                    try {
+                        blob = await clipboardItem.getType(type);
+                    } catch (error) {
+                        console.error('❌ Failed to get blob for type', type, ':', error.message);
+                        continue;
+                    }
+
+                    // Convert blob to base64 immediately to avoid blob being discarded
+                    try {
+                        const reader = new FileReader();
+                        const base64Promise = new Promise((resolve, reject) => {
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.onerror = () => reject(new Error('Failed to read blob as base64'));
+                            reader.readAsDataURL(blob);
+                        });
+
+                        const base64Data = await base64Promise;
+
+                        // Generate MD5 hash from blob data for consistent filename
+                        const arrayBufferReader = new FileReader();
+                        const arrayBufferPromise = new Promise((resolve, reject) => {
+                            arrayBufferReader.onloadend = () => resolve(arrayBufferReader.result);
+                            arrayBufferReader.onerror = () => reject(new Error('Failed to read blob as array buffer'));
+                            arrayBufferReader.readAsArrayBuffer(blob);
+                        });
+
+                        const arrayBuffer = await arrayBufferPromise;
+                        const md5Hash = await generateMD5Hash(arrayBuffer);
+
+                        return {
+                            title: 'Clipboard Image',
+                            content: base64Data,
+                            isLink: false,
+                            isImage: true,
+                            imageType: type,
+                            isBase64: true,
+                            md5Hash: md5Hash
+                        };
+                    } catch (error) {
+                        console.error('❌ Failed to convert blob to base64:', error.message);
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // If no images, check for text
+        try {
+            const text = await navigator.clipboard.readText();
+
+            if (!text || text.trim() === '') {
+                return null;
+            }
+
+            return await processClipboardText(text.trim());
+        } catch (error) {
+            console.error('❌ Failed to read clipboard text:', error.message);
+            return null;
+        }
+
     } catch (error) {
-        // Don't return error object, just null
+        console.error('❌ Unexpected error in readClipboardContent:', error.message);
+
+        // Last resort fallback to text-only clipboard reading
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text && text.trim()) {
+                return await processClipboardText(text.trim());
+            }
+        } catch (fallbackError) {
+            console.error('❌ Last resort text reading failed:', fallbackError.message);
+        }
+
         return null;
     }
 }
 
+// Helper functions for file path processing
+function isFilePath(text) {
+    // Don't try to validate or resolve paths - just check if it looks like a filename/path
+
+    // Has file extension
+    if (!/\.[a-zA-Z0-9]{1,10}$/.test(text)) return false;
+
+    // Basic checks to avoid false positives
+    if (text.includes('://')) return false; // URLs
+    if (text.startsWith('mailto:')) return false; // Email links
+    if (text.includes('@') && !text.includes('/') && !text.includes('\\')) return false; // Email addresses
+
+    return true;
+}
+
+function escapeFilePath(filePath) {
+    // Don't resolve or modify paths - just escape special characters that break markdown
+    // Only escape characters that actually break markdown syntax, not the whole path
+    return filePath
+        .replace(/\(/g, '\\(')
+        .replace(/\)/g, '\\)')
+        .replace(/\[/g, '\\[')
+        .replace(/\]/g, '\\]')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"');
+}
+
+function createFileMarkdownLink(filePath) {
+    const fileName = filePath.split(/[\/\\]/).pop() || filePath;
+    const extension = fileName.toLowerCase().split('.').pop();
+
+    // Image file extensions
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif'];
+    // Markdown file extensions
+    const markdownExtensions = ['md', 'markdown', 'mdown', 'mkd', 'mdx'];
+
+    // Use original path without modification - let the system handle path resolution
+    const safePath = escapeFilePath(filePath);
+
+    if (imageExtensions.includes(extension)) {
+        // Image: ![](path) - use original path
+        return `![](${safePath})`;
+    } else if (markdownExtensions.includes(extension)) {
+        // Markdown: [[filename]] - for relative paths use just filename, for absolute paths use full path
+        if (filePath.includes('/') || filePath.includes('\\')) {
+            return `[[${safePath}]]`;
+        } else {
+            return `[[${fileName}]]`;
+        }
+    } else if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        // URL: <url>
+        return `<${filePath}>`;
+    } else {
+        // Other files: [filename](path)
+        const baseName = fileName.replace(/\.[^/.]+$/, "");
+        return `[${baseName}](${safePath})`;
+    }
+}
+
 async function processClipboardText(text) {
+    // Handle multiple lines - check for multiple file paths first
+    const lines = text.split(/\r\n|\r|\n/).map(line => line.trim()).filter(line => line.length > 0);
+
+    if (lines.length > 1) {
+        const filePaths = lines.filter(line => isFilePath(line));
+
+        if (filePaths.length > 1) {
+            // Multiple file paths - create links for each
+            const links = filePaths.map(filePath => createFileMarkdownLink(filePath));
+            const content = links.join('\n');
+
+            return {
+                title: `${filePaths.length} Files`,
+                content: content,
+                isLink: true,
+                multipleFiles: true
+            };
+        }
+    }
+
+    // Single line processing
     // Check if it's a URL
     const urlRegex = /^https?:\/\/[^\s]+$/;
     if (urlRegex.test(text)) {
@@ -452,48 +763,18 @@ async function processClipboardText(text) {
             };
         }
     }
-    
-    // Check if it's a filename (contains file extension)
-    const fileRegex = /^[^\/\\\n]*\.[a-zA-Z0-9]{1,10}$/;
-    if (fileRegex.test(text.trim())) {
-        const fileName = text.trim();
-        const isImage = isImageFile(fileName);
-        
-        if (isImage) {
-            return {
-                title: fileName,
-                content: `![${fileName}](${fileName})`,
-                isLink: true
-            };
-        } else {
-            return {
-                title: fileName,
-                content: `[${fileName}](${fileName})`,
-                isLink: true
-            };
-        }
-    }
-    
-    // Check if it's a file path (contains path separators and file extension)
-    const filePathRegex = /^[^<>:"|?*\n]*[\/\\][^\/\\\n]*\.[a-zA-Z0-9]{1,10}$/;
-    if (filePathRegex.test(text.trim())) {
+
+    // Check if it's a single file path
+    if (isFilePath(text.trim())) {
         const filePath = text.trim();
         const fileName = filePath.split(/[\/\\]/).pop();
-        const isImage = isImageFile(fileName);
-        
-        if (isImage) {
-            return {
-                title: fileName,
-                content: `![${fileName}](${filePath})`,
-                isLink: true
-            };
-        } else {
-            return {
-                title: fileName,
-                content: `[${fileName}](${filePath})`,
-                isLink: true
-            };
-        }
+        const content = createFileMarkdownLink(filePath);
+
+        return {
+            title: fileName,
+            content: content,
+            isLink: true
+        };
     }
     
     // Check if it contains a URL within text
@@ -511,8 +792,8 @@ async function processClipboardText(text) {
     }
     
     // Regular text content
-    const lines = text.split('\n');
-    const title = lines[0].length > 50 ? lines[0].substring(0, 50) + '...' : lines[0];
+    const textLines = text.split('\n');
+    const title = textLines[0].length > 50 ? textLines[0].substring(0, 50) + '...' : textLines[0];
     
     return {
         title: title || 'Clipboard Content',
@@ -531,7 +812,7 @@ function isImageFile(fileName) {
 }
 
 function escapeHtml(unsafe) {
-    if (!unsafe) return '';
+    if (!unsafe) {return '';}
     return unsafe
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -564,6 +845,7 @@ async function fetchUrlTitle(url) {
 }
 
 async function updateClipboardCardSource() {
+    // Update clipboard content
     clipboardCardData = await readClipboardContent();
     const clipboardSource = document.getElementById('clipboard-card-source');
     
@@ -584,7 +866,10 @@ async function updateClipboardCardSource() {
             const preview = escapeHtml(rawPreview);
             
             // Update visual indicator based on content type
-            if (clipboardCardData.isLink) {
+            if (clipboardCardData.isImage) {
+                iconSpan.textContent = '🖼️';
+                textSpan.textContent = 'Image';
+            } else if (clipboardCardData.isLink) {
                 // Check if it's an image file or URL
                 if (clipboardCardData.content.startsWith('![')) {
                     iconSpan.textContent = '🖼️';
@@ -615,6 +900,13 @@ function initializeClipboardCardSource() {
     }
     
     clipboardSource.addEventListener('dragstart', (e) => {
+        // Check if this is an image - if so, don't override the image handling
+        if (clipboardCardData && clipboardCardData.isImage) {
+            console.log('=== CONFLICTING HANDLER: Skipping for image ===');
+            return; // Let the main handler deal with images
+        }
+
+        console.log('=== CONFLICTING HANDLER: Processing as text ===');
         // For testing - create dummy data if no clipboard data
         if (!clipboardCardData) {
             clipboardCardData = {
@@ -623,22 +915,22 @@ function initializeClipboardCardSource() {
                 isLink: false
             };
         }
-        
+
         // Create a temporary task object for the drag operation
         const tempTask = {
             id: 'temp-clipboard-' + Date.now(),
             title: clipboardCardData.title,
-            description: clipboardCardData.content,
+            description: clipboardCardData.isImage ? '[Image from clipboard]' : clipboardCardData.content,
             isFromClipboard: true
         };
-        
-        
+
+
         // Store in drag data
         const dragData = JSON.stringify({
             type: 'clipboard-card',
             task: tempTask
         });
-        
+
         // Use text/plain with a special prefix for clipboard cards
         // Custom MIME types don't work reliably across browsers
         e.dataTransfer.setData('text/plain', `CLIPBOARD_CARD:${dragData}`);
@@ -818,15 +1110,15 @@ function applyColumnWidth(size, skipRender = false) {
     // Remove all existing column width classes
     const columns = document.querySelectorAll('.kanban-full-height-column');
     columns.forEach(column => {
-        column.classList.remove('column-width-40', 'column-width-66', 'column-width-100');
+        column.classList.remove('column-width-33percent', 'column-width-50percent', 'column-width-100percent');
         // Only remove span classes for viewport-based widths (40%, 66%, 100%), not pixel widths
-        if (size === '40' || size === '66' || size === '100') {
+        if (size === '33percent' || size === '50percent' || size === '100percent') {
             column.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
         }
     });
 
     // Handle pixel-based and percentage-based widths differently
-    if (size === '40' || size === '66' || size === '100') {
+    if (size === '33percent' || size === '50percent' || size === '100percent') {
         // For percentage widths, add CSS classes
         columns.forEach(column => {
             column.classList.add(`column-width-${size}`);
@@ -835,18 +1127,8 @@ function applyColumnWidth(size, skipRender = false) {
         document.documentElement.style.setProperty('--column-width', '350px');
     } else {
         // For pixel widths, use CSS custom properties
-        let width = '350px'; // default medium
-        switch(size) {
-            case 'small':
-                width = '250px';
-                break;
-            case 'medium':
-                width = '350px';
-                break;
-            case 'wide':
-                width = '450px';
-                break;
-        }
+        // For pixel widths, use CSS custom properties directly
+        const width = size; // Now size is already in correct format like '250px', '350px', etc.
         document.documentElement.style.setProperty('--column-width', width);
 
         // For pixel widths, re-apply span classes if they exist
@@ -860,14 +1142,17 @@ function applyColumnWidth(size, skipRender = false) {
 function setColumnWidth(size) {
     // Apply the column width
     applyColumnWidth(size);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'columnWidth', 
-        value: size 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'columnWidth',
+        value: size
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -888,7 +1173,8 @@ function setColumnWidth(size) {
  */
 function applyLayoutRows(rows) {
     currentLayoutRows = rows;
-    
+    window.currentLayoutRows = rows;
+
     // Re-render the board to apply row layout
     if (currentBoard) {
         renderBoard();
@@ -898,14 +1184,17 @@ function applyLayoutRows(rows) {
 function setLayoutRows(rows) {
     // Apply the layout rows
     applyLayoutRows(rows);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'layoutRows', 
-        value: rows 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'layoutRows',
+        value: rows
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -919,12 +1208,24 @@ let currentRowHeight = 'auto';
 
 // Function to apply row height to existing rows
 function applyRowHeight(height) {
+    // Convert percent values to vh for CSS
+    let cssHeight = height;
+    if (height === '33percent') {
+        cssHeight = '31.5vh';
+    } else if (height === '50percent') {
+        cssHeight = '48vh';
+    } else if (height === '67percent') {
+        cssHeight = '63vh';
+    } else if (height === '100percent') {
+        cssHeight = '95vh';
+    }
+
     const rows = document.querySelectorAll('.kanban-row');
     const boardElement = document.getElementById('kanban-board');
     const isMultiRow = boardElement && boardElement.classList.contains('multi-row');
-    
+
     rows.forEach((row, index) => {
-        if (height === 'auto') {
+        if (cssHeight === 'auto') {
             // Auto height - no constraints
             row.style.height = 'auto';
             row.style.minHeight = 'auto';
@@ -939,9 +1240,9 @@ function applyRowHeight(height) {
             });
         } else {
             // Fixed height - constrain row height but no row scrollbars
-            row.style.height = height;
-            row.style.minHeight = height;
-            row.style.maxHeight = height;
+            row.style.height = cssHeight;
+            row.style.minHeight = cssHeight;
+            row.style.maxHeight = cssHeight;
             row.style.overflowY = 'hidden';  // No row scrollbars
             row.style.overflowX = 'visible';  // No horizontal scrollbar on row
             
@@ -994,14 +1295,17 @@ function applyRowHeightSetting(height) {
 function setRowHeight(height) {
     // Apply the row height
     applyRowHeightSetting(height);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'rowHeight', 
-        value: height 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'rowHeight',
+        value: height
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1052,6 +1356,9 @@ function setStickyHeaders(setting) {
         value: setting
     });
 
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1063,7 +1370,7 @@ let currentTagVisibility = 'standard'; // Default to standard (exclude #span and
 
 // Helper function to filter tags from text based on current visibility setting
 function filterTagsFromText(text) {
-    if (!text) return text;
+    if (!text) {return text;}
 
     const setting = currentTagVisibility || 'standard';
 
@@ -1072,7 +1379,7 @@ function filterTagsFromText(text) {
             // Show all tags - don't filter anything
             return text;
         case 'standard':
-            // Hide #span and #row tags only
+            // Hide #span and #row tags only, but preserve include syntax
             return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
         case 'custom':
             // Hide #span, #row, and configured tags (but show @ tags)
@@ -1096,7 +1403,7 @@ function applyTagVisibility(setting) {
     window.currentTagVisibility = setting;
 
     // Remove all tag visibility classes
-    document.body.classList.remove('tag-visibility-all', 'tag-visibility-standard', 'tag-visibility-custom', 'tag-visibility-mentions', 'tag-visibility-none');
+    document.body.classList.remove('tag-visibility-all', 'tag-visibility-allexcludinglayout', 'tag-visibility-customonly', 'tag-visibility-mentionsonly', 'tag-visibility-none');
 
     // Add the selected tag visibility class
     document.body.classList.add(`tag-visibility-${setting}`);
@@ -1124,6 +1431,9 @@ function setTagVisibility(setting) {
         key: 'tagVisibility',
         value: setting
     });
+
+    // Update menu indicators
+    updateAllMenuIndicators();
 
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
@@ -1157,6 +1467,9 @@ function setImageFill(setting) {
         value: setting
     });
 
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1176,14 +1489,17 @@ function applyWhitespace(spacing) {
 function setWhitespace(spacing) {
     // Apply the whitespace
     applyWhitespace(spacing);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'whitespace', 
-        value: spacing 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'whitespace',
+        value: spacing
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1204,14 +1520,17 @@ function applyTaskMinHeight(height) {
 function setTaskMinHeight(height) {
     // Apply the task min height
     applyTaskMinHeight(height);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'taskMinHeight', 
-        value: height 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'taskMinHeight',
+        value: height
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1227,7 +1546,7 @@ function setTaskMinHeight(height) {
  * @returns {number} Detected number of rows
  */
 function detectRowsFromBoard(board) {
-    if (!board || !board.columns) return 1;
+    if (!board || !board.columns) {return 1;}
 
     let maxRow = 1;
     board.columns.forEach(column => {
@@ -1248,7 +1567,7 @@ function detectRowsFromBoard(board) {
 
 // Function to get column row from title
 function getColumnRow(title) {
-    if (!title) return 1;
+    if (!title) {return 1;}
     
     // More comprehensive regex to find row tags
     const rowMatches = title.match(/#row(\d+)\b/gi);
@@ -1263,10 +1582,10 @@ function getColumnRow(title) {
 
 // Function to update column row tag
 function updateColumnRowTag(columnId, newRow) {
-    if (!currentBoard || !currentBoard.columns) return;
+    if (!currentBoard || !currentBoard.columns) {return;}
 
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column) return;
+    if (!column) {return;}
 
     // Also update cachedBoard if it exists and is different
     let cachedColumn = null;
@@ -1305,7 +1624,7 @@ function updateColumnRowTag(columnId, newRow) {
         const titleElement = columnElement.querySelector('.column-title');
         if (titleElement) {
             const displayTitle = column.title.replace(/#row\d+/gi, '').trim();
-            const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
+            const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
             const rowIndicator = (window.showRowTags && newRow > 1) ? `<span class="column-row-tag">Row ${newRow}</span>` : '';
             titleElement.innerHTML = renderedTitle + rowIndicator;
         }
@@ -1327,7 +1646,7 @@ function updateColumnRowTag(columnId, newRow) {
 
 // Function to clean up any duplicate or invalid row tags
 function cleanupRowTags() {
-    if (!currentBoard || !currentBoard.columns) return;
+    if (!currentBoard || !currentBoard.columns) {return;}
     
     let needsUpdate = false;
     
@@ -1363,7 +1682,7 @@ function cleanupRowTags() {
 
 // Function to get current document folding state
 function getCurrentDocumentFoldingState() {
-    if (!currentDocumentUri) return null;
+    if (!currentDocumentUri) {return null;}
     
     if (!documentFoldingStates.has(currentDocumentUri)) {
         // Initialize empty state for new document
@@ -1387,10 +1706,10 @@ function getCurrentDocumentFoldingState() {
  * Side effects: Updates documentFoldingStates map
  */
 function saveCurrentFoldingState() {
-    if (!currentDocumentUri || !window.collapsedColumns) return;
+    if (!currentDocumentUri || !window.collapsedColumns) {return;}
     
     const state = getCurrentDocumentFoldingState();
-    if (!state) return;
+    if (!state) {return;}
     
     // Copy current state
     state.collapsedColumns = new Set(window.collapsedColumns);
@@ -1403,16 +1722,16 @@ function saveCurrentFoldingState() {
 
 // Function to restore folding state from document storage
 function restoreFoldingState() {
-    if (!currentDocumentUri) return false;
+    if (!currentDocumentUri) {return false;}
     
     const state = getCurrentDocumentFoldingState();
-    if (!state) return false;
+    if (!state) {return false;}
     
     // Initialize global folding variables if they don't exist
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
-    if (!window.collapsedTasks) window.collapsedTasks = new Set();
-    if (!window.columnFoldStates) window.columnFoldStates = new Map();
-    if (!window.globalColumnFoldState) window.globalColumnFoldState = 'fold-mixed';
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
+    if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
+    if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
+    if (!window.globalColumnFoldState) {window.globalColumnFoldState = 'fold-mixed';}
     
     if (state.isInitialized) {
         // Restore saved state
@@ -1429,7 +1748,7 @@ function restoreFoldingState() {
 
 // Function to apply default folding (empty columns folded) - only for truly new documents
 function applyDefaultFoldingToNewDocument() {
-    if (!currentBoard || !currentBoard.columns) return;
+    if (!currentBoard || !currentBoard.columns) {return;}
     
     // Don't reset existing state, just add empty columns to collapsed set
     currentBoard.columns.forEach(column => {
@@ -1561,25 +1880,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
             // Wait a bit for the clipboard to be updated
             setTimeout(async () => {
-                try {
-                    const text = await navigator.clipboard.readText();
-                    if (text && text.trim()) {
-                        clipboardCardData = {
-                            title: text.trim().substring(0, 50),
-                            content: text.trim(),
-                            isLink: false
-                        };
-                        updateClipboardCardSource();
-                    }
-                } catch (error) {
-                    // Try fallback - set dummy content to test the UI
-                    clipboardCardData = {
-                        title: 'Test Content',
-                        content: 'This is test clipboard content from Ctrl+C',
-                        isLink: false
-                    };
-                    updateClipboardCardSource();
-                }
+                // Use the main clipboard reader to preserve image detection
+                await updateClipboardCardSource();
             }, 200);
         }
     });
@@ -1590,55 +1892,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000); // Delay to ensure everything is initialized
     
     // Add a simple test to verify clipboard functionality is working
-    setTimeout(() => {
-        const clipboardSource = document.getElementById('clipboard-card-source');
-        if (clipboardSource) {
-            // Force update with test data
-            clipboardCardData = {
-                title: 'Test Update',
-                content: 'Testing clipboard update functionality',
-                isLink: false
-            };
-            // Update UI without trying to read clipboard again
-            const iconSpan = clipboardSource.querySelector('.clipboard-icon');
-            const textSpan = clipboardSource.querySelector('.clipboard-text');
+    // setTimeout(() => {
+    //     const clipboardSource = document.getElementById('clipboard-card-source');
+    //     if (clipboardSource) {
+    //         // Force update with test data
+    //         clipboardCardData = {
+    //             title: 'Test Update',
+    //             content: 'Testing clipboard update functionality',
+    //             isLink: false
+    //         };
+    //         // Update UI without trying to read clipboard again
+    //         const iconSpan = clipboardSource.querySelector('.clipboard-icon');
+    //         const textSpan = clipboardSource.querySelector('.clipboard-text');
             
-            if (iconSpan && textSpan) {
-                const rawPreview = clipboardCardData.content.length > 15 
-                    ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
-                    : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
+    //         if (iconSpan && textSpan) {
+    //             const rawPreview = clipboardCardData.content.length > 15 
+    //                 ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
+    //                 : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
                 
-                // Escape preview content to prevent HTML rendering
-                const preview = escapeHtml(rawPreview);
+    //             // Escape preview content to prevent HTML rendering
+    //             const preview = escapeHtml(rawPreview);
                 
-                iconSpan.textContent = '📋';
-                textSpan.textContent = preview;
-                clipboardSource.style.opacity = '1';
-                clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
-            }
-        } else {
-        }
-    }, 2000);
+    //             iconSpan.textContent = '📋';
+    //             textSpan.textContent = preview;
+    //             clipboardSource.style.opacity = '1';
+    //             clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
+    //         }
+    //     } else {
+    //     }
+    // }, 2000);
     
     // Add click handler to read clipboard (user interaction required for clipboard API)
     const clipboardSource = document.getElementById('clipboard-card-source');
     if (clipboardSource) {
         clipboardSource.addEventListener('click', async () => {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (text && text.trim()) {
-                    clipboardCardData = await processClipboardText(text.trim());
-                    await updateClipboardCardSource();
-                }
-            } catch (error) {
-            }
+            // Use the main clipboard reader to preserve image detection
+            await updateClipboardCardSource();
         });
     }
  
     // Global Alt+click handler for links/images (as fallback)
     document.addEventListener('click', (e) => {
         // Only handle Alt+click for opening links/images
-        if (!e.altKey) return;
+        if (!e.altKey) {return;}
         
         // Check if we're in a kanban element that has its own handler
         if (e.target.closest('.column-title') || 
@@ -1856,7 +2152,8 @@ window.addEventListener('message', event => {
             
             // Initialize cache system - this is the SINGLE source of truth
             const isInitialLoad = !window.cachedBoard;
-            if (isInitialLoad) {
+            const isFullRefresh = message.isFullRefresh;
+            if (isInitialLoad || isFullRefresh) {
                 window.cachedBoard = JSON.parse(JSON.stringify(message.board)); // Deep clone
                 window.currentBoard = window.cachedBoard; // Keep for compatibility
                 window.savedBoardState = JSON.parse(JSON.stringify(message.board)); // Reference for unsaved detection
@@ -1898,23 +2195,67 @@ window.addEventListener('message', event => {
                 window.currentColumnWidth = currentColumnWidth;
                 // Update whitespace with the value from configuration
                 if (message.whitespace) {
-                    applyWhitespace(message.whitespace);
+                    // Handle legacy whitespace values
+                    let whitespace = message.whitespace;
+                    if (whitespace === '2px') {
+                        whitespace = '4px'; // Convert old compact to new compact
+                    } else if (whitespace === '10px') {
+                        whitespace = '12px'; // Convert old 10px to comfortable
+                    } else if (whitespace === '20px') {
+                        whitespace = '24px'; // Convert old 20px to large
+                    } else if (whitespace === '40px') {
+                        whitespace = '36px'; // Convert old 40px to extra large
+                    } else if (whitespace === '60px') {
+                        whitespace = '48px'; // Convert old 60px to maximum
+                    }
+                    applyWhitespace(whitespace);
                 } else {
-                    applyWhitespace('4px'); // Default fallback
+                    applyWhitespace('8px'); // Default fallback
                 }
 
                 // Update task min height with the value from configuration
                 if (message.taskMinHeight) {
-                    applyTaskMinHeight(message.taskMinHeight);
+                    // Handle legacy card height values
+                    let taskMinHeight = message.taskMinHeight;
+                    if (taskMinHeight === '26.5vh') {
+                        taskMinHeight = '33percent';
+                    } else if (taskMinHeight === '43.5vh') {
+                        taskMinHeight = '50percent';
+                    } else if (taskMinHeight === '89vh') {
+                        taskMinHeight = '100percent';
+                    }
+                    applyTaskMinHeight(taskMinHeight);
                 } else {
                     applyTaskMinHeight('auto'); // Default fallback
                 }
 
                 // Update font size with the value from configuration
                 if (message.fontSize) {
-                    applyFontSize(message.fontSize);
+                    // Handle legacy font size values
+                    let fontSize = message.fontSize;
+                    if (fontSize === 'small') {
+                        fontSize = '0_75x'; // Convert legacy 'small' to 0.75x
+                    } else if (fontSize === 'normal') {
+                        fontSize = '1x'; // Convert legacy 'normal' to 1x
+                    }
+                    applyFontSize(fontSize);
                 } else {
-                    applyFontSize('1_0x'); // Default fallback
+                    applyFontSize('1x'); // Default fallback
+                }
+
+                // Update layout presets from configuration
+                if (message.layoutPresets) {
+                    layoutPresets = message.layoutPresets;
+                    initializeLayoutPresetsMenu(); // Reinitialize menu with new presets
+                }
+
+                // Update layout preset from configuration
+                if (message.layoutPreset) {
+                    window.currentLayoutPreset = message.layoutPreset;
+                    updateLayoutPresetsActiveState();
+                } else {
+                    window.currentLayoutPreset = 'normal'; // Default fallback
+                    updateLayoutPresetsActiveState();
                 }
 
                 // Update font family with the value from configuration
@@ -1926,9 +2267,24 @@ window.addEventListener('message', event => {
 
                 // Update column width with the value from configuration
                 if (message.columnWidth) {
-                    applyColumnWidth(message.columnWidth);
+                    // Handle legacy column width values
+                    let columnWidth = message.columnWidth;
+                    if (columnWidth === 'small') {
+                        columnWidth = '250px';
+                    } else if (columnWidth === 'medium') {
+                        columnWidth = '350px';
+                    } else if (columnWidth === 'wide') {
+                        columnWidth = '450px';
+                    } else if (columnWidth === '40') {
+                        columnWidth = '33percent';
+                    } else if (columnWidth === '66') {
+                        columnWidth = '50percent';
+                    } else if (columnWidth === '100') {
+                        columnWidth = '100percent';
+                    }
+                    applyColumnWidth(columnWidth);
                 } else {
-                    applyColumnWidth('medium'); // Default fallback
+                    applyColumnWidth('350px'); // Default fallback
                 }
             }
             
@@ -1938,7 +2294,24 @@ window.addEventListener('message', event => {
             if (isInitialLoad) {
                 // Update row height with the value from configuration
                 if (message.rowHeight) {
-                    applyRowHeightSetting(message.rowHeight);
+                    // Handle legacy row height values
+                    let rowHeight = message.rowHeight;
+                    if (rowHeight === '19em') {
+                        rowHeight = '300px';
+                    } else if (rowHeight === '31em') {
+                        rowHeight = '500px';
+                    } else if (rowHeight === '44em') {
+                        rowHeight = '700px';
+                    } else if (rowHeight === '31.5vh') {
+                        rowHeight = '33percent';
+                    } else if (rowHeight === '48vh') {
+                        rowHeight = '50percent';
+                    } else if (rowHeight === '63vh') {
+                        rowHeight = '67percent';
+                    } else if (rowHeight === '95vh') {
+                        rowHeight = '100percent';
+                    }
+                    applyRowHeightSetting(rowHeight);
                 } else {
                     applyRowHeightSetting('auto'); // Default fallback
                 }
@@ -1952,9 +2325,18 @@ window.addEventListener('message', event => {
 
                 // Update tag visibility with the value from configuration
                 if (message.tagVisibility) {
-                    applyTagVisibility(message.tagVisibility);
+                    // Handle legacy tag visibility values
+                    let tagVisibility = message.tagVisibility;
+                    if (tagVisibility === 'standard') {
+                        tagVisibility = 'allexcludinglayout';
+                    } else if (tagVisibility === 'custom') {
+                        tagVisibility = 'customonly';
+                    } else if (tagVisibility === 'mentions') {
+                        tagVisibility = 'mentionsonly';
+                    }
+                    applyTagVisibility(tagVisibility);
                 } else {
-                    applyTagVisibility('standard'); // Default fallback
+                    applyTagVisibility('allexcludinglayout'); // Default fallback
                 }
 
                 // Update image fill with the value from configuration
@@ -1963,6 +2345,9 @@ window.addEventListener('message', event => {
                 } else {
                     applyImageFill('fit'); // Default fallback
                 }
+
+                // Update all menu indicators after settings are applied
+                updateAllMenuIndicators();
             }
 
             // Update max row height
@@ -2078,22 +2463,42 @@ window.addEventListener('message', event => {
             window.pendingFocusTargets = message.focusTargets;
             break;
         case 'includeFilesChanged':
-            // Show/hide the refresh includes button based on whether files have changed
+            // Update the refresh includes button to show status
             const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
-            if (refreshIncludesBtn) {
-                refreshIncludesBtn.style.display = message.hasChanges ? 'flex' : 'none';
+            const countSpan = refreshIncludesBtn?.querySelector('.refresh-includes-count');
+            const iconSpan = refreshIncludesBtn?.querySelector('.refresh-includes-icon');
 
-                // Update tooltip to show which files changed
-                if (message.hasChanges && message.changedFiles && message.changedFiles.length > 0) {
-                    const fileNames = message.changedFiles.map(path => {
-                        // Extract just the filename from the full path
-                        return path.split(/[/\\]/).pop() || path;
-                    });
-                    const tooltip = `Files changed: ${fileNames.join(', ')}`;
-                    refreshIncludesBtn.title = tooltip;
+            if (refreshIncludesBtn) {
+                // Button is always visible, just update its state
+                if (message.hasChanges) {
+                    refreshIncludesBtn.classList.add('has-changes');
+                    if (iconSpan) iconSpan.textContent = '❗';
                 } else {
-                    refreshIncludesBtn.title = "Refresh included files (files have changed)";
+                    refreshIncludesBtn.classList.remove('has-changes');
+                    if (iconSpan) iconSpan.textContent = '✓';
                 }
+
+                // Update badge count
+                if (countSpan && message.changedFiles) {
+                    const changeCount = message.changedFiles.length;
+                    countSpan.textContent = changeCount > 0 ? changeCount.toString() : '';
+                }
+
+                // Update tooltip to show which files are tracked and which changed
+                let tooltip = '';
+                if (message.trackedFiles && message.trackedFiles.length > 0) {
+                    tooltip = `Tracked files (${message.trackedFiles.length}):\n`;
+                    tooltip += message.trackedFiles.map(f => `  • ${f}`).join('\n');
+
+                    if (message.hasChanges && message.changedFiles && message.changedFiles.length > 0) {
+                        tooltip += '\n\nChanged files:\n';
+                        tooltip += message.changedFiles.map(f => `  ⚠ ${f}`).join('\n');
+                    }
+                } else {
+                    tooltip = 'No included files tracked';
+                }
+
+                refreshIncludesBtn.title = tooltip;
             }
             break;
         case 'includeFileContent':
@@ -2102,8 +2507,138 @@ window.addEventListener('message', event => {
                 window.updateIncludeFileCache(message.filePath, message.content);
             }
             break;
+        case 'refreshIncludesOnly':
+            // Lightweight include refresh - just re-render markdown without board changes
+            if (typeof window.renderBoard === 'function') {
+                window.renderBoard();
+            }
+            break;
+        case 'clipboardImageSaved':
+            // Handle clipboard image save response from backend
+            console.log('[DEBUG] Received clipboardImageSaved message:', message);
+            if (message.success) {
+                // Create a new task with the image filename as title and markdown link as description
+                const imageFileName = message.relativePath.split('/').pop().replace(/\.[^/.]+$/, ''); // Remove extension
+                const markdownLink = `![](${message.relativePath})`;
+
+                console.log('[DEBUG] Creating task with title:', imageFileName, 'and markdown:', markdownLink);
+                createNewTaskWithContent(
+                    imageFileName,
+                    message.dropPosition,
+                    markdownLink
+                );
+            } else {
+                // Create error task if save failed
+                console.log('[DEBUG] Image save failed, creating error task');
+                createNewTaskWithContent(
+                    'Clipboard Image (Error)',
+                    message.dropPosition,
+                    `Failed to save image: ${message.error || 'Unknown error'}`
+                );
+            }
+            break;
+        case 'insertSnippetContent':
+            // Insert VS Code snippet content into the active editor
+            insertVSCodeSnippetContent(message.content, message.fieldType, message.taskId);
+            break;
+        case 'proceedDisableIncludeMode':
+            // User confirmed disable include mode in VS Code dialog - proceed with the action
+            if (typeof disableColumnIncludeMode === 'function') {
+                disableColumnIncludeMode(message.columnId);
+            }
+            break;
+        case 'proceedEnableIncludeMode':
+            // User provided file name in VS Code dialog - proceed with enabling include mode
+            if (typeof enableColumnIncludeMode === 'function') {
+                enableColumnIncludeMode(message.columnId, message.fileName);
+            }
+            break;
+        case 'proceedUpdateIncludeFile':
+            // User provided new file name in VS Code dialog - proceed with updating include file
+            if (typeof updateColumnIncludeFile === 'function') {
+                updateColumnIncludeFile(message.columnId, message.newFileName, message.currentFile);
+            }
+            break;
+        case 'updateColumnContent':
+            // Handle targeted column content update for include file changes
+            console.log(`[Frontend Debug] Received updateColumnContent for column ${message.columnId}:`, {
+                taskCount: message.tasks?.length || 0,
+                includeFile: message.includeFile,
+                tasks: message.tasks?.map(t => t.title) || []
+            });
+
+            // Update the column in cached board
+            if (window.cachedBoard && window.cachedBoard.columns) {
+                const column = window.cachedBoard.columns.find(c => c.id === message.columnId);
+                if (column) {
+                    // Update tasks and column metadata
+                    column.tasks = message.tasks || [];
+                    column.title = message.columnTitle || column.title;
+                    column.displayTitle = message.displayTitle || column.displayTitle;
+                    column.includeMode = message.includeMode;
+                    column.includeFiles = message.includeFiles;
+
+                    console.log(`[Frontend Debug] Updated column ${message.columnId}:`, {
+                        taskCount: column.tasks.length,
+                        title: column.title,
+                        displayTitle: column.displayTitle,
+                        includeMode: column.includeMode,
+                        includeFiles: column.includeFiles
+                    });
+
+                    // Re-render just this column
+                    if (typeof renderSingleColumn === 'function') {
+                        renderSingleColumn(message.columnId, column);
+                        console.log(`[Frontend Debug] Re-rendered column ${message.columnId}`);
+                    } else {
+                        console.warn(`[Frontend Debug] renderSingleColumn function not available, falling back to full render`);
+                        if (typeof window.renderBoard === 'function') {
+                            window.renderBoard();
+                        }
+                    }
+                } else {
+                    console.warn(`[Frontend Debug] Column ${message.columnId} not found in cached board`);
+                }
+            } else {
+                console.warn(`[Frontend Debug] No cached board available for column update`);
+            }
+            break;
     }
 });
+
+/**
+ * Insert VS Code snippet content into the active editor
+ */
+function insertVSCodeSnippetContent(content, fieldType, taskId) {
+    // Find the currently active editor
+    const activeEditor = document.querySelector('.task-title-edit:focus, .task-description-edit:focus');
+
+    if (activeEditor && window.taskEditor && window.taskEditor.currentEditor) {
+        // Insert the snippet content at cursor position
+        const cursorPosition = activeEditor.selectionStart || 0;
+        const textBefore = activeEditor.value.substring(0, cursorPosition);
+        const textAfter = activeEditor.value.substring(activeEditor.selectionEnd || cursorPosition);
+
+        // Insert the snippet
+        activeEditor.value = textBefore + content + textAfter;
+
+        // Position cursor after the snippet
+        const newCursorPosition = cursorPosition + content.length;
+        activeEditor.setSelectionRange(newCursorPosition, newCursorPosition);
+
+        // Focus back to the editor
+        activeEditor.focus();
+
+        // Trigger input event to ensure the change is registered
+        activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        // Auto-resize if needed
+        if (typeof autoResize === 'function') {
+            autoResize(activeEditor);
+        }
+    }
+}
+
 
 // Watch for theme changes and update styles
 if (typeof MutationObserver !== 'undefined') {
@@ -2178,10 +2713,10 @@ function focusCard(card) {
 }
 
 function getCurrentCardPosition() {
-    if (!currentFocusedCard) return null;
+    if (!currentFocusedCard) {return null;}
     
     const column = currentFocusedCard.closest('.kanban-full-height-column');
-    if (!column) return null;
+    if (!column) {return null;}
     
     const columnCards = Array.from(column.querySelectorAll('[class*="task-item"]'));
     const cardIndex = columnCards.indexOf(currentFocusedCard);
@@ -2261,7 +2796,7 @@ function navigateToCard(direction) {
     }
     
     const position = getCurrentCardPosition();
-    if (!position) return;
+    if (!position) {return;}
     
     const { columnIndex, cardIndex, columnCards } = position;
     const columns = Array.from(document.querySelectorAll('.kanban-full-height-column'));
@@ -2500,8 +3035,8 @@ document.addEventListener('keydown', (e) => {
                     }
                     
                     // Clear old pending changes (legacy cleanup)
-                    if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
-                    if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
+                    if (window.pendingColumnChanges) {window.pendingColumnChanges.clear();}
+                    if (window.pendingTaskChanges) {window.pendingTaskChanges.clear();}
                     
                     // Remove modal
                     modal.remove();
@@ -2541,7 +3076,7 @@ function undo() {
             const message = { type: 'undo' };
             const result = vscode.postMessage(message);
         } catch (error) {
-            console.error('[UNDO DEBUG] Error sending message:', error);
+            // Silently handle error
         }
     } else {
     }
@@ -2578,7 +3113,6 @@ window.addEventListener('beforeunload', function(e) {
 
 window.addEventListener('unload', function(e) {
     if (typeof hasUnsavedChanges === 'function' && hasUnsavedChanges()) {
-        console.warn('⚠️ Window closed with unsaved changes!');
     }
 });
 
@@ -2706,7 +3240,7 @@ function insertFileLink(fileInfo) {
  * Side effects: Updates DOM elements with file info
  */
 function updateFileInfoBar() {
-    if (!currentFileInfo) return;
+    if (!currentFileInfo) {return;}
 
     const fileNameElement = document.getElementById('file-name');
 
@@ -2752,7 +3286,7 @@ function calculateTaskDescriptionHeight() {
     // Get all task items
     document.querySelectorAll('.task-item').forEach(taskItem => {
         const descContainer = taskItem.querySelector('.task-description-container');
-        if (!descContainer) return;
+        if (!descContainer) {return;}
 
         // Calculate the total height of other elements in the task-item
         let usedHeight = 0;
@@ -2820,7 +3354,17 @@ function updateTaskMinHeight(value) {
         value = 'auto';
     }
 
-    document.documentElement.style.setProperty('--task-height', value);
+    // Convert percent values to vh for CSS
+    let cssValue = value;
+    if (value === '33percent') {
+        cssValue = '26.5vh';
+    } else if (value === '50percent') {
+        cssValue = '43.5vh';
+    } else if (value === '100percent') {
+        cssValue = '89vh';
+    }
+
+    document.documentElement.style.setProperty('--task-height', cssValue);
 
     // Apply height limitation when value is not 'auto'
     if (value !== 'auto') {
@@ -2830,7 +3374,7 @@ function updateTaskMinHeight(value) {
     }
 
     // Add/remove class for tall task heights that interfere with sticky headers
-    const isTallHeight = value === '43.5vh' || value === '89vh' ||
+    const isTallHeight = value === '50percent' || value === '100percent' ||
                          (value.includes('px') && parseInt(value) >= 400);
 
     if (isTallHeight) {
@@ -2886,7 +3430,7 @@ window.getColumnRow = getColumnRow;
 window.performSort = performSort;
 
 // Font size functionality
-let currentFontSize = '1_0x'; // Default to 1.0x (current behavior)
+let currentFontSize = '1x'; // Default to 1.0x (current behavior)
 
 function applyFontSize(size) {
     // Remove all font size classes
@@ -2901,19 +3445,23 @@ function applyFontSize(size) {
     // Add the selected font size class
     document.body.classList.add(`font-size-${size}`);
     currentFontSize = size;
+    window.currentFontSize = size;
 }
 
 function setFontSize(size) {
     // Apply the font size
     applyFontSize(size);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'fontSize', 
-        value: size 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'fontSize',
+        value: size
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -2930,19 +3478,23 @@ function applyFontFamily(family) {
     // Add the selected font family class
     document.body.classList.add(`font-family-${family}`);
     currentFontFamily = family;
+    window.currentFontFamily = family;
 }
 
 function setFontFamily(family) {
     // Apply the font family
     applyFontFamily(family);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'fontFamily', 
-        value: family 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'fontFamily',
+        value: family
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -3025,4 +3577,161 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // Initialize layout presets menu
+    initializeLayoutPresetsMenu();
 });
+
+/**
+ * Initialize the layout presets menu by populating it with preset options
+ */
+function initializeLayoutPresetsMenu() {
+    const dropdown = document.getElementById('layout-presets-dropdown');
+    if (!dropdown) return;
+
+    // Clear existing content
+    dropdown.innerHTML = '';
+
+    // Add preset items
+    Object.entries(layoutPresets).forEach(([presetKey, preset]) => {
+        const item = document.createElement('button');
+        item.className = 'layout-preset-item';
+        item.setAttribute('data-preset', presetKey);
+        item.onclick = () => applyLayoutPreset(presetKey);
+
+        const label = document.createElement('div');
+        label.className = 'layout-preset-label';
+        label.textContent = preset.label;
+
+        const description = document.createElement('div');
+        description.className = 'layout-preset-description';
+        description.textContent = preset.description;
+
+        item.appendChild(label);
+        item.appendChild(description);
+        dropdown.appendChild(item);
+    });
+
+    // Update active state
+    updateLayoutPresetsActiveState();
+}
+
+/**
+ * Toggle the layout presets dropdown menu
+ */
+function toggleLayoutPresetsMenu() {
+    const dropdown = document.getElementById('layout-presets-dropdown');
+    const button = document.getElementById('layout-presets-btn');
+
+    if (!dropdown || !button) return;
+
+    const isVisible = dropdown.classList.contains('show');
+
+    // Close all other menus first
+    closeAllMenus();
+
+    if (!isVisible) {
+        dropdown.classList.add('show');
+        button.classList.add('active');
+        updateLayoutPresetsActiveState();
+
+        // Close menu when clicking outside
+        setTimeout(() => {
+            document.addEventListener('click', function closeOnOutsideClick(e) {
+                if (!dropdown.contains(e.target) && !button.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                    button.classList.remove('active');
+                    document.removeEventListener('click', closeOnOutsideClick);
+                }
+            });
+        }, 0);
+    }
+}
+
+/**
+ * Apply a layout preset by setting all its configured options
+ * @param {string} presetKey - The key of the preset to apply
+ */
+function applyLayoutPreset(presetKey) {
+    const preset = layoutPresets[presetKey];
+    if (!preset) return;
+
+    // Apply each setting in the preset
+    Object.entries(preset.settings).forEach(([settingKey, value]) => {
+        switch (settingKey) {
+            case 'columnWidth':
+                setColumnWidth(value);
+                break;
+            case 'cardHeight':
+                setTaskMinHeight(value);
+                break;
+            case 'fontSize':
+                setFontSize(value);
+                break;
+            case 'fontFamily':
+                setFontFamily(value);
+                break;
+            case 'layoutRows':
+                setLayoutRows(value);
+                break;
+            case 'rowHeight':
+                setRowHeight(value);
+                break;
+            case 'stickyHeaders':
+                setStickyHeaders(value);
+                break;
+            case 'tagVisibility':
+                setTagVisibility(value);
+                break;
+            case 'imageFill':
+                setImageFill(value);
+                break;
+            case 'whitespace':
+                setWhitespace(value);
+                break;
+        }
+    });
+
+    // Store the current preset for backend config
+    window.currentLayoutPreset = presetKey;
+
+    // Send to backend
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'layoutPreset',
+        value: presetKey
+    });
+
+    // Close the menu
+    const dropdown = document.getElementById('layout-presets-dropdown');
+    const button = document.getElementById('layout-presets-btn');
+    if (dropdown && button) {
+        dropdown.classList.remove('show');
+        button.classList.remove('active');
+    }
+
+    // Update all menu indicators
+    updateAllMenuIndicators();
+    updateLayoutPresetsActiveState();
+}
+
+/**
+ * Update the active state indicators in the layout presets menu
+ */
+function updateLayoutPresetsActiveState() {
+    const currentPreset = window.currentLayoutPreset || 'normal';
+
+    // Update dropdown items
+    const items = document.querySelectorAll('.layout-preset-item');
+    items.forEach(item => {
+        const presetKey = item.getAttribute('data-preset');
+        item.classList.toggle('active', presetKey === currentPreset);
+    });
+
+    // Update button text to show current preset
+    const button = document.getElementById('layout-presets-btn');
+    const textSpan = button?.querySelector('.layout-presets-text');
+    if (textSpan && layoutPresets[currentPreset]) {
+        textSpan.textContent = layoutPresets[currentPreset].label;
+    }
+}

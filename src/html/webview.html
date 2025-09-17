@@ -58,8 +58,9 @@
                 </div>
             </div>
             <div class="file-info-right">
-                <button id="refresh-includes-btn" class="refresh-includes-btn" onclick="refreshIncludes()" title="Refresh included files (files have changed)" style="display: none;">
-                    <span class="refresh-includes-icon">❗</span>
+                <button id="refresh-includes-btn" class="refresh-includes-btn" onclick="refreshIncludes()" title="No included files tracked">
+                    <span class="refresh-includes-icon">✓</span>
+                    <span class="refresh-includes-count"></span>
                 </button>
 
                 <button id="global-fold-btn" class="global-fold-btn fold-mixed" onclick="toggleAllColumns()" title="Fold/unfold all columns">
@@ -75,6 +76,16 @@
                     <span class="refresh-icon">↻</span>
                     <span class="refresh-text">Refresh</span>
                 </button>
+
+                <div class="layout-presets-menu-container">
+                    <button id="layout-presets-btn" class="layout-presets-btn" onclick="toggleLayoutPresetsMenu()" title="Layout Presets">
+                        <span class="layout-presets-icon">🎨</span>
+                        <span class="layout-presets-text">Layout</span>
+                    </button>
+                    <div id="layout-presets-dropdown" class="layout-presets-dropdown">
+                        <!-- Presets will be populated by JavaScript -->
+                    </div>
+                </div>
 
                 <!-- File Bar Burger Menu -->
                 <div class="file-bar-menu">

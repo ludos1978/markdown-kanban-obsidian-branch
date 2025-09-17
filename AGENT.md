@@ -567,6 +567,73 @@ Many frontend operations correctly use `window.cachedBoard` and call `markUnsave
 
 ## Current Request
 
+### Menu Configuration Naming Standards
+
+#### **Column Width**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| Small (250px) | `250px` | `small` |
+| Medium (350px) | `350px` | `medium` |
+| Wide (450px) | `450px` | `wide` |
+| 1/3 Screen (30.5%) | `33percent` | `40` |
+| 1/2 Screen (48.5%) | `50percent` | `66` |
+| Full Width (98%) | `100percent` | `100` |
+
+#### **Card Height**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| Small (200px) | `200px` | `200px` |
+| Medium (400px) | `400px` | `400px` |
+| Large (600px) | `600px` | *(new)* |
+| 1/3 Screen (26.5%) | `33percent` | `26.5vh` |
+| 1/2 Screen (43.5%) | `50percent` | `43.5vh` |
+| Full Screen (89%) | `100percent` | `89vh` |
+
+#### **Whitespace**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| Compact (4px) | `4px` | `2px` |
+| Default (8px) | `8px` | `4px` |
+| Comfortable (12px) | `12px` | `8px` |
+| Spacious (16px) | `16px` | `12px` |
+| Large (24px) | `24px` | *(new, replaces 10px)* |
+| Extra Large (36px) | `36px` | *(new, replaces 20px)* |
+| Maximum (48px) | `48px` | *(new, replaces 40px/60px)* |
+
+#### **Tag Visibility**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| All Tags | `all` | `all` |
+| All Excluding Layout | `allexcludinglayout` | `standard` |
+| Custom Tags Only | `customonly` | `custom` |
+| @ Tags Only | `mentionsonly` | `mentions` |
+| No Tags | `none` | `none` |
+
+#### **Row Height**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| Auto Height | `auto` | `auto` |
+| Small (300px) | `300px` | `19em` |
+| Medium (500px) | `500px` | `31em` |
+| Large (700px) | `700px` | `44em` |
+| 1/3 Screen (31.5%) | `33percent` | `31.5vh` |
+| 1/2 Screen (48%) | `50percent` | `48vh` |
+| 2/3 Screen (63%) | `67percent` | `63vh` |
+| Full Screen (95%) | `100percent` | `95vh` |
+
+#### **No Changes Needed**
+- **Font Size**: Keep current `0_5x`, `1x`, etc.
+- **Font Family**: Keep current `system`, `roboto`, etc.
+- **Layout Rows**: Keep current `1`, `2`, etc.
+- **Sticky Headers**: Keep current `enabled`/`disabled`
+- **Image Fill**: Keep current `fit`/`fill`
+
+#### **Design Principles**
+- **Consistent Naming**: Use either pixel values (`250px`) or screen fractions (`33percent`)
+- **No Special Characters**: Configuration values use only letters, numbers, and basic characters
+- **Descriptive Labels**: Show both description and actual measurement in parentheses
+- **Clean Config Values**: Backend configuration uses simple strings without spaces or special characters
+
 
 
 ## Previous Requests
@@ -647,3 +714,71 @@ if a task i give is ambigious, ask me before starting to work on it. for example
 commit each change with a short description what we worked on into git. Verify that we work in a branch and ask me to merge back into main when done with a problem.
 
 If you add logs to the project, when finished working on a problem remove them all. Make this a separate git commit.
+
+## Layout Presets System
+
+### Overview
+The Layout Presets system allows users to quickly switch between predefined combinations of layout settings through a dropdown menu in the file header. Users can configure custom presets in VS Code settings.
+
+### Default Presets
+The system includes four built-in presets:
+
+- **Overview**: Compact view for seeing many cards (250px columns, small font, minimal whitespace)
+- **Normal**: Default balanced view (350px columns, normal font, standard whitespace)
+- **3x3 Grid**: Grid layout for organized viewing (1/3 screen columns, 3 rows, large font)
+- **Presentation**: Full screen view for presentations (full width columns, full height cards, huge font, no tags)
+
+### User Configuration
+Users can add custom presets by configuring `markdown-kanban.layoutPresets` in their VS Code settings.json:
+
+```json
+{
+  "markdown-kanban.layoutPresets": {
+    "myCustomPreset": {
+      "label": "My Custom Layout",
+      "description": "Description of my custom layout",
+      "settings": {
+        "columnWidth": "450px",
+        "cardHeight": "auto",
+        "fontSize": "1_5x",
+        "whitespace": "16px",
+        "tagVisibility": "customonly",
+        "layoutRows": 2
+      }
+    },
+    "compactGrid": {
+      "label": "Compact Grid",
+      "description": "Compact 2x2 grid layout",
+      "settings": {
+        "columnWidth": "50percent",
+        "cardHeight": "50percent",
+        "fontSize": "0_75x",
+        "layoutRows": 2,
+        "whitespace": "8px",
+        "stickyHeaders": "disabled"
+      }
+    }
+  }
+}
+```
+
+### Available Settings
+All settings from the file-info-burger menu can be configured in presets:
+
+- `columnWidth`: "250px", "350px", "450px", "33percent", "50percent", "100percent"
+- `cardHeight`: "auto", "200px", "400px", "600px", "33percent", "50percent", "100percent"
+- `fontSize`: "0_5x", "0_75x", "1x", "1_25x", "1_5x", "2x", "3x"
+- `fontFamily`: "system", "roboto", "opensans", "lato", "poppins", "inter", etc.
+- `layoutRows`: 1, 2, 3, 4, 5, 6
+- `rowHeight`: "auto", "300px", "500px", "700px", "33percent", "50percent", "67percent", "100percent"
+- `stickyHeaders`: "enabled", "disabled"
+- `tagVisibility`: "all", "allexcludinglayout", "customonly", "mentionsonly", "none"
+- `imageFill`: "fit", "fill"
+- `whitespace`: "4px", "8px", "12px", "16px", "24px", "36px", "48px"
+
+### Implementation Details
+- **Frontend**: Layout presets menu in file-info-left section with dropdown
+- **Backend**: VS Code workspace configuration storage and retrieval
+- **Integration**: Seamless application of multiple settings with single click
+- **State Management**: Current preset tracked and restored on file reopen
+- **Fallback**: Built-in presets available if user hasn't configured custom ones

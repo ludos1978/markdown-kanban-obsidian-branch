@@ -11,9 +11,9 @@ function wikiLinksPlugin(md, options = {}) {
         let pos = state.pos;
         
         // Check for opening [[
-        if (pos + 1 >= state.posMax) return false;
-        if (state.src.charCodeAt(pos) !== 0x5B /* [ */) return false;
-        if (state.src.charCodeAt(pos + 1) !== 0x5B /* [ */) return false;
+        if (pos + 1 >= state.posMax) {return false;}
+        if (state.src.charCodeAt(pos) !== 0x5B /* [ */) {return false;}
+        if (state.src.charCodeAt(pos + 1) !== 0x5B /* [ */) {return false;}
         
         pos += 2;
         
@@ -33,22 +33,22 @@ function wikiLinksPlugin(md, options = {}) {
             pos++;
         }
         
-        if (!found) return false;
+        if (!found) {return false;}
         
         // Parse content: [[document|title]] or [[document]]
         const parts = content.split('|');
         const document = parts[0].trim();
         const title = parts[1] ? parts[1].trim() : document;
         
-        if (!document) return false;
+        if (!document) {return false;}
         
         // Don't process if we're in silent mode
-        if (silent) return true;
+        if (silent) {return true;}
         
         // Create token
         const token_open = state.push('wiki_link_open', 'a', 1);
         token_open.attrSet('href', '#'); // Use # as placeholder
-        if (className) token_open.attrSet('class', className);
+        if (className) {token_open.attrSet('class', className);}
         token_open.attrSet('data-document', document);
         token_open.attrSet('title', `Wiki link: ${document}`);
         
@@ -98,13 +98,13 @@ function tagPlugin(md, options = {}) {
         let pos = state.pos;
         
         // Check for # at word boundary
-        if (state.src.charCodeAt(pos) !== 0x23 /* # */) return false;
+        if (state.src.charCodeAt(pos) !== 0x23 /* # */) {return false;}
         if (pos > 0 && state.src.charCodeAt(pos - 1) !== 0x20 /* space */ && 
             state.src.charCodeAt(pos - 1) !== 0x0A /* newline */ &&
-            pos !== 0) return false;
+            pos !== 0) {return false;}
         
         pos++;
-        if (pos >= state.posMax) return false;
+        if (pos >= state.posMax) {return false;}
         
         // Parse tag content - for gather tags, include full expression
         let tagStart = pos;
@@ -116,7 +116,7 @@ function tagPlugin(md, options = {}) {
             while (pos < state.posMax) {
                 const char = state.src.charCodeAt(pos);
                 // Stop at space or newline
-                if (char === 0x20 || char === 0x0A) break;
+                if (char === 0x20 || char === 0x0A) {break;}
                 pos++;
             }
             tagContent = state.src.slice(tagStart, pos);
@@ -138,9 +138,9 @@ function tagPlugin(md, options = {}) {
             tagContent = state.src.slice(tagStart, pos);
         }
         
-        if (tagContent.length === 0) return false;
+        if (tagContent.length === 0) {return false;}
         
-        if (silent) return true;
+        if (silent) {return true;}
         
         // Create token
         const token = state.push('tag', 'span', 0);
@@ -177,13 +177,13 @@ function datePersonTagPlugin(md, options = {}) {
         let pos = state.pos;
         
         // Check for @ at word boundary
-        if (state.src.charCodeAt(pos) !== 0x40 /* @ */) return false;
+        if (state.src.charCodeAt(pos) !== 0x40 /* @ */) {return false;}
         if (pos > 0 && state.src.charCodeAt(pos - 1) !== 0x20 /* space */ && 
             state.src.charCodeAt(pos - 1) !== 0x0A /* newline */ &&
-            pos !== 0) return false;
+            pos !== 0) {return false;}
         
         pos++;
-        if (pos >= state.posMax) return false;
+        if (pos >= state.posMax) {return false;}
         
         let tagStart = pos;
         let tagContent = '';
@@ -212,13 +212,13 @@ function datePersonTagPlugin(md, options = {}) {
                 }
             }
             
-            if (pos === tagStart) return false; // No content
+            if (pos === tagStart) {return false;} // No content
             
             tagContent = state.src.slice(tagStart, pos);
             tagType = 'person';
         }
         
-        if (silent) return true;
+        if (silent) {return true;}
         
         // Create token
         const token = state.push('date_person_tag', 'span', 0);
@@ -247,20 +247,20 @@ function datePersonTagPlugin(md, options = {}) {
 
 // Helper function to extract first tag from text
 function extractFirstTag(text) {
-    if (!text) return null;
+    if (!text) {return null;}
     const tagMatch = text.match(/#([a-zA-Z0-9_-]+)/);
     return tagMatch ? tagMatch[1].toLowerCase() : null;
 }
 
 // Helper function to extract all tags from text
 function extractAllTags(text) {
-    if (!text) return [];
+    if (!text) {return [];}
     const tagMatches = text.match(/#([a-zA-Z0-9_-]+)/g);
     return tagMatches ? tagMatches.map(tag => tag.substring(1).toLowerCase()) : [];
 }
 
 function renderMarkdown(text) {
-    if (!text) return '';
+    if (!text) {return '';}
     
     try {
         // Initialize markdown-it with enhanced wiki links and tags plugins

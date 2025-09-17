@@ -14,6 +14,78 @@ class TaskEditor {
     }
 
     /**
+     * Get current editing state and content for saving
+     * Purpose: Allow saving board while editing is in progress
+     * Returns: Object with edit details or null if nothing is being edited
+     */
+    getCurrentEditState() {
+        if (!this.currentEditor) {
+            return null;
+        }
+
+        const value = this.currentEditor.element.value || this.currentEditor.element.textContent;
+
+        return {
+            type: this.currentEditor.type,
+            taskId: this.currentEditor.taskId,
+            columnId: this.currentEditor.columnId,
+            value: value,
+            originalValue: this.currentEditor.originalValue
+        };
+    }
+
+    /**
+     * Apply current edit state to board before saving
+     * Purpose: Include in-progress edits when saving board
+     */
+    applyCurrentEditToBoard(board) {
+        const editState = this.getCurrentEditState();
+        if (!editState) {
+            return board; // No changes needed
+        }
+
+        // Make a deep copy to avoid modifying the original
+        const boardCopy = JSON.parse(JSON.stringify(board));
+
+        if (editState.type === 'task-title' || editState.type === 'task-description') {
+            const column = boardCopy.columns.find(c => c.id === editState.columnId);
+            if (column) {
+                const task = column.tasks.find(t => t.id === editState.taskId);
+                if (task) {
+                    if (editState.type === 'task-title') {
+                        task.title = editState.value;
+                    } else if (editState.type === 'task-description') {
+                        task.description = editState.value;
+                    }
+                }
+            }
+        } else if (editState.type === 'column-title') {
+            const column = boardCopy.columns.find(c => c.id === editState.columnId);
+            if (column) {
+                column.title = editState.value;
+            }
+        }
+
+        return boardCopy;
+    }
+
+    /**
+     * Update editor after save to maintain consistency
+     * Purpose: Keep editor in sync when content is saved while editing
+     */
+    handlePostSaveUpdate() {
+        if (!this.currentEditor) {
+            return;
+        }
+
+        // Update the original value to match what was just saved
+        // This prevents the editor from thinking there are still changes
+        const currentValue = this.currentEditor.element.value || this.currentEditor.element.textContent;
+        this.currentEditor.originalValue = currentValue;
+
+    }
+
+    /**
      * Sets up global keyboard and mouse event handlers
      * Purpose: Handle editing interactions across the entire document
      * Used by: Constructor on initialization
@@ -23,15 +95,82 @@ class TaskEditor {
 
         // Single global keydown handler
         document.addEventListener('keydown', (e) => {
-            if (!this.currentEditor) return;
-            
+            if (!this.currentEditor) {return;}
+
             const element = this.currentEditor.element;
-            
+
+
+            // Check for VS Code snippet shortcuts (Cmd/Ctrl + number keys)
+            const isSnippetShortcut = (e.metaKey || e.ctrlKey) && (
+                e.key >= '1' && e.key <= '9' // These might be snippet shortcuts
+            );
+
+            // If it's a potential snippet shortcut, send to VS Code to handle
+            if (isSnippetShortcut) {
+                e.preventDefault(); // Prevent default behavior
+                e.stopPropagation(); // Stop the event from bubbling up
+
+                // Get current cursor position and text
+                const cursorPos = element.selectionStart;
+                const textBefore = element.value.substring(0, cursorPos);
+                const textAfter = element.value.substring(element.selectionEnd);
+
+                // Build the shortcut string
+                const modifierKey = e.metaKey ? 'meta' : 'ctrl';
+                const shortcut = `${modifierKey}+${e.key}`;
+
+                // Send message to VS Code to trigger the snippet by shortcut
+                if (typeof vscode !== 'undefined') {
+                    vscode.postMessage({
+                        type: 'triggerVSCodeSnippet',
+                        shortcut: shortcut, // Send the shortcut instead of snippet name
+                        cursorPosition: cursorPos,
+                        textBefore: textBefore,
+                        textAfter: textAfter,
+                        fieldType: this.currentEditor.type,
+                        taskId: this.currentEditor.taskId
+                    });
+                }
+
+                // Keep focus and prevent auto-save
+                this.isTransitioning = true;
+                setTimeout(() => {
+                    this.isTransitioning = false;
+                    element.focus();
+                }, 100);
+                return;
+            }
+
+            // Check for other system shortcuts that might cause focus loss
+            const isSystemShortcut = (e.metaKey || e.ctrlKey) && (
+                e.key === 'w' || e.key === 't' || e.key === 'n' || // Window/tab shortcuts
+                e.key === 'r' || e.key === 'f' || e.key === 'p' || // Reload/find/print shortcuts
+                e.key === 'l' || e.key === 'd' || e.key === 'h' || // Location/bookmark shortcuts
+                e.key === '+' || e.key === '-' || e.key === '0' // Zoom shortcuts
+            );
+
+            // If it's a system shortcut, temporarily prevent auto-save on blur
+            if (isSystemShortcut) {
+                this.isTransitioning = true;
+                const currentElement = element; // Store reference to current editor
+
+                // Reset the flag and restore focus after the shortcut completes
+                setTimeout(() => {
+                    this.isTransitioning = false;
+
+                    // Restore focus if we're still editing the same element
+                    if (this.currentEditor && this.currentEditor.element === currentElement) {
+                        currentElement.focus();
+                    }
+                }, 300);
+                return; // Let the system handle the shortcut
+            }
+
             if (e.key === 'Tab' && element.classList.contains('task-title-edit')) {
                 e.preventDefault();
                 this.transitionToDescription();
             } else if (e.key === 'Enter' && !e.shiftKey) {
-                if (element.classList.contains('task-title-edit') || 
+                if (element.classList.contains('task-title-edit') ||
                     element.classList.contains('column-title-edit')) {
                     e.preventDefault();
                     this.save();
@@ -39,6 +178,31 @@ class TaskEditor {
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 this.cancel();
+            }
+        });
+
+        // Add window focus handler to restore editor focus after system shortcuts
+        window.addEventListener('focus', () => {
+            // If we have an active editor and the document regains focus, restore editor focus
+            if (this.currentEditor && this.currentEditor.element && document.hasFocus()) {
+                // Small delay to ensure the window focus event has fully processed
+                setTimeout(() => {
+                    if (this.currentEditor && this.currentEditor.element) {
+                        this.currentEditor.element.focus();
+                    }
+                }, 50);
+            }
+        });
+
+        // Add document visibility change handler for tab switching
+        document.addEventListener('visibilitychange', () => {
+            // When the document becomes visible again (user returns to this tab)
+            if (!document.hidden && this.currentEditor && this.currentEditor.element) {
+                setTimeout(() => {
+                    if (this.currentEditor && this.currentEditor.element) {
+                        this.currentEditor.element.focus();
+                    }
+                }, 100);
             }
         });
 
@@ -87,7 +251,18 @@ class TaskEditor {
      */
     startEdit(element, type, taskId = null, columnId = null) {
         // If transitioning, don't interfere
-        if (this.isTransitioning) return;
+        if (this.isTransitioning) {return;}
+
+        // Notify VS Code that task editing has started (only for task editing, not column editing)
+        if (type === 'task-title' || type === 'task-description') {
+            if (typeof vscode !== 'undefined') {
+                vscode.postMessage({
+                    type: 'setContext',
+                    contextVariable: 'kanbanTaskEditing',
+                    value: true
+                });
+            }
+        }
         
         // Get the appropriate elements based on type
         let displayElement, editElement, containerElement;
@@ -106,7 +281,7 @@ class TaskEditor {
             editElement = containerElement.querySelector('.column-title-edit');
         }
 
-        if (!editElement) return;
+        if (!editElement) {return;}
 
         // Check if we're already editing this exact element
         const isAlreadyEditing = this.currentEditor && 
@@ -123,8 +298,34 @@ class TaskEditor {
             this.save();
         }
 
+        // For column title editing, ensure we have the full title with include syntax
+        if (type === 'column-title' && columnId) {
+            const column = window.cachedBoard?.columns.find(col => col.id === columnId);
+            if (column && column.title) {
+                console.log(`[TaskEditor] Setting column title for editing: "${column.title}"`);
+                editElement.value = column.title; // Use full title, not filtered
+            } else {
+                console.log(`[TaskEditor] Column not found in cachedBoard for columnId: ${columnId}`);
+                // Fallback: check if the current textarea value looks filtered
+                const currentValue = editElement.value;
+                console.log(`[TaskEditor] Current textarea value: "${currentValue}"`);
+
+                // If the current value doesn't contain include syntax but we're editing an include column,
+                // we need to find the full title from the DOM or board
+                const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+                if (columnElement) {
+                    // Try to get the original title from the board data or column element
+                    const boardColumn = window.currentBoard?.columns.find(col => col.id === columnId);
+                    if (boardColumn && boardColumn.title && boardColumn.title !== currentValue) {
+                        console.log(`[TaskEditor] Using currentBoard title: "${boardColumn.title}"`);
+                        editElement.value = boardColumn.title;
+                    }
+                }
+            }
+        }
+
         // Show edit element, hide display
-        if (displayElement) displayElement.style.display = 'none';
+        if (displayElement) {displayElement.style.display = 'none';}
         editElement.style.display = 'block';
         
         // Auto-resize if textarea
@@ -161,13 +362,27 @@ class TaskEditor {
         editElement.onblur = (e) => {
             // Don't save on blur if the user is just selecting text or if we're transitioning
             if (!this.isTransitioning) {
-                // Give a small delay to allow for double-clicks and text selection
+                // Give a longer delay to handle system shortcuts and focus changes
                 setTimeout(() => {
-                    // Only save if we're still not focused and not transitioning
-                    if (document.activeElement !== editElement && !this.isTransitioning) {
-                        this.save();
+                    // Only save if we're still not focused, not transitioning, and the document is visible
+                    if (document.activeElement !== editElement &&
+                        !this.isTransitioning &&
+                        !document.hidden &&
+                        document.hasFocus()) {
+
+                        // Additional check: don't close if focus moved to another editable element
+                        // or if a modal/picker is open
+                        const activeElement = document.activeElement;
+                        const isEditingElsewhere = activeElement && (
+                            activeElement.classList.contains('task-title-edit') ||
+                            activeElement.classList.contains('task-description-edit') ||
+                            activeElement.classList.contains('column-title-edit')
+                        );
+                        if (!isEditingElsewhere) {
+                            this.save();
+                        }
                     }
-                }, 50);
+                }, 150); // Longer delay to handle system shortcuts
             }
         };
 
@@ -188,7 +403,7 @@ class TaskEditor {
      * Side effects: Saves title, starts description edit
      */
     transitionToDescription() {
-        if (!this.currentEditor || this.currentEditor.type !== 'task-title') return;
+        if (!this.currentEditor || this.currentEditor.type !== 'task-title') {return;}
         
         this.isTransitioning = true;
         
@@ -198,8 +413,8 @@ class TaskEditor {
         
         // Update local state (undo state will be saved when editing completes)
         const value = this.currentEditor.element.value;
-        if (currentBoard && currentBoard.columns) {
-            const column = currentBoard.columns.find(c => c.id === columnId);
+        if (window.cachedBoard && window.cachedBoard.columns) {
+            const column = window.cachedBoard.columns.find(c => c.id === columnId);
             const task = column?.tasks.find(t => t.id === taskId);
             if (task) {
                 task.title = value;
@@ -241,14 +456,14 @@ class TaskEditor {
      * Side effects: Updates pending changes, closes editor
      */
     save() {
-        if (!this.currentEditor || this.isTransitioning) return;
+        if (!this.currentEditor || this.isTransitioning) {return;}
         
         this.saveCurrentField();
         this.closeEditor();
     }
 
     cancel() {
-        if (!this.currentEditor || this.isTransitioning) return;
+        if (!this.currentEditor || this.isTransitioning) {return;}
         
         // Restore original value
         this.currentEditor.element.value = this.currentEditor.originalValue;
@@ -256,15 +471,15 @@ class TaskEditor {
     }
 
     saveCurrentField() {
-        if (!this.currentEditor) return;
+        if (!this.currentEditor) {return;}
         
         const { element, type, taskId, columnId } = this.currentEditor;
         const value = element.value;
 
         // Update local state for immediate feedback
-        if (currentBoard && currentBoard.columns) {
+        if (window.cachedBoard && window.cachedBoard.columns) {
             if (type === 'column-title') {
-                const column = currentBoard.columns.find(c => c.id === columnId);
+                const column = window.cachedBoard.columns.find(c => c.id === columnId);
                 if (column) {
                     // Get current row and span to preserve them
                     const currentRow = getColumnRow(column.title);
@@ -308,8 +523,41 @@ class TaskEditor {
                             newTitle += ` ${currentSpan}`;
                         }
 
+                        // Check for column include syntax changes
+                        const oldIncludeMatches = (column.title || '').match(/!!!columninclude\(([^)]+)\)!!!/g) || [];
+                        const newIncludeMatches = newTitle.match(/!!!columninclude\(([^)]+)\)!!!/g) || [];
+
+                        console.log(`[TaskEditor Debug] Column ${columnId} title change:`, {
+                            oldTitle: column.title,
+                            newTitle: newTitle,
+                            oldIncludeMatches: oldIncludeMatches,
+                            newIncludeMatches: newIncludeMatches
+                        });
+
+                        const hasIncludeChanges =
+                            oldIncludeMatches.length !== newIncludeMatches.length ||
+                            oldIncludeMatches.some((match, index) => match !== newIncludeMatches[index]);
+
+                        console.log(`[TaskEditor Debug] Has include changes: ${hasIncludeChanges}`);
+
                         column.title = newTitle;
-                        
+
+                        // If include syntax changed, send editColumnTitle message immediately for backend processing
+                        if (hasIncludeChanges) {
+                            console.log('[Column Include] Detected include syntax change, sending to backend...');
+                            console.log('[TaskEditor Debug] Sending editColumnTitle message for include change');
+
+                            // Send editColumnTitle message to trigger proper include handling in backend
+                            vscode.postMessage({
+                                type: 'editColumnTitle',
+                                columnId: columnId,
+                                title: newTitle
+                            });
+
+                            // Don't update local state here - let the backend handle it and reload
+                            return; // Skip the rest of the local updates for include changes
+                        }
+
                         // Mark as unsaved since we made a change
                         if (typeof markUnsavedChanges === 'function') {
                             markUnsavedChanges();
@@ -335,25 +583,67 @@ class TaskEditor {
 
                         // Check for new span tag (only blocked by viewport-based widths, not pixel widths)
                         const spanMatch = column.title.match(/#span(\d+)\b/i);
-                        const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '66' || window.currentColumnWidth === '100');
+                        const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '50percent' || window.currentColumnWidth === '100percent');
                         if (spanMatch && !hasViewportWidth) {
                             const spanCount = parseInt(spanMatch[1]);
                             if (spanCount >= 2 && spanCount <= 4) {
                                 columnElement.classList.add(`column-span-${spanCount}`);
                             }
                         }
+                    }
 
-                        // Also update tag-based styling
-                        const newTag = window.extractFirstTag ? window.extractFirstTag(column.title) : null;
-                        if (newTag && !newTag.startsWith('row') && !newTag.startsWith('gather_') && !newTag.startsWith('span')) {
-                            columnElement.setAttribute('data-column-tag', newTag);
+                    // Update tag-based styling for columns (following task pattern)
+                    const columnElement2 = document.querySelector(`[data-column-id="${columnId}"]`);
+                    if (columnElement2) {
+                        // Get tags from column title and description (like tasks do)
+                        const titleTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(column.title || '') : [];
+                        const descTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(column.description || '') : [];
+                        const allTags = [...new Set([...titleTags, ...descTags])];
+
+                        // Update primary tag (first non-special tag from title)
+                        const primaryTag = window.extractFirstTag ? window.extractFirstTag(column.title) : null;
+                        if (primaryTag && !primaryTag.startsWith('row') && !primaryTag.startsWith('gather_') && !primaryTag.startsWith('span')) {
+                            columnElement2.setAttribute('data-column-tag', primaryTag);
                         } else {
-                            columnElement.removeAttribute('data-column-tag');
+                            columnElement2.removeAttribute('data-column-tag');
                         }
 
-                        // Regenerate tag styles to apply any new tag colors
-                        if (typeof applyTagStyles === 'function') {
-                            applyTagStyles();
+                        // Update all tags attribute for stacking features
+                        if (allTags.length > 0) {
+                            columnElement2.setAttribute('data-all-tags', allTags.join(' '));
+                        } else {
+                            columnElement2.removeAttribute('data-all-tags');
+                        }
+
+                        // Force style recalculation and update header/footer bars
+                        if (allTags.length > 0) {
+                            // Gentle style refresh: toggle a temporary class to force re-evaluation
+                            columnElement2.classList.add('tag-update-trigger');
+                            requestAnimationFrame(() => {
+                                columnElement2.classList.remove('tag-update-trigger');
+
+                                // Update footer/header bars after DOM updates complete
+                                if (window.updateAllVisualTagElements) {
+                                    window.updateAllVisualTagElements(columnElement2, allTags, 'column');
+                                }
+                            });
+                        } else {
+                            // If no tags, still update header/footer bars to remove any existing ones
+                            if (window.injectStackableBars) {
+                                window.injectStackableBars(columnElement2);
+                            }
+                        }
+
+                        // Update corner badges without re-render (uses title+description combined like tasks)
+                        if (window.updateCornerBadgesImmediate) {
+                            // For columns, we need to pass a combined text that includes both title and description tags
+                            const combinedText = [column.title, column.description].filter(Boolean).join(' ');
+                            window.updateCornerBadgesImmediate(columnId, 'column', combinedText);
+                        }
+
+                        // Update tag counts in any open menus
+                        if (window.updateTagCategoryCounts) {
+                            window.updateTagCategoryCounts(columnId, 'column');
                         }
                     }
                     
@@ -371,15 +661,13 @@ class TaskEditor {
                     
                 }
             } else if (type === 'task-title' || type === 'task-description') {
-                const column = currentBoard.columns.find(c => c.id === columnId);
+                const column = window.cachedBoard.columns.find(c => c.id === columnId);
                 const task = column?.tasks.find(t => t.id === taskId);
                 
                 if (task) {
                     // Capture original values before making changes
                     const originalTitle = task.title || '';
                     const originalDescription = task.description || '';
-
-                    let hasChanged = false;
 
                     if (type === 'task-title') {
                         // Handle task title
@@ -392,7 +680,6 @@ class TaskEditor {
 
                             // Update the title
                             task.title = value;
-                            hasChanged = true;
                         }
                     } else if (type === 'task-description') {
                         // Handle task description
@@ -406,63 +693,91 @@ class TaskEditor {
 
                             // Update description (frontend will handle include processing)
                             task.description = value;
-                            hasChanged = true;
                         }
                     }
 
                     // Mark as unsaved and send the specific change to backend if any change was made
-                    const wasChanged = hasChanged;
+                    const wasChanged = (type === 'task-title' && (task.title || '') !== originalTitle) ||
+                                      (type === 'task-description' && (task.description || '') !== originalDescription);
 
                     if (wasChanged) {
+                        // Ensure currentBoard is synced with cachedBoard for markUnsavedChanges
+                        window.currentBoard = window.cachedBoard;
+
                         if (typeof markUnsavedChanges === 'function') {
                             markUnsavedChanges();
                         }
 
-                        // Send specific task update to backend
-                        if (typeof vscode !== 'undefined') {
-                            const field = type === 'task-title' ? 'title' : 'description';
-                            const valueToSend = type === 'task-description' ? task.description : value;
-                            vscode.postMessage({
-                                type: 'updateTaskInBackend',
-                                taskId: taskId,
-                                columnId: columnId,
-                                field: field,
-                                value: valueToSend
-                            });
-                        }
+                        // Note: No need to send updateTaskInBackend message here
+                        // The markUnsavedChanges() call above already sends the complete
+                        // updated board data via the cachedBoard parameter
                     }
                     
                     if (this.currentEditor.displayElement) {
                         if (value.trim()) {
-                            // For task descriptions, render the processed description (with includes expanded)
-                            // For task titles, render the value as-is
-                            const displayValue = (type === 'task-description') ? task.description || value : value;
+                            // Use the current value which has already been saved to the task object
+                            const displayValue = value;
                             this.currentEditor.displayElement.innerHTML = renderMarkdown(displayValue);
                         } else {
-                            // For empty values, clear the content (CSS will show placeholder)
+                            // Handle empty values - must be truly empty for CSS :empty selector
                             this.currentEditor.displayElement.innerHTML = '';
                         }
-
-                        // Always show the display element (CSS handles empty state)
+                        // Ensure display element is visible
                         this.currentEditor.displayElement.style.display = 'block';
                     }
 
-                    // Update task element styling if this is a task title edit
-                    if (type === 'task-title') {
-                        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
-                        if (taskElement) {
-                            // Update tag-based styling
-                            const newTag = window.extractFirstTag ? window.extractFirstTag(task.title) : null;
-                            if (newTag && !newTag.startsWith('row') && !newTag.startsWith('gather_') && !newTag.startsWith('span')) {
-                                taskElement.setAttribute('data-task-tag', newTag);
-                            } else {
-                                taskElement.removeAttribute('data-task-tag');
-                            }
+                    // Update tag-based styling for both titles and descriptions
+                    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                    if (taskElement) {
+                        // Combine tags from title and description
+                        const titleTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(task.title || '') : [];
+                        const descTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(task.description || '') : [];
+                        const allTags = [...new Set([...titleTags, ...descTags])];
 
-                            // Regenerate tag styles to apply any new tag colors
-                            if (typeof applyTagStyles === 'function') {
-                                applyTagStyles();
+                        // Update primary tag (first non-special tag from title)
+                        const primaryTag = window.extractFirstTag ? window.extractFirstTag(task.title) : null;
+                        if (primaryTag && !primaryTag.startsWith('row') && !primaryTag.startsWith('gather_') && !primaryTag.startsWith('span')) {
+                            taskElement.setAttribute('data-task-tag', primaryTag);
+                        } else {
+                            taskElement.removeAttribute('data-task-tag');
+                        }
+
+                        // Update all tags attribute for stacking features
+                        if (allTags.length > 0) {
+                            taskElement.setAttribute('data-all-tags', allTags.join(' '));
+                        } else {
+                            taskElement.removeAttribute('data-all-tags');
+                        }
+
+                        // Force style recalculation and update header/footer bars
+                        if (allTags.length > 0) {
+                            // Gentle style refresh: toggle a temporary class to force re-evaluation
+                            taskElement.classList.add('tag-update-trigger');
+                            requestAnimationFrame(() => {
+                                taskElement.classList.remove('tag-update-trigger');
+
+                                // Update footer/header bars after DOM updates complete
+                                if (window.injectStackableBars) {
+                                    window.injectStackableBars(taskElement);
+                                }
+                            });
+                        } else {
+                            // If no tags, still update header/footer bars to remove any existing ones
+                            if (window.injectStackableBars) {
+                                window.injectStackableBars(taskElement);
                             }
+                        }
+
+                        // Update corner badges without re-render (uses title+description combined)
+                        if (window.updateCornerBadgesImmediate) {
+                            // For tasks, we need to pass a combined text that includes both title and description tags
+                            const combinedText = [task.title, task.description].filter(Boolean).join(' ');
+                            window.updateCornerBadgesImmediate(taskId, 'task', combinedText);
+                        }
+
+                        // Update tag counts in any open menus
+                        if (window.updateTagCategoryCounts) {
+                            window.updateTagCategoryCounts(taskId, 'task', columnId);
                         }
                     }
                     
@@ -484,7 +799,7 @@ class TaskEditor {
     }
 
     closeEditor() {
-        if (!this.currentEditor) return;
+        if (!this.currentEditor) {return;}
         
         const { element, displayElement, type } = this.currentEditor;
         
@@ -497,11 +812,22 @@ class TaskEditor {
         // Hide edit element
         element.style.display = 'none';
         
-        // Show display element (CSS handles placeholder for empty content)
+        // Show display element
         if (displayElement) {
             displayElement.style.display = 'block';
         }
-        
+
+        // Notify VS Code that task editing has stopped (only for task editing, not column editing)
+        if (type === 'task-title' || type === 'task-description') {
+            if (typeof vscode !== 'undefined') {
+                vscode.postMessage({
+                    type: 'setContext',
+                    contextVariable: 'kanbanTaskEditing',
+                    value: false
+                });
+            }
+        }
+
         this.currentEditor = null;
     }
 

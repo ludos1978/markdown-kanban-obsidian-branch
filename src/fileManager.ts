@@ -404,7 +404,7 @@ export class FileManager {
      */
     public async generateImagePathMappings(content: string): Promise<ImagePathMapping> {
         const mappings: ImagePathMapping = {};
-        if (!content) return mappings;
+        if (!content) {return mappings;}
 
         // Only process if we have a document to work with
         if (!this._document) {

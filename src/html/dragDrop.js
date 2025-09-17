@@ -74,7 +74,7 @@ function showExternalDropIndicator(column, clientY) {
     const indicator = createExternalDropIndicator();
     const tasksContainer = column.querySelector('.tasks-container');
     
-    if (!tasksContainer) return;
+    if (!tasksContainer) {return;}
     
     // Calculate insertion position
     const containerRect = tasksContainer.getBoundingClientRect();
@@ -158,7 +158,7 @@ function setupGlobalDragAndDrop() {
     const dropFeedback = document.getElementById('drop-zone-feedback');
     
     if (!boardContainer) {
-        console.error('[DROP DEBUG] No kanban-container found!');
+        // Board container not found
         return;
     }
     
@@ -215,7 +215,8 @@ function setupGlobalDragAndDrop() {
     
     // Main drop handler function  
     function handleExternalDrop(e) {
-        
+        // Handle external drop event
+
         // Prevent default browser behavior
         e.preventDefault();
         
@@ -241,13 +242,26 @@ function setupGlobalDragAndDrop() {
         
         const dt = e.dataTransfer;
         if (!dt) {
-            console.error('[DROP DEBUG] No dataTransfer');
+            // No dataTransfer available
             return;
         }
         
         
-        // Priority 1: Check dragState for clipboard/empty cards (most reliable)
+        // Priority 1: Check for clipboard images via dataTransfer (most reliable for images)
+        const textData = dt.getData('text/plain');
+        if (textData && textData.startsWith('CLIPBOARD_IMAGE:')) {
+            const imageData = textData.substring('CLIPBOARD_IMAGE:'.length);
+            handleClipboardImageDrop(e, imageData);
+            if (dragState.draggedClipboardCard) {
+                dragState.draggedClipboardCard = null;
+                dragState.isDragging = false;
+            }
+            return;
+        }
+
+        // Priority 2: Check dragState for text clipboard/empty cards
         if (dragState.draggedClipboardCard) {
+            // Regular clipboard card (text only)
             const clipboardData = JSON.stringify({
                 type: 'clipboard-card',
                 task: dragState.draggedClipboardCard
@@ -276,22 +290,28 @@ function setupGlobalDragAndDrop() {
         }
         
         // Priority 3: Check text data for special formats
-        const textData = dt.getData('text/plain');
+        const textData2 = dt.getData('text/plain');
         
-        if (textData) {
-            if (textData.startsWith('CLIPBOARD_CARD:')) {
-                const clipboardData = textData.substring('CLIPBOARD_CARD:'.length);
+        if (textData2) {
+            if (textData2.startsWith('CLIPBOARD_CARD:')) {
+                const clipboardData = textData2.substring('CLIPBOARD_CARD:'.length);
                 handleClipboardCardDrop(e, clipboardData);
-            } else if (textData.startsWith('EMPTY_CARD:')) {
-                const emptyCardData = textData.substring('EMPTY_CARD:'.length);
+            } else if (textData2.startsWith('EMPTY_CARD:')) {
+                const emptyCardData = textData2.substring('EMPTY_CARD:'.length);
                 handleEmptyCardDrop(e, emptyCardData);
-            } else if (textData.includes('/')) {
+            } else if (textData2.startsWith('MULTIPLE_FILES:')) {
+                const filesContent = textData2.substring('MULTIPLE_FILES:'.length);
+                handleMultipleFilesDrop(e, filesContent);
+            } else if (textData2.startsWith('CLIPBOARD_IMAGE:')) {
+                const imageData = textData2.substring('CLIPBOARD_IMAGE:'.length);
+                handleClipboardImageDrop(e, imageData);
+            } else if (textData2.includes('/')) {
                 // Looks like a file path
-                handleVSCodeUriDrop(e, textData);
+                handleVSCodeUriDrop(e, textData2);
             } else {
                 // Plain text - create a new card
                 createNewTaskWithContent(
-                    textData,
+                    textData2,
                     { x: e.clientX, y: e.clientY },
                     ''
                 );
@@ -385,7 +405,7 @@ function setupGlobalDragAndDrop() {
             hideDropFeedback();
             hideExternalDropIndicator();
         }
-    }, false)
+    }, false);
     
     // Removed duplicate drop handler that was causing double card creation
     // The main handler at line 305 already handles all external drops
@@ -446,54 +466,219 @@ function setupGlobalDragAndDrop() {
 
 
 function handleClipboardCardDrop(e, clipboardData) {
-    
+
     try {
         const parsedData = JSON.parse(clipboardData);
-        
+
         // Extract the task data
         const taskData = parsedData.task || parsedData;
-        
+
         const title = taskData.title || taskData.content || parsedData.content || 'New Card';
-        const description = taskData.description || '';
-        
-        
+
+        // Ensure description is always a string, never a blob object
+        let description = taskData.description || '';
+        if (typeof description !== 'string') {
+            description = taskData.content || '';
+            if (typeof description !== 'string') {
+                description = 'Clipboard content';
+            }
+        }
+
         createNewTaskWithContent(
             title,
             { x: e.clientX, y: e.clientY },
             description
         );
     } catch (error) {
-        console.error('[DROP DEBUG] Failed to parse clipboard card data:', error);
-        console.error('[DROP DEBUG] Raw data was:', clipboardData);
+        // Failed to parse clipboard data
         // Fallback: treat as plain text
         createNewTaskWithContent(
             'Clipboard Content',
             { x: e.clientX, y: e.clientY },
-            clipboardData
+            typeof clipboardData === 'string' ? clipboardData : 'Clipboard content'
         );
     }
 }
 
 function handleEmptyCardDrop(e, emptyCardData) {
-    
+
     try {
         const parsedData = JSON.parse(emptyCardData);
-        
+
         // Create empty task
-        
+
         createNewTaskWithContent(
             '',
             { x: e.clientX, y: e.clientY },
             ''
         );
     } catch (error) {
-        console.error('[DROP DEBUG] Failed to parse empty card data:', error);
-        console.error('[DROP DEBUG] Raw data was:', emptyCardData);
+        // Failed to parse empty card data
         // Fallback: create empty task anyway
         createNewTaskWithContent(
             '',
             { x: e.clientX, y: e.clientY },
             ''
+        );
+    }
+}
+
+function handleMultipleFilesDrop(e, filesContent) {
+    // Split the pre-formatted markdown links by lines
+    const links = filesContent.split(/\r\n|\r|\n/).filter(line => line.trim().length > 0);
+
+    links.forEach((link, index) => {
+        // Extract title from the markdown link format
+        let title = 'File';
+
+        // Try to extract filename from different link formats
+        if (link.startsWith('![](')) {
+            // Image: ![](path) - extract filename from path
+            const pathMatch = link.match(/!\[\]\(([^)]+)\)/);
+            if (pathMatch) {
+                const path = decodeURIComponent(pathMatch[1]);
+                title = path.split(/[\/\\]/).pop() || 'Image';
+            }
+        } else if (link.startsWith('[[')) {
+            // Wiki link: [[filename]] - extract filename
+            const fileMatch = link.match(/\[\[([^\]]+)\]\]/);
+            if (fileMatch) {
+                title = fileMatch[1];
+            }
+        } else if (link.startsWith('[') && link.includes('](')) {
+            // Standard link: [title](path) - extract title
+            const titleMatch = link.match(/\[([^\]]+)\]/);
+            if (titleMatch) {
+                title = titleMatch[1];
+            }
+        } else if (link.startsWith('<') && link.endsWith('>')) {
+            // URL: <url> - extract domain
+            const urlMatch = link.match(/<([^>]+)>/);
+            if (urlMatch) {
+                try {
+                    const url = new URL(urlMatch[1]);
+                    title = url.hostname.replace('www.', '');
+                } catch {
+                    title = 'URL';
+                }
+            }
+        }
+
+        // Stagger creation slightly if multiple files
+        setTimeout(() => {
+            createNewTaskWithContent(
+                title,
+                { x: e.clientX, y: e.clientY },
+                link
+            );
+        }, index * 10);
+    });
+}
+
+function handleClipboardImageDrop(e, imageData) {
+    try {
+        // Parse the image data
+        const parsedData = JSON.parse(imageData);
+        console.log('[DEBUG] Parsed clipboard image data:', parsedData);
+
+        const base64Data = parsedData.data;
+        const imageType = parsedData.imageType || 'image/png';
+
+        if (!base64Data) {
+            console.error('No image data found in parsed data');
+            createNewTaskWithContent(
+                'Clipboard Image',
+                { x: e.clientX, y: e.clientY },
+                'Failed to save image: No image data found'
+            );
+            return;
+        }
+
+        // Extract the base64 part (remove data:image/png;base64, prefix if present)
+        const base64Only = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+        console.log('[DEBUG] Base64 data length:', base64Only.length);
+
+        processImageSave(e, base64Only, imageType, parsedData.md5Hash);
+
+    } catch (error) {
+        console.error('Failed to handle clipboard image drop:', error);
+        createNewTaskWithContent(
+            'Clipboard Image',
+            { x: e.clientX, y: e.clientY },
+            'Failed to process clipboard image'
+        );
+    }
+}
+
+function processImageSave(e, base64Data, imageType, md5Hash) {
+    try {
+
+        // Get the current markdown file information
+        console.log('=== DEBUG currentFileInfo:', window.currentFileInfo);
+        let currentFilePath = window.currentFileInfo?.filePath;
+        console.log('=== DEBUG currentFilePath:', currentFilePath);
+
+        // Fallback: Request file path from backend if not available
+        if (!currentFilePath) {
+            console.log('=== DEBUG: Requesting file path from backend ===');
+            // Send message to backend to get current file path and save image
+            vscode.postMessage({
+                type: 'saveClipboardImageWithPath',
+                imageData: base64Data,
+                imageType: imageType,
+                dropPosition: { x: e.clientX, y: e.clientY },
+                md5Hash: md5Hash // Pass MD5 hash for filename
+            });
+            return;
+        }
+
+        // Extract base filename without extension
+        const pathParts = currentFilePath.split(/[\/\\]/);
+        const fileName = pathParts.pop() || 'kanban';
+        const baseFileName = fileName.replace(/\.[^/.]+$/, '');
+        const directory = pathParts.join('/'); // Always use forward slash for consistency
+
+        // Generate unique filename for the image
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + 'T' +
+                         new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].split('-')[0];
+        const extension = imageType.split('/')[1] || 'png';
+        const imageFileName = `clipboard-image-${timestamp}.${extension}`;
+
+        // Create the media folder path
+        const mediaFolderName = `${baseFileName}-MEDIA`;
+        const mediaFolderPath = `${directory}/${mediaFolderName}`;
+        const imagePath = `${mediaFolderPath}/${imageFileName}`;
+
+        console.log('[DEBUG] Image paths:', {
+            currentFilePath,
+            baseFileName,
+            mediaFolderName,
+            mediaFolderPath,
+            imagePath,
+            imageFileName
+        });
+
+        // Send message to VS Code to save the image
+        // The task card will be created by the 'clipboardImageSaved' message handler
+        // after the backend confirms the file was saved successfully
+        vscode.postMessage({
+            type: 'saveClipboardImage',
+            imageData: base64Data,
+            imagePath: imagePath,
+            mediaFolderPath: mediaFolderPath,
+            dropPosition: { x: e.clientX, y: e.clientY },
+            imageFileName: imageFileName,
+            mediaFolderName: mediaFolderName
+        });
+
+    } catch (error) {
+        console.error('Failed to process clipboard image save:', error);
+
+        // Fallback: create a text card indicating the error
+        createNewTaskWithContent(
+            'Clipboard Image',
+            { x: e.clientX, y: e.clientY },
+            'Failed to process clipboard image'
         );
     }
 }
@@ -548,7 +733,7 @@ function handleVSCodeUriDrop(e, uriData) {
             }, index * 10);
         });
     } else {
-        console.warn('Could not process the dropped file URIs');
+        // Could not process dropped file URIs
     }
 }
 
@@ -619,7 +804,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     // Check board availability - NEW CACHE SYSTEM
     
     if (!window.cachedBoard) {
-        console.error('[DROP DEBUG] No board on window.cachedBoard');
+        // No cached board available
         vscode.postMessage({ 
             type: 'showMessage', 
             text: 'Cannot create task: No board loaded' 
@@ -628,7 +813,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     }
     
     if (!window.cachedBoard.columns || window.cachedBoard.columns.length === 0) {
-        console.error('[DROP DEBUG] Board has no columns');
+        // Board has no columns
         vscode.postMessage({ 
             type: 'showMessage', 
             text: 'Cannot create task: No columns available' 
@@ -728,10 +913,11 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
     
     if (targetColumnId) {
         // Create new task with cache-first approach (no VS Code message)
+        // Ensure all task fields are strings, not blobs or other objects
         const newTask = {
             id: `temp-drop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            title: content,
-            description: description
+            title: typeof content === 'string' ? content : 'New Task',
+            description: typeof description === 'string' ? description : ''
         };
 
         // Update cached board directly
@@ -754,7 +940,7 @@ function createNewTaskWithContent(content, dropPosition, description = '') {
             renderBoard();
         }
     } else {
-        console.error('[DROP DEBUG] Could not find any suitable column');
+        // Could not find suitable column
         vscode.postMessage({ 
             type: 'showMessage', 
             text: 'Could not find a suitable column. Please ensure at least one column is not collapsed.' 
@@ -850,7 +1036,7 @@ function setupRowDragAndDrop() {
     rows.forEach(row => {
         row.addEventListener('dragover', e => {
             // Only handle dragover for column dragging, let external drags bubble up  
-            if (!dragState.draggedColumn || dragState.draggedClipboardCard || dragState.draggedEmptyCard) return;
+            if (!dragState.draggedColumn || dragState.draggedClipboardCard || dragState.draggedEmptyCard) {return;}
             
             e.preventDefault();
             e.stopPropagation();
@@ -925,7 +1111,7 @@ function setupRowDragAndDrop() {
 
 function calculateColumnDropIndexInRow(draggedColumn) {
 
-    if (!currentBoard || !currentBoard.columns) return -1;
+    if (!currentBoard || !currentBoard.columns) {return -1;}
     
     const boardElement = document.getElementById('kanban-board');
     const columnId = draggedColumn.getAttribute('data-column-id');
@@ -970,7 +1156,7 @@ function calculateColumnDropIndex(boardElement, draggedColumn) {
     const columns = Array.from(boardElement.querySelectorAll('.kanban-full-height-column'));
     const currentIndex = columns.indexOf(draggedColumn);
     
-    if (!currentBoard || !currentBoard.columns) return -1;
+    if (!currentBoard || !currentBoard.columns) {return -1;}
     
     // Map DOM position to data model position
     const columnId = draggedColumn.getAttribute('data-column-id');
@@ -1004,12 +1190,12 @@ function setupTaskDragAndDrop() {
         const columnId = columnElement.dataset.columnId;
         const tasksContainer = columnElement.querySelector('.tasks-container');
 
-        if (!tasksContainer) return;
+        if (!tasksContainer) {return;}
 
         // Add dragover handler to the entire column for appending to end
         columnElement.addEventListener('dragover', e => {
             // Only process if we have a dragged task
-            if (!dragState.draggedTask) return;
+            if (!dragState.draggedTask) {return;}
             
             // Check if we're over the tasks container specifically
             const isOverTasksContainer = tasksContainer.contains(e.target);
@@ -1033,7 +1219,7 @@ function setupTaskDragAndDrop() {
 
         // Add drop handler to entire column
         columnElement.addEventListener('drop', e => {
-            if (!dragState.draggedTask) return;
+            if (!dragState.draggedTask) {return;}
             
             const isOverTasksContainer = tasksContainer.contains(e.target);
             if (!isOverTasksContainer) {
@@ -1058,14 +1244,14 @@ function setupTaskDragAndDrop() {
                 e.stopPropagation(); // Prevent column-level handler from interfering
             }
             
-            if (!dragState.draggedTask) return;
+            if (!dragState.draggedTask) {return;}
             
             // Remove any column-level visual feedback when over tasks
             columnElement.classList.remove('drag-over-append');
             
             const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY);
             
-            if (afterElement == null) {
+            if (afterElement === null) {
                 // Insert at the end, but before the add button if it exists
                 const addButton = tasksContainer.querySelector('.add-task-btn');
                 if (addButton) {
@@ -1325,7 +1511,7 @@ function calculateDropIndex(tasksContainer, clientY) {
 }
 
 function getOriginalColumnIndex(columnId) {
-    if (!currentBoard || !currentBoard.columns) return -1;
+    if (!currentBoard || !currentBoard.columns) {return -1;}
     return currentBoard.columns.findIndex(col => col.id === columnId);
 }
 
@@ -1382,7 +1568,7 @@ function setupColumnDragAndDrop() {
 
     columns.forEach(column => {
         const dragHandle = column.querySelector('.column-drag-handle');
-        if (!dragHandle) return;
+        if (!dragHandle) {return;}
 
         dragHandle.addEventListener('dragstart', e => {
             const columnElement = column;
@@ -1518,7 +1704,7 @@ function setupColumnDragAndDrop() {
         });
 
         column.addEventListener('dragover', e => {
-            if (!dragState.draggedColumn || dragState.draggedColumn === column) return;
+            if (!dragState.draggedColumn || dragState.draggedColumn === column) {return;}
             
             e.preventDefault();
             
@@ -1561,7 +1747,7 @@ function setupColumnDragAndDrop() {
 
 function calculateColumnNewPosition(draggedColumn) {
 
-    if (!currentBoard || !currentBoard.columns) return 0;
+    if (!currentBoard || !currentBoard.columns) {return 0;}
     
     const boardElement = document.getElementById('kanban-board');
     const columnId = draggedColumn.getAttribute('data-column-id');

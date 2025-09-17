@@ -19,14 +19,14 @@ let renderTimeout = null;
  * Note: Skips row tags (#rowN), span tags (#spanN), and gather tags (#gather_...)
  */
 function extractFirstTag(text) {
-    if (!text) return null;
+    if (!text) {return null;}
     const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
     let m;
     while ((m = re.exec(text)) !== null) {
         const raw = m[1];
         const baseMatch = raw.match(/^([a-zA-Z0-9_-]+)/);
         const base = (baseMatch ? baseMatch[1] : raw).toLowerCase();
-        if (base.startsWith('gather_')) continue; // do not use gather tags for styling
+        if (base.startsWith('gather_')) {continue;} // do not use gather tags for styling
         return base;
     }
     return null;
@@ -380,10 +380,10 @@ function debouncedRenderBoard() {
  * Side effects: Updates collapsedColumns set and DOM elements
  */
 function applyDefaultFoldingState() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {return;}
     
     // Ensure folding state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
     currentBoard.columns.forEach(column => {
         const hasNoTasks = !column.tasks || column.tasks.length === 0;
@@ -414,10 +414,10 @@ function applyDefaultFoldingState() {
  * Side effects: Updates collapsedColumns set based on column content
  */
 function setDefaultFoldingState() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {return;}
     
     // Ensure folding state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
     currentBoard.columns.forEach(column => {
         const hasNoTasks = !column.tasks || column.tasks.length === 0;
@@ -477,10 +477,10 @@ function getGlobalColumnFoldState() {
  * Side effects: Updates collapsedColumns set, re-renders board
  */
 function toggleAllColumns() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) return;
+    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {return;}
     
     // Ensure state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
     const currentState = getGlobalColumnFoldState();
     const collapsedCount = currentBoard.columns.filter(column => window.collapsedColumns.has(column.id)).length;
@@ -542,7 +542,7 @@ function updateGlobalColumnFoldButton() {
     const globalFoldButton = document.getElementById('global-fold-btn');
     const globalFoldIcon = document.getElementById('global-fold-icon');
     
-    if (!globalFoldButton || !globalFoldIcon) return;
+    if (!globalFoldButton || !globalFoldIcon) {return;}
     
     // Remove all state classes
     globalFoldButton.classList.remove('fold-collapsed', 'fold-expanded', 'fold-mixed');
@@ -573,9 +573,9 @@ function updateGlobalColumnFoldButton() {
  */
 function applyFoldingStates() {
     // Ensure folding state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
-    if (!window.collapsedTasks) window.collapsedTasks = new Set();
-    if (!window.columnFoldStates) window.columnFoldStates = new Map();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
+    if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
+    if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
     
     if (!currentBoard || !currentBoard.columns) {
         return;
@@ -594,7 +594,7 @@ function applyFoldingStates() {
         
         if (columnElement) {
             columnElement.classList.add('collapsed');
-            if (toggle) toggle.classList.add('rotated');
+            if (toggle) {toggle.classList.add('rotated');}
         }
     });
     
@@ -605,7 +605,7 @@ function applyFoldingStates() {
         
         if (taskElement) {
             taskElement.classList.add('collapsed');
-            if (toggle) toggle.classList.add('rotated');
+            if (toggle) {toggle.classList.add('rotated');}
         }
     });
     
@@ -629,7 +629,7 @@ function applyFoldingStates() {
  * @returns {Array<string>} Lowercase tag names without #
  */
 function getActiveTagsInTitle(text) {
-    if (!text) return [];
+    if (!text || typeof text !== 'string') {return [];}
     // Match all tags - for gather tags, include the full expression until next space
     // Skip row tags and span tags
     const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
@@ -654,7 +654,7 @@ function getActiveTagsInTitle(text) {
  * @returns {Array<string>} Complete tag strings with parameters
  */
 function getFullTagContent(text) {
-    if (!text) return [];
+    if (!text) {return [];}
     // Match tags including full gather expressions
     const matches = text.match(/#(?!row\d+\b)(gather_[a-zA-Z0-9_&|=><-]+|[a-zA-Z0-9_-]+)/g) || [];
     return matches.map(tag => tag.substring(1));
@@ -670,7 +670,7 @@ function getFullTagContent(text) {
 function getAllTagsInUse() {
     const tagsInUse = new Set();
     
-    if (!currentBoard || !currentBoard.columns) return tagsInUse;
+    if (!currentBoard || !currentBoard.columns) {return tagsInUse;}
     
     // Collect tags from all columns and tasks
     currentBoard.columns.forEach(column => {
@@ -915,14 +915,22 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         const title = isConfigured ? tagName : `Custom tag: ${tagName}`;
         
         // Store the handler in a global object
-        if (!window.tagHandlers) window.tagHandlers = {};
+        if (!window.tagHandlers) {window.tagHandlers = {};}
         window.tagHandlers[buttonId] = function(event) {
             event.stopPropagation();
             event.preventDefault();
             if (type === 'column') {
-                handleColumnTagClick(id, tagName, event);
+                if (typeof handleColumnTagClick === 'function') {
+                    handleColumnTagClick(id, tagName, event);
+                } else if (typeof window.handleColumnTagClick === 'function') {
+                    window.handleColumnTagClick(id, tagName, event);
+                }
             } else {
-                handleTaskTagClick(id, columnId, tagName, event);
+                if (typeof handleTaskTagClick === 'function') {
+                    handleTaskTagClick(id, columnId, tagName, event);
+                } else if (typeof window.handleTaskTagClick === 'function') {
+                    window.handleTaskTagClick(id, columnId, tagName, event);
+                }
             }
             return false;
         };
@@ -989,6 +997,106 @@ function generateFlatTagItems(tags, id, type, columnId = null) {
     }).join('');
 }
 
+
+/**
+ * Render a single column - used for targeted updates of include columns
+ * Purpose: Updates just one column without losing overall board state
+ * Used by: Include file changes, targeted column updates
+ * Side effects: Updates DOM for specific column, preserves styles
+ */
+function renderSingleColumn(columnId, columnData) {
+    console.log(`[RenderSingleColumn] Starting render for column ${columnId}`);
+
+    // Find the existing column element
+    const existingColumnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (!existingColumnElement) {
+        console.warn(`[RenderSingleColumn] Column element not found for ${columnId}`);
+        return;
+    }
+
+    // Clean up old tag handlers for this column to prevent memory leaks
+    if (window.tagHandlers) {
+        // Find all tag handlers that belong to this column (both column tags and task tags)
+        const handlersToCleanup = Object.keys(window.tagHandlers).filter(key => {
+            // Pattern: tag-chip-column-{columnId}-{tagName} or tag-chip-task-{taskId}-{tagName}
+            return key.startsWith(`tag-chip-column-${columnId}-`) ||
+                   (key.startsWith(`tag-chip-task-`) && existingColumnElement.querySelector(`[data-task-id]`))
+        });
+
+        // Also find task handlers by checking actual task IDs in the existing column
+        const taskElements = existingColumnElement.querySelectorAll('[data-task-id]');
+        taskElements.forEach(taskEl => {
+            const taskId = taskEl.getAttribute('data-task-id');
+            const taskHandlerPrefix = `tag-chip-task-${taskId}-`;
+            Object.keys(window.tagHandlers).forEach(key => {
+                if (key.startsWith(taskHandlerPrefix)) {
+                    handlersToCleanup.push(key);
+                }
+            });
+        });
+
+        // Remove duplicates and clean up
+        const uniqueHandlers = [...new Set(handlersToCleanup)];
+        uniqueHandlers.forEach(key => {
+            delete window.tagHandlers[key];
+        });
+    }
+
+    // Get the column index to maintain positioning
+    const allColumns = Array.from(document.querySelectorAll('[data-column-id]'));
+    const columnIndex = allColumns.indexOf(existingColumnElement);
+
+    // Create new column element
+    const newColumnElement = createColumnElement(columnData, columnIndex);
+
+    // Preserve scroll position
+    const tasksContainer = existingColumnElement.querySelector(`#tasks-${columnId}`);
+    const scrollTop = tasksContainer ? tasksContainer.scrollTop : 0;
+
+    // Replace the old element with the new one
+    existingColumnElement.parentNode.replaceChild(newColumnElement, existingColumnElement);
+
+    // Restore scroll position
+    const newTasksContainer = newColumnElement.querySelector(`#tasks-${columnId}`);
+    if (newTasksContainer) {
+        newTasksContainer.scrollTop = scrollTop;
+    }
+
+    // Apply current column state (collapsed/expanded)
+    if (window.collapsedColumns && window.collapsedColumns.has(columnId)) {
+        newColumnElement.classList.add('collapsed');
+        const toggle = newColumnElement.querySelector('.collapse-toggle');
+        if (toggle) toggle.classList.add('rotated');
+    }
+
+    // Update image sources for the new content
+    if (typeof updateImageSources === 'function') {
+        updateImageSources();
+    }
+
+    // Re-initialize drag & drop for the new column elements
+    // Since we replaced the entire column DOM element, we need to re-setup all drag & drop
+    // handlers that were attached to the old element and its children
+
+    // Setup drag handles for tasks in this column
+    newColumnElement.querySelectorAll('.task-drag-handle').forEach(handle => {
+        if (typeof setupTaskDragHandle === 'function') {
+            setupTaskDragHandle(handle);
+        }
+    });
+
+    // Re-setup drag & drop for all columns and tasks to ensure event handlers are properly attached
+    // This is needed because setupTaskDragAndDrop() also sets up drop zones on the tasks container
+    if (typeof setupTaskDragAndDrop === 'function') {
+        setupTaskDragAndDrop();
+    }
+
+    if (typeof setupColumnDragAndDrop === 'function') {
+        setupColumnDragAndDrop();
+    }
+
+    console.log(`[RenderSingleColumn] Completed render for column ${columnId}`);
+}
 
 // Render Kanban board
 /**
@@ -1186,10 +1294,10 @@ function renderBoard() {
 }
 
 function getFoldAllButtonState(columnId) {
-    if (!currentBoard || !currentBoard.columns) return 'fold-mixed';
+    if (!currentBoard || !currentBoard.columns) {return 'fold-mixed';}
     
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column || column.tasks.length === 0) return 'fold-mixed';
+    if (!column || column.tasks.length === 0) {return 'fold-mixed';}
     
     const collapsedCount = column.tasks.filter(task => window.collapsedTasks.has(task.id)).length;
     const totalTasks = column.tasks.length;
@@ -1206,14 +1314,14 @@ function getFoldAllButtonState(columnId) {
 }
 
 function toggleAllTasksInColumn(columnId) {
-    if (!currentBoard || !currentBoard.columns) return;
+    if (!currentBoard || !currentBoard.columns) {return;}
     
     // Ensure state variables are initialized
-    if (!window.collapsedTasks) window.collapsedTasks = new Set();
-    if (!window.columnFoldStates) window.columnFoldStates = new Map();
+    if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
+    if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
     
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column || column.tasks.length === 0) return;
+    if (!column || column.tasks.length === 0) {return;}
     
     const collapsedCount = column.tasks.filter(task => window.collapsedTasks.has(task.id)).length;
     const totalTasks = column.tasks.length;
@@ -1238,7 +1346,7 @@ function toggleAllTasksInColumn(columnId) {
     
     // Apply the action to all tasks - scope to this column only
     const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
-    if (!columnElement) return;
+    if (!columnElement) {return;}
     
     column.tasks.forEach(task => {
         const taskElement = columnElement.querySelector(`[data-task-id="${task.id}"]`);
@@ -1269,7 +1377,7 @@ function toggleAllTasksInColumn(columnId) {
 
 function updateFoldAllButton(columnId) {
     const foldButton = document.querySelector(`[data-column-id="${columnId}"] .fold-all-btn`);
-    if (!foldButton) return;
+    if (!foldButton) {return;}
     
     // Remove all state classes
     foldButton.classList.remove('fold-collapsed', 'fold-expanded', 'fold-mixed');
@@ -1320,9 +1428,9 @@ function createColumnElement(column, columnIndex) {
     const columnDiv = document.createElement('div');
     const isCollapsed = window.collapsedColumns.has(column.id);
     
-    // Skip header/footer bars HTML generation - handled by immediate update system
-    const headerBarsHtml = ''; // getAllHeaderBarsHtml(allTags, 'column', true); 
-    const footerBarsHtml = ''; // getAllFooterBarsHtml(allTags, 'column', true);
+    // Header/footer bars handled by immediate update system
+    const headerBarsHtml = '';
+    const footerBarsHtml = '';
     
     // Determine classes
     let headerClasses = '';
@@ -1330,17 +1438,17 @@ function createColumnElement(column, columnIndex) {
     
     if (headerBarsHtml) {
         headerClasses = 'has-header-bar';
-        if (headerBarsHtml.includes('label')) headerClasses += ' has-header-label';
+        if (headerBarsHtml.includes('label')) {headerClasses += ' has-header-label';}
     }
     if (footerBarsHtml) {
         footerClasses = 'has-footer-bar';
-        if (footerBarsHtml.includes('label')) footerClasses += ' has-footer-label';
+        if (footerBarsHtml.includes('label')) {footerClasses += ' has-footer-label';}
     }
     
     // Check for span tag to set column width (only blocked by viewport-based widths, not pixel widths)
     let spanClass = '';
     const spanMatch = column.title.match(/#span(\d+)\b/i);
-    const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '66' || window.currentColumnWidth === '100');
+    const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '50percent' || window.currentColumnWidth === '100percent');
     if (spanMatch && !hasViewportWidth) {
         const spanCount = parseInt(spanMatch[1]);
         if (spanCount >= 2 && spanCount <= 4) { // Limit to reasonable span values
@@ -1363,12 +1471,15 @@ function createColumnElement(column, columnIndex) {
         columnDiv.setAttribute('data-all-tags', allTags.join(' '));
     }
 
-    // Skip corner badges HTML generation - handled by immediate update system
-    const cornerBadgesHtml = ''; // getAllCornerBadgesHtml(allTags, 'column');
+    // Corner badges handled by immediate update system
+    const cornerBadgesHtml = '';
 
-    // Filter tags from displayed title based on visibility setting
-    const displayTitle = column.title ? window.filterTagsFromText(column.title) : '';
-    const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '<span class="task-title-placeholder">Add title...</span>';
+    // Use displayTitle from column data if available (for include columns), otherwise filter tags
+    const displayTitle = column.displayTitle || (column.title ? window.filterTagsFromText(column.title) : '');
+    const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
+
+    // For editing, always use the full title including include syntax
+    const editTitle = column.title || '';
     const foldButtonState = getFoldAllButtonState(column.id);
 
     // Only show row indicator for rows 2, 3, 4 if configuration allows (not row 1)
@@ -1385,9 +1496,9 @@ function createColumnElement(column, columnIndex) {
 								<span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleColumnCollapse('${column.id}')">▶</span>
 								<div class="column-title-container">
 										<div class="column-title markdown-content" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
-										<textarea class="column-title-edit" 
+										<textarea class="column-title-edit"
 																data-column-id="${column.id}"
-																style="display: none;">${escapeHtml(displayTitle)}</textarea>
+																style="display: none;">${escapeHtml(editTitle)}</textarea>
 								</div>
 								<span class="task-count">${column.tasks.length}
 										<button class="fold-all-btn ${foldButtonState}" onclick="toggleAllTasksInColumn('${column.id}')" title="Fold/unfold all cards">
@@ -1418,6 +1529,19 @@ function createColumnElement(column, columnIndex) {
 													</div>
 												</div>
 												<div class="donut-menu-divider"></div>
+												${column.includeMode ? `
+													<button class="donut-menu-item" onclick="editColumnIncludeFile('${column.id}')">
+														Edit include file
+													</button>
+													<button class="donut-menu-item" onclick="toggleColumnIncludeMode('${column.id}')">
+														Disable include mode
+													</button>
+												` : `
+													<button class="donut-menu-item" onclick="toggleColumnIncludeMode('${column.id}')">
+														Enable include mode
+													</button>
+												`}
+												<div class="donut-menu-divider"></div>
 												<div class="donut-menu-item has-submenu" data-submenu-type="sort" data-id="${column.id}" data-type="column" data-column-id="${column.id}">
 														Sort by
 												</div>
@@ -1438,6 +1562,8 @@ function createColumnElement(column, columnIndex) {
                     </button>` : ''}
                 </div>
             </div>
+        </div>
+        <div class="column-footer">
             ${footerBarsHtml || ''}
         </div>
     `;
@@ -1459,8 +1585,8 @@ function createTaskElement(task, columnId, taskIndex) {
         return '';
     }
 
-    const renderedDescription = task.description ? renderMarkdown(task.description) : '';
-    const renderedTitle = task.title ? renderMarkdown(task.title) : '';
+    const renderedDescription = (task.description && typeof task.description === 'string' && task.description.trim()) ? renderMarkdown(task.description) : '';
+    const renderedTitle = (task.title && typeof task.title === 'string' && task.title.trim()) ? renderMarkdown(task.title) : '';
     const isCollapsed = window.collapsedTasks.has(task.id);
     
     // Extract ALL tags for stacking features
@@ -1473,12 +1599,10 @@ function createTaskElement(task, columnId, taskIndex) {
     // Add all tags attribute for stacking features
     const allTagsAttribute = allTags.length > 0 ? ` data-all-tags="${allTags.join(' ')}"` : '';
     
-    // Skip corner badges HTML generation - handled by immediate update system
-    const cornerBadgesHtml = ''; // getAllCornerBadgesHtml(allTags, 'task');
-    
-    // Skip header/footer bars HTML generation - handled by immediate update system  
-    const headerBarsData = { html: '', totalHeight: 0, hasLabel: false }; // getAllHeaderBarsHtml(allTags, 'task', false);
-    const footerBarsData = { html: '', totalHeight: 0, hasLabel: false }; // getAllFooterBarsHtml(allTags, 'task', false);
+    // Corner badges and header/footer bars handled by immediate update system
+    const cornerBadgesHtml = '';
+    const headerBarsData = { html: '', totalHeight: 0, hasLabel: false };
+    const footerBarsData = { html: '', totalHeight: 0, hasLabel: false };
     
     // Calculate padding
     let paddingTopStyle = '';
@@ -1489,12 +1613,12 @@ function createTaskElement(task, columnId, taskIndex) {
     if (headerBarsData && headerBarsData.totalHeight) {
         paddingTopStyle = `padding-top: ${headerBarsData.totalHeight}px);`; /*calc(var(--whitespace-div2) + */
         headerClasses = 'has-header-bar';
-        if (headerBarsData.hasLabel) headerClasses += ' has-header-label';
+        if (headerBarsData.hasLabel) {headerClasses += ' has-header-label';}
     }
     if (footerBarsData && footerBarsData.totalHeight) {
         paddingBottomStyle = `padding-bottom: ${footerBarsData.totalHeight}px);`; /*calc(var(--whitespace-div2) + */
         footerClasses = 'has-footer-bar';
-        if (footerBarsData.hasLabel) footerClasses += ' has-footer-label';
+        if (footerBarsData.hasLabel) {footerClasses += ' has-footer-label';}
     }
     
     const headerBarsHtml = headerBarsData.html || '';
@@ -1512,9 +1636,9 @@ function createTaskElement(task, columnId, taskIndex) {
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}'); updateFoldAllButton('${columnId}')">▶</span>
                 <div class="task-title-container" onclick="handleTaskTitleClick(event, this, '${task.id}', '${columnId}')">
-                <div class="task-title-display markdown-content" 
-                            data-task-id="${task.id}" 
-                            data-column-id="${columnId}">${renderedTitle || '<span class="task-title-placeholder">Add title...</span>'}</div>
+                <div class="task-title-display markdown-content"
+                            data-task-id="${task.id}"
+                            data-column-id="${columnId}">${renderedTitle}</div>
                     <textarea class="task-title-edit" 
                                 data-task-id="${task.id}" 
                                 data-column-id="${columnId}"
@@ -1548,18 +1672,16 @@ function createTaskElement(task, columnId, taskIndex) {
             </div>
 
             <div class="task-description-container">
-                <div class="task-description-display markdown-content" 
-                        data-task-id="${task.id}" 
+                <div class="task-description-display markdown-content"
+                        data-task-id="${task.id}"
                         data-column-id="${columnId}"
-                        onclick="handleDescriptionClick(event, this)"
-                        style="${task.description ? '' : 'display: none;'}">${renderedDescription}</div>
+                        onclick="handleDescriptionClick(event, this)">${renderedDescription}</div>
                 <textarea class="task-description-edit" 
                             data-task-id="${task.id}" 
                             data-column-id="${columnId}"
                             data-field="description"
                             placeholder="Add description (Markdown supported)..."
                             style="display: none;">${escapeHtml(task.description || '')}</textarea>
-                ${!task.description ? `<div class="task-description-placeholder" onclick="handleDescriptionClick(event, this, '${task.id}', '${columnId}')">Add description...</div>` : ''}
             </div>
             ${footerBarsHtml}
         </div>
@@ -1600,7 +1722,7 @@ function toggleColumnCollapse(columnId) {
     toggle.classList.toggle('rotated');
     
     // Ensure state variables are initialized
-    if (!window.collapsedColumns) window.collapsedColumns = new Set();
+    if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
     // Store state
     const isNowCollapsed = column.classList.contains('collapsed');
@@ -1651,7 +1773,7 @@ function toggleTaskCollapse(taskId) {
     toggle.classList.toggle('rotated');
     
     // Ensure state variables are initialized
-    if (!window.collapsedTasks) window.collapsedTasks = new Set();
+    if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
     
     // Store state
     if (task.classList.contains('collapsed')) {
@@ -1728,7 +1850,7 @@ function handleLinkOrImageOpen(event, target) {
 function handleColumnTitleClick(event, columnId) {
     if (event.altKey) {
         // Alt+click: open link/image
-        if (handleLinkOrImageOpen(event, event.target)) return;
+        if (handleLinkOrImageOpen(event, event.target)) {return;}
         return; // Don't edit if Alt is pressed
     }
 
@@ -1753,7 +1875,7 @@ function handleColumnTitleClick(event, columnId) {
 function handleTaskTitleClick(event, element, taskId, columnId) {
     if (event.altKey) {
         // Alt+click: open link/image
-        if (handleLinkOrImageOpen(event, event.target)) return;
+        if (handleLinkOrImageOpen(event, event.target)) {return;}
         return; // Don't edit if Alt is pressed
     }
     
@@ -1766,7 +1888,7 @@ function handleTaskTitleClick(event, element, taskId, columnId) {
 function handleDescriptionClick(event, element, taskId, columnId) {
     if (event.altKey) {
         // Alt+click: open link/image
-        if (handleLinkOrImageOpen(event, event.target)) return;
+        if (handleLinkOrImageOpen(event, event.target)) {return;}
         return; // Don't edit if Alt is pressed
     }
     
@@ -1780,73 +1902,12 @@ function handleDescriptionClick(event, element, taskId, columnId) {
     }
 }
 
-// Helper function to get all corner badges HTML for multiple tags
-function getAllCornerBadgesHtml(tags, elementType) {
-    if (!window.tagColors || tags.length === 0) return '';
-    
-    const badges = [];
-    const positions = {
-        'top-left': [],
-        'top-right': [],
-        'bottom-left': [],
-        'bottom-right': []
-    };
-    
-    // Collect badges by position
-    tags.forEach(tag => {
-        const config = getTagConfig(tag);
-        if (config && config.cornerBadge) {
-            const position = config.cornerBadge.position || 'top-right';
-            positions[position].push({
-                tag: tag,
-                badge: config.cornerBadge
-            });
-        }
-    });
-    
-    // Generate HTML for each position with proper vertical stacking
-    let html = '';
-    Object.entries(positions).forEach(([position, badgesAtPosition]) => {
-        badgesAtPosition.forEach((item, index) => {
-            const badge = item.badge;
-            const offsetMultiplier = 24; // Space between stacked badges
-            let positionStyle = '';
-            
-            switch (position) {
-                case 'top-left':
-                    // Stack vertically downward, keep left position constant
-                    positionStyle = `top: ${10 + (index * offsetMultiplier)}px; left: -8px;`;
-                    break;
-                case 'top-right':
-                    // Stack vertically downward, keep right position constant
-                    positionStyle = `top: ${10 + (index * offsetMultiplier)}px; right: -8px;`;
-                    break;
-                case 'bottom-left':
-                    // Stack vertically upward, keep left position constant
-                    positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; left: -8px;`;
-                    break;
-                case 'bottom-right':
-                    // Stack vertically upward, keep right position constant
-                    positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; right: -8px;`;
-                    break;
-            }
-            
-            // Use label for text content, or empty if using image
-            const badgeContent = badge.image ? '' : (badge.label || '');
-            
-            html += `<div class="corner-badge corner-badge-${item.tag}" style="${positionStyle}" data-badge-position="${position}" data-badge-index="${index}">${badgeContent}</div>`;
-        });
-    });
-    
-    return html;
-}
-
 // Helper function to get tag configuration from grouped or flat structure
 function getTagConfig(tagName) {
-    if (!window.tagColors) return null;
+    if (!window.tagColors) {return null;}
     
     // Skip default configuration
-    if (tagName === 'default') return null;
+    if (tagName === 'default') {return null;}
     
     // Check grouped structure
     const groups = ['status', 'type', 'priority', 'category', 'colors'];
@@ -1966,7 +2027,7 @@ function generateTagStyles() {
     const processTags = (tags, groupName = null) => {
         for (const [tagName, config] of Object.entries(tags)) {
             // Skip the default configuration
-            if (tagName === 'default') continue;
+            if (tagName === 'default') {continue;}
             
             // Skip if this is a group (has nested objects with light/dark themes)
             if (config.light || config.dark) {
@@ -2199,14 +2260,45 @@ function generateTagStyles() {
 
 // Function to inject header, footer bars, and border text after render
 // Modified injectStackableBars function
-function injectStackableBars() {
-    document.querySelectorAll('[data-all-tags]').forEach(element => {
-        const tags = element.getAttribute('data-all-tags').split(' ');
+function injectStackableBars(targetElement = null) {
+    let elementsToProcess;
+    if (targetElement) {
+        // Always process the target element (even without data-all-tags) to clean up existing bars
+        elementsToProcess = [targetElement];
+    } else {
+        elementsToProcess = document.querySelectorAll('[data-all-tags]');
+    }
+
+    elementsToProcess.forEach(element => {
+        const allTagsAttr = element.getAttribute('data-all-tags');
+        const tags = allTagsAttr ? allTagsAttr.split(' ').filter(tag => tag.trim()) : [];
         const isColumn = element.classList.contains('kanban-full-height-column');
         const isCollapsed = isColumn && element.classList.contains('collapsed');
         
-        // Remove existing bars/containers
-        element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container').forEach(bar => bar.remove());
+        // Remove existing bars/containers - only from appropriate areas
+        if (isColumn) {
+            // For columns: only remove from column-header and column-footer, not from nested task cards
+            const columnHeader = element.querySelector('.column-header');
+            if (columnHeader) {
+                columnHeader.querySelectorAll('.header-bar, .header-bars-container').forEach(el => el.remove());
+            }
+            const columnFooter = element.querySelector('.column-footer');
+            if (columnFooter) {
+                columnFooter.querySelectorAll('.footer-bar, .footer-bars-container').forEach(el => el.remove());
+            }
+            // Also remove any direct children that are visual elements (for collapsed state)
+            Array.from(element.children).forEach(child => {
+                if (child.classList.contains('header-bar') ||
+                    child.classList.contains('footer-bar') ||
+                    child.classList.contains('header-bars-container') ||
+                    child.classList.contains('footer-bars-container')) {
+                    child.remove();
+                }
+            });
+        } else {
+            // For non-column elements (tasks), safe to remove all
+            element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container').forEach(bar => bar.remove());
+        }
         
         // Also remove old classes
         element.classList.remove('has-header-bar', 'has-footer-bar', 'has-header-label', 'has-footer-label');
@@ -2235,7 +2327,7 @@ function injectStackableBars() {
                 }
                 
                 headerBars.push(headerBar);
-                if (config.headerBar.label) hasHeaderLabel = true;
+                if (config.headerBar.label) {hasHeaderLabel = true;}
             }
             
             if (config && config.footerBar) {
@@ -2253,7 +2345,7 @@ function injectStackableBars() {
                 }
                 
                 footerBars.push(footerBar);
-                if (config.footerBar.label) hasFooterLabel = true;
+                if (config.footerBar.label) {hasFooterLabel = true;}
             }
         });
         
@@ -2271,7 +2363,7 @@ function injectStackableBars() {
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
                 columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
                 element.classList.add('has-header-bar');
-                if (hasHeaderLabel) element.classList.add('has-header-label');
+                if (hasHeaderLabel) {element.classList.add('has-header-label');}
             }
             
             // Create and append footer container at the end of column-inner
@@ -2281,7 +2373,7 @@ function injectStackableBars() {
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
                 kanbanFullHeight.appendChild(footerContainer);
                 element.classList.add('has-footer-bar');
-                if (hasFooterLabel) element.classList.add('has-footer-label');
+                if (hasFooterLabel) {element.classList.add('has-footer-label');}
             }
             
             // Clear any inline padding styles for collapsed columns
@@ -2289,40 +2381,40 @@ function injectStackableBars() {
             element.style.paddingBottom = '';
             
         } else {
-            // For non-collapsed elements, also use column-inner with flex positioning
-            const columnInner = element.querySelector('.column-inner');
-						const columnHeader = element.querySelector('.column-header');
-            
+            // For non-collapsed elements, use column-header and column-footer
+            const columnHeader = element.querySelector('.column-header');
+            const columnFooter = element.querySelector('.column-footer');
+
             if (columnHeader) {
-                // Create and insert header container at the beginning of column-inner
+                // Create and insert header container at the beginning of column-header
                 if (headerBars.length > 0) {
                     const headerContainer = document.createElement('div');
                     headerContainer.className = 'header-bars-container';
                     headerBars.forEach(bar => headerContainer.appendChild(bar));
                     columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
                 }
-						}
-            
-						if (columnInner) {
-                // Create and append footer container at the end of column-inner
+            }
+
+            if (columnFooter) {
+                // Create and append footer container to column-footer
                 if (footerBars.length > 0) {
                     const footerContainer = document.createElement('div');
                     footerContainer.className = 'footer-bars-container';
                     footerBars.forEach(bar => footerContainer.appendChild(bar));
-                    columnInner.appendChild(footerContainer);
+                    columnFooter.appendChild(footerContainer);
                 }
             } 
 						
-						// For task items, insert header bars at the beginning and footer bars at the end
+						// For task items, use appendChild and rely on CSS flexbox order
 						if (element.classList.contains('task-item')) {
-								// Create header container and insert at the beginning
+								// Create header container and append (CSS order: -1 will position it first)
 								if (headerBars.length > 0) {
 										const headerContainer = document.createElement('div');
 										headerContainer.className = 'header-bars-container';
 										headerBars.forEach(bar => headerContainer.appendChild(bar));
-										element.insertBefore(headerContainer, element.firstChild);
+										element.appendChild(headerContainer);
 								}
-								
+
 								// Create footer container and append at the end
 								if (footerBars.length > 0) {
 										const footerContainer = document.createElement('div');
@@ -2339,56 +2431,16 @@ function injectStackableBars() {
             // Set CSS classes for header bars (no padding needed with flex layout)
             if (headerBars.length > 0) {
                 element.classList.add('has-header-bar');
-                if (hasHeaderLabel) element.classList.add('has-header-label');
+                if (hasHeaderLabel) {element.classList.add('has-header-label');}
             }
             
             // Set CSS classes for footer bars (no padding needed with flex layout)
             if (footerBars.length > 0) {
                 element.classList.add('has-footer-bar');
-                if (hasFooterLabel) element.classList.add('has-footer-label');
+                if (hasFooterLabel) {element.classList.add('has-footer-label');}
             }
         }
     });
-}
-
-// Helper function to get all header bars HTML for multiple tags
-function getAllHeaderBarsHtml(tags, elementType, isCollapsed) {
-    if (!window.tagColors || tags.length === 0) return '';
-    
-    const headerBars = [];
-    
-    tags.forEach(tag => {
-        const config = getTagConfig(tag);
-        
-        if (config && config.headerBar) {
-            headerBars.push(`<div class="header-bar header-bar-${tag}"></div>`);
-        }
-    });
-    
-    if (headerBars.length === 0) return '';
-    
-    // Always return container structure
-    return `<div class="header-bars-container">${headerBars.join('')}</div>`;
-}
-
-// Helper function to get all footer bars HTML for multiple tags
-function getAllFooterBarsHtml(tags, elementType, isCollapsed) {
-    if (!window.tagColors || tags.length === 0) return '';
-    
-    const footerBars = [];
-    
-    tags.forEach(tag => {
-        const config = getTagConfig(tag);
-        
-        if (config && config.footerBar) {
-            footerBars.push(`<div class="footer-bar footer-bar-${tag}"></div>`);
-        }
-    });
-    
-    if (footerBars.length === 0) return '';
-    
-    // Always return container structure
-    return `<div class="footer-bars-container">${footerBars.join('')}</div>`;
 }
 
 // Helper function to check if dark theme
@@ -2407,7 +2459,6 @@ window.generateTagMenuItems = generateTagMenuItems;
 window.generateGroupTagItems = generateGroupTagItems;
 window.generateFlatTagItems = generateFlatTagItems;
 
-window.getAllCornerBadgesHtml = getAllCornerBadgesHtml;
 window.getTagConfig = getTagConfig;
 
 // Function to remove all tags from a card or column
@@ -2499,8 +2550,9 @@ function removeAllTags(id, type, columnId = null) {
 
 window.removeAllTags = removeAllTags;
 
-window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
-window.getAllFooterBarsHtml = getAllFooterBarsHtml;
+// TODO: These functions are not defined - commenting out to prevent errors
+// window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
+// window.getAllFooterBarsHtml = getAllFooterBarsHtml;
 window.injectStackableBars = injectStackableBars;
 window.isDarkTheme = isDarkTheme;
 

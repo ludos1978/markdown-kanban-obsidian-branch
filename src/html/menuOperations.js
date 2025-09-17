@@ -140,7 +140,7 @@ class SimpleMenuManager {
      * @returns {Array} Parsed parameter values
      */
     parseParameters(paramString) {
-        if (!paramString || !paramString.trim()) return [];
+        if (!paramString || !paramString.trim()) {return [];}
         
         const params = [];
         let current = '';
@@ -188,10 +188,10 @@ class SimpleMenuManager {
         }
         
         // Boolean values
-        if (trimmed === 'true') return true;
-        if (trimmed === 'false') return false;
-        if (trimmed === 'null') return null;
-        if (trimmed === 'undefined') return undefined;
+        if (trimmed === 'true') {return true;}
+        if (trimmed === 'false') {return false;}
+        if (trimmed === 'null') {return null;}
+        if (trimmed === 'undefined') {return undefined;}
         
         // Return as string for everything else
         return trimmed;
@@ -285,7 +285,7 @@ class SimpleMenuManager {
     // Create move to list content
     createMoveToListContent(taskId, columnId) {
         const currentBoard = window.currentBoard;
-        if (!currentBoard?.columns) return '';
+        if (!currentBoard?.columns) {return '';}
         
         return currentBoard.columns
             .filter(col => col.id !== columnId)
@@ -610,7 +610,7 @@ function positionDropdown(triggerButton, dropdown) {
     let left = rect.right - dropdownWidth;
     
     // Check boundaries and adjust
-    if (left < 10) left = 10;
+    if (left < 10) {left = 10;}
     if (left + dropdownWidth > viewportWidth - 10) {
         left = viewportWidth - dropdownWidth - 10;
     }
@@ -624,7 +624,7 @@ function positionDropdown(triggerButton, dropdown) {
     }
     
     // Final boundary check
-    if (top < 10) top = 10;
+    if (top < 10) {top = 10;}
     if (top + dropdownHeight > viewportHeight - 10) {
         top = viewportHeight - dropdownHeight - 10;
     }
@@ -676,7 +676,7 @@ function positionFileBarDropdown(triggerButton, dropdown) {
     let left = rect.right - dropdownWidth;
     
     // Check horizontal boundaries
-    if (left < 10) left = 10;
+    if (left < 10) {left = 10;}
     if (left + dropdownWidth > viewportWidth - 10) {
         left = viewportWidth - dropdownWidth - 10;
     }
@@ -690,7 +690,7 @@ function positionFileBarDropdown(triggerButton, dropdown) {
     }
     
     // Final vertical boundary check
-    if (top < 10) top = 10;
+    if (top < 10) {top = 10;}
     if (top + dropdownHeight > viewportHeight - 10) {
         top = viewportHeight - dropdownHeight - 10;
     }
@@ -740,7 +740,7 @@ function insertColumnAfter(columnId) {
 }
 
 function moveColumnLeft(columnId) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
     
     // Flush pending tag changes before moving
     if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
@@ -768,7 +768,7 @@ function moveColumnLeft(columnId) {
 }
 
 function moveColumnRight(columnId) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
     
     // Flush pending tag changes before moving
     if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
@@ -796,10 +796,10 @@ function moveColumnRight(columnId) {
 }
 
 function changeColumnSpan(columnId, delta) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
 
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column) return;
+    if (!column) {return;}
 
     // Extract current span value
     const spanMatch = column.title.match(/#span(\d+)\b/i);
@@ -810,7 +810,7 @@ function changeColumnSpan(columnId, delta) {
     newSpan = Math.max(1, Math.min(4, newSpan));
 
     // If no change needed, return early
-    if (newSpan === currentSpan) return;
+    if (newSpan === currentSpan) {return;}
 
     // Flush pending tag changes first
     if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
@@ -849,7 +849,7 @@ function changeColumnSpan(columnId, delta) {
     if (columnElement) {
         // Update CSS classes (only blocked by viewport-based widths, not pixel widths)
         columnElement.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
-        const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '66' || window.currentColumnWidth === '100');
+        const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '33percent' || window.currentColumnWidth === '50percent' || window.currentColumnWidth === '100percent');
         if (newSpan >= 2 && !hasViewportWidth) {
             columnElement.classList.add(`column-span-${newSpan}`);
         }
@@ -923,9 +923,9 @@ function sortColumn(columnId, sortType) {
 
 // Copy operations
 function copyColumnAsMarkdown(columnId) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column) return;
+    if (!column) {return;}
     
     let markdown = `# ${column.title}\n`;
     column.tasks.forEach(task => {
@@ -942,10 +942,10 @@ function copyColumnAsMarkdown(columnId) {
 }
 
 function copyTaskAsMarkdown(taskId, columnId) {
-    if (!currentBoard?.columns) return;
+    if (!currentBoard?.columns) {return;}
     const column = currentBoard.columns.find(c => c.id === columnId);
     const task = column?.tasks.find(t => t.id === taskId);
-    if (!task) return;
+    if (!task) {return;}
     
     let markdown = task.title.startsWith('#') ? 
         `${task.title || ''}\n` : 
@@ -964,6 +964,226 @@ function copyToClipboard(text) {
             vscode.postMessage({ type: 'showMessage', text: 'Copied to clipboard!' });
         }).catch(err => console.error('Failed to copy:', err));
     }
+}
+
+// Column include mode operations
+function toggleColumnIncludeMode(columnId) {
+    // Close all menus properly
+    closeAllMenus();
+
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    if (column.includeMode) {
+        // Disable include mode - convert included tasks to regular tasks
+        // Send confirmation request to VS Code since webview is sandboxed
+        vscode.postMessage({
+            type: 'confirmDisableIncludeMode',
+            columnId: columnId,
+            message: 'Disable include mode? This will convert all included slides to regular cards. The original presentation file will not be modified.'
+        });
+        return; // Exit here, the backend will handle the confirmation and response
+    } else {
+        // Enable include mode - request file path via VS Code dialog
+        vscode.postMessage({
+            type: 'requestIncludeFileName',
+            columnId: columnId
+        });
+        return; // Exit here, the backend will handle the input and response
+    }
+}
+
+// Function called from backend after user provides include file name
+function enableColumnIncludeMode(columnId, fileName) {
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+		// Update column title to include the syntax
+		const currentTitle = column.title || '';
+		const newTitle = `${currentTitle} !!!columninclude(${fileName.trim()})!!!`.trim();
+
+		// Update the cached board
+		column.originalTitle = currentTitle;
+		column.title = newTitle;
+
+		// Also update currentBoard for compatibility
+		if (window.currentBoard !== window.cachedBoard) {
+				const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+				if (currentColumn) {
+						currentColumn.originalTitle = currentTitle;
+						currentColumn.title = newTitle;
+				}
+		}
+
+		// Send update to backend
+		vscode.postMessage({
+				type: 'updateBoard',
+				board: window.cachedBoard
+		});
+
+		// Update button state to show unsaved changes
+		updateRefreshButtonState('unsaved', 1);
+}
+
+// Edit column include file
+function editColumnIncludeFile(columnId) {
+    // Close all menus properly
+    closeAllMenus();
+
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    if (!column.includeMode || !column.includeFiles || column.includeFiles.length === 0) {
+        vscode.postMessage({
+            type: 'showMessage',
+            text: 'This column is not in include mode or has no include files.'
+        });
+        return;
+    }
+
+    // Get current include file path
+    const currentFile = column.includeFiles[0]; // For now, handle single file includes
+
+    // Request new file path via VS Code dialog
+    vscode.postMessage({
+        type: 'requestEditIncludeFileName',
+        columnId: columnId,
+        currentFile: currentFile
+    });
+    return; // Exit here, the backend will handle the input and response
+}
+
+// Function called from backend after user provides edited include file name
+function updateColumnIncludeFile(columnId, newFileName, currentFile) {
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    if (newFileName && newFileName.trim() && newFileName.trim() !== currentFile) {
+        // Extract the clean title (without include syntax)
+        let cleanTitle = column.title || '';
+
+        // Remove all existing columninclude patterns
+        cleanTitle = cleanTitle.replace(/!!!columninclude\([^)]+\)!!!/g, '').trim();
+
+        // Create new title with updated include syntax
+        const newTitle = `${cleanTitle} !!!columninclude(${newFileName.trim()})!!!`.trim();
+
+        // Update the cached board
+        column.title = newTitle;
+        column.includeFiles = [newFileName.trim()];
+        column.originalTitle = newTitle;
+
+        // Also update currentBoard for compatibility
+        if (window.currentBoard !== window.cachedBoard) {
+            const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+            if (currentColumn) {
+                currentColumn.title = newTitle;
+                currentColumn.includeFiles = [newFileName.trim()];
+                currentColumn.originalTitle = newTitle;
+            }
+        }
+
+        // Send update to backend
+        vscode.postMessage({
+            type: 'updateBoard',
+            board: window.cachedBoard
+        });
+
+        // Update button state to show unsaved changes
+        updateRefreshButtonState('unsaved', 1);
+
+        vscode.postMessage({
+            type: 'showMessage',
+            text: `Column include file updated to: ${newFileName.trim()}`
+        });
+    }
+}
+
+// Function called from backend after user confirms disable include mode
+function disableColumnIncludeMode(columnId) {
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    // Extract the clean title (without include syntax)
+    let cleanTitle = column.title || '';
+    cleanTitle = cleanTitle.replace(/!!!columninclude\([^)]+\)!!!/g, '').trim();
+
+    // If no clean title remains, use the filename
+    if (!cleanTitle && column.includeFiles && column.includeFiles.length > 0) {
+        const fileName = column.includeFiles[0].split('/').pop().replace(/\.[^/.]+$/, '');
+        cleanTitle = fileName;
+    }
+
+    // Update the column to regular mode
+    column.title = cleanTitle || 'Untitled Column';
+    column.includeMode = false;
+    delete column.includeFiles;
+    delete column.originalTitle;
+
+    // Also update currentBoard for compatibility
+    if (window.currentBoard !== window.cachedBoard) {
+        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+        if (currentColumn) {
+            currentColumn.title = cleanTitle || 'Untitled Column';
+            currentColumn.includeMode = false;
+            delete currentColumn.includeFiles;
+            delete currentColumn.originalTitle;
+        }
+    }
+
+    // Send update to backend
+    vscode.postMessage({
+        type: 'updateBoard',
+        board: window.cachedBoard
+    });
+
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+
+    vscode.postMessage({
+        type: 'showMessage',
+        text: 'Include mode disabled. Tasks converted to regular cards.'
+    });
 }
 
 // Task operations
@@ -1425,7 +1645,7 @@ function toggleColumnTag(columnId, tagName, event) {
     // Update cached board directly - single source of truth
     const oldTitle = column.title;
     column.title = title;
-    
+
     // Also update in cached board if different reference
     if (window.cachedBoard) {
         const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
@@ -1433,7 +1653,13 @@ function toggleColumnTag(columnId, tagName, event) {
             cachedColumn.title = title;
         }
     }
-    
+
+    // Add to pending column changes so it gets saved to the backend
+    if (!window.pendingColumnChanges) {
+        window.pendingColumnChanges = new Map();
+    }
+    window.pendingColumnChanges.set(columnId, { columnId, title });
+
     // Mark as unsaved since we made a change
     markUnsavedChanges();
     
@@ -1595,7 +1821,7 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
         const displayTitle = newTitle.replace(/#row\d+/gi, '').trim();
         const renderedTitle = displayTitle ? 
             (window.renderMarkdown ? window.renderMarkdown(displayTitle) : displayTitle) : 
-            '<span class="task-title-placeholder">Add title...</span>';
+            '';
         const columnRow = window.getColumnRow ? window.getColumnRow(newTitle) : 1;
         const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
         titleElement.innerHTML = renderedTitle + rowIndicator;
@@ -1671,7 +1897,7 @@ function updateTaskDisplayImmediate(taskId, newTitle, isActive, tagName) {
     if (titleElement) {
         const renderedTitle = newTitle ? 
             (window.renderMarkdown ? window.renderMarkdown(newTitle) : newTitle) :
-            '<span class="task-title-placeholder">Add title...</span>';
+            '';
         titleElement.innerHTML = renderedTitle;
     }
     
@@ -1857,7 +2083,7 @@ function compareBoards(savedBoard, cachedBoard) {
     // Compare each column
     cachedBoard.columns.forEach(cachedCol => {
         const savedCol = savedBoard.columns.find(col => col.id === cachedCol.id);
-        if (!savedCol) return; // New column (shouldn't happen in our cache system)
+        if (!savedCol) {return;} // New column (shouldn't happen in our cache system)
         
         // Check column title changes
         if (savedCol.title !== cachedCol.title) {
@@ -1885,7 +2111,7 @@ function compareBoards(savedBoard, cachedBoard) {
                 }
             }
             
-            if (!savedTask) return; // New task (shouldn't happen in our cache system)
+            if (!savedTask) {return;} // New task (shouldn't happen in our cache system)
             
             // Check if task moved between columns or changed position
             if (savedTaskColumn !== cachedCol.id || savedTaskIndex !== cachedIndex) {
@@ -1922,23 +2148,40 @@ function compareBoards(savedBoard, cachedBoard) {
  * Note: Single source of truth - no more pending changes mess
  */
 function saveCachedBoard() {
-    
+
     if (!window.cachedBoard) {
         return;
     }
-    
-    
+
+    // Capture any in-progress edits and include them in the save
+    let boardToSave = window.cachedBoard;
+    let hadInProgressEdits = false;
+    if (window.taskEditor) {
+        const editState = window.taskEditor.getCurrentEditState();
+        if (editState) {
+            boardToSave = window.taskEditor.applyCurrentEditToBoard(window.cachedBoard);
+            hadInProgressEdits = true;
+        }
+    }
+
     // Send the complete board state to VS Code using a simple message
     // This avoids complex sequential processing that might cause issues
     vscode.postMessage({
         type: 'saveBoardState',
-        board: window.cachedBoard
+        board: boardToSave
     });
     
     
     // Mark as saved and notify backend
-    if (window.cachedBoard) {
-        window.savedBoardState = JSON.parse(JSON.stringify(window.cachedBoard));
+    if (boardToSave) {
+        // Update our cached state to include the in-progress edits
+        window.cachedBoard = JSON.parse(JSON.stringify(boardToSave));
+        window.savedBoardState = JSON.parse(JSON.stringify(boardToSave));
+
+        // Update editor state if we had in-progress edits
+        if (hadInProgressEdits && window.taskEditor) {
+            window.taskEditor.handlePostSaveUpdate();
+        }
     }
     markSavedChanges();
     
@@ -1946,8 +2189,8 @@ function saveCachedBoard() {
     updateRefreshButtonState('saved');
     
     // Clear any old pending changes (obsolete system cleanup)
-    if (window.pendingColumnChanges) window.pendingColumnChanges.clear();
-    if (window.pendingTaskChanges) window.pendingTaskChanges.clear();
+    if (window.pendingColumnChanges) {window.pendingColumnChanges.clear();}
+    if (window.pendingTaskChanges) {window.pendingTaskChanges.clear();}
     
 }
 
@@ -2170,11 +2413,11 @@ function manualRefresh() {
 
 // Refresh includes function
 function refreshIncludes() {
-
-    // Hide the refresh includes button
+    // Update button to show it's refreshing
     const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
-    if (refreshIncludesBtn) {
-        refreshIncludesBtn.style.display = 'none';
+    const iconSpan = refreshIncludesBtn?.querySelector('.refresh-includes-icon');
+    if (iconSpan) {
+        iconSpan.textContent = '🔄'; // Spinning/refresh icon
     }
 
     // Send message to backend to refresh includes
@@ -2324,25 +2567,25 @@ function updateTagButtonAppearance(id, type, tagName, isActive) {
 
 // Update corner badges immediately for an element
 function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
-    
+
     // Find the element
     const selector = elementType === 'column' ? `[data-column-id="${elementId}"]` : `[data-task-id="${elementId}"]`;
     const element = document.querySelector(selector);
     if (!element) {
         return;
     }
-    
+
     // Get all active tags from the new title
     const activeTags = getActiveTagsInTitle(newTitle);
-    
-    
+
+
     // Update data-all-tags attribute
     if (activeTags.length > 0) {
         element.setAttribute('data-all-tags', activeTags.join(' '));
     } else {
         element.removeAttribute('data-all-tags');
     }
-    
+
     // Find existing corner badges container or create one
     let badgesContainer = element.querySelector('.corner-badges-container');
     if (!badgesContainer) {
@@ -2355,18 +2598,65 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
         //     element.style.position = 'relative';
         // }
     }
-    
+
     // Generate new badges HTML
-    const newBadgesHtml = getAllCornerBadgesHtml(activeTags, elementType);
-    
+    let newBadgesHtml = '';
+    if (window.tagColors && activeTags.length > 0) {
+        const positions = {
+            'top-left': [],
+            'top-right': [],
+            'bottom-left': [],
+            'bottom-right': []
+        };
+
+        // Collect badges by position
+        activeTags.forEach(tag => {
+            const config = getTagConfig(tag);
+            if (config && config.cornerBadge) {
+                const position = config.cornerBadge.position || 'top-right';
+                positions[position].push({
+                    tag: tag,
+                    badge: config.cornerBadge
+                });
+            }
+        });
+
+        // Generate HTML for each position with proper vertical stacking
+        Object.entries(positions).forEach(([position, badgesAtPosition]) => {
+            badgesAtPosition.forEach((item, index) => {
+                const badge = item.badge;
+                const offsetMultiplier = 24; // Space between stacked badges
+                let positionStyle = '';
+
+                switch (position) {
+                    case 'top-left':
+                        positionStyle = `top: ${10 + (index * offsetMultiplier)}px; left: -8px;`;
+                        break;
+                    case 'top-right':
+                        positionStyle = `top: ${10 + (index * offsetMultiplier)}px; right: -8px;`;
+                        break;
+                    case 'bottom-left':
+                        positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; left: -8px;`;
+                        break;
+                    case 'bottom-right':
+                        positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; right: -8px;`;
+                        break;
+                }
+
+                const badgeContent = badge.image ? '' : (badge.label || '');
+                newBadgesHtml += `<div class="corner-badge corner-badge-${item.tag}" style="${positionStyle}" data-badge-position="${position}" data-badge-index="${index}">${badgeContent}</div>`;
+            });
+        });
+    }
+
     // Clear and update badges
     badgesContainer.innerHTML = newBadgesHtml;
-    
+
     // If no badges, remove container to prevent empty space
     if (!newBadgesHtml || newBadgesHtml.trim() === '') {
         badgesContainer.remove();
     }
-    
+
 }
 
 // Update tag category counts in the open dropdown menu
@@ -2597,8 +2887,36 @@ function updateVisualTagState(element, allTags, elementType, isCollapsed) {
 // Comprehensive function to update ALL visual tag elements immediately
 function updateAllVisualTagElements(element, allTags, elementType) {
     
-    // 1. CLEAN UP - Remove all existing visual tag elements
-    element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container, .corner-badges-container').forEach(el => el.remove());
+    // 1. CLEAN UP - Remove visual elements only from column-header and column-footer areas
+    if (elementType === 'column') {
+        // For columns: clean up only within column-header and column-footer (never column-inner)
+
+        const columnHeader = element.querySelector('.column-header');
+        if (columnHeader) {
+            // Remove all visual tag elements from column-header
+            columnHeader.querySelectorAll('.header-bar, .header-bars-container, .corner-badges-container').forEach(el => el.remove());
+        }
+
+        const columnFooter = element.querySelector('.column-footer');
+        if (columnFooter) {
+            // Remove all visual tag elements from column-footer
+            columnFooter.querySelectorAll('.footer-bar, .footer-bars-container').forEach(el => el.remove());
+        }
+
+        // For collapsed state: remove direct children that are visual elements
+        Array.from(element.children).forEach(child => {
+            if (child.classList.contains('header-bar') ||
+                child.classList.contains('footer-bar') ||
+                child.classList.contains('header-bars-container') ||
+                child.classList.contains('footer-bars-container') ||
+                child.classList.contains('corner-badges-container')) {
+                child.remove();
+            }
+        });
+    } else {
+        // For tasks, safe to remove all visual elements directly
+        element.querySelectorAll('.header-bar, .footer-bar, .header-bars-container, .footer-bars-container, .corner-badges-container').forEach(el => el.remove());
+    }
     element.classList.remove('has-header-bar', 'has-footer-bar', 'has-header-label', 'has-footer-label');
     
     if (allTags.length === 0) {
@@ -2614,22 +2932,67 @@ function updateAllVisualTagElements(element, allTags, elementType) {
     
     // 3. CORNER BADGES - Update badges immediately
     let badgesContainer = element.querySelector('.corner-badges-container');
-    if (!badgesContainer && window.getAllCornerBadgesHtml) {
-        const badgesHtml = window.getAllCornerBadgesHtml(allTags, elementType);
+    if (!badgesContainer && window.getTagConfig) {
+        // Generate badges HTML inline
+        let badgesHtml = '';
+        if (window.tagColors && allTags.length > 0) {
+            const positions = {
+                'top-left': [],
+                'top-right': [],
+                'bottom-left': [],
+                'bottom-right': []
+            };
+
+            // Collect badges by position
+            allTags.forEach(tag => {
+                const config = window.getTagConfig(tag);
+                if (config && config.cornerBadge) {
+                    const position = config.cornerBadge.position || 'top-right';
+                    positions[position].push({
+                        tag: tag,
+                        badge: config.cornerBadge
+                    });
+                }
+            });
+
+            // Generate HTML for each position with proper vertical stacking
+            Object.entries(positions).forEach(([position, badgesAtPosition]) => {
+                badgesAtPosition.forEach((item, index) => {
+                    const badge = item.badge;
+                    const offsetMultiplier = 24; // Space between stacked badges
+                    let positionStyle = '';
+
+                    switch (position) {
+                        case 'top-left':
+                            positionStyle = `top: ${10 + (index * offsetMultiplier)}px; left: -8px;`;
+                            break;
+                        case 'top-right':
+                            positionStyle = `top: ${10 + (index * offsetMultiplier)}px; right: -8px;`;
+                            break;
+                        case 'bottom-left':
+                            positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; left: -8px;`;
+                            break;
+                        case 'bottom-right':
+                            positionStyle = `bottom: ${-8 + (index * offsetMultiplier)}px; right: -8px;`;
+                            break;
+                    }
+
+                    const badgeContent = badge.image ? '' : (badge.label || '');
+                    badgesHtml += `<div class="corner-badge corner-badge-${item.tag}" style="${positionStyle}" data-badge-position="${position}" data-badge-index="${index}">${badgeContent}</div>`;
+                });
+            });
+        }
+
         if (badgesHtml && badgesHtml.trim() !== '') {
             badgesContainer = document.createElement('div');
             badgesContainer.className = 'corner-badges-container';
             badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
             badgesContainer.innerHTML = badgesHtml;
             element.appendChild(badgesContainer);
-            // Ensure parent has relative positioning
-            // if (!element.style.position || element.style.position === 'static') {
-            //     element.style.position = 'relative';
-            // }
         }
     }
     
-    // 4. HEADER BARS - Create header bars for tags that have them
+    // 4. HEADER BARS - Always create header-bars-container in column-header
     const headerBars = [];
     let hasHeaderLabel = false;
     allTags.forEach(tag => {
@@ -2639,34 +3002,40 @@ function updateAllVisualTagElements(element, allTags, elementType) {
                 const headerBar = document.createElement('div');
                 headerBar.className = `header-bar header-bar-${tag.toLowerCase()}`;
                 headerBars.push(headerBar);
-                if (config.headerBar.label) hasHeaderLabel = true;
+                if (config.headerBar.label) {hasHeaderLabel = true;}
             }
         }
     });
-    
-    if (headerBars.length > 0) {
-        const isCollapsed = element.classList.contains('collapsed');
-        if (isCollapsed) {
-            // For collapsed elements, add bars directly to the column
+
+    // Always try to add header-bars-container to column-header (even if empty)
+    const isCollapsed = element.classList.contains('collapsed');
+    if (isCollapsed) {
+        // For collapsed elements, add bars directly to the column
+        if (headerBars.length > 0) {
             headerBars.forEach(bar => element.appendChild(bar));
+        }
+    } else {
+        // For expanded elements, always add header-bars-container to column-header
+        const columnHeader = element.querySelector('.column-header');
+        if (columnHeader) {
+            const headerContainer = document.createElement('div');
+            headerContainer.className = 'header-bars-container';
+            headerBars.forEach(bar => headerContainer.appendChild(bar));
+            // Header container should be first child, so insert at the beginning
+            columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
         } else {
-            // For expanded elements, find column-inner and add container there
-            const columnInner = element.querySelector('.column-inner');
-						const columnHeader = element.querySelector('.column-header');
-            if (columnInner) {
-                const headerContainer = document.createElement('div');
-                headerContainer.className = 'header-bars-container';
-                headerBars.forEach(bar => headerContainer.appendChild(bar));
-                // Header container should be first child, so insert at the beginning
-                columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
-            } else {
-                // Fallback: add directly to element if no column-inner found
+            // Fallback: add directly to element if no column-header found
+            if (headerBars.length > 0) {
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
                 element.appendChild(headerContainer);
             }
         }
+    }
+
+    // Set classes only if there are actual header bars
+    if (headerBars.length > 0) {
         element.classList.add('has-header-bar');
         // if (hasHeaderLabel) element.classList.add('has-header-label');
     }
@@ -2681,7 +3050,7 @@ function updateAllVisualTagElements(element, allTags, elementType) {
                 const footerBar = document.createElement('div');
                 footerBar.className = `footer-bar footer-bar-${tag.toLowerCase()}`;
                 footerBars.push(footerBar);
-                if (config.footerBar.label) hasFooterLabel = true;
+                if (config.footerBar.label) {hasFooterLabel = true;}
             }
         }
     });
@@ -2692,15 +3061,15 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             // For collapsed elements, add bars directly to the column
             footerBars.forEach(bar => element.appendChild(bar));
         } else {
-            // For expanded elements, find column-inner and add container there
-            const columnInner = element.querySelector('.column-inner');
-            if (columnInner) {
+            // For expanded elements, find column-footer and add container there
+            const columnFooter = element.querySelector('.column-footer');
+            if (columnFooter) {
                 const footerContainer = document.createElement('div');
                 footerContainer.className = 'footer-bars-container';
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
-                columnInner.appendChild(footerContainer);
+                columnFooter.appendChild(footerContainer);
             } else {
-                // Fallback: add directly to element if no column-inner found
+                // Fallback: add directly to element if no column-footer found
                 const footerContainer = document.createElement('div');
                 footerContainer.className = 'footer-bars-container';
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
@@ -2708,7 +3077,7 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             }
         }
         element.classList.add('has-footer-bar');
-        if (hasFooterLabel) element.classList.add('has-footer-label');
+        if (hasFooterLabel) {element.classList.add('has-footer-label');}
     }
     
 }
@@ -2724,4 +3093,5 @@ window.submenuGenerator = window.menuManager; // Compatibility alias
 window.manualRefresh = manualRefresh;
 window.updateVisualTagState = updateVisualTagState;
 window.updateAllVisualTagElements = updateAllVisualTagElements;
+window.refreshIncludes = refreshIncludes;
 
