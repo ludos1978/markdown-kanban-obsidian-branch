@@ -225,6 +225,20 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	const insertSnippetCommand = vscode.commands.registerCommand('markdown-kanban.insertSnippet', async () => {
+		const panels = KanbanWebviewPanel.getAllPanels();
+		if (panels.length === 0) {
+			vscode.window.showWarningMessage('No kanban panel is currently open.');
+			return;
+		}
+
+		// Get the active panel (assuming first panel for now, could be improved)
+		const activePanel = panels[0];
+
+		// Trigger snippet insertion in the webview
+		activePanel.triggerSnippetInsertion();
+	});
+
 	// Note: External file change detection is now handled by ExternalFileWatcher
 	// Document save events are also handled through the file watcher system
 
@@ -250,6 +264,7 @@ export function activate(context: vscode.ExtensionContext) {
 		toggleFileLockCommand,
 		openKanbanFromPanelCommand,
 		switchFileCommand,
+		insertSnippetCommand,
 		debugPermissionsCommand,
 		activeEditorChangeListener,
 	);

@@ -2032,6 +2032,10 @@
       {
         "command": "markdown-kanban.switchFile",
         "title": "Switch Kanban File"
+      },
+      {
+        "command": "markdown-kanban.insertSnippet",
+        "title": "Insert Snippet in Kanban"
       }
     ],
     "menus": {
@@ -2079,6 +2083,12 @@
         "key": "ctrl+k ctrl+o",
         "mac": "cmd+k cmd+o",
         "when": "webviewId == markdownKanbanPanel"
+      },
+      {
+        "command": "markdown-kanban.insertSnippet",
+        "key": "ctrl+space",
+        "mac": "cmd+space",
+        "when": "webviewId == markdownKanbanPanel && kanbanTaskEditing"
       }
     ]
   },

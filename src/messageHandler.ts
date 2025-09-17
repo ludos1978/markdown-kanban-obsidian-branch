@@ -7,6 +7,7 @@ import { ExternalFileWatcher } from './externalFileWatcher';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 interface FocusTarget {
     type: 'task' | 'column';
@@ -150,6 +151,12 @@ export class MessageHandler {
                 break;
             case 'setPreference':
                 await this.handleSetPreference(message.key, message.value);
+                break;
+            case 'setContext':
+                await this.handleSetContext(message.contextVariable, message.value);
+                break;
+            case 'triggerVSCodeSnippet':
+                await this.handleVSCodeSnippet(message);
                 break;
             case 'resolveAndCopyPath':
                 const resolution = await this._fileManager.resolveFilePath(message.path);
@@ -626,6 +633,307 @@ export class MessageHandler {
             console.error(`Failed to update preference ${key}:`, error);
             vscode.window.showErrorMessage(`Failed to update ${key} preference: ${error}`);
         }
+    }
+
+    private async handleSetContext(contextVariable: string, value: boolean): Promise<void> {
+        try {
+            await vscode.commands.executeCommand('setContext', contextVariable, value);
+        } catch (error) {
+            console.error(`Failed to set context variable ${contextVariable}:`, error);
+        }
+    }
+
+    private async handleVSCodeSnippet(message: any): Promise<void> {
+        try {
+            // Use VS Code's snippet resolution to get the actual snippet content
+            // This leverages VS Code's built-in snippet system
+            const snippetName = await this.getSnippetNameForShortcut(message.shortcut);
+
+            if (!snippetName) {
+                vscode.window.showInformationMessage(
+                    `No snippet configured for ${message.shortcut}. Add a keybinding with "editor.action.insertSnippet" command.`
+                );
+                return;
+            }
+
+            // Resolve the snippet content from VS Code's markdown snippet configuration
+            const resolvedContent = await this.resolveSnippetContent(snippetName);
+
+            if (resolvedContent) {
+                const panel = this._getWebviewPanel();
+                if (panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'insertSnippetContent',
+                        content: resolvedContent,
+                        fieldType: message.fieldType,
+                        taskId: message.taskId
+                    });
+                }
+            }
+
+        } catch (error) {
+            console.error('Failed to handle VS Code snippet:', error);
+            vscode.window.showInformationMessage(
+                `Use Ctrl+Space in the kanban editor for snippet picker.`
+            );
+        }
+    }
+
+    private async getSnippetNameForShortcut(shortcut: string): Promise<string | null> {
+        try {
+            // Read VS Code's actual keybindings configuration
+            const keybindings = await this.loadVSCodeKeybindings();
+
+            // Find keybinding that matches our shortcut and uses editor.action.insertSnippet
+            for (const binding of keybindings) {
+                if (this.matchesShortcut(binding.key, shortcut) &&
+                    binding.command === 'editor.action.insertSnippet' &&
+                    binding.args?.name) {
+
+                    console.log(`Found snippet "${binding.args.name}" for shortcut ${shortcut}`);
+                    return binding.args.name;
+                }
+            }
+
+            console.log(`No snippet keybinding found for shortcut: ${shortcut}`);
+            return null;
+
+        } catch (error) {
+            console.error('Failed to read VS Code keybindings:', error);
+            return null;
+        }
+    }
+
+    private async loadVSCodeKeybindings(): Promise<any[]> {
+        try {
+            // Load user keybindings
+            const userKeybindingsPath = this.getUserKeybindingsPath();
+            let keybindings: any[] = [];
+
+            if (userKeybindingsPath && fs.existsSync(userKeybindingsPath)) {
+                const content = fs.readFileSync(userKeybindingsPath, 'utf8');
+                // Handle JSON with comments
+                const jsonContent = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+                const userKeybindings = JSON.parse(jsonContent);
+                if (Array.isArray(userKeybindings)) {
+                    keybindings = keybindings.concat(userKeybindings);
+                }
+            }
+
+            // Also load workspace keybindings if they exist
+            const workspaceKeybindingsPath = this.getWorkspaceKeybindingsPath();
+            if (workspaceKeybindingsPath && fs.existsSync(workspaceKeybindingsPath)) {
+                const content = fs.readFileSync(workspaceKeybindingsPath, 'utf8');
+                const jsonContent = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+                const workspaceKeybindings = JSON.parse(jsonContent);
+                if (Array.isArray(workspaceKeybindings)) {
+                    keybindings = keybindings.concat(workspaceKeybindings);
+                }
+            }
+
+            console.log(`Loaded ${keybindings.length} keybindings from VS Code configuration`);
+            return keybindings;
+
+        } catch (error) {
+            console.error('Failed to load VS Code keybindings:', error);
+            return [];
+        }
+    }
+
+    private getUserKeybindingsPath(): string | null {
+        try {
+            const userDataDir = this.getVSCodeUserDataDir();
+            if (userDataDir) {
+                return path.join(userDataDir, 'User', 'keybindings.json');
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get user keybindings path:', error);
+            return null;
+        }
+    }
+
+    private getWorkspaceKeybindingsPath(): string | null {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                return path.join(workspaceFolders[0].uri.fsPath, '.vscode', 'keybindings.json');
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get workspace keybindings path:', error);
+            return null;
+        }
+    }
+
+    private matchesShortcut(keybindingKey: string, shortcut: string): boolean {
+        // Normalize the keybinding format
+        // VS Code uses "cmd+6" on Mac, we use "meta+6"
+        const normalizedKeybinding = keybindingKey
+            .toLowerCase()
+            .replace(/cmd/g, 'meta')
+            .replace(/ctrl/g, 'ctrl')
+            .replace(/\s+/g, '');
+
+        const normalizedShortcut = shortcut
+            .toLowerCase()
+            .replace(/\s+/g, '');
+
+        return normalizedKeybinding === normalizedShortcut;
+    }
+
+    private async resolveSnippetContent(snippetName: string): Promise<string> {
+        try {
+            // Load all markdown snippets from VS Code's configuration
+            const allSnippets = await this.loadMarkdownSnippets();
+
+            // Find the specific snippet
+            const snippet = allSnippets[snippetName];
+            if (!snippet) {
+                console.log(`Snippet "${snippetName}" not found in markdown snippets`);
+                return '';
+            }
+
+            // Process the snippet body
+            let body = '';
+            if (Array.isArray(snippet.body)) {
+                body = snippet.body.join('\n');
+            } else if (typeof snippet.body === 'string') {
+                body = snippet.body;
+            } else {
+                console.log(`Invalid snippet body format for "${snippetName}"`);
+                return '';
+            }
+
+            // Process VS Code snippet variables and syntax
+            return this.processSnippetBody(body);
+
+        } catch (error) {
+            console.error(`Failed to resolve snippet "${snippetName}":`, error);
+            return '';
+        }
+    }
+
+    private async loadMarkdownSnippets(): Promise<any> {
+        const allSnippets: any = {};
+
+        try {
+            // 1. Load user snippets from VS Code user directory
+            const userSnippetsPath = this.getUserSnippetsPath();
+            if (userSnippetsPath && fs.existsSync(userSnippetsPath)) {
+                const userSnippets = await this.loadSnippetsFromFile(userSnippetsPath);
+                Object.assign(allSnippets, userSnippets);
+            }
+
+            // 2. Load workspace snippets if in a workspace
+            const workspaceSnippetsPath = this.getWorkspaceSnippetsPath();
+            if (workspaceSnippetsPath && fs.existsSync(workspaceSnippetsPath)) {
+                const workspaceSnippets = await this.loadSnippetsFromFile(workspaceSnippetsPath);
+                Object.assign(allSnippets, workspaceSnippets);
+            }
+
+            // 3. Load extension snippets (built-in markdown snippets)
+            const extensionSnippets = await this.loadExtensionSnippets();
+            Object.assign(allSnippets, extensionSnippets);
+
+            console.log(`Loaded ${Object.keys(allSnippets).length} markdown snippets`);
+            return allSnippets;
+
+        } catch (error) {
+            console.error('Failed to load markdown snippets:', error);
+            return {};
+        }
+    }
+
+    private getUserSnippetsPath(): string | null {
+        try {
+            // VS Code user snippets are stored in different locations per platform
+            const userDataDir = this.getVSCodeUserDataDir();
+            if (userDataDir) {
+                return path.join(userDataDir, 'User', 'snippets', 'markdown.json');
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get user snippets path:', error);
+            return null;
+        }
+    }
+
+    private getWorkspaceSnippetsPath(): string | null {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                return path.join(workspaceFolders[0].uri.fsPath, '.vscode', 'snippets', 'markdown.json');
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get workspace snippets path:', error);
+            return null;
+        }
+    }
+
+    private getVSCodeUserDataDir(): string | null {
+        const platform = os.platform();
+        const homeDir = os.homedir();
+
+        switch (platform) {
+            case 'win32':
+                return path.join(process.env.APPDATA || '', 'Code');
+            case 'darwin':
+                return path.join(homeDir, 'Library', 'Application Support', 'Code');
+            case 'linux':
+                return path.join(homeDir, '.config', 'Code');
+            default:
+                return null;
+        }
+    }
+
+    private async loadSnippetsFromFile(filePath: string): Promise<any> {
+        try {
+            const content = fs.readFileSync(filePath, 'utf8');
+            // Handle JSON with comments (VS Code snippets support comments)
+            const jsonContent = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+            return JSON.parse(jsonContent);
+        } catch (error) {
+            console.error(`Failed to load snippets from ${filePath}:`, error);
+            return {};
+        }
+    }
+
+    private async loadExtensionSnippets(): Promise<any> {
+        // VS Code built-in markdown snippets are not easily accessible from extensions
+        // For now, return empty object. Users should define their own snippets.
+        return {};
+    }
+
+    private processSnippetBody(body: string): string {
+        // Process VS Code snippet variables
+        const now = new Date();
+
+        return body
+            // Date/time variables
+            .replace(/\$CURRENT_YEAR/g, now.getFullYear().toString())
+            .replace(/\$CURRENT_MONTH/g, (now.getMonth() + 1).toString().padStart(2, '0'))
+            .replace(/\$CURRENT_DATE/g, now.getDate().toString().padStart(2, '0'))
+            .replace(/\$CURRENT_HOUR/g, now.getHours().toString().padStart(2, '0'))
+            .replace(/\$CURRENT_MINUTE/g, now.getMinutes().toString().padStart(2, '0'))
+            .replace(/\$CURRENT_SECOND/g, now.getSeconds().toString().padStart(2, '0'))
+
+            // Workspace variables
+            .replace(/\$WORKSPACE_NAME/g, vscode.workspace.name || 'workspace')
+            .replace(/\$WORKSPACE_FOLDER/g, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '')
+
+            // File variables (using placeholder since we're in webview)
+            .replace(/\$TM_FILENAME/g, 'untitled.md')
+            .replace(/\$TM_FILENAME_BASE/g, 'untitled')
+            .replace(/\$TM_DIRECTORY/g, '')
+            .replace(/\$TM_FILEPATH/g, 'untitled.md')
+
+            // Process placeholders: ${1:default} -> default, ${1} -> empty
+            .replace(/\$\{(\d+):([^}]*)\}/g, '$2') // ${1:default} -> default
+            .replace(/\$\{\d+\}/g, '') // ${1} -> empty
+            .replace(/\$\d+/g, '') // $1 -> empty
+            .replace(/\$0/g, ''); // Final cursor position -> empty
     }
 
     private async handleRefreshIncludes(): Promise<void> {

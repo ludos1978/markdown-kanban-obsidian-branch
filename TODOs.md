@@ -4,9 +4,10 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] can you make the shortcuts from vscode to add snipplets avaiable within the kanban board? i want to reuse vscodes default keyboard configuration, especially the ones defined for markdown. use all snipplet functionality that is already built into vscode. to not stop editing a field when using shortcuts, we should minimize the way a field edit is ended or aborted.
+- [ ] Whole column include mode: add an option in the column-burger menu that allows setting to include a file that is put in, instead of the columns content. the included content must be parsed before including. the parser should create a new card from all individual slides (separarted by a ---), if the first text line is a heading it should be put into the card's title, othervise everthing goes into the description of the cards. the column title should be the filename.
+
 - [ ] Add an configuration option: It should define which tags are exported when copying as markdown (in the cards burger menus and the column burger menus). have the same options as when changing the displaying in the kaban board (all tags, standard tags, custom tags, @tags only, no tags). 
-- [ ] can you make the shortcuts from vscode to add snipplets avaiable within the kanban board?
-- [ ] Whole column include mode. add an option in the column-burger menu that allows setting to include a file that is put in, instead of the columns content. the included content must be parsed before including. 
 - [ ] i allways need to build before restarting the debugging to see the changes applied. can you modify the configuration that this happens automatically
 - [ ] add the build version to the file info burger menu.
 

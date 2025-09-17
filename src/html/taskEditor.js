@@ -96,14 +96,81 @@ class TaskEditor {
         // Single global keydown handler
         document.addEventListener('keydown', (e) => {
             if (!this.currentEditor) {return;}
-            
+
             const element = this.currentEditor.element;
-            
+
+
+            // Check for VS Code snippet shortcuts (Cmd/Ctrl + number keys)
+            const isSnippetShortcut = (e.metaKey || e.ctrlKey) && (
+                e.key >= '1' && e.key <= '9' // These might be snippet shortcuts
+            );
+
+            // If it's a potential snippet shortcut, send to VS Code to handle
+            if (isSnippetShortcut) {
+                e.preventDefault(); // Prevent default behavior
+                e.stopPropagation(); // Stop the event from bubbling up
+
+                // Get current cursor position and text
+                const cursorPos = element.selectionStart;
+                const textBefore = element.value.substring(0, cursorPos);
+                const textAfter = element.value.substring(element.selectionEnd);
+
+                // Build the shortcut string
+                const modifierKey = e.metaKey ? 'meta' : 'ctrl';
+                const shortcut = `${modifierKey}+${e.key}`;
+
+                // Send message to VS Code to trigger the snippet by shortcut
+                if (typeof vscode !== 'undefined') {
+                    vscode.postMessage({
+                        type: 'triggerVSCodeSnippet',
+                        shortcut: shortcut, // Send the shortcut instead of snippet name
+                        cursorPosition: cursorPos,
+                        textBefore: textBefore,
+                        textAfter: textAfter,
+                        fieldType: this.currentEditor.type,
+                        taskId: this.currentEditor.taskId
+                    });
+                }
+
+                // Keep focus and prevent auto-save
+                this.isTransitioning = true;
+                setTimeout(() => {
+                    this.isTransitioning = false;
+                    element.focus();
+                }, 100);
+                return;
+            }
+
+            // Check for other system shortcuts that might cause focus loss
+            const isSystemShortcut = (e.metaKey || e.ctrlKey) && (
+                e.key === 'w' || e.key === 't' || e.key === 'n' || // Window/tab shortcuts
+                e.key === 'r' || e.key === 'f' || e.key === 'p' || // Reload/find/print shortcuts
+                e.key === 'l' || e.key === 'd' || e.key === 'h' || // Location/bookmark shortcuts
+                e.key === '+' || e.key === '-' || e.key === '0' // Zoom shortcuts
+            );
+
+            // If it's a system shortcut, temporarily prevent auto-save on blur
+            if (isSystemShortcut) {
+                this.isTransitioning = true;
+                const currentElement = element; // Store reference to current editor
+
+                // Reset the flag and restore focus after the shortcut completes
+                setTimeout(() => {
+                    this.isTransitioning = false;
+
+                    // Restore focus if we're still editing the same element
+                    if (this.currentEditor && this.currentEditor.element === currentElement) {
+                        currentElement.focus();
+                    }
+                }, 300);
+                return; // Let the system handle the shortcut
+            }
+
             if (e.key === 'Tab' && element.classList.contains('task-title-edit')) {
                 e.preventDefault();
                 this.transitionToDescription();
             } else if (e.key === 'Enter' && !e.shiftKey) {
-                if (element.classList.contains('task-title-edit') || 
+                if (element.classList.contains('task-title-edit') ||
                     element.classList.contains('column-title-edit')) {
                     e.preventDefault();
                     this.save();
@@ -111,6 +178,31 @@ class TaskEditor {
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 this.cancel();
+            }
+        });
+
+        // Add window focus handler to restore editor focus after system shortcuts
+        window.addEventListener('focus', () => {
+            // If we have an active editor and the document regains focus, restore editor focus
+            if (this.currentEditor && this.currentEditor.element && document.hasFocus()) {
+                // Small delay to ensure the window focus event has fully processed
+                setTimeout(() => {
+                    if (this.currentEditor && this.currentEditor.element) {
+                        this.currentEditor.element.focus();
+                    }
+                }, 50);
+            }
+        });
+
+        // Add document visibility change handler for tab switching
+        document.addEventListener('visibilitychange', () => {
+            // When the document becomes visible again (user returns to this tab)
+            if (!document.hidden && this.currentEditor && this.currentEditor.element) {
+                setTimeout(() => {
+                    if (this.currentEditor && this.currentEditor.element) {
+                        this.currentEditor.element.focus();
+                    }
+                }, 100);
             }
         });
 
@@ -160,6 +252,17 @@ class TaskEditor {
     startEdit(element, type, taskId = null, columnId = null) {
         // If transitioning, don't interfere
         if (this.isTransitioning) {return;}
+
+        // Notify VS Code that task editing has started (only for task editing, not column editing)
+        if (type === 'task-title' || type === 'task-description') {
+            if (typeof vscode !== 'undefined') {
+                vscode.postMessage({
+                    type: 'setContext',
+                    contextVariable: 'kanbanTaskEditing',
+                    value: true
+                });
+            }
+        }
         
         // Get the appropriate elements based on type
         let displayElement, editElement, containerElement;
@@ -233,13 +336,27 @@ class TaskEditor {
         editElement.onblur = (e) => {
             // Don't save on blur if the user is just selecting text or if we're transitioning
             if (!this.isTransitioning) {
-                // Give a small delay to allow for double-clicks and text selection
+                // Give a longer delay to handle system shortcuts and focus changes
                 setTimeout(() => {
-                    // Only save if we're still not focused and not transitioning
-                    if (document.activeElement !== editElement && !this.isTransitioning) {
-                        this.save();
+                    // Only save if we're still not focused, not transitioning, and the document is visible
+                    if (document.activeElement !== editElement &&
+                        !this.isTransitioning &&
+                        !document.hidden &&
+                        document.hasFocus()) {
+
+                        // Additional check: don't close if focus moved to another editable element
+                        // or if a modal/picker is open
+                        const activeElement = document.activeElement;
+                        const isEditingElsewhere = activeElement && (
+                            activeElement.classList.contains('task-title-edit') ||
+                            activeElement.classList.contains('task-description-edit') ||
+                            activeElement.classList.contains('column-title-edit')
+                        );
+                        if (!isEditingElsewhere) {
+                            this.save();
+                        }
                     }
-                }, 50);
+                }, 150); // Longer delay to handle system shortcuts
             }
         };
 
@@ -640,7 +757,18 @@ class TaskEditor {
         if (displayElement) {
             displayElement.style.display = 'block';
         }
-        
+
+        // Notify VS Code that task editing has stopped (only for task editing, not column editing)
+        if (type === 'task-title' || type === 'task-description') {
+            if (typeof vscode !== 'undefined') {
+                vscode.postMessage({
+                    type: 'setContext',
+                    contextVariable: 'kanbanTaskEditing',
+                    value: false
+                });
+            }
+        }
+
         this.currentEditor = null;
     }
 

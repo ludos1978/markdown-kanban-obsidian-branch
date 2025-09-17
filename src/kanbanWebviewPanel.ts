@@ -1790,4 +1790,15 @@ export class KanbanWebviewPanel {
         // Send notification after refresh to update button state
         this._sendIncludeFileChangeNotification();
     }
+
+    /**
+     * Trigger snippet insertion in the webview
+     */
+    public triggerSnippetInsertion(): void {
+        if (this._panel) {
+            this._panel.webview.postMessage({
+                type: 'triggerSnippet'
+            });
+        }
+    }
 }

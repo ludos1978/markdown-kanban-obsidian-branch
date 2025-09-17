@@ -2537,8 +2537,46 @@ window.addEventListener('message', event => {
                 );
             }
             break;
+        case 'insertSnippetContent':
+            // Insert VS Code snippet content into the active editor
+            insertVSCodeSnippetContent(message.content, message.fieldType, message.taskId);
+            break;
     }
 });
+
+/**
+ * Insert VS Code snippet content into the active editor
+ */
+function insertVSCodeSnippetContent(content, fieldType, taskId) {
+    // Find the currently active editor
+    const activeEditor = document.querySelector('.task-title-edit:focus, .task-description-edit:focus');
+
+    if (activeEditor && window.taskEditor && window.taskEditor.currentEditor) {
+        // Insert the snippet content at cursor position
+        const cursorPosition = activeEditor.selectionStart || 0;
+        const textBefore = activeEditor.value.substring(0, cursorPosition);
+        const textAfter = activeEditor.value.substring(activeEditor.selectionEnd || cursorPosition);
+
+        // Insert the snippet
+        activeEditor.value = textBefore + content + textAfter;
+
+        // Position cursor after the snippet
+        const newCursorPosition = cursorPosition + content.length;
+        activeEditor.setSelectionRange(newCursorPosition, newCursorPosition);
+
+        // Focus back to the editor
+        activeEditor.focus();
+
+        // Trigger input event to ensure the change is registered
+        activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        // Auto-resize if needed
+        if (typeof autoResize === 'function') {
+            autoResize(activeEditor);
+        }
+    }
+}
+
 
 // Watch for theme changes and update styles
 if (typeof MutationObserver !== 'undefined') {
