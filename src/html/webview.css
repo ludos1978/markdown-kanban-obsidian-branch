@@ -3207,27 +3207,14 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 }
 
 .kanban-full-height-column.column-width-100percent {
-  width: 96vw !important;
+  width: 98vw !important;
   /* --task-title-width: calc(98vw - 100px); Adjust task title width for full width column */
 }
 
-/* Override task title width for elements within these columns */
-.kanban-full-height-column.column-width-40 .task-title-display {
-  /* width: var(--task-title-width); */
-}
-
-.kanban-full-height-column.column-width-66 .task-title-display {
-  /* width: var(--task-title-width); */
-}
-
-.kanban-full-height-column.column-width-100 .task-title-display {
-  /* width: var(--task-title-width); */
-}
-
 /* IMPORTANT: Collapsed columns should always use fixed width, not viewport width */
-.kanban-full-height-column.collapsed.column-width-40,
-.kanban-full-height-column.collapsed.column-width-66,
-.kanban-full-height-column.collapsed.column-width-100 {
+.kanban-full-height-column.collapsed.column-width-33percent,
+.kanban-full-height-column.collapsed.column-width-50percent,
+.kanban-full-height-column.collapsed.column-width-100percent {
   width: auto !important; /* Let collapsed width be determined by content */
   min-width: auto !important;
   max-width: none !important;

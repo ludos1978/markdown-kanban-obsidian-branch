@@ -849,7 +849,7 @@ function changeColumnSpan(columnId, delta) {
     if (columnElement) {
         // Update CSS classes (only blocked by viewport-based widths, not pixel widths)
         columnElement.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
-        const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '66' || window.currentColumnWidth === '100');
+        const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '33percent' || window.currentColumnWidth === '50percent' || window.currentColumnWidth === '100percent');
         if (newSpan >= 2 && !hasViewportWidth) {
             columnElement.classList.add(`column-span-${newSpan}`);
         }
