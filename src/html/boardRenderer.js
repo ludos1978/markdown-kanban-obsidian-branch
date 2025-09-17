@@ -1040,7 +1040,6 @@ function renderSingleColumn(columnId, columnData) {
         uniqueHandlers.forEach(key => {
             delete window.tagHandlers[key];
         });
-        console.log(`[RenderSingleColumn] Cleaned up ${uniqueHandlers.length} old tag handlers for column ${columnId}`);
     }
 
     // Get the column index to maintain positioning
@@ -1096,7 +1095,7 @@ function renderSingleColumn(columnId, columnData) {
         setupColumnDragAndDrop();
     }
 
-    console.log(`[RenderSingleColumn] Completed render for column ${columnId}, drag & drop re-initialized`);
+    console.log(`[RenderSingleColumn] Completed render for column ${columnId}`);
 }
 
 // Render Kanban board

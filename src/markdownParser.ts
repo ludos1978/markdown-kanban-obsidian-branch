@@ -291,18 +291,14 @@ export class MarkdownKanbanParser {
 
     // Add columns (no ID persistence - runtime only)
     for (const column of board.columns) {
-      console.log(`[GenerateMarkdown] Column "${column.title}": includeMode=${column.includeMode}, originalTitle="${column.originalTitle}", tasks=${column.tasks?.length || 0}`);
-
       if (column.includeMode) {
         // For include columns, use the current title (which may have been updated with tags)
         // column.title should contain the include syntax plus any added tags
         const titleToUse = column.title;
-        console.log(`[GenerateMarkdown] Using current title for include column: ${titleToUse}`);
         markdown += `## ${titleToUse}\n`;
         // Skip generating tasks for include columns - they remain as includes
       } else {
         // Regular column processing
-        console.log(`[GenerateMarkdown] Regular column processing for: ${column.title}`);
         markdown += `## ${column.title}\n`;
 
         for (const task of column.tasks) {

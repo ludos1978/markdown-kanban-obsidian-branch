@@ -1659,7 +1659,6 @@ function toggleColumnTag(columnId, tagName, event) {
         window.pendingColumnChanges = new Map();
     }
     window.pendingColumnChanges.set(columnId, { columnId, title });
-    console.log(`[ToggleColumnTag] Added column ${columnId} title change to pending changes: "${title}"`);
 
     // Mark as unsaved since we made a change
     markUnsavedChanges();

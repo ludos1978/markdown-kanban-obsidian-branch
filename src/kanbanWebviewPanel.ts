@@ -238,7 +238,6 @@ export class KanbanWebviewPanel {
                 getWebviewPanel: () => this,
                 saveWithBackup: this._createUnifiedBackup.bind(this),
                 markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => {
-                    // console.log(`[Save Debug] markUnsavedChanges callback - hasChanges: ${hasChanges}, previousHasUnsaved: ${this._hasUnsavedChanges}, hasCachedBoard: ${!!cachedBoard}`);
                     this._hasUnsavedChanges = hasChanges;
                     if (hasChanges) {
                         // Track when unsaved changes occur for backup timing
@@ -252,7 +251,6 @@ export class KanbanWebviewPanel {
                     if (cachedBoard) {
                         // CRITICAL: Store the cached board data immediately for saving
                         // This ensures we always have the latest data even if webview is disposed
-                        // console.log(`[Save Debug] Updating board from cached data - title: ${cachedBoard.title}, columns: ${cachedBoard.columns?.length}`);
                         this._board = cachedBoard;
                         this._cachedBoardFromWebview = cachedBoard; // Keep a separate reference
                     }
@@ -975,15 +973,10 @@ export class KanbanWebviewPanel {
     }
 
     private async saveToMarkdown(updateVersionTracking: boolean = true) {
-        console.log(`💾 [Save Debug] Starting save process...`);
-        console.log(`💾 [Save Debug] hasUnsavedChanges: ${this._hasUnsavedChanges}`);
-        console.log(`💾 [Save Debug] hasExternalUnsavedChanges: ${this._hasExternalUnsavedChanges}`);
-        console.log(`💾 [Save Debug] _lastKnownFileContent length: ${this._lastKnownFileContent?.length || 'null'}`);
-
+        console.log(`💾 Saving kanban to markdown... hasUnsavedChanges: ${this._hasUnsavedChanges}`);
         let document = this._fileManager.getDocument();
         if (!document || !this._board || !this._board.valid) {
-            console.warn('💾 [Save Debug] Cannot save: no document or invalid board');
-            console.warn(`💾 [Save Debug] document: ${!!document}, board: ${!!this._board}, valid: ${this._board?.valid}`);
+            console.warn('Cannot save: no document or invalid board');
             return;
         }
 
@@ -1015,23 +1008,15 @@ export class KanbanWebviewPanel {
             await this.saveAllColumnIncludeChanges();
 
             const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
-            console.log(`[Save Debug] Generated markdown preview (first 200 chars): ${markdown.substring(0, 200)}...`);
-
             // Check for external unsaved changes before proceeding
-            console.log(`💾 [Save Debug] Checking for external conflicts...`);
             const canProceed = await this.checkForExternalUnsavedChanges();
-            console.log(`💾 [Save Debug] External conflicts check result: ${canProceed}`);
             if (!canProceed) {
-                console.log('💾 [Save Debug] Save cancelled due to external conflicts');
+                console.log('📄 Save cancelled due to external conflicts');
                 return;
             }
 
             // Check if content has actually changed before applying edit
             const currentContent = document.getText();
-            console.log(`[Save Debug] Current content length: ${currentContent.length}, Generated markdown length: ${markdown.length}`);
-            console.log(`[Save Debug] hasUnsavedChanges: ${this._hasUnsavedChanges}, hasExternalUnsaved: ${this._hasExternalUnsavedChanges}`);
-            console.log(`[Save Debug] Content comparison: ${currentContent === markdown ? 'EQUAL' : 'DIFFERENT'}`);
-
             if (currentContent === markdown) {
                 // No changes needed, skip the edit to avoid unnecessary re-renders
                 console.log('📄 No changes detected, skipping save');
@@ -1111,7 +1096,6 @@ export class KanbanWebviewPanel {
             this._hasUnsavedChanges = false;
 
             // Update our baseline after successful save
-            console.log(`[Save Debug] Updating known file content after successful save (length: ${markdown.length})`);
             this.updateKnownFileContent(markdown);
         } catch (error) {
             console.error('Error saving to markdown:', error);
@@ -1614,12 +1598,9 @@ export class KanbanWebviewPanel {
             const currentDocument = this._fileManager.getDocument();
             if (currentDocument && event.document === currentDocument) {
                 // Document was modified externally (not by our kanban save operation)
-                console.log(`💾 [Save Debug] Document change detected - isUpdatingFromPanel: ${this._isUpdatingFromPanel}`);
                 if (!this._isUpdatingFromPanel) {
                     this._hasExternalUnsavedChanges = true;
-                    console.log('💾 [Save Debug] Document change - Setting hasExternalUnsavedChanges = true');
-                } else {
-                    console.log('💾 [Save Debug] Document change - Ignoring (internal update)');
+                    console.log('[External Modification] Detected unsaved external changes');
                 }
             }
         });
@@ -1631,22 +1612,15 @@ export class KanbanWebviewPanel {
      */
     private async checkForExternalUnsavedChanges(): Promise<boolean> {
         const document = this._fileManager.getDocument();
-        console.log(`💾 [Save Debug] External check - hasExternalUnsavedChanges: ${this._hasExternalUnsavedChanges}`);
-
         if (!document || !this._hasExternalUnsavedChanges) {
-            console.log(`💾 [Save Debug] External check - no conflicts detected, safe to save`);
             return true; // No conflicts, safe to save
         }
 
         const currentContent = document.getText();
         const hasRealChanges = currentContent !== this._lastKnownFileContent;
-        console.log(`💾 [Save Debug] External check - currentContent length: ${currentContent.length}`);
-        console.log(`💾 [Save Debug] External check - lastKnownContent length: ${this._lastKnownFileContent?.length || 'null'}`);
-        console.log(`💾 [Save Debug] External check - hasRealChanges: ${hasRealChanges}`);
 
         if (!hasRealChanges) {
             // False alarm - no real external changes
-            console.log(`💾 [Save Debug] External check - false alarm, clearing flag and proceeding`);
             this._hasExternalUnsavedChanges = false;
             return true;
         }
@@ -1859,12 +1833,6 @@ export class KanbanWebviewPanel {
             const currentFileContent = fs.readFileSync(absolutePath, 'utf8');
             const currentFileTasks = PresentationParser.parseMarkdownToTasks(currentFileContent);
 
-            console.log(`[Save Debug] Checking file content match for ${includeFile}:`, {
-                fileTaskCount: currentFileTasks.length,
-                columnTaskCount: column.tasks.length,
-                fileTasks: currentFileTasks.map(t => t.title),
-                columnTasks: column.tasks.map(t => t.title)
-            });
 
             // Smart validation: Detect file path changes vs legitimate edits/additions
             const taskCountDifference = Math.abs(currentFileTasks.length - column.tasks.length);
@@ -1897,18 +1865,8 @@ export class KanbanWebviewPanel {
 
             if (isLikelyFilePathChange) {
                 console.log(`[Column Include] Detected file path change, skipping save to prevent overwrite`);
-                console.log(`[Column Include] File tasks: ${currentFileTasks.length}, Column tasks: ${column.tasks.length}`);
-                console.log(`[Save Debug] Validation details:`, {
-                    taskCountDifference: taskCountDifference,
-                    overlapCount: overlapCount,
-                    hasContentOverlap: hasContentOverlap,
-                    overlapRatio: overlapCount / Math.min(currentFileTasks.length, column.tasks.length),
-                    isLikelyFilePathChange: isLikelyFilePathChange
-                });
                 return false;
             }
-
-            console.log(`[Save Debug] Content validation passed - proceeding with bidirectional save`);
 
             // Check if we have any actual task changes to save
             // If the tasks came from a file include and haven't been modified, don't overwrite
@@ -1958,40 +1916,28 @@ export class KanbanWebviewPanel {
      * Load new content into a column when its include files change
      */
     public async loadNewIncludeContent(column: KanbanColumn, newIncludeFiles: string[]): Promise<void> {
-        console.log(`[LoadNewInclude Debug] Starting load for column:`, {
-            columnId: column.id,
-            columnTitle: column.title,
-            includeMode: column.includeMode,
-            newIncludeFiles: newIncludeFiles,
-            currentTaskCount: column.tasks?.length || 0
-        });
+        console.log(`[LoadNewInclude] Loading new content for column ${column.id}`);
 
         try {
             const currentDocument = this._fileManager.getDocument();
             if (!currentDocument) {
-                console.log(`[LoadNewInclude Debug] No current document found`);
                 return;
             }
 
             const basePath = path.dirname(currentDocument.uri.fsPath);
-            console.log(`[LoadNewInclude Debug] Base path: ${basePath}`);
 
             // For now, handle single file includes
             const includeFile = newIncludeFiles[0];
             const absolutePath = path.resolve(basePath, includeFile);
 
-            console.log(`[LoadNewInclude Debug] Trying to load file: ${absolutePath}`);
-
             if (fs.existsSync(absolutePath)) {
                 const fileContent = fs.readFileSync(absolutePath, 'utf8');
-                console.log(`[LoadNewInclude Debug] File content loaded, length: ${fileContent.length}`);
 
                 // Initialize known content for conflict detection
                 this._knownIncludeFileContents.set(absolutePath, fileContent);
                 this._includeFileUnsavedChanges.set(absolutePath, false);
 
                 const newTasks = PresentationParser.parseMarkdownToTasks(fileContent);
-                console.log(`[LoadNewInclude Debug] Parsed ${newTasks.length} tasks:`, newTasks.map(t => t.title));
 
                 // Update the column's tasks directly
                 column.tasks = newTasks;
@@ -2010,7 +1956,6 @@ export class KanbanWebviewPanel {
                     includeFiles: column.includeFiles
                 });
 
-                console.log(`[LoadNewInclude Debug] Sent targeted column update message`);
             } else {
                 console.warn(`[LoadNewInclude] Include file not found: ${absolutePath}`);
                 // Clear tasks if file doesn't exist
@@ -2058,11 +2003,8 @@ export class KanbanWebviewPanel {
         const fileName = path.basename(filePath);
         const hasUnsavedIncludeChanges = this._includeFileUnsavedChanges.get(filePath) || false;
 
-        console.log(`[IncludeFileConflict] ${fileName} ${changeType}, hasUnsavedChanges: ${hasUnsavedIncludeChanges}`);
-
         if (!hasUnsavedIncludeChanges) {
             // No unsaved changes - simple reload
-            console.log(`[IncludeFileConflict] No unsaved changes, reloading include file`);
             await this.reloadIncludeFile(filePath);
             return;
         }
@@ -2084,26 +2026,22 @@ export class KanbanWebviewPanel {
 
         if (choice === discardChanges) {
             // Discard local changes and reload from external file
-            console.log(`[IncludeFileConflict] User chose to discard changes and reload`);
             this._includeFileUnsavedChanges.set(filePath, false);
             await this.reloadIncludeFile(filePath);
 
         } else if (choice === saveBackup) {
             // Save current changes as backup, then reload external
-            console.log(`[IncludeFileConflict] User chose to save backup and reload`);
             await this.saveIncludeFileAsBackup(filePath);
             this._includeFileUnsavedChanges.set(filePath, false);
             await this.reloadIncludeFile(filePath);
 
         } else if (choice === discardExternal) {
             // Save current kanban changes, overwriting external
-            console.log(`[IncludeFileConflict] User chose to discard external changes`);
             await this.saveIncludeFileChanges(filePath);
             this._includeFileUnsavedChanges.set(filePath, false);
 
         } else {
             // Ignore external changes - do nothing
-            console.log(`[IncludeFileConflict] User chose to ignore external changes`);
         }
     }
 
@@ -2123,12 +2061,9 @@ export class KanbanWebviewPanel {
         const basePath = path.dirname(currentDocument.uri.fsPath);
         const relativePath = path.relative(basePath, filePath);
 
-        console.log(`[ReloadIncludeFile] Reloading ${relativePath}`);
-
         // Find columns that use this include file
         for (const column of this._board.columns) {
             if (column.includeMode && column.includeFiles?.includes(relativePath)) {
-                console.log(`[ReloadIncludeFile] Updating column ${column.id} that uses ${relativePath}`);
                 await this.loadNewIncludeContent(column, [relativePath]);
                 break;
             }
@@ -2144,8 +2079,6 @@ export class KanbanWebviewPanel {
         }
 
         const backupPath = filePath.replace(path.extname(filePath), `_backup_${Date.now()}${path.extname(filePath)}`);
-
-        console.log(`[SaveIncludeBackup] Saving backup to ${backupPath}`);
 
         // Find the column that uses this include file and save its content as backup
         const currentDocument = this._fileManager.getDocument();
@@ -2260,7 +2193,6 @@ export class KanbanWebviewPanel {
                             : '';
 
                         if (knownContent.trim() !== currentPresentationContent.trim()) {
-                            console.log(`[IncludeChanges] Detected unsaved changes in ${includeFile}`);
                             this._includeFileUnsavedChanges.set(absolutePath, true);
                         }
                     }
