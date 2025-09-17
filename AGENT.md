@@ -567,6 +567,73 @@ Many frontend operations correctly use `window.cachedBoard` and call `markUnsave
 
 ## Current Request
 
+### Menu Configuration Naming Standards
+
+#### **Column Width**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| Small (250px) | `250px` | `small` |
+| Medium (350px) | `350px` | `medium` |
+| Wide (450px) | `450px` | `wide` |
+| 1/3 Screen (30.5%) | `33percent` | `40` |
+| 1/2 Screen (48.5%) | `50percent` | `66` |
+| Full Width (98%) | `100percent` | `100` |
+
+#### **Card Height**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| Small (200px) | `200px` | `200px` |
+| Medium (400px) | `400px` | `400px` |
+| Large (600px) | `600px` | *(new)* |
+| 1/3 Screen (26.5%) | `33percent` | `26.5vh` |
+| 1/2 Screen (43.5%) | `50percent` | `43.5vh` |
+| Full Screen (89%) | `100percent` | `89vh` |
+
+#### **Whitespace**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| Compact (4px) | `4px` | `2px` |
+| Default (8px) | `8px` | `4px` |
+| Comfortable (12px) | `12px` | `8px` |
+| Spacious (16px) | `16px` | `12px` |
+| Large (24px) | `24px` | *(new, replaces 10px)* |
+| Extra Large (36px) | `36px` | *(new, replaces 20px)* |
+| Maximum (48px) | `48px` | *(new, replaces 40px/60px)* |
+
+#### **Tag Visibility**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| All Tags | `all` | `all` |
+| All Excluding Layout | `allexcludinglayout` | `standard` |
+| Custom Tags Only | `customonly` | `custom` |
+| @ Tags Only | `mentionsonly` | `mentions` |
+| No Tags | `none` | `none` |
+
+#### **Row Height**
+| Label | Config Value | Previous Value |
+|-------|--------------|----------------|
+| Auto Height | `auto` | `auto` |
+| Small (300px) | `300px` | `19em` |
+| Medium (500px) | `500px` | `31em` |
+| Large (700px) | `700px` | `44em` |
+| 1/3 Screen (31.5%) | `33percent` | `31.5vh` |
+| 1/2 Screen (48%) | `50percent` | `48vh` |
+| 2/3 Screen (63%) | `67percent` | `63vh` |
+| Full Screen (95%) | `100percent` | `95vh` |
+
+#### **No Changes Needed**
+- **Font Size**: Keep current `0_5x`, `1x`, etc.
+- **Font Family**: Keep current `system`, `roboto`, etc.
+- **Layout Rows**: Keep current `1`, `2`, etc.
+- **Sticky Headers**: Keep current `enabled`/`disabled`
+- **Image Fill**: Keep current `fit`/`fill`
+
+#### **Design Principles**
+- **Consistent Naming**: Use either pixel values (`250px`) or screen fractions (`33percent`)
+- **No Special Characters**: Configuration values use only letters, numbers, and basic characters
+- **Descriptive Labels**: Show both description and actual measurement in parentheses
+- **Clean Config Values**: Backend configuration uses simple strings without spaces or special characters
+
 
 
 ## Previous Requests
