@@ -4,8 +4,24 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] folding a column after a new column has been added might fold the wrong column. are unique id correctly added and everything setup correctly?
+- [ ] Whole column include mode: add an option in the column-burger menu that allows setting to include a file that is put in, instead of the columns content. the included content must be parsed before including. the parser should create a new card from all individual slides (separarted by a ---), if the first text line is a heading it should be put into the card's title, othervise everthing goes into the description of the cards. the column title should be the filename. the text read from the file should be put into the cards of the column. how complex is this to do? maybe the include in the headers is happening to late in the processing. different to the handling of !!!includes(..)!!! within a cards description. this likely must be handled earlier to be able to generate markdown card content from it. also if possible we should be able to save the modificaitons we do back into the origninal formatting, so convert it back to md-presentations and write it into the file. did you check that the include of a file within the header msut be processessed before the parsing/creation of individual cards? so maybe even in the data loading and data saving process. if needed we could use a different !!!column(includefile)!!! which uses diffrerent parsers? think of a more fundamential approach to solve this problem. i would actually like to be able to add mutliple includes in a header as well, which would work with the column title text include. but other approaches would be possible as well. i think a very approachable idea is to integrate that into the load and save system, the include modificaiton tracker, and the editing of the markdown. or add it as a special element that i can add within a column to include all content as cards.
+	For this system to work we must implement the following:
+	Modify the KanbanColumn to be an overloaded function, there is the classic version that works with the markdown data, and there is the version that generates the tasks from the imported presentation-markdown.
+  '''KanbanColumn: {
+      id: string,
+      title: string,
+      tasks: KanbanTask[],
+      includeMode: true // the file path is in the title...
+  }'''
+	while parsing the base-markdown file: if a column title contains a !!!columninclude(...)!!! it should create a KanbanColumnImport object which:
+	- create and handles the file modification listeners for the included files.
+	- sends the modifications to the frontend.
+	- parses and generates / provides the cards.
 
-- [ ] Whole column include mode: add an option in the column-burger menu that allows setting to include a file that is put in, instead of the columns content. the included content must be parsed before including. the parser should create a new card from all individual slides (separarted by a ---), if the first text line is a heading it should be put into the card's title, othervise everthing goes into the description of the cards. the column title should be the filename. the text read from the file should be put into the cards of the column. how complex is this to do? maybe the include in the headers is happening to late in the processing. different to the handling of !!!includes(..)!!! within a cards description. this likely must be handled earlier to be able to generate markdown card content from it. also if possible we should be able to save the modificaitons we do back into the origninal formatting, so convert it back to md-presentations and write it into the file. did you check that the include of a file within the header msut be processessed before the parsing/creation of individual cards? so maybe even in the data loading and data saving process. if needed we could use a different !!!column(includefile)!!! which uses diffrerent pasers?
+  important is that the include file handling should be considered as a separate file edit within the kanban editor. so if it's changed and unsaved it should ask to save or discard when closing (or removing the file). also if it's edited externally it should ask wether the data should be read from source or backed up and reread (the same as with the kanban file itself).
+
+- [ ] add a tag, what makes a column not be moved on a new line, but stay below the column previous to it. 
 
 
 - [ ] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).
