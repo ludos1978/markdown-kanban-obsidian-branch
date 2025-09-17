@@ -175,32 +175,36 @@ const menuConfig = {
     ]
 };
 
-// Helper function to generate menu HTML from configuration
-function generateMenuHTML(configKey, onClickFunction) {
-    const config = menuConfig[configKey];
-    if (!config) {return '';}
-    
-    let html = '';
-    for (const item of config) {
-        if (item.separator) {
-            html += '<div class="file-bar-menu-divider"></div>';
-        } else {
-            const iconHtml = item.icon ? `<span class="menu-icon"${item.iconStyle ? ` style="${item.iconStyle}"` : ''}>${item.icon}</span> ` : '';
-            html += `<button class="file-bar-menu-item" onclick="${onClickFunction}('${item.value}')">${iconHtml}${item.label}</button>`;
-        }
+// Function to get current setting value for menu indicators
+function getCurrentSettingValue(configKey) {
+    switch (configKey) {
+        case 'columnWidth':
+            return window.currentColumnWidth || 'medium';
+        case 'cardHeight':
+            return window.currentTaskMinHeight || 'auto';
+        case 'whitespace':
+            return window.currentWhitespace || '4px';
+        case 'fontSize':
+            return window.currentFontSize || '1x';
+        case 'fontFamily':
+            return window.currentFontFamily || 'system';
+        case 'layoutRows':
+            return window.currentLayoutRows || 1;
+        case 'rowHeight':
+            return window.currentRowHeight || 'auto';
+        case 'stickyHeaders':
+            return window.currentStickyHeaders || 'enabled';
+        case 'tagVisibility':
+            return window.currentTagVisibility || 'standard';
+        case 'imageFill':
+            return window.currentImageFill || 'fit';
+        default:
+            return null;
     }
-    return html;
 }
 
-// Function to populate dynamic menus
-function populateDynamicMenus() {
-    // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', populateDynamicMenus);
-        return;
-    }
-    
-    // Populate each menu based on configuration
+// Single function to update all menu indicators
+function updateAllMenuIndicators() {
     const menuMappings = [
         { selector: '[data-menu="columnWidth"]', config: 'columnWidth', function: 'setColumnWidth' },
         { selector: '[data-menu="cardHeight"]', config: 'cardHeight', function: 'setTaskMinHeight' },
@@ -213,13 +217,47 @@ function populateDynamicMenus() {
         { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
         { selector: '[data-menu="imageFill"]', config: 'imageFill', function: 'setImageFill' }
     ];
-    
+
     menuMappings.forEach(mapping => {
         const container = document.querySelector(mapping.selector);
         if (container) {
             container.innerHTML = generateMenuHTML(mapping.config, mapping.function);
         }
     });
+}
+
+// Helper function to generate menu HTML from configuration
+function generateMenuHTML(configKey, onClickFunction) {
+    const config = menuConfig[configKey];
+    if (!config) {return '';}
+
+    const currentValue = getCurrentSettingValue(configKey);
+
+    let html = '';
+    for (const item of config) {
+        if (item.separator) {
+            html += '<div class="file-bar-menu-divider"></div>';
+        } else {
+            const iconHtml = item.icon ? `<span class="menu-icon"${item.iconStyle ? ` style="${item.iconStyle}"` : ''}>${item.icon}</span> ` : '';
+            const isSelected = item.value === currentValue;
+            const selectedClass = isSelected ? ' selected' : '';
+            const checkmark = isSelected ? '<span class="menu-checkmark">✓</span>' : '';
+            html += `<button class="file-bar-menu-item${selectedClass}" onclick="${onClickFunction}('${item.value}')">${iconHtml}${item.label}${checkmark}</button>`;
+        }
+    }
+    return html;
+}
+
+// Function to populate dynamic menus
+function populateDynamicMenus() {
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', populateDynamicMenus);
+        return;
+    }
+
+    // Use the shared update function
+    updateAllMenuIndicators();
 }
 
 // Clipboard card source functionality
@@ -1112,14 +1150,17 @@ function applyColumnWidth(size, skipRender = false) {
 function setColumnWidth(size) {
     // Apply the column width
     applyColumnWidth(size);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'columnWidth', 
-        value: size 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'columnWidth',
+        value: size
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1140,7 +1181,8 @@ function setColumnWidth(size) {
  */
 function applyLayoutRows(rows) {
     currentLayoutRows = rows;
-    
+    window.currentLayoutRows = rows;
+
     // Re-render the board to apply row layout
     if (currentBoard) {
         renderBoard();
@@ -1150,14 +1192,17 @@ function applyLayoutRows(rows) {
 function setLayoutRows(rows) {
     // Apply the layout rows
     applyLayoutRows(rows);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'layoutRows', 
-        value: rows 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'layoutRows',
+        value: rows
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1246,14 +1291,17 @@ function applyRowHeightSetting(height) {
 function setRowHeight(height) {
     // Apply the row height
     applyRowHeightSetting(height);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'rowHeight', 
-        value: height 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'rowHeight',
+        value: height
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1303,6 +1351,9 @@ function setStickyHeaders(setting) {
         key: 'stickyHeaders',
         value: setting
     });
+
+    // Update menu indicators
+    updateAllMenuIndicators();
 
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
@@ -1377,6 +1428,9 @@ function setTagVisibility(setting) {
         value: setting
     });
 
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1409,6 +1463,9 @@ function setImageFill(setting) {
         value: setting
     });
 
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1428,14 +1485,17 @@ function applyWhitespace(spacing) {
 function setWhitespace(spacing) {
     // Apply the whitespace
     applyWhitespace(spacing);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'whitespace', 
-        value: spacing 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'whitespace',
+        value: spacing
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -1456,14 +1516,17 @@ function applyTaskMinHeight(height) {
 function setTaskMinHeight(height) {
     // Apply the task min height
     applyTaskMinHeight(height);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'taskMinHeight', 
-        value: height 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'taskMinHeight',
+        value: height
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -2142,9 +2205,16 @@ window.addEventListener('message', event => {
 
                 // Update font size with the value from configuration
                 if (message.fontSize) {
-                    applyFontSize(message.fontSize);
+                    // Handle legacy font size values
+                    let fontSize = message.fontSize;
+                    if (fontSize === 'small') {
+                        fontSize = '0_75x'; // Convert legacy 'small' to 0.75x
+                    } else if (fontSize === 'normal') {
+                        fontSize = '1x'; // Convert legacy 'normal' to 1x
+                    }
+                    applyFontSize(fontSize);
                 } else {
-                    applyFontSize('1_0x'); // Default fallback
+                    applyFontSize('1x'); // Default fallback
                 }
 
                 // Update font family with the value from configuration
@@ -2193,6 +2263,9 @@ window.addEventListener('message', event => {
                 } else {
                     applyImageFill('fit'); // Default fallback
                 }
+
+                // Update all menu indicators after settings are applied
+                updateAllMenuIndicators();
             }
 
             // Update max row height
@@ -3165,7 +3238,7 @@ window.getColumnRow = getColumnRow;
 window.performSort = performSort;
 
 // Font size functionality
-let currentFontSize = '1_0x'; // Default to 1.0x (current behavior)
+let currentFontSize = '1x'; // Default to 1.0x (current behavior)
 
 function applyFontSize(size) {
     // Remove all font size classes
@@ -3180,19 +3253,23 @@ function applyFontSize(size) {
     // Add the selected font size class
     document.body.classList.add(`font-size-${size}`);
     currentFontSize = size;
+    window.currentFontSize = size;
 }
 
 function setFontSize(size) {
     // Apply the font size
     applyFontSize(size);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'fontSize', 
-        value: size 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'fontSize',
+        value: size
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
@@ -3209,19 +3286,23 @@ function applyFontFamily(family) {
     // Add the selected font family class
     document.body.classList.add(`font-family-${family}`);
     currentFontFamily = family;
+    window.currentFontFamily = family;
 }
 
 function setFontFamily(family) {
     // Apply the font family
     applyFontFamily(family);
-    
+
     // Store preference
-    vscode.postMessage({ 
-        type: 'setPreference', 
-        key: 'fontFamily', 
-        value: family 
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'fontFamily',
+        value: family
     });
-    
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
     // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');

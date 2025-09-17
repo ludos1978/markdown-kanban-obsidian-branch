@@ -3,12 +3,22 @@ kanban-plugin: board
 ---
 
 ## Open Bugs
+- [ ] in the file info header's burger menu, make the currently selected mode visible in column width, card height and all other couceh submenus. make sure it's read from the saved values and has a single update function for all parameters.
+- [ ] Add an configuration option: It should define which tags are exported when copying as markdown (in the cards burger menus and the column burger menus). have the same options as when changing the displaying in the kaban board (all tags, standard tags, custom tags, @tags only, no tags). 
+- [ ] equalize the naming of all options in the multiple selection menus in the file-info-burger menu. i mean those in column widht, card height, etc. they should be eighter pixel widths/heights (250px), or screen parts (1/3th of screen). also make sure the names in the backend (configuration names) are fixed so they are easy to use. in whitespace remove the 2px option and the 10px,20px,40px,60px, and add 24px, 36px, 48px. rename the whitespace configuration values to pixel values, make sure it's using strings with no special characters. rename the "standard tags" in "tag options" to "all excluding layout" for the config value of course use a string witout spaces.
+
+- [ ] add an mutiple choice submenu in the main header (file-info-header). It should set a combination of layout styles using the individual styles that can be defined in the file-info-burger menu. make this available as configuration option. something like this: ["overview": {"column_width": "small", "card_height": "auto", "font_size": "0.5x"}, "normal": {"column_width": "normal", "card_height": "auto", "font_size": 1x"}, "3x3": {"column_width": "third screen", "font_size": "2x", "card_height": "1_3th_screen"}, "presentation": {"column_width": "full_width", "card_height": "full_screen", "font_size": "3x", "sticky_headers": "disabled", "tag_visibility": "none"}] . make sure that all options are available. 
+
+## Ideas
+
+- [ ] ...
+- [ ] Whole column include mode.
 
 
-- [ ] The clipboard should be read when focussing the kanban board, or when meta+c / ctrl+c is pressed. it should not be required to press the button to reload it.
 
 ## Closed Bugs
 
+- [x] The clipboard should be read when focussing the kanban board, or when meta+c / ctrl+c is pressed. it should not be required to press the button to reload it.
 - [x] saving the outside file, ignoring the change in the dialogue, and saving it again does not trigger the "file has been modified externally" again.
 - [x] if "save as backup and load external" or "discard kanban changes and reload" then included file change tracking doesnt work anymore. add what files are being tracked as hover element to the include file tracking button. show the button all the time. the button should not disappear if i press it now, if no include change is active show a checkmark, if there is changes show an exclamation mark. the values of files being tracked must be delivered and updated by the file tracking part. if the button is pressed and no changes are present, it must refresh what files are tracked, if there are changes in includes, refresh the included parts in the document. WHAT HAPPENS WHEN DATA IS REALODED FROM NEW DATA= BECAUSE INCLUDE TRACKING BREAKS FROM THAT POINT ON AND NEVER WORKS ANYMORE UNTIL I CLOSE THE KANBAN AND REOPEN!- [x] saving during editing a markdown content does not work correctly. it should already be implemented, but doesnt seem to work. if it's too complicated to do while staying in edit mode, it's acceptable to end editing and then save. make sure you handle the end-edit functions.
 - [x] if i focus the markdown the the kanban is opened from it asks me if i want to discard kanban, save as backup, discard external, ignore. this should only come up when saving the markdown file, not when focussing it, is the event wrong?

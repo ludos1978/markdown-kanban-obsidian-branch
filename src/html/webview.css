@@ -1323,6 +1323,19 @@ button.file-bar-menu-item {
   background-color: var(--vscode-list-hoverBackground);
 }
 
+.file-bar-menu-item.selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+  font-weight: 500;
+}
+
+.file-bar-menu-item .menu-checkmark {
+  color: var(--vscode-list-activeSelectionForeground);
+  font-weight: bold;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .donut-menu-item.has-submenu,
 .file-bar-menu-item.has-submenu {
   padding-right: 24px;

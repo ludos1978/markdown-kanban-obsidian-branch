@@ -414,7 +414,7 @@ export class KanbanWebviewPanel {
 
     private async _getFontSizeConfiguration(): Promise<string> {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const fontSize = config.get<string>('fontSize', 'small');
+        const fontSize = config.get<string>('fontSize', '1x');
         return fontSize;
     }
 
