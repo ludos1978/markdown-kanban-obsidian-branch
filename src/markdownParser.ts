@@ -294,9 +294,10 @@ export class MarkdownKanbanParser {
       console.log(`[GenerateMarkdown] Column "${column.title}": includeMode=${column.includeMode}, originalTitle="${column.originalTitle}", tasks=${column.tasks?.length || 0}`);
 
       if (column.includeMode) {
-        // For include columns, use the title (which contains include syntax) or originalTitle as fallback
-        const titleToUse = column.originalTitle || column.title;
-        console.log(`[GenerateMarkdown] Using include syntax for column: ${titleToUse}`);
+        // For include columns, use the current title (which may have been updated with tags)
+        // column.title should contain the include syntax plus any added tags
+        const titleToUse = column.title;
+        console.log(`[GenerateMarkdown] Using current title for include column: ${titleToUse}`);
         markdown += `## ${titleToUse}\n`;
         // Skip generating tasks for include columns - they remain as includes
       } else {

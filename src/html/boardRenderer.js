@@ -1014,6 +1014,35 @@ function renderSingleColumn(columnId, columnData) {
         return;
     }
 
+    // Clean up old tag handlers for this column to prevent memory leaks
+    if (window.tagHandlers) {
+        // Find all tag handlers that belong to this column (both column tags and task tags)
+        const handlersToCleanup = Object.keys(window.tagHandlers).filter(key => {
+            // Pattern: tag-chip-column-{columnId}-{tagName} or tag-chip-task-{taskId}-{tagName}
+            return key.startsWith(`tag-chip-column-${columnId}-`) ||
+                   (key.startsWith(`tag-chip-task-`) && existingColumnElement.querySelector(`[data-task-id]`))
+        });
+
+        // Also find task handlers by checking actual task IDs in the existing column
+        const taskElements = existingColumnElement.querySelectorAll('[data-task-id]');
+        taskElements.forEach(taskEl => {
+            const taskId = taskEl.getAttribute('data-task-id');
+            const taskHandlerPrefix = `tag-chip-task-${taskId}-`;
+            Object.keys(window.tagHandlers).forEach(key => {
+                if (key.startsWith(taskHandlerPrefix)) {
+                    handlersToCleanup.push(key);
+                }
+            });
+        });
+
+        // Remove duplicates and clean up
+        const uniqueHandlers = [...new Set(handlersToCleanup)];
+        uniqueHandlers.forEach(key => {
+            delete window.tagHandlers[key];
+        });
+        console.log(`[RenderSingleColumn] Cleaned up ${uniqueHandlers.length} old tag handlers for column ${columnId}`);
+    }
+
     // Get the column index to maintain positioning
     const allColumns = Array.from(document.querySelectorAll('[data-column-id]'));
     const columnIndex = allColumns.indexOf(existingColumnElement);

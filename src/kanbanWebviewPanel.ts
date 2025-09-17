@@ -975,10 +975,15 @@ export class KanbanWebviewPanel {
     }
 
     private async saveToMarkdown(updateVersionTracking: boolean = true) {
-        console.log(`💾 Saving kanban to markdown... hasUnsavedChanges: ${this._hasUnsavedChanges}`);
+        console.log(`💾 [Save Debug] Starting save process...`);
+        console.log(`💾 [Save Debug] hasUnsavedChanges: ${this._hasUnsavedChanges}`);
+        console.log(`💾 [Save Debug] hasExternalUnsavedChanges: ${this._hasExternalUnsavedChanges}`);
+        console.log(`💾 [Save Debug] _lastKnownFileContent length: ${this._lastKnownFileContent?.length || 'null'}`);
+
         let document = this._fileManager.getDocument();
         if (!document || !this._board || !this._board.valid) {
-            console.warn('Cannot save: no document or invalid board');
+            console.warn('💾 [Save Debug] Cannot save: no document or invalid board');
+            console.warn(`💾 [Save Debug] document: ${!!document}, board: ${!!this._board}, valid: ${this._board?.valid}`);
             return;
         }
 
@@ -1013,9 +1018,11 @@ export class KanbanWebviewPanel {
             console.log(`[Save Debug] Generated markdown preview (first 200 chars): ${markdown.substring(0, 200)}...`);
 
             // Check for external unsaved changes before proceeding
+            console.log(`💾 [Save Debug] Checking for external conflicts...`);
             const canProceed = await this.checkForExternalUnsavedChanges();
+            console.log(`💾 [Save Debug] External conflicts check result: ${canProceed}`);
             if (!canProceed) {
-                console.log('📄 Save cancelled due to external conflicts');
+                console.log('💾 [Save Debug] Save cancelled due to external conflicts');
                 return;
             }
 
@@ -1607,9 +1614,12 @@ export class KanbanWebviewPanel {
             const currentDocument = this._fileManager.getDocument();
             if (currentDocument && event.document === currentDocument) {
                 // Document was modified externally (not by our kanban save operation)
+                console.log(`💾 [Save Debug] Document change detected - isUpdatingFromPanel: ${this._isUpdatingFromPanel}`);
                 if (!this._isUpdatingFromPanel) {
                     this._hasExternalUnsavedChanges = true;
-                    console.log('[External Modification] Detected unsaved external changes');
+                    console.log('💾 [Save Debug] Document change - Setting hasExternalUnsavedChanges = true');
+                } else {
+                    console.log('💾 [Save Debug] Document change - Ignoring (internal update)');
                 }
             }
         });
@@ -1621,15 +1631,22 @@ export class KanbanWebviewPanel {
      */
     private async checkForExternalUnsavedChanges(): Promise<boolean> {
         const document = this._fileManager.getDocument();
+        console.log(`💾 [Save Debug] External check - hasExternalUnsavedChanges: ${this._hasExternalUnsavedChanges}`);
+
         if (!document || !this._hasExternalUnsavedChanges) {
+            console.log(`💾 [Save Debug] External check - no conflicts detected, safe to save`);
             return true; // No conflicts, safe to save
         }
 
         const currentContent = document.getText();
         const hasRealChanges = currentContent !== this._lastKnownFileContent;
+        console.log(`💾 [Save Debug] External check - currentContent length: ${currentContent.length}`);
+        console.log(`💾 [Save Debug] External check - lastKnownContent length: ${this._lastKnownFileContent?.length || 'null'}`);
+        console.log(`💾 [Save Debug] External check - hasRealChanges: ${hasRealChanges}`);
 
         if (!hasRealChanges) {
             // False alarm - no real external changes
+            console.log(`💾 [Save Debug] External check - false alarm, clearing flag and proceeding`);
             this._hasExternalUnsavedChanges = false;
             return true;
         }

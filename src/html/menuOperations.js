@@ -1645,7 +1645,7 @@ function toggleColumnTag(columnId, tagName, event) {
     // Update cached board directly - single source of truth
     const oldTitle = column.title;
     column.title = title;
-    
+
     // Also update in cached board if different reference
     if (window.cachedBoard) {
         const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
@@ -1653,7 +1653,14 @@ function toggleColumnTag(columnId, tagName, event) {
             cachedColumn.title = title;
         }
     }
-    
+
+    // Add to pending column changes so it gets saved to the backend
+    if (!window.pendingColumnChanges) {
+        window.pendingColumnChanges = new Map();
+    }
+    window.pendingColumnChanges.set(columnId, { columnId, title });
+    console.log(`[ToggleColumnTag] Added column ${columnId} title change to pending changes: "${title}"`);
+
     // Mark as unsaved since we made a change
     markUnsavedChanges();
     
