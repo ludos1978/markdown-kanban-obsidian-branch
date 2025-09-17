@@ -1861,32 +1861,44 @@ export class KanbanWebviewPanel {
                 columnTasks: column.tasks.map(t => t.title)
             });
 
-            // Smart validation: Only skip save if task count differs significantly
-            // This indicates a file path change where content wasn't reloaded properly
+            // Smart validation: Detect file path changes vs legitimate edits/additions
             const taskCountDifference = Math.abs(currentFileTasks.length - column.tasks.length);
-            const hasSignificantCountDifference = taskCountDifference > 0;
 
-            // Additional check: if count is same, compare first task titles to detect file path changes
-            let isLikelyFilePathChange = false;
-            if (currentFileTasks.length > 0 && column.tasks.length > 0 && currentFileTasks.length === column.tasks.length) {
-                // If all task titles are completely different, it's likely a file path change
-                const firstFileTask = currentFileTasks[0]?.title || '';
-                const firstColumnTask = column.tasks[0]?.title || '';
-                const titlesSimilar = firstFileTask === firstColumnTask ||
-                                    firstFileTask.includes(firstColumnTask) ||
-                                    firstColumnTask.includes(firstFileTask);
-                isLikelyFilePathChange = !titlesSimilar;
+            // Check for content overlap to distinguish file path changes from legitimate edits
+            let hasContentOverlap = false;
+            let overlapCount = 0;
+
+            if (currentFileTasks.length > 0 && column.tasks.length > 0) {
+                // Count how many tasks have similar titles (indicating they're the same content)
+                for (const fileTask of currentFileTasks) {
+                    for (const columnTask of column.tasks) {
+                        if (fileTask.title === columnTask.title ||
+                            fileTask.title.includes(columnTask.title) ||
+                            columnTask.title.includes(fileTask.title)) {
+                            overlapCount++;
+                            break; // Count each file task only once
+                        }
+                    }
+                }
+
+                // If most tasks overlap, it's likely legitimate editing
+                const overlapRatio = overlapCount / Math.min(currentFileTasks.length, column.tasks.length);
+                hasContentOverlap = overlapRatio >= 0.5; // At least 50% overlap
             }
 
-            if (hasSignificantCountDifference || isLikelyFilePathChange) {
-                console.log(`[Column Include] Detected likely file path change, skipping save to prevent overwrite`);
+            // Only block save if there's a big count difference AND no content overlap
+            // This indicates a file path change where completely different content was loaded
+            const isLikelyFilePathChange = taskCountDifference > 2 && !hasContentOverlap;
+
+            if (isLikelyFilePathChange) {
+                console.log(`[Column Include] Detected file path change, skipping save to prevent overwrite`);
                 console.log(`[Column Include] File tasks: ${currentFileTasks.length}, Column tasks: ${column.tasks.length}`);
                 console.log(`[Save Debug] Validation details:`, {
                     taskCountDifference: taskCountDifference,
-                    hasSignificantCountDifference: hasSignificantCountDifference,
-                    isLikelyFilePathChange: isLikelyFilePathChange,
-                    firstFileTask: currentFileTasks[0]?.title,
-                    firstColumnTask: column.tasks[0]?.title
+                    overlapCount: overlapCount,
+                    hasContentOverlap: hasContentOverlap,
+                    overlapRatio: overlapCount / Math.min(currentFileTasks.length, column.tasks.length),
+                    isLikelyFilePathChange: isLikelyFilePathChange
                 });
                 return false;
             }
