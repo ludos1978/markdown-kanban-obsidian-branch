@@ -714,3 +714,71 @@ if a task i give is ambigious, ask me before starting to work on it. for example
 commit each change with a short description what we worked on into git. Verify that we work in a branch and ask me to merge back into main when done with a problem.
 
 If you add logs to the project, when finished working on a problem remove them all. Make this a separate git commit.
+
+## Layout Presets System
+
+### Overview
+The Layout Presets system allows users to quickly switch between predefined combinations of layout settings through a dropdown menu in the file header. Users can configure custom presets in VS Code settings.
+
+### Default Presets
+The system includes four built-in presets:
+
+- **Overview**: Compact view for seeing many cards (250px columns, small font, minimal whitespace)
+- **Normal**: Default balanced view (350px columns, normal font, standard whitespace)
+- **3x3 Grid**: Grid layout for organized viewing (1/3 screen columns, 3 rows, large font)
+- **Presentation**: Full screen view for presentations (full width columns, full height cards, huge font, no tags)
+
+### User Configuration
+Users can add custom presets by configuring `markdown-kanban.layoutPresets` in their VS Code settings.json:
+
+```json
+{
+  "markdown-kanban.layoutPresets": {
+    "myCustomPreset": {
+      "label": "My Custom Layout",
+      "description": "Description of my custom layout",
+      "settings": {
+        "columnWidth": "450px",
+        "cardHeight": "auto",
+        "fontSize": "1_5x",
+        "whitespace": "16px",
+        "tagVisibility": "customonly",
+        "layoutRows": 2
+      }
+    },
+    "compactGrid": {
+      "label": "Compact Grid",
+      "description": "Compact 2x2 grid layout",
+      "settings": {
+        "columnWidth": "50percent",
+        "cardHeight": "50percent",
+        "fontSize": "0_75x",
+        "layoutRows": 2,
+        "whitespace": "8px",
+        "stickyHeaders": "disabled"
+      }
+    }
+  }
+}
+```
+
+### Available Settings
+All settings from the file-info-burger menu can be configured in presets:
+
+- `columnWidth`: "250px", "350px", "450px", "33percent", "50percent", "100percent"
+- `cardHeight`: "auto", "200px", "400px", "600px", "33percent", "50percent", "100percent"
+- `fontSize`: "0_5x", "0_75x", "1x", "1_25x", "1_5x", "2x", "3x"
+- `fontFamily`: "system", "roboto", "opensans", "lato", "poppins", "inter", etc.
+- `layoutRows`: 1, 2, 3, 4, 5, 6
+- `rowHeight`: "auto", "300px", "500px", "700px", "33percent", "50percent", "67percent", "100percent"
+- `stickyHeaders`: "enabled", "disabled"
+- `tagVisibility`: "all", "allexcludinglayout", "customonly", "mentionsonly", "none"
+- `imageFill`: "fit", "fill"
+- `whitespace`: "4px", "8px", "12px", "16px", "24px", "36px", "48px"
+
+### Implementation Details
+- **Frontend**: Layout presets menu in file-info-left section with dropdown
+- **Backend**: VS Code workspace configuration storage and retrieval
+- **Integration**: Seamless application of multiple settings with single click
+- **State Management**: Current preset tracked and restored on file reopen
+- **Fallback**: Built-in presets available if user hasn't configured custom ones

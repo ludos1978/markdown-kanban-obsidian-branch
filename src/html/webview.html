@@ -77,6 +77,16 @@
                     <span class="refresh-text">Refresh</span>
                 </button>
 
+                <div class="layout-presets-menu-container">
+                    <button id="layout-presets-btn" class="layout-presets-btn" onclick="toggleLayoutPresetsMenu()" title="Layout Presets">
+                        <span class="layout-presets-icon">🎨</span>
+                        <span class="layout-presets-text">Layout</span>
+                    </button>
+                    <div id="layout-presets-dropdown" class="layout-presets-dropdown">
+                        <!-- Presets will be populated by JavaScript -->
+                    </div>
+                </div>
+
                 <!-- File Bar Burger Menu -->
                 <div class="file-bar-menu">
                     <button class="file-bar-menu-btn" onclick="toggleFileBarMenu(event, this)">

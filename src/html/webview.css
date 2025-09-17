@@ -97,6 +97,7 @@ body {
 .file-info-right .font-size-btn,
 .file-info-right .refresh-btn,
 .file-info-right .refresh-includes-btn,
+.file-info-right .layout-presets-btn,
 .file-info-right .file-bar-menu-btn {
   border: 1px solid var(--vscode-button-border, transparent);
   padding: 4px 8px;
@@ -178,13 +179,90 @@ body {
   display: inline-block;
 }
 
+/* Layout Presets Menu */
+.layout-presets-menu-container {
+  position: relative;
+  display: inline-block;
+  /* margin-left: 8px; */
+}
+
+.layout-presets-btn {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border-color: var(--vscode-button-border);
+  cursor: pointer;
+}
+
+.layout-presets-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.layout-presets-btn.active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.layout-presets-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 200px;
+  background: var(--vscode-dropdown-background);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  display: none;
+  padding: 4px 0;
+  margin-top: 2px;
+}
+
+.layout-presets-dropdown.show {
+  display: block;
+}
+
+.layout-preset-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--vscode-dropdown-foreground);
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.layout-preset-item:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.layout-preset-item.active {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.layout-preset-label {
+  font-weight: 500;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.layout-preset-description {
+  font-size: 11px;
+  opacity: 0.8;
+  color: var(--vscode-descriptionForeground);
+}
+
 /* Responsive file info header - collapse to icons when space is limited */
 @container (max-width: 320px) {
   /* Hide text labels, show only icons for file info buttons */
   .global-fold-text,
   .sort-text,
   .font-size-text,
-  .refresh-text {
+  .refresh-text,
+  .layout-presets-text {
     display: none;
   }
   
@@ -193,7 +271,8 @@ body {
   .file-info-right .sort-btn,
   .file-info-right .font-size-btn,
   .file-info-right .refresh-btn,
-  .file-info-right .refresh-includes-btn {
+  .file-info-right .refresh-includes-btn,
+  .file-info-right .layout-presets-btn {
     min-width: 28px;
     padding: 4px;
     gap: 0;
@@ -211,7 +290,8 @@ body {
   .file-info-right .sort-btn,
   .file-info-right .font-size-btn,
   .file-info-right .refresh-btn,
-  .file-info-right .refresh-includes-btn {
+  .file-info-right .refresh-includes-btn,
+  .file-info-right .layout-presets-btn {
     min-width: 24px;
     padding: 2px;
   }
@@ -227,15 +307,17 @@ body {
   .global-fold-text,
   .sort-text,
   .font-size-text,
-  .refresh-text {
+  .refresh-text,
+  .layout-presets-text {
     display: none;
   }
-  
+
   .file-info-right .global-fold-btn,
   .file-info-right .sort-btn,
   .file-info-right .font-size-btn,
   .file-info-right .refresh-btn,
-  .file-info-right .refresh-includes-btn {
+  .file-info-right .refresh-includes-btn,
+  .file-info-right .layout-presets-btn {
     min-width: 28px;
     padding: 4px;
     gap: 0;

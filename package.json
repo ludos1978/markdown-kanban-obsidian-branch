@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.11.17",
+  "version": "0.11.18",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -1844,6 +1844,75 @@
             "Half screen width (48.5%)",
             "Full screen width (98%)"
           ]
+        },
+        "markdown-kanban.layoutPreset": {
+          "type": "string",
+          "default": "normal",
+          "description": "The currently selected layout preset"
+        },
+        "markdown-kanban.layoutPresets": {
+          "type": "object",
+          "default": {},
+          "description": "Custom layout presets configuration. Each preset should contain a 'label', 'description', and 'settings' object with layout options.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Display name for the preset"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of what this preset does"
+              },
+              "settings": {
+                "type": "object",
+                "description": "Layout settings to apply",
+                "properties": {
+                  "columnWidth": {
+                    "type": "string",
+                    "description": "Column width setting"
+                  },
+                  "cardHeight": {
+                    "type": "string",
+                    "description": "Card height setting"
+                  },
+                  "fontSize": {
+                    "type": "string",
+                    "description": "Font size setting"
+                  },
+                  "fontFamily": {
+                    "type": "string",
+                    "description": "Font family setting"
+                  },
+                  "layoutRows": {
+                    "type": "number",
+                    "description": "Number of layout rows"
+                  },
+                  "rowHeight": {
+                    "type": "string",
+                    "description": "Row height setting"
+                  },
+                  "stickyHeaders": {
+                    "type": "string",
+                    "description": "Sticky headers setting"
+                  },
+                  "tagVisibility": {
+                    "type": "string",
+                    "description": "Tag visibility setting"
+                  },
+                  "imageFill": {
+                    "type": "string",
+                    "description": "Image fill setting"
+                  },
+                  "whitespace": {
+                    "type": "string",
+                    "description": "Whitespace setting"
+                  }
+                }
+              }
+            }
+          }
         },
         "markdown-kanban.layoutRows": {
           "type": "number",

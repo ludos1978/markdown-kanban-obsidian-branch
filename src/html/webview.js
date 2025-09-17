@@ -174,6 +174,9 @@ const menuConfig = {
     ]
 };
 
+// Layout Presets Configuration (will be loaded from backend)
+let layoutPresets = {};
+
 // Function to get current setting value for menu indicators
 function getCurrentSettingValue(configKey) {
     switch (configKey) {
@@ -2240,6 +2243,21 @@ window.addEventListener('message', event => {
                     applyFontSize('1x'); // Default fallback
                 }
 
+                // Update layout presets from configuration
+                if (message.layoutPresets) {
+                    layoutPresets = message.layoutPresets;
+                    initializeLayoutPresetsMenu(); // Reinitialize menu with new presets
+                }
+
+                // Update layout preset from configuration
+                if (message.layoutPreset) {
+                    window.currentLayoutPreset = message.layoutPreset;
+                    updateLayoutPresetsActiveState();
+                } else {
+                    window.currentLayoutPreset = 'normal'; // Default fallback
+                    updateLayoutPresetsActiveState();
+                }
+
                 // Update font family with the value from configuration
                 if (message.fontFamily) {
                     applyFontFamily(message.fontFamily);
@@ -3459,4 +3477,161 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // Initialize layout presets menu
+    initializeLayoutPresetsMenu();
 });
+
+/**
+ * Initialize the layout presets menu by populating it with preset options
+ */
+function initializeLayoutPresetsMenu() {
+    const dropdown = document.getElementById('layout-presets-dropdown');
+    if (!dropdown) return;
+
+    // Clear existing content
+    dropdown.innerHTML = '';
+
+    // Add preset items
+    Object.entries(layoutPresets).forEach(([presetKey, preset]) => {
+        const item = document.createElement('button');
+        item.className = 'layout-preset-item';
+        item.setAttribute('data-preset', presetKey);
+        item.onclick = () => applyLayoutPreset(presetKey);
+
+        const label = document.createElement('div');
+        label.className = 'layout-preset-label';
+        label.textContent = preset.label;
+
+        const description = document.createElement('div');
+        description.className = 'layout-preset-description';
+        description.textContent = preset.description;
+
+        item.appendChild(label);
+        item.appendChild(description);
+        dropdown.appendChild(item);
+    });
+
+    // Update active state
+    updateLayoutPresetsActiveState();
+}
+
+/**
+ * Toggle the layout presets dropdown menu
+ */
+function toggleLayoutPresetsMenu() {
+    const dropdown = document.getElementById('layout-presets-dropdown');
+    const button = document.getElementById('layout-presets-btn');
+
+    if (!dropdown || !button) return;
+
+    const isVisible = dropdown.classList.contains('show');
+
+    // Close all other menus first
+    closeAllMenus();
+
+    if (!isVisible) {
+        dropdown.classList.add('show');
+        button.classList.add('active');
+        updateLayoutPresetsActiveState();
+
+        // Close menu when clicking outside
+        setTimeout(() => {
+            document.addEventListener('click', function closeOnOutsideClick(e) {
+                if (!dropdown.contains(e.target) && !button.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                    button.classList.remove('active');
+                    document.removeEventListener('click', closeOnOutsideClick);
+                }
+            });
+        }, 0);
+    }
+}
+
+/**
+ * Apply a layout preset by setting all its configured options
+ * @param {string} presetKey - The key of the preset to apply
+ */
+function applyLayoutPreset(presetKey) {
+    const preset = layoutPresets[presetKey];
+    if (!preset) return;
+
+    // Apply each setting in the preset
+    Object.entries(preset.settings).forEach(([settingKey, value]) => {
+        switch (settingKey) {
+            case 'columnWidth':
+                setColumnWidth(value);
+                break;
+            case 'cardHeight':
+                setTaskMinHeight(value);
+                break;
+            case 'fontSize':
+                setFontSize(value);
+                break;
+            case 'fontFamily':
+                setFontFamily(value);
+                break;
+            case 'layoutRows':
+                setLayoutRows(value);
+                break;
+            case 'rowHeight':
+                setRowHeight(value);
+                break;
+            case 'stickyHeaders':
+                setStickyHeaders(value);
+                break;
+            case 'tagVisibility':
+                setTagVisibility(value);
+                break;
+            case 'imageFill':
+                setImageFill(value);
+                break;
+            case 'whitespace':
+                setWhitespace(value);
+                break;
+        }
+    });
+
+    // Store the current preset for backend config
+    window.currentLayoutPreset = presetKey;
+
+    // Send to backend
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'layoutPreset',
+        value: presetKey
+    });
+
+    // Close the menu
+    const dropdown = document.getElementById('layout-presets-dropdown');
+    const button = document.getElementById('layout-presets-btn');
+    if (dropdown && button) {
+        dropdown.classList.remove('show');
+        button.classList.remove('active');
+    }
+
+    // Update all menu indicators
+    updateAllMenuIndicators();
+    updateLayoutPresetsActiveState();
+}
+
+/**
+ * Update the active state indicators in the layout presets menu
+ */
+function updateLayoutPresetsActiveState() {
+    const currentPreset = window.currentLayoutPreset || 'normal';
+
+    // Update dropdown items
+    const items = document.querySelectorAll('.layout-preset-item');
+    items.forEach(item => {
+        const presetKey = item.getAttribute('data-preset');
+        item.classList.toggle('active', presetKey === currentPreset);
+    });
+
+    // Update button text to show current preset
+    const button = document.getElementById('layout-presets-btn');
+    const textSpan = button?.querySelector('.layout-presets-text');
+    if (textSpan && layoutPresets[currentPreset]) {
+        textSpan.textContent = layoutPresets[currentPreset].label;
+    }
+}

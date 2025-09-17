@@ -71,6 +71,8 @@ export class KanbanWebviewPanel {
                     whitespace: this._getWhitespaceConfiguration(),
                     layoutRows: this._getLayoutRowsConfiguration(),
                     rowHeight: this._getRowHeightConfiguration(),
+                    layoutPreset: this._getLayoutPresetConfiguration(),
+                    layoutPresets: this._getLayoutPresetsConfiguration(),
                     showRowTags: this._getShowRowTagsConfiguration(),
                     maxRowHeight: this._getMaxRowHeightConfiguration(),
                     tagColors: await this._getTagConfiguration()
@@ -442,6 +444,69 @@ export class KanbanWebviewPanel {
         return rowHeight;
     }
 
+    private async _getLayoutPresetConfiguration(): Promise<string> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const layoutPreset = config.get<string>('layoutPreset', 'normal');
+        return layoutPreset;
+    }
+
+    private async _getLayoutPresetsConfiguration(): Promise<any> {
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const userPresets = config.get<any>('layoutPresets', {});
+
+        // Default presets as fallback
+        const defaultPresets = {
+            overview: {
+                label: "Overview",
+                description: "Compact view for seeing many cards",
+                settings: {
+                    columnWidth: "250px",
+                    cardHeight: "auto",
+                    fontSize: "0_5x",
+                    whitespace: "4px",
+                    tagVisibility: "allexcludinglayout"
+                }
+            },
+            normal: {
+                label: "Normal",
+                description: "Default balanced view",
+                settings: {
+                    columnWidth: "350px",
+                    cardHeight: "auto",
+                    fontSize: "1x",
+                    whitespace: "8px",
+                    tagVisibility: "allexcludinglayout"
+                }
+            },
+            grid3x3: {
+                label: "3x3 Grid",
+                description: "Grid layout for organized viewing",
+                settings: {
+                    columnWidth: "33percent",
+                    cardHeight: "33percent",
+                    fontSize: "2x",
+                    layoutRows: 3,
+                    whitespace: "12px"
+                }
+            },
+            presentation: {
+                label: "Presentation",
+                description: "Full screen view for presentations",
+                settings: {
+                    columnWidth: "100percent",
+                    cardHeight: "100percent",
+                    fontSize: "3x",
+                    stickyHeaders: "disabled",
+                    tagVisibility: "none",
+                    whitespace: "16px"
+                }
+            }
+        };
+
+        // Merge user presets with defaults (user presets override defaults)
+        return { ...defaultPresets, ...userPresets };
+    }
+
     private async _getMaxRowHeightConfiguration(): Promise<number> {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
         const maxRowHeight = config.get<number>('maxRowHeight', 0);
@@ -802,7 +867,11 @@ export class KanbanWebviewPanel {
         const layoutRows = await this._getLayoutRowsConfiguration();
         
         const rowHeight = await this._getRowHeightConfiguration();
-        
+
+        const layoutPreset = await this._getLayoutPresetConfiguration();
+
+        const layoutPresets = await this._getLayoutPresetsConfiguration();
+
         const showRowTags = await this._getShowRowTagsConfiguration();
         
         const maxRowHeight = await this._getMaxRowHeightConfiguration();
@@ -820,6 +889,8 @@ export class KanbanWebviewPanel {
                 columnWidth: columnWidth,
                 layoutRows: layoutRows,
                 rowHeight: rowHeight,
+                layoutPreset: layoutPreset,
+                layoutPresets: layoutPresets,
                 showRowTags: showRowTags,
                 maxRowHeight: maxRowHeight,
                 applyDefaultFolding: applyDefaultFolding,
