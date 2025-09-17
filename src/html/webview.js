@@ -2308,22 +2308,42 @@ window.addEventListener('message', event => {
             window.pendingFocusTargets = message.focusTargets;
             break;
         case 'includeFilesChanged':
-            // Show/hide the refresh includes button based on whether files have changed
+            // Update the refresh includes button to show status
             const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
-            if (refreshIncludesBtn) {
-                refreshIncludesBtn.style.display = message.hasChanges ? 'flex' : 'none';
+            const countSpan = refreshIncludesBtn?.querySelector('.refresh-includes-count');
+            const iconSpan = refreshIncludesBtn?.querySelector('.refresh-includes-icon');
 
-                // Update tooltip to show which files changed
-                if (message.hasChanges && message.changedFiles && message.changedFiles.length > 0) {
-                    const fileNames = message.changedFiles.map(path => {
-                        // Extract just the filename from the full path
-                        return path.split(/[/\\]/).pop() || path;
-                    });
-                    const tooltip = `Files changed: ${fileNames.join(', ')}`;
-                    refreshIncludesBtn.title = tooltip;
+            if (refreshIncludesBtn) {
+                // Button is always visible, just update its state
+                if (message.hasChanges) {
+                    refreshIncludesBtn.classList.add('has-changes');
+                    if (iconSpan) iconSpan.textContent = '❗';
                 } else {
-                    refreshIncludesBtn.title = "Refresh included files (files have changed)";
+                    refreshIncludesBtn.classList.remove('has-changes');
+                    if (iconSpan) iconSpan.textContent = '✓';
                 }
+
+                // Update badge count
+                if (countSpan && message.changedFiles) {
+                    const changeCount = message.changedFiles.length;
+                    countSpan.textContent = changeCount > 0 ? changeCount.toString() : '';
+                }
+
+                // Update tooltip to show which files are tracked and which changed
+                let tooltip = '';
+                if (message.trackedFiles && message.trackedFiles.length > 0) {
+                    tooltip = `Tracked files (${message.trackedFiles.length}):\n`;
+                    tooltip += message.trackedFiles.map(f => `  • ${f}`).join('\n');
+
+                    if (message.hasChanges && message.changedFiles && message.changedFiles.length > 0) {
+                        tooltip += '\n\nChanged files:\n';
+                        tooltip += message.changedFiles.map(f => `  ⚠ ${f}`).join('\n');
+                    }
+                } else {
+                    tooltip = 'No included files tracked';
+                }
+
+                refreshIncludesBtn.title = tooltip;
             }
             break;
         case 'includeFileContent':

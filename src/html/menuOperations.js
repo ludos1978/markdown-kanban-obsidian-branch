@@ -2187,11 +2187,11 @@ function manualRefresh() {
 
 // Refresh includes function
 function refreshIncludes() {
-
-    // Hide the refresh includes button
+    // Update button to show it's refreshing
     const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
-    if (refreshIncludesBtn) {
-        refreshIncludesBtn.style.display = 'none';
+    const iconSpan = refreshIncludesBtn?.querySelector('.refresh-includes-icon');
+    if (iconSpan) {
+        iconSpan.textContent = '🔄'; // Spinning/refresh icon
     }
 
     // Send message to backend to refresh includes

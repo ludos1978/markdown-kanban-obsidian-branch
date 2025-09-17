@@ -4,6 +4,8 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] if "save as backup and load external" or "discard kanban changes and reload" then included file change tracking doesnt work anymore. add what files are being tracked as hover element to the include file tracking button. show the button all the time. the button should not disappear if i press it now, if no include change is active show a checkmark, if there is changes show an exclamation mark. the values of files being tracked must be delivered and updated by the file tracking part. if the button is pressed and no changes are present, it must refresh what files are tracked, if there are changes in includes, refresh the included parts in the document. WHAT HAPPENS WHEN DATA IS REALODED FROM
+  NEW DATA= BECAUSE INCLUDE TRACKING BREAKS FROM THAT POINT ON AND NEVER WORKS ANYMORE UNTIL I CLOSE THE KANBAN AND REOPEN!
 - [ ] The clipboard should be read when focussing the kanban board, or when meta+c / ctrl+c is pressed. it should not be required to press the button to reload it.
 - [ ] saving the outside file, ignoring the change in the dialogue, and saving it again does not trigger the "file has been modified externally" again.
 - [ ]  it's still not working properly, make sure that all ways of handling the file (loading after an external changes, saving and continuing with the file) all continue or restart tracking the included files.

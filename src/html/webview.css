@@ -138,19 +138,44 @@ body {
 }
 
 .refresh-includes-btn {
-  background: var(--vscode-inputValidation-errorBackground);
-  color: var(--vscode-inputValidation-errorForeground);
-  border-color: var(--vscode-inputValidation-errorBorder);
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border-color: var(--vscode-button-border);
+  opacity: 0.7;
+  position: relative;
 }
 
-/* Refresh includes button - icon only, error colors (red) */
-.refresh-includes-btn .refresh-includes-text {
-  display: none; /* Hide text, show only icon */
+.refresh-includes-btn.has-changes {
+  background: var(--vscode-inputValidation-warningBackground);
+  color: var(--vscode-inputValidation-warningForeground);
+  border-color: var(--vscode-inputValidation-warningBorder);
+  opacity: 1;
 }
 
 .refresh-includes-btn .refresh-includes-icon {
-  font-size: 16px;
-  color: #ff4444; /* Force red color for the exclamation mark */
+  font-size: 14px;
+}
+
+.refresh-includes-btn .refresh-includes-count {
+  font-size: 10px;
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  padding: 1px 4px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+  display: none;
+}
+
+.refresh-includes-btn.has-changes .refresh-includes-icon {
+  color: var(--vscode-inputValidation-warningForeground);
+}
+
+.refresh-includes-btn.has-changes .refresh-includes-count {
+  display: inline-block;
 }
 
 /* Responsive file info header - collapse to icons when space is limited */
