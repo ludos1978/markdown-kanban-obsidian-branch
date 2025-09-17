@@ -28,7 +28,8 @@
       "Bash(find:*)",
       "Bash(sed:*)",
       "Read(///**)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git branch:*)"
     ],
     "deny": [],
     "ask": []
