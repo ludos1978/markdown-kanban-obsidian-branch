@@ -407,7 +407,7 @@ class TaskEditor {
 
                         // Check for new span tag (only blocked by viewport-based widths, not pixel widths)
                         const spanMatch = column.title.match(/#span(\d+)\b/i);
-                        const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '66' || window.currentColumnWidth === '100');
+                        const hasViewportWidth = window.currentColumnWidth && (window.currentColumnWidth === '50percent' || window.currentColumnWidth === '100percent');
                         if (spanMatch && !hasViewportWidth) {
                             const spanCount = parseInt(spanMatch[1]);
                             if (spanCount >= 2 && spanCount <= 4) {

@@ -402,7 +402,7 @@ export class KanbanWebviewPanel {
 
     private async _getWhitespaceConfiguration(): Promise<string> {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const whitespace = config.get<string>('whitespace', '4px');
+        const whitespace = config.get<string>('whitespace', '8px');
         return whitespace;
     }
 
@@ -426,7 +426,7 @@ export class KanbanWebviewPanel {
 
     private async _getColumnWidthConfiguration(): Promise<string> {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const columnWidth = config.get<string>('columnWidth', 'medium');
+        const columnWidth = config.get<string>('columnWidth', '350px');
         return columnWidth;
     }
 

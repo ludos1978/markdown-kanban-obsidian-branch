@@ -31,8 +31,8 @@ let documentFoldingStates = new Map(); // Map<documentUri, {collapsedColumns: Se
 let currentDocumentUri = null;
 
 // Layout preferences
-let currentColumnWidth = 'medium';
-let currentWhitespace = '4px';
+let currentColumnWidth = '350px';
+let currentWhitespace = '8px';
 let currentTaskMinHeight = 'auto';
 let currentLayoutRows = 1;
 
@@ -85,34 +85,33 @@ function injectFontSizeCSS() {
 
 const menuConfig = {
     columnWidth: [
-        { label: "Small (250px)", value: "small", description: "250px" },
-        { label: "Medium (350px)", value: "medium", description: "350px" },
-        { label: "Wide (450px)", value: "wide", description: "450px" },
+        { label: "Small (250px)", value: "250px", description: "250px" },
+        { label: "Medium (350px)", value: "350px", description: "350px" },
+        { label: "Wide (450px)", value: "450px", description: "450px" },
         { separator: true },
-        { label: "Third Screen (30.5%)", value: "40", description: "30.5%" },
-        { label: "Half Screen (48.5%)", value: "66", description: "48.5%" },
-        { label: "Full Width (98%)", value: "100", description: "98%" }
+        { label: "1/3 Screen (33%)", value: "33percent", description: "33%" },
+        { label: "1/2 Screen (50%)", value: "50percent", description: "50%" },
+        { label: "Full Width (100%)", value: "100percent", description: "100%" }
     ],
     cardHeight: [
         { label: "Auto Height", value: "auto" },
         { separator: true },
-        { label: "200px", value: "200px" },
-        { label: "400px", value: "400px" },
+        { label: "Small (200px)", value: "200px" },
+        { label: "Medium (400px)", value: "400px" },
+        { label: "Large (600px)", value: "600px" },
         { separator: true },
-        { label: "1/3 Screen (26.5vh)", value: "26.5vh" },
-        { label: "1/2 Screen (43.5vh)", value: "43.5vh" },
-        { label: "Full Screen (89vh)", value: "89vh" }
+        { label: "1/3 Screen (26.5%)", value: "33percent" },
+        { label: "1/2 Screen (43.5%)", value: "50percent" },
+        { label: "Full Screen (89%)", value: "100percent" }
     ],
     whitespace: [
-        { label: "Compact (2px)", value: "2px" },
-        { label: "Default (4px)", value: "4px" },
-        { label: "Comfortable (8px)", value: "8px" },
-        { label: "Spacious (12px)", value: "12px" },
-        { separator: true },
-        { label: "10px", value: "10px" },
-        { label: "20px", value: "20px" },
-        { label: "40px", value: "40px" },
-        { label: "60px", value: "60px" }
+        { label: "Compact (4px)", value: "4px" },
+        { label: "Default (8px)", value: "8px" },
+        { label: "Comfortable (12px)", value: "12px" },
+        { label: "Spacious (16px)", value: "16px" },
+        { label: "Large (24px)", value: "24px" },
+        { label: "Extra Large (36px)", value: "36px" },
+        { label: "Maximum (48px)", value: "48px" }
     ],
     fontSize: fontSizeMultipliers.map((multiplier, index) => ({
         label: `${multiplier}x`,
@@ -147,16 +146,16 @@ const menuConfig = {
         { label: "6 Rows", value: 6 }
     ],
     rowHeight: [
-        { label: "100% Screen", value: "95vh" },
-        { label: "2/3 Screen", value: "63vh" },
-        { label: "1/2 Screen", value: "48vh" },
-        { label: "1/3 Screen", value: "31.5vh" },
+        { label: "Auto Height", value: "auto" },
         { separator: true },
-        { label: "700px (~47em)", value: "44em" },
-        { label: "500px (~31em)", value: "31em" },
-        { label: "300px (~19em)", value: "19em" },
+        { label: "Small (300px)", value: "300px" },
+        { label: "Medium (500px)", value: "500px" },
+        { label: "Large (700px)", value: "700px" },
         { separator: true },
-        { label: "Auto Height", value: "auto" }
+        { label: "1/3 Screen (31.5%)", value: "33percent" },
+        { label: "1/2 Screen (48%)", value: "50percent" },
+        { label: "2/3 Screen (63%)", value: "67percent" },
+        { label: "Full Screen (95%)", value: "100percent" }
     ],
     stickyHeaders: [
         { label: "Enabled", value: "enabled", description: "Headers stick to top when scrolling" },
@@ -164,9 +163,9 @@ const menuConfig = {
     ],
     tagVisibility: [
         { label: "All Tags", value: "all", description: "Show all tags including #span, #row, and @ tags" },
-        { label: "Standard Tags", value: "standard", description: "Show all except #span and #row (includes @ tags)" },
-        { label: "Custom Tags Only", value: "custom", description: "Show only custom tags (not configured ones) and @ tags" },
-        { label: "@ Tags Only", value: "mentions", description: "Show only @ tags" },
+        { label: "All Excluding Layout", value: "allexcludinglayout", description: "Show all except #span and #row (includes @ tags)" },
+        { label: "Custom Tags Only", value: "customonly", description: "Show only custom tags (not configured ones) and @ tags" },
+        { label: "@ Tags Only", value: "mentionsonly", description: "Show only @ tags" },
         { label: "No Tags", value: "none", description: "Hide all tags" }
     ],
     imageFill: [
@@ -179,11 +178,11 @@ const menuConfig = {
 function getCurrentSettingValue(configKey) {
     switch (configKey) {
         case 'columnWidth':
-            return window.currentColumnWidth || 'medium';
+            return window.currentColumnWidth || '350px';
         case 'cardHeight':
             return window.currentTaskMinHeight || 'auto';
         case 'whitespace':
-            return window.currentWhitespace || '4px';
+            return window.currentWhitespace || '8px';
         case 'fontSize':
             return window.currentFontSize || '1x';
         case 'fontFamily':
@@ -195,7 +194,7 @@ function getCurrentSettingValue(configKey) {
         case 'stickyHeaders':
             return window.currentStickyHeaders || 'enabled';
         case 'tagVisibility':
-            return window.currentTagVisibility || 'standard';
+            return window.currentTagVisibility || 'allexcludinglayout';
         case 'imageFill':
             return window.currentImageFill || 'fit';
         default:
@@ -1108,15 +1107,15 @@ function applyColumnWidth(size, skipRender = false) {
     // Remove all existing column width classes
     const columns = document.querySelectorAll('.kanban-full-height-column');
     columns.forEach(column => {
-        column.classList.remove('column-width-40', 'column-width-66', 'column-width-100');
+        column.classList.remove('column-width-33percent', 'column-width-50percent', 'column-width-100percent');
         // Only remove span classes for viewport-based widths (40%, 66%, 100%), not pixel widths
-        if (size === '40' || size === '66' || size === '100') {
+        if (size === '33percent' || size === '50percent' || size === '100percent') {
             column.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
         }
     });
 
     // Handle pixel-based and percentage-based widths differently
-    if (size === '40' || size === '66' || size === '100') {
+    if (size === '33percent' || size === '50percent' || size === '100percent') {
         // For percentage widths, add CSS classes
         columns.forEach(column => {
             column.classList.add(`column-width-${size}`);
@@ -1125,18 +1124,8 @@ function applyColumnWidth(size, skipRender = false) {
         document.documentElement.style.setProperty('--column-width', '350px');
     } else {
         // For pixel widths, use CSS custom properties
-        let width = '350px'; // default medium
-        switch(size) {
-            case 'small':
-                width = '250px';
-                break;
-            case 'medium':
-                width = '350px';
-                break;
-            case 'wide':
-                width = '450px';
-                break;
-        }
+        // For pixel widths, use CSS custom properties directly
+        const width = size; // Now size is already in correct format like '250px', '350px', etc.
         document.documentElement.style.setProperty('--column-width', width);
 
         // For pixel widths, re-apply span classes if they exist
@@ -1216,12 +1205,24 @@ let currentRowHeight = 'auto';
 
 // Function to apply row height to existing rows
 function applyRowHeight(height) {
+    // Convert percent values to vh for CSS
+    let cssHeight = height;
+    if (height === '33percent') {
+        cssHeight = '31.5vh';
+    } else if (height === '50percent') {
+        cssHeight = '48vh';
+    } else if (height === '67percent') {
+        cssHeight = '63vh';
+    } else if (height === '100percent') {
+        cssHeight = '95vh';
+    }
+
     const rows = document.querySelectorAll('.kanban-row');
     const boardElement = document.getElementById('kanban-board');
     const isMultiRow = boardElement && boardElement.classList.contains('multi-row');
-    
+
     rows.forEach((row, index) => {
-        if (height === 'auto') {
+        if (cssHeight === 'auto') {
             // Auto height - no constraints
             row.style.height = 'auto';
             row.style.minHeight = 'auto';
@@ -1236,9 +1237,9 @@ function applyRowHeight(height) {
             });
         } else {
             // Fixed height - constrain row height but no row scrollbars
-            row.style.height = height;
-            row.style.minHeight = height;
-            row.style.maxHeight = height;
+            row.style.height = cssHeight;
+            row.style.minHeight = cssHeight;
+            row.style.maxHeight = cssHeight;
             row.style.overflowY = 'hidden';  // No row scrollbars
             row.style.overflowX = 'visible';  // No horizontal scrollbar on row
             
@@ -1399,7 +1400,7 @@ function applyTagVisibility(setting) {
     window.currentTagVisibility = setting;
 
     // Remove all tag visibility classes
-    document.body.classList.remove('tag-visibility-all', 'tag-visibility-standard', 'tag-visibility-custom', 'tag-visibility-mentions', 'tag-visibility-none');
+    document.body.classList.remove('tag-visibility-all', 'tag-visibility-allexcludinglayout', 'tag-visibility-customonly', 'tag-visibility-mentionsonly', 'tag-visibility-none');
 
     // Add the selected tag visibility class
     document.body.classList.add(`tag-visibility-${setting}`);
@@ -2191,14 +2192,36 @@ window.addEventListener('message', event => {
                 window.currentColumnWidth = currentColumnWidth;
                 // Update whitespace with the value from configuration
                 if (message.whitespace) {
-                    applyWhitespace(message.whitespace);
+                    // Handle legacy whitespace values
+                    let whitespace = message.whitespace;
+                    if (whitespace === '2px') {
+                        whitespace = '4px'; // Convert old compact to new compact
+                    } else if (whitespace === '10px') {
+                        whitespace = '12px'; // Convert old 10px to comfortable
+                    } else if (whitespace === '20px') {
+                        whitespace = '24px'; // Convert old 20px to large
+                    } else if (whitespace === '40px') {
+                        whitespace = '36px'; // Convert old 40px to extra large
+                    } else if (whitespace === '60px') {
+                        whitespace = '48px'; // Convert old 60px to maximum
+                    }
+                    applyWhitespace(whitespace);
                 } else {
-                    applyWhitespace('4px'); // Default fallback
+                    applyWhitespace('8px'); // Default fallback
                 }
 
                 // Update task min height with the value from configuration
                 if (message.taskMinHeight) {
-                    applyTaskMinHeight(message.taskMinHeight);
+                    // Handle legacy card height values
+                    let taskMinHeight = message.taskMinHeight;
+                    if (taskMinHeight === '26.5vh') {
+                        taskMinHeight = '33percent';
+                    } else if (taskMinHeight === '43.5vh') {
+                        taskMinHeight = '50percent';
+                    } else if (taskMinHeight === '89vh') {
+                        taskMinHeight = '100percent';
+                    }
+                    applyTaskMinHeight(taskMinHeight);
                 } else {
                     applyTaskMinHeight('auto'); // Default fallback
                 }
@@ -2226,9 +2249,24 @@ window.addEventListener('message', event => {
 
                 // Update column width with the value from configuration
                 if (message.columnWidth) {
-                    applyColumnWidth(message.columnWidth);
+                    // Handle legacy column width values
+                    let columnWidth = message.columnWidth;
+                    if (columnWidth === 'small') {
+                        columnWidth = '250px';
+                    } else if (columnWidth === 'medium') {
+                        columnWidth = '350px';
+                    } else if (columnWidth === 'wide') {
+                        columnWidth = '450px';
+                    } else if (columnWidth === '40') {
+                        columnWidth = '33percent';
+                    } else if (columnWidth === '66') {
+                        columnWidth = '50percent';
+                    } else if (columnWidth === '100') {
+                        columnWidth = '100percent';
+                    }
+                    applyColumnWidth(columnWidth);
                 } else {
-                    applyColumnWidth('medium'); // Default fallback
+                    applyColumnWidth('350px'); // Default fallback
                 }
             }
             
@@ -2238,7 +2276,24 @@ window.addEventListener('message', event => {
             if (isInitialLoad) {
                 // Update row height with the value from configuration
                 if (message.rowHeight) {
-                    applyRowHeightSetting(message.rowHeight);
+                    // Handle legacy row height values
+                    let rowHeight = message.rowHeight;
+                    if (rowHeight === '19em') {
+                        rowHeight = '300px';
+                    } else if (rowHeight === '31em') {
+                        rowHeight = '500px';
+                    } else if (rowHeight === '44em') {
+                        rowHeight = '700px';
+                    } else if (rowHeight === '31.5vh') {
+                        rowHeight = '33percent';
+                    } else if (rowHeight === '48vh') {
+                        rowHeight = '50percent';
+                    } else if (rowHeight === '63vh') {
+                        rowHeight = '67percent';
+                    } else if (rowHeight === '95vh') {
+                        rowHeight = '100percent';
+                    }
+                    applyRowHeightSetting(rowHeight);
                 } else {
                     applyRowHeightSetting('auto'); // Default fallback
                 }
@@ -2252,9 +2307,18 @@ window.addEventListener('message', event => {
 
                 // Update tag visibility with the value from configuration
                 if (message.tagVisibility) {
-                    applyTagVisibility(message.tagVisibility);
+                    // Handle legacy tag visibility values
+                    let tagVisibility = message.tagVisibility;
+                    if (tagVisibility === 'standard') {
+                        tagVisibility = 'allexcludinglayout';
+                    } else if (tagVisibility === 'custom') {
+                        tagVisibility = 'customonly';
+                    } else if (tagVisibility === 'mentions') {
+                        tagVisibility = 'mentionsonly';
+                    }
+                    applyTagVisibility(tagVisibility);
                 } else {
-                    applyTagVisibility('standard'); // Default fallback
+                    applyTagVisibility('allexcludinglayout'); // Default fallback
                 }
 
                 // Update image fill with the value from configuration
@@ -3172,7 +3236,17 @@ function updateTaskMinHeight(value) {
         value = 'auto';
     }
 
-    document.documentElement.style.setProperty('--task-height', value);
+    // Convert percent values to vh for CSS
+    let cssValue = value;
+    if (value === '33percent') {
+        cssValue = '26.5vh';
+    } else if (value === '50percent') {
+        cssValue = '43.5vh';
+    } else if (value === '100percent') {
+        cssValue = '89vh';
+    }
+
+    document.documentElement.style.setProperty('--task-height', cssValue);
 
     // Apply height limitation when value is not 'auto'
     if (value !== 'auto') {
@@ -3182,7 +3256,7 @@ function updateTaskMinHeight(value) {
     }
 
     // Add/remove class for tall task heights that interfere with sticky headers
-    const isTallHeight = value === '43.5vh' || value === '89vh' ||
+    const isTallHeight = value === '50percent' || value === '100percent' ||
                          (value.includes('px') && parseInt(value) >= 400);
 
     if (isTallHeight) {

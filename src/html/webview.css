@@ -3196,18 +3196,18 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 }
 
 /* Column Width Classes */
-.kanban-full-height-column.column-width-40 {
+.kanban-full-height-column.column-width-33percent {
   width: 30.5vw !important;
-  /* --task-title-width: calc(30.5vw - 100px); Adjust task title width for 40% column */
+  /* --task-title-width: calc(30.5vw - 100px); Adjust task title width for 1/3 column */
 }
 
-.kanban-full-height-column.column-width-66 {
-  width: 48.5vw !important;
-  /* --task-title-width: calc(48.5vw - 100px); Adjust task title width for wider column */
+.kanban-full-height-column.column-width-50percent {
+  width: 46.0vw !important;
+  /* --task-title-width: calc(48.5vw - 100px); Adjust task title width for 1/2 column */
 }
 
-.kanban-full-height-column.column-width-100 {
-  width: 98vw !important;
+.kanban-full-height-column.column-width-100percent {
+  width: 96vw !important;
   /* --task-title-width: calc(98vw - 100px); Adjust task title width for full width column */
 }
 
@@ -3577,20 +3577,20 @@ s {
 
 /* Tag Visibility Controls */
 /* Standard Tags: Hide #span and #row tags only */
-.tag-visibility-standard .kanban-tag[data-tag^="span"],
-.tag-visibility-standard .kanban-tag[data-tag^="row"] {
+.tag-visibility-allexcludinglayout .kanban-tag[data-tag^="span"],
+.tag-visibility-allexcludinglayout .kanban-tag[data-tag^="row"] {
     display: none !important;
 }
 
 /* Custom Tags Only: Hide #span, #row, and all configured tags (but show @ tags) */
-.tag-visibility-custom .kanban-tag[data-tag^="span"],
-.tag-visibility-custom .kanban-tag[data-tag^="row"],
-.tag-visibility-custom .kanban-tag:not([data-tag^="@"]):not(.custom-tag) {
+.tag-visibility-customonly .kanban-tag[data-tag^="span"],
+.tag-visibility-customonly .kanban-tag[data-tag^="row"],
+.tag-visibility-customonly .kanban-tag:not([data-tag^="@"]):not(.custom-tag) {
     display: none !important;
 }
 
 /* @ Tags Only: Hide all tags except @ tags */
-.tag-visibility-mentions .kanban-tag:not([data-tag^="@"]) {
+.tag-visibility-mentionsonly .kanban-tag:not([data-tag^="@"]) {
     display: none !important;
 }
 
