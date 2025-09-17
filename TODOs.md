@@ -5,11 +5,14 @@ kanban-plugin: board
 ## Open Bugs
 
 
-- [ ] Whole column include mode: add an option in the column-burger menu that allows setting to include a file that is put in, instead of the columns content. the included content must be parsed before including. the parser should create a new card from all individual slides (separarted by a ---), if the first text line is a heading it should be put into the card's title, othervise everthing goes into the description of the cards. the column title should be the filename.
+- [ ] Whole column include mode: add an option in the column-burger menu that allows setting to include a file that is put in, instead of the columns content. the included content must be parsed before including. the parser should create a new card from all individual slides (separarted by a ---), if the first text line is a heading it should be put into the card's title, othervise everthing goes into the description of the cards. the column title should be the filename. the text read from the file should be put into the cards of the column. how complex is this to do? maybe the include in the headers is happening to late in the processing. different to the handling of !!!includes(..)!!! within a cards description. this likely must be handled earlier to be able to generate markdown card content from it. also if possible we should be able to save the modificaitons we do back into the origninal formatting, so convert it back to md-presentations and write it into the file. did you check that the include of a file within the header msut be processessed before the parsing/creation of individual cards? so maybe even in the data loading and data saving process. if needed we could use a different !!!column(includefile)!!! which uses diffrerent pasers?
 
+
+- [ ] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).
 - [ ] Add an configuration option: It should define which tags are exported when copying as markdown (in the cards burger menus and the column burger menus). have the same options as when changing the displaying in the kaban board (all tags, standard tags, custom tags, @tags only, no tags). 
 - [ ] i allways need to build before restarting the debugging to see the changes applied. can you modify the configuration that this happens automatically
 - [ ] add the build version to the file info burger menu.
+- [ ] the max height of cards is limited after switching back to auto mode from a height limiting (card-height) mode.
 
 ## Closed Bugs
 - [x] can you make the shortcuts from vscode to add snipplets avaiable within the kanban board? i want to reuse vscodes default keyboard configuration, especially the ones defined for markdown. use all snipplet functionality that is already built into vscode. to not stop editing a field when using shortcuts, we should minimize the way a field edit is ended or aborted.
