@@ -6,7 +6,7 @@
 
 # # b #card
 
-b Text bbb
+b Text
 
 ---
 

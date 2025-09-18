@@ -31,8 +31,8 @@ kanban-plugin: board
   !!!include(include2.md)!!!
 - [ ] ### Header 3
 - [ ] #### Header 4
-- [ ] ##### Header 5
 - [ ] ###### Header 6
+- [ ] ##### Header 5
 
 ## 
 - [ ] xx

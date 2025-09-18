@@ -1997,6 +1997,13 @@ export class KanbanWebviewPanel {
             // Clear unsaved changes flag for this include file
             this._includeFileUnsavedChanges.set(absolutePath, false);
 
+            // Clear from changed files tracking and update visual indicators
+            this._changedIncludeFiles.delete(includeFile);
+            if (this._changedIncludeFiles.size === 0) {
+                this._includeFilesChanged = false;
+            }
+            this._sendIncludeFileChangeNotification();
+
             // Update known content to detect future external changes
             this._knownIncludeFileContents.set(absolutePath, presentationContent);
 
@@ -2300,6 +2307,24 @@ export class KanbanWebviewPanel {
 
                         if (knownContent.trim() !== currentPresentationContent.trim()) {
                             this._includeFileUnsavedChanges.set(absolutePath, true);
+
+                            // Add to changed files tracking and trigger visual indicators
+                            this._includeFilesChanged = true;
+                            this._changedIncludeFiles.add(includeFile);
+                            this._sendIncludeFileChangeNotification();
+                        } else {
+                            // No changes detected, clear unsaved flag if it was set
+                            const wasChanged = this._includeFileUnsavedChanges.get(absolutePath);
+                            if (wasChanged) {
+                                this._includeFileUnsavedChanges.set(absolutePath, false);
+                                this._changedIncludeFiles.delete(includeFile);
+
+                                // Update visual indicators if no more changes
+                                if (this._changedIncludeFiles.size === 0) {
+                                    this._includeFilesChanged = false;
+                                }
+                                this._sendIncludeFileChangeNotification();
+                            }
                         }
                     }
                 }
