@@ -1210,32 +1210,25 @@ function renderBoard() {
                     const columnElement = createColumnElement(column, index);
                     const isStacked = /#stack\b/i.test(column.title);
 
-                    console.log(`[Stacking Debug] Column: "${column.title}", Row: ${columnRow}, Stacked: ${isStacked}, HasLastColumn: ${!!lastColumnElement}`);
-
                     if (isStacked && lastColumnElement) {
-                        console.log(`[Stacking Debug] Creating stack for column: ${column.title}`);
                         // This column should be stacked below the previous one
                         if (!currentStackContainer) {
                             // Create a new stack container and move the previous column into it
                             currentStackContainer = document.createElement('div');
                             currentStackContainer.className = 'kanban-column-stack';
-                            console.log(`[Stacking Debug] Created new stack container`);
 
                             // Replace the previous column with the stack container
                             lastColumnElement.parentNode.replaceChild(currentStackContainer, lastColumnElement);
                             currentStackContainer.appendChild(lastColumnElement);
-                            console.log(`[Stacking Debug] Moved previous column into stack`);
                         }
 
                         // Add the current stacked column to the stack
                         currentStackContainer.appendChild(columnElement);
-                        console.log(`[Stacking Debug] Added stacked column to stack`);
                     } else {
                         // Regular column - add to row and reset stack container
                         rowContainer.appendChild(columnElement);
                         currentStackContainer = null;
                         lastColumnElement = columnElement;
-                        console.log(`[Stacking Debug] Added regular column to row`);
                     }
                 }
             });
@@ -1264,8 +1257,6 @@ function renderBoard() {
         currentBoard.columns.forEach((column, index) => {
             const columnElement = createColumnElement(column, index);
             const isStacked = /#stack\b/i.test(column.title);
-
-            console.log(`[Single Row Stacking] Column: "${column.title}", Stacked: ${isStacked}, HasLastColumn: ${!!lastColumnElement}`);
 
             if (isStacked && lastColumnElement) {
                 // This column should be stacked below the previous one

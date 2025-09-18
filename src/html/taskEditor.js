@@ -453,11 +453,9 @@ class TaskEditor {
     save() {
         if (!this.currentEditor || this.isTransitioning) {return;}
 
-        console.log('[TaskEditor] Starting save process');
         try {
             this.saveCurrentField();
             this.closeEditor();
-            console.log('[TaskEditor] Save completed successfully');
         } catch (error) {
             console.error('[TaskEditor] Error during save:', error);
             // Force close the editor even if save fails
@@ -783,7 +781,6 @@ class TaskEditor {
     closeEditor() {
         if (!this.currentEditor) {return;}
 
-        console.log('[TaskEditor] Closing editor');
         const { element, displayElement, type } = this.currentEditor;
         
         // Clean up event listeners
