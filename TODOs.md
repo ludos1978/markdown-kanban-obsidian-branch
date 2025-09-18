@@ -4,7 +4,7 @@ kanban-plugin: board
 
 ## Open Bugs
 - [ ] The view doesnt properly restore the content when automatically opening. for example when restarting debugging or when restoring a work-view it stays empty and must be manually be reopened.
-- [ ] it must be possible to enter layout and any other tags using the edit field manually, or if available using the interfaces provided. it should likely edit the contents by javascript in the frontend, and refresh without involving the backend at all, except for caching the modified data. when tags are hidden, they should be also hidden in the editor. so after editing they disappear. if something conflicting is added it must overwrite the conflicting tag (new span tags for example). also add a #nospan or #nostack for that to function properly. this has worked before, but doesnt work anymore. no tag (#tags) editing should happen in the backend. move all functionality to the frontend. layout changes should be handled using a text parsing, using the interface (#span{number} tags) should do text parsing and editing. hiding tags also hides them in the editor, in that case the interface should generally be used, but manual entry is allowed and supported.
+- [x] it must be possible to enter layout and any other tags using the edit field manually, or if available using the interfaces provided. it should likely edit the contents by javascript in the frontend, and refresh without involving the backend at all, except for caching the modified data. when tags are hidden, they should be also hidden in the editor. so after editing they disappear. if something conflicting is added it must overwrite the conflicting tag (new span tags for example). also add a #nospan or #nostack for that to function properly. this has worked before, but doesnt work anymore. no tag (#tags) editing should happen in the backend. move all functionality to the frontend. layout changes should be handled using a text parsing, using the interface (#span{number} tags) should do text parsing and editing. hiding tags also hides them in the editor, in that case the interface should generally be used, but manual entry is allowed and supported.
 - [ ] folding a column after a new column has been added might fold the wrong column. are unique id correctly added and everything setup correctly?
 - [ ] add a #stack tag, that makes a column not be moved on a new line, but stay below the column previous to it. it can be saved to the markdown.
 
@@ -13,7 +13,7 @@ kanban-plugin: board
 - [ ] i allways need to build before restarting the debugging to see the changes applied. can you modify the configuration that this happens automatically
 - [ ] add the build version to the file info burger menu.
 - [ ] the max height of cards is limited after switching back to auto mode from a height limiting (card-height) mode.
-- [ ] pressing escape should no more undo the changes of a editing in a field, but should end editing. also tab should no more end editing. shift+enter is ending edi  also. so escape and shift+enter = end editing. dont undo changes if pressing escale. tab works as tab entry.
+- [x] pressing escape should no more undo the changes of a editing in a field, but should end editing. also tab should no more end editing. shift+enter is ending edi  also. so escape and shift+enter = end editing. dont undo changes if pressing escale. tab works as tab entry.
 
 
 
