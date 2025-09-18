@@ -168,6 +168,13 @@ const menuConfig = {
         { label: "@ Tags Only", value: "mentionsonly", description: "Show only @ tags" },
         { label: "No Tags", value: "none", description: "Hide all tags" }
     ],
+    exportTagVisibility: [
+        { label: "All Tags", value: "all", description: "Export all tags including #span, #row, and @ tags" },
+        { label: "All Excluding Layout", value: "allexcludinglayout", description: "Export all except #span and #row (includes @ tags)" },
+        { label: "Custom Tags Only", value: "customonly", description: "Export only custom tags (not configured ones) and @ tags" },
+        { label: "@ Tags Only", value: "mentionsonly", description: "Export only @ tags" },
+        { label: "No Tags", value: "none", description: "Export without any tags" }
+    ],
     imageFill: [
         { label: "Fit Content", value: "fit", description: "Images size to their natural dimensions" },
         { label: "Fill Space", value: "fill", description: "Images fill available space while keeping aspect ratio" }
@@ -198,6 +205,8 @@ function getCurrentSettingValue(configKey) {
             return window.currentStickyHeaders || 'enabled';
         case 'tagVisibility':
             return window.currentTagVisibility || 'allexcludinglayout';
+        case 'exportTagVisibility':
+            return window.currentExportTagVisibility || 'allexcludinglayout';
         case 'imageFill':
             return window.currentImageFill || 'fit';
         default:
@@ -217,6 +226,7 @@ function updateAllMenuIndicators() {
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
         { selector: '[data-menu="stickyHeaders"]', config: 'stickyHeaders', function: 'setStickyHeaders' },
         { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
+        { selector: '[data-menu="exportTagVisibility"]', config: 'exportTagVisibility', function: 'setExportTagVisibility' },
         { selector: '[data-menu="imageFill"]', config: 'imageFill', function: 'setImageFill' }
     ];
 
@@ -1441,6 +1451,58 @@ function setTagVisibility(setting) {
     });
 }
 
+// Export tag visibility functionality
+let currentExportTagVisibility = 'allexcludinglayout'; // Default setting
+
+function setExportTagVisibility(setting) {
+    // Store the export tag visibility setting
+    currentExportTagVisibility = setting;
+    window.currentExportTagVisibility = setting;
+
+    // Store preference
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'exportTagVisibility',
+        value: setting
+    });
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+}
+
+// Helper function to filter tags from text based on export tag visibility setting
+function filterTagsForExport(text) {
+    if (!text) return text;
+
+    const setting = window.currentExportTagVisibility || 'allexcludinglayout';
+
+    switch (setting) {
+        case 'all':
+            // Export all tags - don't filter anything
+            return text;
+        case 'allexcludinglayout':
+            // Export all except #span, #row, and #stack tags
+            return text.replace(/#row\d+\b/gi, '').replace(/#span\d+\b/gi, '').replace(/#stack\b/gi, '').trim();
+        case 'customonly':
+            // Export only custom tags and @ tags (remove standard layout tags)
+            return text.replace(/#row\d+\b/gi, '').replace(/#span\d+\b/gi, '').replace(/#stack\b/gi, '').trim();
+        case 'mentionsonly':
+            // Export only @ tags - remove all # tags
+            return text.replace(/#\w+\b/gi, '').trim();
+        case 'none':
+            // Export no tags - remove all tags
+            return text.replace(/#\w+\b/gi, '').replace(/@\w+\b/gi, '').trim();
+        default:
+            // Default to allexcludinglayout behavior
+            return text.replace(/#row\d+\b/gi, '').replace(/#span\d+\b/gi, '').replace(/#stack\b/gi, '').trim();
+    }
+}
+
 // Image fill functionality
 let currentImageFill = 'fit'; // Default to fit content
 
@@ -2337,6 +2399,15 @@ window.addEventListener('message', event => {
                     applyTagVisibility(tagVisibility);
                 } else {
                     applyTagVisibility('allexcludinglayout'); // Default fallback
+                }
+
+                // Update export tag visibility with the value from configuration
+                if (message.exportTagVisibility) {
+                    currentExportTagVisibility = message.exportTagVisibility;
+                    window.currentExportTagVisibility = message.exportTagVisibility;
+                } else {
+                    currentExportTagVisibility = 'allexcludinglayout'; // Default fallback
+                    window.currentExportTagVisibility = 'allexcludinglayout';
                 }
 
                 // Update image fill with the value from configuration
@@ -3421,6 +3492,7 @@ window.setTagVisibility = setTagVisibility;
 window.applyTagVisibility = applyTagVisibility;
 window.currentTagVisibility = currentTagVisibility;
 window.filterTagsFromText = filterTagsFromText;
+window.filterTagsForExport = filterTagsForExport;
 window.setImageFill = setImageFill;
 window.applyImageFill = applyImageFill;
 window.currentImageFill = currentImageFill;

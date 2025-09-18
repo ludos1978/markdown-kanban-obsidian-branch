@@ -999,17 +999,22 @@ function copyColumnAsMarkdown(columnId) {
     if (!currentBoard?.columns) {return;}
     const column = currentBoard.columns.find(c => c.id === columnId);
     if (!column) {return;}
-    
-    let markdown = `# ${column.title}\n`;
+
+    // Filter column title based on export tag visibility setting
+    const filteredTitle = window.filterTagsForExport ? window.filterTagsForExport(column.title) : column.title;
+    let markdown = `# ${filteredTitle}\n`;
+
     column.tasks.forEach(task => {
-        markdown += task.title.startsWith('#') ? 
-            `\n---\n\n${task.title || ''}\n` : 
-            `\n---\n\n## ${task.title || ''}\n`;
+        // Filter task title based on export tag visibility setting
+        const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title) : task.title;
+        markdown += filteredTaskTitle.startsWith('#') ?
+            `\n---\n\n${filteredTaskTitle || ''}\n` :
+            `\n---\n\n## ${filteredTaskTitle || ''}\n`;
         if (task.description?.trim()) {
             markdown += `\n${task.description}\n`;
         }
     });
-    
+
     copyToClipboard(markdown);
     document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
 }
@@ -1019,14 +1024,16 @@ function copyTaskAsMarkdown(taskId, columnId) {
     const column = currentBoard.columns.find(c => c.id === columnId);
     const task = column?.tasks.find(t => t.id === taskId);
     if (!task) {return;}
-    
-    let markdown = task.title.startsWith('#') ? 
-        `${task.title || ''}\n` : 
-        `## ${task.title || ''}\n`;
+
+    // Filter task title based on export tag visibility setting
+    const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title) : task.title;
+    let markdown = filteredTaskTitle.startsWith('#') ?
+        `${filteredTaskTitle || ''}\n` :
+        `## ${filteredTaskTitle || ''}\n`;
     if (task.description?.trim()) {
         markdown += `\n${task.description}\n`;
     }
-    
+
     copyToClipboard(markdown);
     document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
 }
