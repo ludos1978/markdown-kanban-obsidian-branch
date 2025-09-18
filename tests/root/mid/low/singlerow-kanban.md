@@ -5,15 +5,15 @@ kanban-plugin: board
 ---
 
 ## # TITLE #urgent #blocked
-- [ ] Lighting #urgent
+- [ ] Lighting
   - Lighting
-- [ ] Lorem Imspum #urgent
+- [ ] Lorem Imspum
   setetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
 - [ ] [Mario.mp4](Mario.mp4)
 - [ ] ~~[small-multiline.md](small-multiline-broken.md)~~ [small-multiline.md](small-multiline.md)
 - [ ] ![red](red.png "caption")
   ![red](red.png)
-- [ ] Lorem Imspum #todo #high
+- [ ] Lorem Imspum
   Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam
 
 ## # H1 #urgent #blocked

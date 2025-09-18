@@ -105,19 +105,8 @@ class DragStateManager {
      * @param {boolean} success - Whether drop was successful
      */
     endDrag(success = false) {
-        // Remove visual feedback
-        if (this.draggedElement) {
-            this.draggedElement.classList.remove('dragging');
-        }
-
-        if (this.dropTarget) {
-            this.dropTarget.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
-        }
-
-        // Clean up drag indicators
-        document.querySelectorAll('.dragging, .drag-over, .drag-over-top, .drag-over-bottom').forEach(el => {
-            el.classList.remove('dragging', 'drag-over', 'drag-over-top', 'drag-over-bottom');
-        });
+        // MINIMAL cleanup - let existing dragDrop.js handle most visual cleanup
+        // This method is mainly for state tracking and notifications
 
         this.notifyListeners('dragend', {
             success,
@@ -125,8 +114,17 @@ class DragStateManager {
             source: this.dragSource
         });
 
-        // Reset state
-        this.reset();
+        // Only reset our internal state, don't touch DOM classes
+        // The existing dragDrop.js has comprehensive cleanup logic
+        this.isDragging = false;
+        this.draggedElement = null;
+        this.dropTarget = null;
+        this.dragType = null;
+        this.dragSource = null;
+        this.dragData = null;
+        this.dropPosition = null;
+
+        // Don't call this.reset() as it might interfere with existing dragState properties
     }
 
     /**
@@ -289,7 +287,21 @@ const dragStateManager = new DragStateManager();
 
 // Make it globally available for compatibility
 if (typeof window !== 'undefined') {
-    window.dragState = dragStateManager;
+    // Don't override existing dragState if it already exists (from dragDrop.js)
+    if (!window.dragState) {
+        window.dragState = dragStateManager;
+    } else {
+        // Merge our methods with existing dragState
+        Object.assign(window.dragState, {
+            startDrag: dragStateManager.startDrag.bind(dragStateManager),
+            updateDragOver: dragStateManager.updateDragOver.bind(dragStateManager),
+            endDrag: dragStateManager.endDrag.bind(dragStateManager),
+            getDragData: dragStateManager.getDragData.bind(dragStateManager),
+            isDraggingType: dragStateManager.isDraggingType.bind(dragStateManager),
+            addListener: dragStateManager.addListener.bind(dragStateManager),
+            removeListener: dragStateManager.removeListener.bind(dragStateManager)
+        });
+    }
 }
 
 // Export for use in other modules
