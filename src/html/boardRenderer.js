@@ -1200,12 +1200,43 @@ function renderBoard() {
             // rowHeader.textContent = `Row ${row}`;
             // rowContainer.appendChild(rowHeader);
             
-            // Add columns for this row
+            // Add columns for this row with stacking support
+            let currentStackContainer = null;
+            let lastColumnElement = null;
+
             currentBoard.columns.forEach((column, index) => {
                 const columnRow = getColumnRow(column.title);
                 if (columnRow === row) {
                     const columnElement = createColumnElement(column, index);
-                    rowContainer.appendChild(columnElement);
+                    const isStacked = /#stack\b/i.test(column.title);
+
+                    console.log(`[Stacking Debug] Column: "${column.title}", Row: ${columnRow}, Stacked: ${isStacked}, HasLastColumn: ${!!lastColumnElement}`);
+
+                    if (isStacked && lastColumnElement) {
+                        console.log(`[Stacking Debug] Creating stack for column: ${column.title}`);
+                        // This column should be stacked below the previous one
+                        if (!currentStackContainer) {
+                            // Create a new stack container and move the previous column into it
+                            currentStackContainer = document.createElement('div');
+                            currentStackContainer.className = 'kanban-column-stack';
+                            console.log(`[Stacking Debug] Created new stack container`);
+
+                            // Replace the previous column with the stack container
+                            lastColumnElement.parentNode.replaceChild(currentStackContainer, lastColumnElement);
+                            currentStackContainer.appendChild(lastColumnElement);
+                            console.log(`[Stacking Debug] Moved previous column into stack`);
+                        }
+
+                        // Add the current stacked column to the stack
+                        currentStackContainer.appendChild(columnElement);
+                        console.log(`[Stacking Debug] Added stacked column to stack`);
+                    } else {
+                        // Regular column - add to row and reset stack container
+                        rowContainer.appendChild(columnElement);
+                        currentStackContainer = null;
+                        lastColumnElement = columnElement;
+                        console.log(`[Stacking Debug] Added regular column to row`);
+                    }
                 }
             });
             
@@ -1224,12 +1255,38 @@ function renderBoard() {
             boardElement.appendChild(rowContainer);
         }
     } else {
-        // Single row layout (existing behavior)
+        // Single row layout with stacking support
         boardElement.classList.remove('multi-row');
-        
+
+        let currentStackContainer = null;
+        let lastColumnElement = null;
+
         currentBoard.columns.forEach((column, index) => {
             const columnElement = createColumnElement(column, index);
-            boardElement.appendChild(columnElement);
+            const isStacked = /#stack\b/i.test(column.title);
+
+            console.log(`[Single Row Stacking] Column: "${column.title}", Stacked: ${isStacked}, HasLastColumn: ${!!lastColumnElement}`);
+
+            if (isStacked && lastColumnElement) {
+                // This column should be stacked below the previous one
+                if (!currentStackContainer) {
+                    // Create a new stack container and move the previous column into it
+                    currentStackContainer = document.createElement('div');
+                    currentStackContainer.className = 'kanban-column-stack';
+
+                    // Replace the previous column with the stack container
+                    lastColumnElement.parentNode.replaceChild(currentStackContainer, lastColumnElement);
+                    currentStackContainer.appendChild(lastColumnElement);
+                }
+
+                // Add the current stacked column to the stack
+                currentStackContainer.appendChild(columnElement);
+            } else {
+                // Regular column - add to board and reset stack container
+                boardElement.appendChild(columnElement);
+                currentStackContainer = null;
+                lastColumnElement = columnElement;
+            }
         });
 
         const addColumnBtn = document.createElement('button');
@@ -1527,6 +1584,12 @@ function createColumnElement(column, columnIndex) {
 														})()}</span>
 														<button class="span-width-btn" onclick="changeColumnSpan('${column.id}', 1)">+</button>
 													</div>
+												</div>
+												<div class="donut-menu-item stack-control">
+													<span class="stack-label">Stack:</span>
+													<button class="stack-toggle-btn ${/#stack\b/i.test(column.title) ? 'active' : ''}" onclick="toggleColumnStack('${column.id}')">
+														${/#stack\b/i.test(column.title) ? 'On' : 'Off'}
+													</button>
 												</div>
 												<div class="donut-menu-divider"></div>
 												${column.includeMode ? `

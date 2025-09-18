@@ -883,6 +883,79 @@ function changeColumnSpan(columnId, delta) {
     updateRefreshButtonState('unsaved', 1);
 }
 
+function toggleColumnStack(columnId) {
+    if (!currentBoard?.columns) {return;}
+
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) {return;}
+
+    // Flush pending tag changes first
+    if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
+        (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)) {
+        flushPendingTagChanges();
+    }
+
+    // Check current stack state
+    const hasStack = /#stack\b/i.test(column.title);
+    let newTitle = column.title;
+
+    if (hasStack) {
+        // Remove stack tag
+        newTitle = newTitle.replace(/#stack\b\s*/gi, '').replace(/\s+/g, ' ').trim();
+    } else {
+        // Add stack tag
+        newTitle += ' #stack';
+    }
+
+    // Update the column in currentBoard and cachedBoard
+    column.title = newTitle;
+
+    if (typeof cachedBoard !== 'undefined' && cachedBoard?.columns) {
+        const cachedColumn = cachedBoard.columns.find(c => c.id === columnId);
+        if (cachedColumn) {
+            cachedColumn.title = newTitle;
+        }
+    }
+
+    // Update the column element immediately
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (columnElement) {
+        // Update the title display (without stack tags if they're hidden)
+        const titleElement = columnElement.querySelector('.column-title-display');
+        if (titleElement) {
+            const displayTitle = window.filterTagsFromText(newTitle);
+            titleElement.innerHTML = renderMarkdown(displayTitle);
+        }
+
+        // Update the stack toggle button
+        const stackToggleBtn = document.querySelector(`button.stack-toggle-btn[onclick*="${columnId}"]`);
+        if (stackToggleBtn) {
+            const newHasStack = /#stack\b/i.test(newTitle);
+            stackToggleBtn.textContent = newHasStack ? 'On' : 'Off';
+            if (newHasStack) {
+                stackToggleBtn.classList.add('active');
+            } else {
+                stackToggleBtn.classList.remove('active');
+            }
+        }
+    }
+
+    // Trigger board refresh for layout changes
+    setTimeout(() => {
+        if (typeof window.renderBoard === 'function' && window.currentBoard) {
+            window.renderBoard(window.currentBoard);
+        }
+    }, 50);
+
+    // Mark as unsaved
+    if (typeof markUnsavedChanges === 'function') {
+        markUnsavedChanges();
+    }
+
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+}
+
 function deleteColumn(columnId) {
     // Close all menus properly
     closeAllMenus();
