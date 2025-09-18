@@ -33,40 +33,23 @@ function extractFirstTag(text) {
 }
 
 
+// Import colorUtils at the top of the file (will be included via HTML)
+// The colorUtils module provides: hexToRgb, rgbToHex, withAlpha, etc.
+
 /**
- * Converts hex color to RGBA format with specified alpha
- * Purpose: Creates semi-transparent colors for backgrounds and borders
- * Used by: generateTagStyles() for creating tag-based styling
- * @param {string} hex - Hex color code (with or without #)
- * @param {number} alpha - Opacity value (0-1)
- * @returns {string} - RGBA color string
+ * Legacy wrapper for backward compatibility - delegates to colorUtils
+ * @deprecated Use colorUtils.withAlpha() instead
  */
 function hexToRgba(hex, alpha) {
-    // Remove the # if present
-    hex = hex.replace('#', '');
-    
-    // Parse the hex values
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    return colorUtils.withAlpha(hex, alpha);
 }
 
 /**
- * Parses hex color into RGB components
- * Purpose: Breaks down colors for interpolation calculations
- * Used by: interpolateColor() for gradient calculations
- * @param {string} hex - Hex color code
- * @returns {Object} - Object with r, g, b numeric values (0-255)
+ * Legacy wrapper for backward compatibility - delegates to colorUtils
+ * @deprecated Use colorUtils.hexToRgb() instead
  */
 function hexToRgb(hex) {
-    hex = hex.replace('#', '');
-    return {
-        r: parseInt(hex.substring(0, 2), 16),
-        g: parseInt(hex.substring(2, 4), 16),
-        b: parseInt(hex.substring(4, 6), 16)
-    };
+    return colorUtils.hexToRgb(hex);
 }
 
 /**
@@ -79,18 +62,21 @@ function hexToRgb(hex) {
  * @returns {string} - Interpolated hex color
  */
 function interpolateColor(color1, color2, factor) {
-    // Parse colors
-    const c1 = hexToRgb(color1);
-    const c2 = hexToRgb(color2);
-    
+    // Parse colors using colorUtils
+    const c1 = colorUtils.hexToRgb(color1);
+    const c2 = colorUtils.hexToRgb(color2);
+
+    if (!c1 || !c2) {
+        return color1; // Fallback if parsing fails
+    }
+
     // Interpolate each component
     const r = Math.round(c1.r + (c2.r - c1.r) * factor);
     const g = Math.round(c1.g + (c2.g - c1.g) * factor);
     const b = Math.round(c1.b + (c2.b - c1.b) * factor);
-    
-    // Convert to hex
-    const toHex = (n) => n.toString(16).padStart(2, '0');
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+
+    // Convert to hex using colorUtils
+    return colorUtils.rgbToHex(r, g, b);
 }
 
 /**
