@@ -12,6 +12,7 @@ import { MessageHandler } from './messageHandler';
 import { BackupManager } from './backupManager';
 import { CacheManager } from './cacheManager';
 import { ExternalFileWatcher } from './externalFileWatcher';
+import { ConflictResolver, ConflictContext, ConflictResolution } from './conflictResolver';
 
 export class KanbanWebviewPanel {
     private static panels: Map<string, KanbanWebviewPanel> = new Map();
@@ -50,6 +51,7 @@ export class KanbanWebviewPanel {
     private _changedIncludeFiles: Set<string> = new Set();
     private _includeFileContents: Map<string, string> = new Map();
     private _fileWatcher: ExternalFileWatcher;
+    private _conflictResolver: ConflictResolver;
 
     // Column include file tracking
     private _columnIncludeFiles: string[] = [];
@@ -209,6 +211,9 @@ export class KanbanWebviewPanel {
 
         // Get the file watcher instance
         this._fileWatcher = ExternalFileWatcher.getInstance();
+
+        // Get the conflict resolver instance
+        this._conflictResolver = ConflictResolver.getInstance();
 
         // Subscribe to file change events
         this._disposables.push(
@@ -1316,59 +1321,62 @@ export class KanbanWebviewPanel {
 
             const document = this._fileManager.getDocument();
             const fileName = document ? path.basename(document.fileName) : 'the kanban board';
+            const changedIncludeFiles = Array.from(this._changedIncludeFiles);
 
-            // Build message based on what has unsaved changes
-            let message = '';
-            if (hasMainUnsavedChanges && hasIncludeUnsavedChanges) {
-                message = `You have unsaved changes in "${fileName}" and in column include files. Do you want to save before closing?`;
-            } else if (hasMainUnsavedChanges) {
-                message = `You have unsaved changes in "${fileName}". Do you want to save before closing?`;
-            } else {
-                message = `You have unsaved changes in column include files. Do you want to save before closing?`;
-            }
+            // Use the unified conflict resolver
+            const context: ConflictContext = {
+                type: 'panel_close',
+                fileType: 'main', // Main context but includes both main and include files
+                filePath: document?.uri.fsPath || '',
+                fileName: fileName,
+                hasMainUnsavedChanges: hasMainUnsavedChanges,
+                hasIncludeUnsavedChanges: hasIncludeUnsavedChanges,
+                changedIncludeFiles: changedIncludeFiles,
+                isClosing: true
+            };
 
-            const choice = await vscode.window.showWarningMessage(
-                message,
-                { modal: true },
-                { title: 'Save and close' },
-                { title: 'Close without saving' },
-                { title: 'Repeat this question (Esc)', isCloseAffordance: true }
-            );
+            try {
+                const resolution = await this._conflictResolver.resolveConflict(context);
 
-            if (!choice || choice.title === 'Repeat this question (Esc)') {
-                // User pressed Escape or clicked the repeat option - reset and try again
-                this._isClosingPrevented = false;
-                this._handlePanelClose(); // Recursively call to show dialog again
-                return;
-            }
+                if (!resolution.shouldProceed) {
+                    // User cancelled - reset and try again
+                    this._isClosingPrevented = false;
+                    this._handlePanelClose(); // Recursively call to show dialog again
+                    return;
+                }
 
-            if (choice.title === 'Save and close') {
-                try {
-                    // Save the changes before closing (this will save both main and include files)
-                    await this.saveToMarkdown();
+                if (resolution.shouldSave) {
+                    try {
+                        // Save the changes before closing (this will save both main and include files)
+                        await this.saveToMarkdown();
+                        this._hasUnsavedChanges = false;
+                        // Clear all include file unsaved changes
+                        for (const filePath of this._includeFileUnsavedChanges.keys()) {
+                            this._includeFileUnsavedChanges.set(filePath, false);
+                        }
+                        this._cachedBoardFromWebview = null; // Clear after save
+                        // Allow disposal to continue
+                        this.dispose();
+                    } catch (error) {
+                        // If save fails, show error and prevent closing
+                        vscode.window.showErrorMessage(`Failed to save changes: ${error instanceof Error ? error.message : String(error)}`);
+                        this._isClosingPrevented = false;
+                        return;
+                    }
+                } else {
+                    // User explicitly chose to close without saving
                     this._hasUnsavedChanges = false;
                     // Clear all include file unsaved changes
                     for (const filePath of this._includeFileUnsavedChanges.keys()) {
                         this._includeFileUnsavedChanges.set(filePath, false);
                     }
-                    this._cachedBoardFromWebview = null; // Clear after save
-                    // Allow disposal to continue
+                    this._cachedBoardFromWebview = null; // Clear cached board
                     this.dispose();
-                } catch (error) {
-                    // If save fails, show error and prevent closing
-                    vscode.window.showErrorMessage(`Failed to save changes: ${error instanceof Error ? error.message : String(error)}`);
-                    this._isClosingPrevented = false;
-                    return;
                 }
-            } else if (choice.title === 'Close without saving') {
-                // User explicitly chose to close without saving
-                this._hasUnsavedChanges = false;
-                // Clear all include file unsaved changes
-                for (const filePath of this._includeFileUnsavedChanges.keys()) {
-                    this._includeFileUnsavedChanges.set(filePath, false);
-                }
-                this._cachedBoardFromWebview = null; // Clear cached board
-                this.dispose();
+            } catch (error) {
+                console.error('[_handlePanelClose] Error in conflict resolution:', error);
+                this._isClosingPrevented = false;
+                vscode.window.showErrorMessage(`Error handling panel close: ${error instanceof Error ? error.message : String(error)}`);
             }
         } else {
             // No unsaved changes, proceed with normal disposal
@@ -1502,91 +1510,70 @@ export class KanbanWebviewPanel {
      */
     private async notifyExternalChanges(document: vscode.TextDocument): Promise<void> {
         const fileName = path.basename(document.fileName);
-        // const hasUnsavedChanges = this._hasUnsavedChanges;
+        const hasMainUnsavedChanges = this._hasUnsavedChanges;
+        const hasIncludeUnsavedChanges = Array.from(this._includeFileUnsavedChanges.values()).some(changed => changed);
+        const changedIncludeFiles = Array.from(this._changedIncludeFiles);
 
-        // if (!hasUnsavedChanges) {
-        //     // No unsaved changes - simple reload option
-        //     const reloadButton = { title: 'Reload from file' };
-        //     const ignoreButton = { title: 'Ignore external changes' };
+        // Use the unified conflict resolver
+        const context: ConflictContext = {
+            type: 'external_main',
+            fileType: 'main',
+            filePath: document.uri.fsPath,
+            fileName: fileName,
+            hasMainUnsavedChanges: hasMainUnsavedChanges,
+            hasIncludeUnsavedChanges: hasIncludeUnsavedChanges,
+            changedIncludeFiles: changedIncludeFiles
+        };
 
-        //     const choice = await vscode.window.showInformationMessage(
-        //         `The file "${fileName}" has been modified externally.`,
-        //         reloadButton,
-        //         ignoreButton
-        //     );
+        try {
+            const resolution = await this._conflictResolver.resolveConflict(context);
 
-        //     if (choice === reloadButton) {
-        //         await this.forceReloadFromFile();
-        //     }
-        //     return;
-        // }
+            if (resolution.shouldIgnore) {
+                // User wants to keep working with current state - do nothing
+                return;
+            } else if (resolution.shouldSave && !resolution.shouldReload) {
+                // User wants to save current kanban state and ignore external changes
+                // Don't update version tracking to continue detecting future external changes
+                await this.saveToMarkdown(false);
+                return;
+            } else if (resolution.shouldCreateBackup && resolution.shouldReload) {
+                // Save current board state as backup before reloading
+                console.log(`[Include Debug] SAVE AS BACKUP - Before backup: includeFilesChanged=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
 
-        // Has unsaved changes - full option set
-        const discardChanges = { title: 'Discard kanban changes and reload' };
-        const saveBackup = { title: 'Save as backup and load external' };
-        const discardExternal = { title: 'Discard external changes and save kanban' };
-        const ignoreExternal = { title: 'Ignore external changes, dont overwrite (esc)', isCloseAffordance: true };
+                // IMPORTANT: Preserve include file state before any operations
+                const preservedIncludeState = {
+                    changed: this._includeFilesChanged,
+                    changedFiles: new Set(this._changedIncludeFiles),
+                    contents: new Map(this._includeFileContents)
+                };
 
-        const choice = await vscode.window.showWarningMessage(
-            `The file "${fileName}" has been modified externally. Your current kanban changes may be lost if you reload the file.`,
-            { modal: true },
-            discardChanges,
-            saveBackup,
-            discardExternal,
-            ignoreExternal
-        );
+                await this._createUnifiedBackup('conflict');
 
-        if (choice === ignoreExternal) {
-            // User wants to keep working with current state - do nothing
-            return;
-        } else if (choice === discardExternal) {
-            // User wants to save current kanban state and ignore external changes
-            // Don't update version tracking to continue detecting future external changes
-            await this.saveToMarkdown(false);
-            return;
-        } else if (choice === saveBackup) {
-            // Save current board state as backup before reloading
-            console.log(`[Include Debug] SAVE AS BACKUP - Before backup: includeFilesChanged=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
-            console.log(`[Include Debug] SAVE AS BACKUP - includeFileContents has ${this._includeFileContents.size} entries`);
-            console.log(`[Include Debug] SAVE AS BACKUP - includeFileContents keys:`, Array.from(this._includeFileContents.keys()));
+                // Restore include file state after backup (in case it was modified)
+                this._includeFilesChanged = preservedIncludeState.changed;
+                this._changedIncludeFiles = preservedIncludeState.changedFiles;
+                this._includeFileContents = preservedIncludeState.contents;
 
-            // IMPORTANT: Preserve include file state before any operations
-            const preservedIncludeState = {
-                changed: this._includeFilesChanged,
-                changedFiles: new Set(this._changedIncludeFiles),
-                contents: new Map(this._includeFileContents)
-            };
+                console.log(`[Include Debug] SAVE AS BACKUP - After backup & restore: includeFilesChanged=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
 
-            await this._createUnifiedBackup('conflict');
-
-            // Restore include file state after backup (in case it was modified)
-            this._includeFilesChanged = preservedIncludeState.changed;
-            this._changedIncludeFiles = preservedIncludeState.changedFiles;
-            this._includeFileContents = preservedIncludeState.contents;
-
-            console.log(`[Include Debug] SAVE AS BACKUP - After backup & restore: includeFilesChanged=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
-            console.log(`[Include Debug] SAVE AS BACKUP - includeFileContents has ${this._includeFileContents.size} entries`);
-
-            // Save current state to undo history before reloading
-            if (this._board) {
-                this._undoRedoManager.saveStateForUndo(this._board);
+                // Save current state to undo history before reloading
+                if (this._board) {
+                    this._undoRedoManager.saveStateForUndo(this._board);
+                }
+                await this.forceReloadFromFile();
+                return;
+            } else if (resolution.shouldReload && !resolution.shouldCreateBackup) {
+                // User chose to discard current changes and reload from external file
+                // Save current state to undo history before reloading
+                if (this._board) {
+                    this._undoRedoManager.saveStateForUndo(this._board);
+                }
+                await this.forceReloadFromFile();
+                return;
             }
-            await this.forceReloadFromFile();
-            // Version tracking is already handled by forceReloadFromFile
-            return;
-        } else if (choice === discardChanges) {
-            // User chose to discard current changes and reload from external file
-
-            // Save current state to undo history before reloading
-            if (this._board) {
-                this._undoRedoManager.saveStateForUndo(this._board);
-            }
-            await this.forceReloadFromFile();
-            // Version tracking is already handled by forceReloadFromFile
-            return;
-        } else {
-            // User pressed escape or no choice - default to ignore external changes
-            return;
+        } catch (error) {
+            console.error('[notifyExternalChanges] Error in conflict resolution:', error);
+            vscode.window.showErrorMessage(`Error handling external file changes: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
@@ -1625,16 +1612,26 @@ export class KanbanWebviewPanel {
             return true;
         }
 
-        // Real external unsaved changes detected
+        // Real external unsaved changes detected - use unified conflict resolver
         const fileName = path.basename(document.fileName);
-        const choice = await vscode.window.showWarningMessage(
-            `⚠️ CONFLICT: The file "${fileName}" has unsaved external modifications. Saving kanban changes will overwrite these external changes.`,
-            { modal: true },
-            'Overwrite external changes',
-            'Cancel save'
-        );
+        const context: ConflictContext = {
+            type: 'presave_check',
+            fileType: 'main',
+            filePath: document.uri.fsPath,
+            fileName: fileName,
+            hasMainUnsavedChanges: true, // We're in the process of saving
+            hasIncludeUnsavedChanges: false, // Not relevant for pre-save check
+            changedIncludeFiles: []
+        };
 
-        return choice === 'Overwrite external changes';
+        try {
+            const resolution = await this._conflictResolver.resolveConflict(context);
+            return resolution.shouldProceed;
+        } catch (error) {
+            console.error('[checkForExternalUnsavedChanges] Error in conflict resolution:', error);
+            // Default to not proceeding if there's an error
+            return false;
+        }
     }
 
     /**
@@ -2009,39 +2006,42 @@ export class KanbanWebviewPanel {
             return;
         }
 
-        // Has unsaved changes - show conflict resolution dialog
-        const discardChanges = { title: 'Discard kanban changes and reload' };
-        const saveBackup = { title: 'Save as backup and load external' };
-        const discardExternal = { title: 'Discard external changes and save kanban' };
-        const ignoreExternal = { title: 'Ignore external changes, dont overwrite (esc)', isCloseAffordance: true };
+        // Use the unified conflict resolver
+        const context: ConflictContext = {
+            type: 'external_include',
+            fileType: 'include',
+            filePath: filePath,
+            fileName: fileName,
+            hasMainUnsavedChanges: false, // Not relevant for include file conflicts
+            hasIncludeUnsavedChanges: hasUnsavedIncludeChanges,
+            changedIncludeFiles: [filePath]
+        };
 
-        const choice = await vscode.window.showWarningMessage(
-            `The include file "${fileName}" has been modified externally. Your current kanban changes to this file may be lost if you reload.`,
-            { modal: true },
-            discardChanges,
-            saveBackup,
-            discardExternal,
-            ignoreExternal
-        );
+        try {
+            const resolution = await this._conflictResolver.resolveConflict(context);
 
-        if (choice === discardChanges) {
-            // Discard local changes and reload from external file
-            this._includeFileUnsavedChanges.set(filePath, false);
-            await this.reloadIncludeFile(filePath);
+            if (resolution.shouldReload && !resolution.shouldCreateBackup) {
+                // Discard local changes and reload from external file
+                this._includeFileUnsavedChanges.set(filePath, false);
+                await this.reloadIncludeFile(filePath);
 
-        } else if (choice === saveBackup) {
-            // Save current changes as backup, then reload external
-            await this.saveIncludeFileAsBackup(filePath);
-            this._includeFileUnsavedChanges.set(filePath, false);
-            await this.reloadIncludeFile(filePath);
+            } else if (resolution.shouldCreateBackup && resolution.shouldReload) {
+                // Save current changes as backup, then reload external
+                await this.saveIncludeFileAsBackup(filePath);
+                this._includeFileUnsavedChanges.set(filePath, false);
+                await this.reloadIncludeFile(filePath);
 
-        } else if (choice === discardExternal) {
-            // Save current kanban changes, overwriting external
-            await this.saveIncludeFileChanges(filePath);
-            this._includeFileUnsavedChanges.set(filePath, false);
+            } else if (resolution.shouldSave && !resolution.shouldReload) {
+                // Save current kanban changes, overwriting external
+                await this.saveIncludeFileChanges(filePath);
+                this._includeFileUnsavedChanges.set(filePath, false);
 
-        } else {
-            // Ignore external changes - do nothing
+            } else if (resolution.shouldIgnore) {
+                // Ignore external changes - do nothing
+            }
+        } catch (error) {
+            console.error('[handleIncludeFileConflict] Error in conflict resolution:', error);
+            vscode.window.showErrorMessage(`Error handling include file conflict: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
