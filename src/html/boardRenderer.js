@@ -16,11 +16,11 @@ let renderTimeout = null;
  * Used by: renderBoard(), generateTagStyles(), task/column rendering
  * @param {string} text - Text containing hashtags
  * @returns {string|null} - Lowercase tag name without # or null if none found
- * Note: Skips row tags (#rowN), span tags (#spanN), and gather tags (#gather_...)
+ * Note: Skips row tags (#rowN), span tags (#spanN), stack tags (#stack), and gather tags (#gather_...)
  */
 function extractFirstTag(text) {
     if (!text) {return null;}
-    const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
+    const re = /#(?!row\d+\b)(?!span\d+\b)(?!stack\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
     let m;
     while ((m = re.exec(text)) !== null) {
         const raw = m[1];
@@ -631,8 +631,8 @@ function applyFoldingStates() {
 function getActiveTagsInTitle(text) {
     if (!text || typeof text !== 'string') {return [];}
     // Match all tags - for gather tags, include the full expression until next space
-    // Skip row tags and span tags
-    const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
+    // Skip row tags, span tags, and stack tags
+    const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)(?!stack\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
     return matches.map(tag => {
         const fullTag = tag.substring(1);
         // For gather tags, keep the full expression
@@ -728,7 +728,7 @@ function getUserAddedTags() {
     // Find tags that are in use but not configured
     const userAddedTags = [];
     allTagsInUse.forEach(tag => {
-        if (!configuredTags.has(tag) && !tag.startsWith('row')) { // Exclude row tags
+        if (!configuredTags.has(tag) && !tag.startsWith('row') && tag !== 'stack') { // Exclude layout tags
             userAddedTags.push(tag);
         }
     });
@@ -1020,7 +1020,7 @@ function renderSingleColumn(columnId, columnData) {
         const handlersToCleanup = Object.keys(window.tagHandlers).filter(key => {
             // Pattern: tag-chip-column-{columnId}-{tagName} or tag-chip-task-{taskId}-{tagName}
             return key.startsWith(`tag-chip-column-${columnId}-`) ||
-                   (key.startsWith(`tag-chip-task-`) && existingColumnElement.querySelector(`[data-task-id]`))
+                   (key.startsWith(`tag-chip-task-`) && existingColumnElement.querySelector(`[data-task-id]`));
         });
 
         // Also find task handlers by checking actual task IDs in the existing column
@@ -1066,7 +1066,9 @@ function renderSingleColumn(columnId, columnData) {
     if (window.collapsedColumns && window.collapsedColumns.has(columnId)) {
         newColumnElement.classList.add('collapsed');
         const toggle = newColumnElement.querySelector('.collapse-toggle');
-        if (toggle) toggle.classList.add('rotated');
+        if (toggle) {
+            toggle.classList.add('rotated');
+        }
     }
 
     // Update image sources for the new content
@@ -1200,13 +1202,45 @@ function renderBoard() {
             // rowHeader.textContent = `Row ${row}`;
             // rowContainer.appendChild(rowHeader);
             
-            // Add columns for this row
-            currentBoard.columns.forEach((column, index) => {
-                const columnRow = getColumnRow(column.title);
-                if (columnRow === row) {
-                    const columnElement = createColumnElement(column, index);
+            // Add columns for this row with stacking support
+            const columnsInRow = currentBoard.columns.filter(col => getColumnRow(col.title) === row);
+            let currentStackContainer = null;
+            let lastColumnElement = null;
+
+            columnsInRow.forEach((column, index) => {
+                const isStacked = getColumnStacked(column.title);
+                const globalIndex = currentBoard.columns.indexOf(column);
+                const columnElement = createColumnElement(column, globalIndex);
+
+                if (isStacked) {
+                    if (currentStackContainer) {
+                        // Add to existing stack container
+                        currentStackContainer.appendChild(columnElement);
+                    } else if (lastColumnElement) {
+                        // Create a new stack container and move the previous column into it
+                        currentStackContainer = document.createElement('div');
+                        currentStackContainer.className = 'kanban-column-stack';
+
+                        // Remove the last column from its current position
+                        lastColumnElement.parentNode.removeChild(lastColumnElement);
+
+                        // Add both the previous column and current stacked column to the stack
+                        currentStackContainer.appendChild(lastColumnElement);
+                        currentStackContainer.appendChild(columnElement);
+                        rowContainer.appendChild(currentStackContainer);
+                    } else {
+                        // First column is stacked (unusual case) - treat as regular column
+                        console.warn('First column in row has #stack tag, treating as regular column');
+                        rowContainer.appendChild(columnElement);
+                        currentStackContainer = null;
+                    }
+                } else {
+                    // Regular column - reset stack container
+                    currentStackContainer = null;
                     rowContainer.appendChild(columnElement);
                 }
+
+                lastColumnElement = columnElement;
             });
             
             // Add the "Add Column" button to each row
@@ -1227,9 +1261,43 @@ function renderBoard() {
         // Single row layout (existing behavior)
         boardElement.classList.remove('multi-row');
         
+        // Single row layout with stacking support
+        let currentStackContainer = null;
+        let lastColumnElement = null;
+
         currentBoard.columns.forEach((column, index) => {
+            const isStacked = getColumnStacked(column.title);
             const columnElement = createColumnElement(column, index);
-            boardElement.appendChild(columnElement);
+
+            if (isStacked) {
+                if (currentStackContainer) {
+                    // Add to existing stack container
+                    currentStackContainer.appendChild(columnElement);
+                } else if (lastColumnElement) {
+                    // Create a new stack container and move the previous column into it
+                    currentStackContainer = document.createElement('div');
+                    currentStackContainer.className = 'kanban-column-stack';
+
+                    // Remove the last column from its current position
+                    lastColumnElement.parentNode.removeChild(lastColumnElement);
+
+                    // Add both the previous column and current stacked column to the stack
+                    currentStackContainer.appendChild(lastColumnElement);
+                    currentStackContainer.appendChild(columnElement);
+                    boardElement.appendChild(currentStackContainer);
+                } else {
+                    // First column is stacked (unusual case) - treat as regular column
+                    console.warn('First column has #stack tag, treating as regular column');
+                    boardElement.appendChild(columnElement);
+                    currentStackContainer = null;
+                }
+            } else {
+                // Regular column - reset stack container
+                currentStackContainer = null;
+                boardElement.appendChild(columnElement);
+            }
+
+            lastColumnElement = columnElement;
         });
 
         const addColumnBtn = document.createElement('button');
@@ -1461,8 +1529,8 @@ function createColumnElement(column, columnIndex) {
     columnDiv.setAttribute('data-column-index', columnIndex);
     columnDiv.setAttribute('data-row', getColumnRow(column.title));
 
-    // Add primary tag for background color only (ignore row/gather/span)
-    if (columnTag && !columnTag.startsWith('row') && !columnTag.startsWith('gather_') && !columnTag.startsWith('span')) {
+    // Add primary tag for background color only (ignore row/gather/span/stack)
+    if (columnTag && !columnTag.startsWith('row') && !columnTag.startsWith('gather_') && !columnTag.startsWith('span') && columnTag !== 'stack') {
         columnDiv.setAttribute('data-column-tag', columnTag);
     }
     
@@ -2497,8 +2565,8 @@ function removeAllTags(id, type, columnId = null) {
     }
     
     // Remove all tags from the title (keep everything except tags)
-    // Tags are in format #tagname, but preserve #row tags and #span tags
-    const newTitle = currentTitle.replace(/#(?!row\d+\b)(?!span\d+\b)[a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*/g, '').trim();
+    // Tags are in format #tagname, but preserve #row tags, #span tags, and #stack tags
+    const newTitle = currentTitle.replace(/#(?!row\d+\b)(?!span\d+\b)(?!stack\b)[a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*/g, '').trim();
     
     // Update the element
     element.title = newTitle;

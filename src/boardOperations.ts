@@ -273,23 +273,8 @@ export class BoardOperations {
         const column = this.findColumn(board, columnId);
         if (!column) {return false;}
 
-        // Preserve the current row tag
-        const currentRow = this.getColumnRow(column);
-
-        // Clean the input title of any row tags the user might have accidentally included
-        let cleanTitle = title
-            .replace(/#row\d+\b/gi, '')  // Remove any row tags
-            .replace(/\s+#row\d+/gi, '') // Remove with preceding space
-            .replace(/#row\d+\s+/gi, '')  // Remove with following space
-            .replace(/\s{2,}/g, ' ')      // Clean up multiple spaces
-            .trim();                      // Remove leading/trailing spaces
-
-        // Re-add the row tag if the column is not in row 1
-        if (currentRow > 1) {
-            column.title = cleanTitle + ` #row${currentRow}`;
-        } else {
-            column.title = cleanTitle;
-        }
+        // Just use the title as provided - layout tags are preserved as regular text
+        column.title = title;
 
         // Check for column include syntax changes
         const columnIncludeMatches = column.title.match(/!!!columninclude\(([^)]+)\)!!!/g);

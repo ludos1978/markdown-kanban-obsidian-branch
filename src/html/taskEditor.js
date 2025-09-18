@@ -481,71 +481,32 @@ class TaskEditor {
             if (type === 'column-title') {
                 const column = window.cachedBoard.columns.find(c => c.id === columnId);
                 if (column) {
-                    // Get current row and span to preserve them
-                    const currentRow = getColumnRow(column.title);
-                    const spanMatch = column.title.match(/#span(\d+)\b/i);
-                    const currentSpan = spanMatch ? spanMatch[0] : null;
-
-                    // Clean the value of any row tags and span tags
-                    let cleanValue = value
-                        .replace(/#row\d+\b/gi, '')
-                        .replace(/\s+#row\d+/gi, '')
-                        .replace(/#row\d+\s+/gi, '')
-                        .replace(/#span\d+\b/gi, '')
-                        .replace(/\s+#span\d+/gi, '')
-                        .replace(/#span\d+\s+/gi, '')
-                        .replace(/\s{2,}/g, ' ')
-                        .trim();
-
-                    // Check if the title actually changed (excluding filtered tags)
-                    const oldCleanTitle = window.filterTagsFromText(column.title);
-                    if (oldCleanTitle !== cleanValue) {
+                    // Check if the title actually changed
+                    if (column.title !== value) {
                         // Create context for this edit to determine if it's the same column being edited
                         const editContext = `column-title-${columnId}`;
-                        
-                        
+
                         // CRITICAL FIX: Save undo state BEFORE making the change
                         this.saveUndoStateImmediately('editColumnTitle', null, columnId);
-                        
+
                         this.lastEditContext = editContext;
-                        
-                        // Now make the change AFTER saving the undo state
-                        // Reconstruct title with preserved tags
-                        let newTitle = cleanValue;
 
-                        // Re-add row tag if needed
-                        if (currentRow > 1) {
-                            newTitle += ` #row${currentRow}`;
-                        }
-
-                        // Re-add span tag if it existed
-                        if (currentSpan) {
-                            newTitle += ` ${currentSpan}`;
-                        }
+                        // Use the value as-is - no special layout tag handling
+                        let newTitle = value.trim();
+                        const oldTitle = column.title;
 
                         // Check for column include syntax changes
                         const oldIncludeMatches = (column.title || '').match(/!!!columninclude\(([^)]+)\)!!!/g) || [];
                         const newIncludeMatches = newTitle.match(/!!!columninclude\(([^)]+)\)!!!/g) || [];
 
-                        console.log(`[TaskEditor Debug] Column ${columnId} title change:`, {
-                            oldTitle: column.title,
-                            newTitle: newTitle,
-                            oldIncludeMatches: oldIncludeMatches,
-                            newIncludeMatches: newIncludeMatches
-                        });
-
                         const hasIncludeChanges =
                             oldIncludeMatches.length !== newIncludeMatches.length ||
                             oldIncludeMatches.some((match, index) => match !== newIncludeMatches[index]);
-
-                        console.log(`[TaskEditor Debug] Has include changes: ${hasIncludeChanges}`);
 
                         column.title = newTitle;
 
                         // If include syntax changed, send editColumnTitle message immediately for backend processing
                         if (hasIncludeChanges) {
-                            console.log('[Column Include] Detected include syntax change, sending to backend...');
-                            console.log('[TaskEditor Debug] Sending editColumnTitle message for include change');
 
                             // Send editColumnTitle message to trigger proper include handling in backend
                             vscode.postMessage({
@@ -562,6 +523,32 @@ class TaskEditor {
                         if (typeof markUnsavedChanges === 'function') {
                             markUnsavedChanges();
                         }
+
+                        // Check if this edit affects layout (stacking) and trigger board refresh if needed
+                        const hasStackTag = /#stack\b/i.test(newTitle);
+                        const hadStackTag = /#stack\b/i.test(oldTitle);
+                        console.log(`[TaskEditor] Stack tag change check:`, {
+                            oldTitle,
+                            newTitle,
+                            hadStackTag,
+                            hasStackTag,
+                            changed: hasStackTag !== hadStackTag
+                        });
+                        if (hasStackTag !== hadStackTag) {
+                            // Stack tag was added or removed - need to re-render board layout
+                            console.log(`[TaskEditor] Triggering board refresh for stack layout change`);
+                            setTimeout(() => {
+                                if (typeof window.renderBoard === 'function' && window.currentBoard) {
+                                    console.log(`[TaskEditor] Calling renderBoard to refresh layout`);
+                                    window.renderBoard(window.currentBoard);
+                                } else {
+                                    console.log(`[TaskEditor] renderBoard not available:`, {
+                                        renderBoard: typeof window.renderBoard,
+                                        currentBoard: !!window.currentBoard
+                                    });
+                                }
+                            }, 100);
+                        }
                     }
                     
                     if (this.currentEditor.displayElement) {
@@ -570,6 +557,7 @@ class TaskEditor {
                         this.currentEditor.displayElement.innerHTML = renderMarkdown(displayTitle);
 
                         // Add row indicator if needed
+                        const currentRow = getColumnRow(column.title);
                         if (window.showRowTags && currentRow > 1) {
                             this.currentEditor.displayElement.innerHTML += `<span class="column-row-tag">Row ${currentRow}</span>`;
                         }
