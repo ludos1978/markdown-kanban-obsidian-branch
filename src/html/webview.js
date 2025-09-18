@@ -1,4 +1,5 @@
-const vscode = acquireVsCodeApi();
+// Use the global vscode instance set up in HTML
+const vscode = window.vscode;
 
 // Global variables
 let currentFileInfo = null;

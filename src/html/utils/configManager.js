@@ -6,7 +6,10 @@
 class ConfigManager {
     constructor() {
         this.cache = new Map();
-        this.vscode = typeof acquireVsCodeApi !== 'undefined' ? acquireVsCodeApi() : null;
+        // Use the global vscode instance if it exists, otherwise try window.vscode
+        this.vscode = (typeof vscode !== 'undefined' && vscode) ||
+                      (typeof window !== 'undefined' && window.vscode) ||
+                      null;
     }
 
     /**

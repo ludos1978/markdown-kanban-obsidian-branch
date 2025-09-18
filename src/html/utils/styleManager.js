@@ -14,6 +14,12 @@ class StyleManager {
      * Initialize or get the dynamic style element
      */
     initStyleElement() {
+        // Check if document is available (browser environment)
+        if (typeof document === 'undefined') {
+            console.warn('StyleManager: document not available, running in non-browser environment');
+            return;
+        }
+
         const existingElement = document.getElementById('dynamic-styles');
         if (existingElement) {
             this.styleElement = existingElement;
@@ -68,6 +74,11 @@ class StyleManager {
      * Update the stylesheet with all stored styles
      */
     updateStylesheet() {
+        if (!this.styleElement) {
+            this.initStyleElement();
+            if (!this.styleElement) return; // Still no element, can't update
+        }
+
         const groupedStyles = new Map();
 
         // Group styles by selector

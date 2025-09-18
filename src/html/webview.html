@@ -249,7 +249,14 @@
     </div>
 
     <!-- JavaScript modules in dependency order -->
-    <!-- Utility modules - loaded first -->
+    <!-- Initialize vscode API first -->
+    <script>
+        // Initialize VS Code API globally before any modules load
+        const vscode = acquireVsCodeApi();
+        window.vscode = vscode;
+    </script>
+
+    <!-- Utility modules -->
     <script src="utils/colorUtils.js"></script>
     <script src="utils/configManager.js"></script>
     <script src="utils/styleManager.js"></script>
