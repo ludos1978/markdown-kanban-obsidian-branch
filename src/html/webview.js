@@ -688,17 +688,7 @@ function isFilePath(text) {
     return true;
 }
 
-function escapeFilePath(filePath) {
-    // Don't resolve or modify paths - just escape special characters that break markdown
-    // Only escape characters that actually break markdown syntax, not the whole path
-    return filePath
-        .replace(/\(/g, '\\(')
-        .replace(/\)/g, '\\)')
-        .replace(/\[/g, '\\[')
-        .replace(/\]/g, '\\]')
-        .replace(/'/g, "\\'")
-        .replace(/"/g, '\\"');
-}
+// escapeFilePath function moved to utils/validationUtils.js
 
 function createFileMarkdownLink(filePath) {
     const fileName = filePath.split(/[\/\\]/).pop() || filePath;
@@ -822,15 +812,7 @@ function isImageFile(fileName) {
     return imageExtensions.includes(extension);
 }
 
-function escapeHtml(unsafe) {
-    if (!unsafe) {return '';}
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
+// escapeHtml function moved to utils/validationUtils.js
 
 function extractDomainFromUrl(url) {
     try {

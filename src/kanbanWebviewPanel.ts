@@ -1271,6 +1271,7 @@ export class KanbanWebviewPanel {
             'utils/styleManager.js',
             'utils/menuManager.js',
             'utils/dragStateManager.js',
+            'utils/validationUtils.js',
             'runtime-tracker.js',
             'markdownRenderer.js',
             'taskEditor.js',

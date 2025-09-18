@@ -152,12 +152,9 @@
     }
   }
 
-  // Helper function for HTML escaping
+  // Helper function for HTML escaping - now using global ValidationUtils.escapeHtml
   function escapeHtml(text) {
-    if (!text) {return '';}
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return window.escapeHtml ? window.escapeHtml(text) : text;
   }
 
   // Expose cache update function globally
