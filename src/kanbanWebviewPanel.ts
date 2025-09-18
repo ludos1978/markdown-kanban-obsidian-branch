@@ -1542,7 +1542,6 @@ export class KanbanWebviewPanel {
                 return;
             } else if (resolution.shouldCreateBackup && resolution.shouldReload) {
                 // Save current board state as backup before reloading
-                console.log(`[Include Debug] SAVE AS BACKUP - Before backup: includeFilesChanged=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
 
                 // IMPORTANT: Preserve include file state before any operations
                 const preservedIncludeState = {
@@ -1558,7 +1557,6 @@ export class KanbanWebviewPanel {
                 this._changedIncludeFiles = preservedIncludeState.changedFiles;
                 this._includeFileContents = preservedIncludeState.contents;
 
-                console.log(`[Include Debug] SAVE AS BACKUP - After backup & restore: includeFilesChanged=${this._includeFilesChanged}, changedFiles=${Array.from(this._changedIncludeFiles)}`);
 
                 // Save current state to undo history before reloading
                 if (this._board) {
@@ -1685,7 +1683,6 @@ export class KanbanWebviewPanel {
                     // If we have known content and it differs from current file content,
                     // there's an external modification
                     if (knownContent !== undefined && knownContent.trim() !== currentFileContent.trim()) {
-                        console.log(`[External Include Check] Detected external changes in ${includeFile}`);
 
                         // Check if we also have unsaved internal changes to this file
                         const hasInternalChanges = this._includeFileUnsavedChanges.get(absolutePath) || false;

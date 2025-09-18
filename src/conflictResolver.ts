@@ -50,7 +50,6 @@ export class ConflictResolver {
 
         // Check if a dialog for this context is already active
         if (this.activeDialogs.has(dialogKey)) {
-            console.log(`[ConflictResolver] Dialog already active for ${dialogKey}, waiting for existing resolution`);
             const existing = this.pendingResolutions.get(dialogKey);
             if (existing) {
                 return await existing;

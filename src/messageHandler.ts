@@ -167,7 +167,7 @@ export class MessageHandler {
                 await this._onInitializeFile();
                 break;
             case 'showMessage':
-                // vscode.window.showInformationMessage(message.text);
+							  vscode.window.showInformationMessage(message.text);
                 break;
             case 'setPreference':
                 await this.handleSetPreference(message.key, message.value);
