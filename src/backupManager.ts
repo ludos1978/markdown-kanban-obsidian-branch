@@ -131,6 +131,95 @@ export class BackupManager {
     }
 
     /**
+     * Create a backup of an arbitrary file (for include files)
+     */
+    public async createFileBackup(filePath: string, content: string, options: BackupOptions = {}): Promise<string | null> {
+        try {
+            const config = vscode.workspace.getConfiguration('markdown-kanban');
+            const enableBackups = config.get<boolean>('enableBackups', true);
+
+            if (!enableBackups && !options.forceCreate) {
+                return null;
+            }
+
+            const contentHash = this.hashContent(content);
+
+            // For include files, we'll create a backup if content changes or force is requested
+            if (!options.forceCreate) {
+                // Read existing file to compare content
+                try {
+                    const existingContent = fs.readFileSync(filePath, 'utf8');
+                    const existingHash = this.hashContent(existingContent);
+                    if (existingHash === contentHash) {
+                        return null; // Content hasn't changed
+                    }
+                } catch (error) {
+                    // File might not exist yet, proceed with backup
+                }
+            }
+
+            const backupPath = this.generateFileBackupPath(filePath, options.label || 'backup');
+
+            // Ensure backup directory exists
+            const backupDir = path.dirname(backupPath);
+            if (!fs.existsSync(backupDir)) {
+                fs.mkdirSync(backupDir, { recursive: true });
+            }
+
+            // Read current file content for backup (before overwriting)
+            let backupContent = '';
+            try {
+                backupContent = fs.readFileSync(filePath, 'utf8');
+            } catch (error) {
+                console.log(`No existing file to backup at ${filePath}`);
+                return null; // No existing file to backup
+            }
+
+            // Write backup file with current content
+            fs.writeFileSync(backupPath, backupContent, 'utf8');
+
+            console.log(`Include file backup created: ${backupPath}`);
+            return backupPath;
+
+        } catch (error) {
+            console.error('Error creating file backup:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Generate backup path for arbitrary files
+     */
+    private generateFileBackupPath(filePath: string, label: string = 'backup'): string {
+        const dir = path.dirname(filePath);
+        const ext = path.extname(filePath);
+        const basename = path.basename(filePath, ext);
+
+        // Generate timestamp in format: YYYYMMDDTHHmmss
+        const now = new Date();
+        const timestamp = this.formatTimestamp(now);
+
+        const config = vscode.workspace.getConfiguration('markdown-kanban');
+        const backupLocation = config.get<string>('backupLocation', 'same-folder');
+
+        let backupDir = dir;
+
+        if (backupLocation === 'workspace-folder') {
+            // Try to find workspace folder for this file
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
+            if (workspaceFolder) {
+                backupDir = path.join(workspaceFolder.uri.fsPath, '.kanban-backups');
+            }
+        }
+
+        // Hidden file with . prefix for periodic backups, normal files for conflicts
+        const prefix = label === 'backup' ? '.' : '';
+        const backupFileName = `${prefix}${basename}-${label}-${timestamp}${ext}`;
+
+        return path.join(backupDir, backupFileName);
+    }
+
+    /**
      * Format timestamp as YYYYMMDDTHHmmss
      */
     private formatTimestamp(date: Date): string {

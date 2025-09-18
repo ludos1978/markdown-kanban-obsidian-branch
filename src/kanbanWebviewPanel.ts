@@ -1982,6 +1982,12 @@ export class KanbanWebviewPanel {
                 return false;
             }
 
+            // Create backup before writing (same protection as main file)
+            await this._backupManager.createFileBackup(absolutePath, presentationContent, {
+                label: 'auto',
+                forceCreate: false
+            });
+
             // Write to file
             fs.writeFileSync(absolutePath, presentationContent, 'utf8');
 
@@ -2173,20 +2179,6 @@ export class KanbanWebviewPanel {
             return;
         }
 
-        // Create backup filename with dot prefix and consistent format
-        const dir = path.dirname(filePath);
-        const basename = path.basename(filePath, path.extname(filePath));
-        const extension = path.extname(filePath);
-
-        // Use standardized timestamp format: YYYYMMDDTHHmmss
-        const now = new Date();
-        const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-
-        // Create conflict backup file WITHOUT dot prefix (visible to user)
-        // Use 'conflict' label to be consistent with main file conflict backups
-        const backupFileName = `${basename}-conflict-${timestamp}${extension}`;
-        const backupPath = path.join(dir, backupFileName);
-
         // Find the column that uses this include file and save its content as backup
         const currentDocument = this._fileManager.getDocument();
         if (!currentDocument) {
@@ -2199,16 +2191,23 @@ export class KanbanWebviewPanel {
         for (const column of this._board.columns) {
             if (column.includeMode && column.includeFiles?.includes(relativePath)) {
                 const presentationContent = PresentationParser.tasksToPresentation(column.tasks);
-                fs.writeFileSync(backupPath, presentationContent, 'utf8');
 
-                vscode.window.showInformationMessage(
-                    `Backup saved as "${path.basename(backupPath)}"`,
-                    'Open backup file'
-                ).then(choice => {
-                    if (choice === 'Open backup file') {
-                        vscode.commands.executeCommand('vscode.open', vscode.Uri.file(backupPath));
-                    }
+                // Use BackupManager for consistent backup creation
+                const backupPath = await this._backupManager.createFileBackup(filePath, presentationContent, {
+                    label: 'conflict',
+                    forceCreate: true
                 });
+
+                if (backupPath) {
+                    vscode.window.showInformationMessage(
+                        `Backup saved as "${path.basename(backupPath)}"`,
+                        'Open backup file'
+                    ).then(choice => {
+                        if (choice === 'Open backup file') {
+                            vscode.commands.executeCommand('vscode.open', vscode.Uri.file(backupPath));
+                        }
+                    });
+                }
                 break;
             }
         }

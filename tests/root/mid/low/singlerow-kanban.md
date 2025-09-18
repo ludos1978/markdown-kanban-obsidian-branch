@@ -5,7 +5,7 @@ kanban-plugin: board
 ---
 
 ## # TITLE #urgent #blocked
-- [ ] Lighting
+- [ ] x
   - Lighting
 - [ ] Lorem Imspum
   setetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
@@ -29,6 +29,13 @@ kanban-plugin: board
   :---
 - [ ] 
   !!!include(include2.md)!!!
+- [ ] ### Header 3
+- [ ] #### Header 4
+- [ ] ##### Header 5
+- [ ] ###### Header 6
+
+## 
+- [ ] xx
 - [ ] # Header 1
   ---:
   
@@ -43,15 +50,6 @@ kanban-plugin: board
   !!!include(include.md)!!!
   
   !!!include(include2.md)!!!
-- [ ] ### Header 3
-- [ ] #### Header 4
-- [ ] ##### Header 5
-- [ ] ###### Header 6
-- [ ] Lorem Imspum #green
-  Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
-
-## 
-- [ ] xx
 - [ ] ![green](../green.png)
   ![green](../green.png)
 
@@ -115,6 +113,8 @@ kanban-plugin: board
 ## row 3 #row2
 - [ ] a
 - [ ] a
+- [ ] Lorem Imspum #green
+  Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
 
 ## bla #span3 #row3
 - [ ] x
