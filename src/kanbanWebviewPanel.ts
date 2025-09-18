@@ -1266,6 +1266,11 @@ export class KanbanWebviewPanel {
         
         // Replace all JavaScript file references
         const jsFiles = [
+            'utils/colorUtils.js',
+            'utils/configManager.js',
+            'utils/styleManager.js',
+            'utils/menuManager.js',
+            'utils/dragStateManager.js',
             'runtime-tracker.js',
             'markdownRenderer.js',
             'taskEditor.js',

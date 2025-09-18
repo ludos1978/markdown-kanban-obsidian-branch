@@ -18,10 +18,41 @@ let recentlyCreatedTasks = new Set();
 // for backward compatibility
 
 // Create local references for frequently accessed properties
-let dragState = window.dragState || dragStateManager;
+// Wait for dragStateManager to be available via window.dragState
+let dragState = window.dragState;
 
 // Add custom properties that aren't in base DragStateManager
-if (!dragState.originalColumnIndex) {
+// Initialize dragState if not available yet
+if (!dragState) {
+    dragState = {
+        isDragging: false,
+        draggedTask: null,
+        draggedColumn: null,
+        draggedClipboardCard: null,
+        draggedEmptyCard: null,
+        // Column-specific
+        draggedColumnId: null,
+        originalColumnIndex: -1,
+        originalColumnNextSibling: null,
+        originalColumnParent: null,
+        originalDataIndex: -1,
+
+        // Task-specific
+        originalTaskIndex: -1,
+        originalTaskParent: null,
+        originalTaskNextSibling: null,
+
+        // Drop tracking
+        lastValidDropTarget: null,
+        lastDropTarget: null,
+        lastRowDropTarget: null,
+        lastRow: null,
+        targetRowNumber: null,
+        targetPosition: null,
+        finalRowNumber: null
+    };
+    window.dragState = dragState;
+} else if (!dragState.originalColumnIndex) {
     Object.assign(dragState, {
         // Column-specific
         draggedColumnId: null,

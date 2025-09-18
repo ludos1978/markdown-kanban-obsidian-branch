@@ -1,5 +1,5 @@
 // Use the global vscode instance set up in HTML
-const vscode = window.vscode;
+// (vscode is already declared globally in webview.html)
 
 // Global variables
 let currentFileInfo = null;
