@@ -1181,9 +1181,13 @@ function setColumnWidth(size) {
  * @param {number} rows - Number of rows (1, 2, or 3)
  * Side effects: Updates board layout, triggers re-render
  */
+// Refactored layout rows functions using styleManager
 function applyLayoutRows(rows) {
     currentLayoutRows = rows;
     window.currentLayoutRows = rows;
+
+    // Use styleManager to apply CSS variable
+    styleManager.applyLayoutRows(rows);
 
     // Re-render the board to apply row layout
     if (currentBoard) {
@@ -1192,24 +1196,20 @@ function applyLayoutRows(rows) {
 }
 
 function setLayoutRows(rows) {
-    // Apply the layout rows
     applyLayoutRows(rows);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'layoutRows',
         value: rows
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
-    
+
     vscode.postMessage({ type: 'showMessage', text: `Layout set to ${rows} row${rows > 1 ? 's' : ''}` });
 }
 
@@ -1292,31 +1292,37 @@ function applyRowHeight(height) {
     }
 }
 
-// Function to set row height (applies and stores)
+// Refactored row height functions using styleManager
 function applyRowHeightSetting(height) {
-    // Store current height setting
     currentRowHeight = height;
     window.currentRowHeight = height;
-    
-    // Apply the height using the existing applyRowHeight function
-    applyRowHeight(height);
+
+    // Convert percentage values to viewport units
+    let cssValue = height;
+    if (height.includes('percent')) {
+        const percent = parseInt(height.replace('percent', ''));
+        cssValue = `${percent}vh`;
+    }
+
+    styleManager.applyRowHeight(cssValue === 'auto' ? 'auto' : cssValue);
+
+    // Call legacy applyRowHeight if it exists
+    if (typeof applyRowHeight === 'function') {
+        applyRowHeight(height);
+    }
 }
 
 function setRowHeight(height) {
-    // Apply the row height
     applyRowHeightSetting(height);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'rowHeight',
         value: height
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
@@ -1538,62 +1544,61 @@ function setImageFill(setting) {
     });
 }
 
-// Function to set whitespace
+// Refactored whitespace functions using styleManager
 function applyWhitespace(spacing) {
-    // Store current whitespace setting
     currentWhitespace = spacing;
     window.currentWhitespace = spacing;
-    
-    // Apply the whitespace immediately
-    updateWhitespace(spacing);
+
+    // Use styleManager to apply CSS variable
+    styleManager.applyWhitespace(spacing);
+
+    // Call legacy updateWhitespace if it exists for compatibility
+    if (typeof updateWhitespace === 'function') {
+        updateWhitespace(spacing);
+    }
 }
 
 function setWhitespace(spacing) {
-    // Apply the whitespace
     applyWhitespace(spacing);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'whitespace',
         value: spacing
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
 }
 
-// Function to apply task minimum height (without saving preference)
+// Refactored task min height functions using styleManager
 function applyTaskMinHeight(height) {
-    // Store current task min height setting
     currentTaskMinHeight = height;
     window.currentTaskMinHeight = height;
-    
-    // Apply the task min height immediately
-    updateTaskMinHeight(height);
+
+    // Use styleManager to apply card height
+    styleManager.applyCardHeight(height);
+
+    // Call legacy updateTaskMinHeight if it exists for compatibility
+    if (typeof updateTaskMinHeight === 'function') {
+        updateTaskMinHeight(height);
+    }
 }
 
-// Function to set task minimum height
 function setTaskMinHeight(height) {
-    // Apply the task min height
     applyTaskMinHeight(height);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'taskMinHeight',
         value: height
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
@@ -3504,6 +3509,7 @@ window.performSort = performSort;
 // Font size functionality
 let currentFontSize = '1x'; // Default to 1.0x (current behavior)
 
+// Refactored font size functions using styleManager
 function applyFontSize(size) {
     // Remove all font size classes
     fontSizeMultipliers.forEach(multiplier => {
@@ -3511,30 +3517,27 @@ function applyFontSize(size) {
         document.body.classList.remove(`font-size-${safeName}x`);
     });
 
-    // Remove old small-card-fonts class for backward compatibility
     document.body.classList.remove('small-card-fonts');
-
-    // Add the selected font size class
     document.body.classList.add(`font-size-${size}`);
     currentFontSize = size;
     window.currentFontSize = size;
+
+    // Also use styleManager for consistency
+    const multiplier = size.replace('x', '').replace('_', '.');
+    styleManager.applyFontSize(parseFloat(multiplier) * 14);
 }
 
 function setFontSize(size) {
-    // Apply the font size
     applyFontSize(size);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'fontSize',
         value: size
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
@@ -3543,31 +3546,48 @@ function setFontSize(size) {
 // Font family functionality
 let currentFontFamily = 'system'; // Default to system fonts
 
+// Refactored font family functions using styleManager
 function applyFontFamily(family) {
     // Remove all font family classes
-    document.body.classList.remove('font-family-system', 'font-family-roboto', 'font-family-opensans', 'font-family-lato', 'font-family-poppins', 'font-family-inter', 'font-family-helvetica', 'font-family-arial', 'font-family-georgia', 'font-family-times', 'font-family-firacode', 'font-family-jetbrains', 'font-family-sourcecodepro', 'font-family-consolas');
-    
-    // Add the selected font family class
+    const families = ['system', 'roboto', 'opensans', 'lato', 'poppins', 'inter', 'helvetica', 'arial', 'georgia', 'times', 'firacode', 'jetbrains', 'sourcecodepro', 'consolas'];
+    families.forEach(f => document.body.classList.remove(`font-family-${f}`));
+
     document.body.classList.add(`font-family-${family}`);
     currentFontFamily = family;
     window.currentFontFamily = family;
+
+    // Map to actual font names for styleManager
+    const fontMap = {
+        'system': 'var(--vscode-font-family)',
+        'roboto': "'Roboto', sans-serif",
+        'opensans': "'Open Sans', sans-serif",
+        'lato': "'Lato', sans-serif",
+        'poppins': "'Poppins', sans-serif",
+        'inter': "'Inter', sans-serif",
+        'helvetica': "'Helvetica Neue', Helvetica, Arial, sans-serif",
+        'arial': "Arial, sans-serif",
+        'georgia': "Georgia, serif",
+        'times': "'Times New Roman', serif",
+        'firacode': "'Fira Code', monospace",
+        'jetbrains': "'JetBrains Mono', monospace",
+        'sourcecodepro': "'Source Code Pro', monospace",
+        'consolas': "Consolas, monospace"
+    };
+
+    styleManager.applyFontFamily(fontMap[family] || fontMap['system']);
 }
 
 function setFontFamily(family) {
-    // Apply the font family
     applyFontFamily(family);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'fontFamily',
         value: family
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
