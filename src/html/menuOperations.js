@@ -2402,32 +2402,44 @@ function handleSaveError(errorMessage) {
 
 // Modal functions
 function showInputModal(title, message, placeholder, onConfirm) {
-    document.getElementById('input-modal-title').textContent = title;
-    document.getElementById('input-modal-message').textContent = message;
-    const inputField = document.getElementById('input-modal-field');
-    inputField.placeholder = placeholder;
-    inputField.value = '';
-    document.getElementById('input-modal').style.display = 'block';
-    setTimeout(() => inputField.focus(), 100);
+    // Use centralized modal utility
+    if (window.modalUtils) {
+        window.modalUtils.showInputModal(title, message, placeholder, onConfirm);
+    } else {
+        // Fallback to original implementation if utility not loaded
+        document.getElementById('input-modal-title').textContent = title;
+        document.getElementById('input-modal-message').textContent = message;
+        const inputField = document.getElementById('input-modal-field');
+        inputField.placeholder = placeholder;
+        inputField.value = '';
+        document.getElementById('input-modal').style.display = 'block';
+        setTimeout(() => inputField.focus(), 100);
 
-    const confirmAction = () => {
-        const value = inputField.value.trim();
-        if (value) {
-            closeInputModal();
-            onConfirm(value);
-        }
-    };
+        const confirmAction = () => {
+            const value = inputField.value.trim();
+            if (value) {
+                closeInputModal();
+                onConfirm(value);
+            }
+        };
 
-    document.getElementById('input-ok-btn').onclick = confirmAction;
-    inputField.onkeydown = e => {
-        if (e.key === 'Enter') {
-            confirmAction();
-        }
-    };
+        document.getElementById('input-ok-btn').onclick = confirmAction;
+        inputField.onkeydown = e => {
+            if (e.key === 'Enter') {
+                confirmAction();
+            }
+        };
+    }
 }
 
 function closeInputModal() {
-    document.getElementById('input-modal').style.display = 'none';
+    // Use centralized modal utility
+    if (window.modalUtils) {
+        window.modalUtils.closeInputModal();
+    } else {
+        // Fallback to original implementation
+        document.getElementById('input-modal').style.display = 'none';
+    }
 }
 
 function autoResize(textarea) {
