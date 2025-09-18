@@ -2261,8 +2261,16 @@ export class KanbanWebviewPanel {
 
             // Handle different types of file changes
             if (event.fileType === 'include') {
-                // This is a column include file - handle conflict resolution
-                await this.handleIncludeFileConflict(event.path, event.changeType);
+                // Check if this is a column include file or inline include file
+                const isColumnInclude = await this.isColumnIncludeFile(event.path);
+
+                if (isColumnInclude) {
+                    // This is a column include file - handle conflict resolution
+                    await this.handleIncludeFileConflict(event.path, event.changeType);
+                } else {
+                    // This is an inline include file - send updated content and trigger visual indicators
+                    await this.handleInlineIncludeFileChange(event.path, event.changeType);
+                }
             } else if (event.fileType === 'main') {
                 // This is the main kanban file - handle external changes
                 const currentDocument = this._fileManager.getDocument();
@@ -2274,6 +2282,70 @@ export class KanbanWebviewPanel {
 
         } catch (error) {
             console.error('[ExternalFileChange] Error handling file change:', error);
+        }
+    }
+
+    /**
+     * Check if a file path is used as a column include file
+     */
+    private async isColumnIncludeFile(filePath: string): Promise<boolean> {
+        if (!this._board) return false;
+
+        const currentDocument = this._fileManager.getDocument();
+        if (!currentDocument) return false;
+
+        const basePath = path.dirname(currentDocument.uri.fsPath);
+        const relativePath = path.relative(basePath, filePath);
+
+        // Check if any column uses this file as an include file
+        for (const column of this._board.columns) {
+            if (column.includeMode && column.includeFiles?.includes(relativePath)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Handle changes to inline include files (!!!include(file)!!! statements)
+     */
+    private async handleInlineIncludeFileChange(filePath: string, changeType: string): Promise<void> {
+        try {
+            console.log(`[InlineInclude] External change detected in ${filePath} (${changeType})`);
+
+            // Read the updated file content
+            let updatedContent: string | null = null;
+            try {
+                if (fs.existsSync(filePath)) {
+                    updatedContent = fs.readFileSync(filePath, 'utf8');
+                }
+            } catch (error) {
+                console.error(`[InlineInclude] Error reading file:`, error);
+            }
+
+            // Convert absolute path to relative for frontend
+            const currentDocument = this._fileManager.getDocument();
+            if (currentDocument) {
+                const basePath = path.dirname(currentDocument.uri.fsPath);
+                const relativePath = path.relative(basePath, filePath);
+
+                // Send updated content to frontend using existing system
+                this._panel?.webview.postMessage({
+                    type: 'includeFileContent',
+                    filePath: relativePath,
+                    content: updatedContent
+                });
+
+                // Use existing visual indicator system
+                this._includeFilesChanged = true;
+                this._changedIncludeFiles.add(relativePath);
+                this._sendIncludeFileChangeNotification();
+
+                console.log(`[InlineInclude] Updated cache and visual indicators for ${relativePath}`);
+            }
+
+        } catch (error) {
+            console.error('[InlineInclude] Error handling inline include file change:', error);
         }
     }
 
