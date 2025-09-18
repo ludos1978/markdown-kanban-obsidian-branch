@@ -175,9 +175,17 @@ class TaskEditor {
                     e.preventDefault();
                     this.save();
                 }
+            } else if (e.key === 'Enter' && e.shiftKey) {
+                // Shift+Enter: End editing (save changes)
+                if (element.classList.contains('task-title-edit') ||
+                    element.classList.contains('column-title-edit')) {
+                    e.preventDefault();
+                    this.save();
+                }
             } else if (e.key === 'Escape') {
+                // Escape: End editing (save changes, don't cancel)
                 e.preventDefault();
-                this.cancel();
+                this.save();
             }
         });
 
@@ -298,29 +306,16 @@ class TaskEditor {
             this.save();
         }
 
-        // For column title editing, ensure we have the full title with include syntax
+        // For column title editing, show the title according to current tag visibility settings
         if (type === 'column-title' && columnId) {
             const column = window.cachedBoard?.columns.find(col => col.id === columnId);
             if (column && column.title) {
-                console.log(`[TaskEditor] Setting column title for editing: "${column.title}"`);
-                editElement.value = column.title; // Use full title, not filtered
-            } else {
-                console.log(`[TaskEditor] Column not found in cachedBoard for columnId: ${columnId}`);
-                // Fallback: check if the current textarea value looks filtered
-                const currentValue = editElement.value;
-                console.log(`[TaskEditor] Current textarea value: "${currentValue}"`);
+                // Show filtered title in editor if tags are hidden, full title if tags are shown
+                const titleForEditing = window.filterTagsFromText ? window.filterTagsFromText(column.title) : column.title;
+                editElement.value = titleForEditing;
 
-                // If the current value doesn't contain include syntax but we're editing an include column,
-                // we need to find the full title from the DOM or board
-                const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
-                if (columnElement) {
-                    // Try to get the original title from the board data or column element
-                    const boardColumn = window.currentBoard?.columns.find(col => col.id === columnId);
-                    if (boardColumn && boardColumn.title && boardColumn.title !== currentValue) {
-                        console.log(`[TaskEditor] Using currentBoard title: "${boardColumn.title}"`);
-                        editElement.value = boardColumn.title;
-                    }
-                }
+                // Store the original full title so we can reconstruct it properly when saving
+                editElement.setAttribute('data-original-title', column.title);
             }
         }
 
@@ -457,9 +452,17 @@ class TaskEditor {
      */
     save() {
         if (!this.currentEditor || this.isTransitioning) {return;}
-        
-        this.saveCurrentField();
-        this.closeEditor();
+
+        console.log('[TaskEditor] Starting save process');
+        try {
+            this.saveCurrentField();
+            this.closeEditor();
+            console.log('[TaskEditor] Save completed successfully');
+        } catch (error) {
+            console.error('[TaskEditor] Error during save:', error);
+            // Force close the editor even if save fails
+            this.closeEditor();
+        }
     }
 
     cancel() {
@@ -481,72 +484,38 @@ class TaskEditor {
             if (type === 'column-title') {
                 const column = window.cachedBoard.columns.find(c => c.id === columnId);
                 if (column) {
-                    // Get current row and span to preserve them
-                    const currentRow = getColumnRow(column.title);
-                    const spanMatch = column.title.match(/#span(\d+)\b/i);
-                    const currentSpan = spanMatch ? spanMatch[0] : null;
-
-                    // Clean the value of any row tags and span tags
-                    let cleanValue = value
-                        .replace(/#row\d+\b/gi, '')
-                        .replace(/\s+#row\d+/gi, '')
-                        .replace(/#row\d+\s+/gi, '')
-                        .replace(/#span\d+\b/gi, '')
-                        .replace(/\s+#span\d+/gi, '')
-                        .replace(/#span\d+\s+/gi, '')
-                        .replace(/\s{2,}/g, ' ')
-                        .trim();
-
-                    // Check if the title actually changed (excluding filtered tags)
-                    const oldCleanTitle = window.filterTagsFromText(column.title);
-                    if (oldCleanTitle !== cleanValue) {
-                        // Create context for this edit to determine if it's the same column being edited
+                    // Check if the title actually changed
+                    if (column.title !== value) {
+                        // Create context for this edit
                         const editContext = `column-title-${columnId}`;
-                        
-                        
-                        // CRITICAL FIX: Save undo state BEFORE making the change
+
+                        // Save undo state BEFORE making the change
                         this.saveUndoStateImmediately('editColumnTitle', null, columnId);
-                        
+
                         this.lastEditContext = editContext;
-                        
-                        // Now make the change AFTER saving the undo state
-                        // Reconstruct title with preserved tags
-                        let newTitle = cleanValue;
 
-                        // Re-add row tag if needed
-                        if (currentRow > 1) {
-                            newTitle += ` #row${currentRow}`;
-                        }
-
-                        // Re-add span tag if it existed
-                        if (currentSpan) {
-                            newTitle += ` ${currentSpan}`;
+                        // Reconstruct the full title by merging user input with preserved hidden tags
+                        let newTitle;
+                        try {
+                            newTitle = this.reconstructColumnTitle(value.trim(), element.getAttribute('data-original-title') || column.title);
+                        } catch (error) {
+                            console.error('[TaskEditor] Error in reconstructColumnTitle:', error);
+                            // Fallback to simple value if reconstruction fails
+                            newTitle = value.trim();
                         }
 
                         // Check for column include syntax changes
                         const oldIncludeMatches = (column.title || '').match(/!!!columninclude\(([^)]+)\)!!!/g) || [];
                         const newIncludeMatches = newTitle.match(/!!!columninclude\(([^)]+)\)!!!/g) || [];
 
-                        console.log(`[TaskEditor Debug] Column ${columnId} title change:`, {
-                            oldTitle: column.title,
-                            newTitle: newTitle,
-                            oldIncludeMatches: oldIncludeMatches,
-                            newIncludeMatches: newIncludeMatches
-                        });
-
                         const hasIncludeChanges =
                             oldIncludeMatches.length !== newIncludeMatches.length ||
                             oldIncludeMatches.some((match, index) => match !== newIncludeMatches[index]);
-
-                        console.log(`[TaskEditor Debug] Has include changes: ${hasIncludeChanges}`);
 
                         column.title = newTitle;
 
                         // If include syntax changed, send editColumnTitle message immediately for backend processing
                         if (hasIncludeChanges) {
-                            console.log('[Column Include] Detected include syntax change, sending to backend...');
-                            console.log('[TaskEditor Debug] Sending editColumnTitle message for include change');
-
                             // Send editColumnTitle message to trigger proper include handling in backend
                             vscode.postMessage({
                                 type: 'editColumnTitle',
@@ -556,6 +525,19 @@ class TaskEditor {
 
                             // Don't update local state here - let the backend handle it and reload
                             return; // Skip the rest of the local updates for include changes
+                        }
+
+                        // Check if this edit affects layout and trigger board refresh if needed
+                        const originalTitle = element.getAttribute('data-original-title') || '';
+                        const layoutChanged = this.hasLayoutChanged(originalTitle, newTitle);
+
+                        if (layoutChanged) {
+                            // Layout tags changed - refresh the board layout
+                            setTimeout(() => {
+                                if (typeof window.renderBoard === 'function' && window.currentBoard) {
+                                    window.renderBoard(window.currentBoard);
+                                }
+                            }, 50);
                         }
 
                         // Mark as unsaved since we made a change
@@ -800,7 +782,8 @@ class TaskEditor {
 
     closeEditor() {
         if (!this.currentEditor) {return;}
-        
+
+        console.log('[TaskEditor] Closing editor');
         const { element, displayElement, type } = this.currentEditor;
         
         // Clean up event listeners
@@ -891,6 +874,101 @@ class TaskEditor {
     autoResize(textarea) {
         textarea.style.height = 'auto';
         textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    /**
+     * Reconstructs column title by merging user input with preserved hidden tags
+     * Handles conflict resolution and tag visibility rules
+     * @param {string} userInput - What the user typed in the editor
+     * @param {string} originalTitle - The original full title with all tags
+     * @returns {string} - The reconstructed title with proper tag handling
+     */
+    reconstructColumnTitle(userInput, originalTitle) {
+        // Extract different types of tags from the original title
+        const rowMatch = originalTitle.match(/#row(\d+)\b/i);
+        const originalRow = rowMatch ? rowMatch[0] : null;
+
+        const spanMatch = originalTitle.match(/#span(\d+)\b/i);
+        const originalSpan = spanMatch ? spanMatch[0] : null;
+
+        const stackMatch = originalTitle.match(/#stack\b/i);
+        const originalStack = stackMatch ? stackMatch[0] : null;
+
+        // Check what the user added in their input
+        const userRowMatch = userInput.match(/#row(\d+)\b/i);
+        const userRow = userRowMatch ? userRowMatch[0] : null;
+
+        const userSpanMatch = userInput.match(/#span(\d+)\b/i);
+        const userSpan = userSpanMatch ? userSpanMatch[0] : null;
+
+        const userStackMatch = userInput.match(/#stack\b/i);
+        const userStack = userStackMatch ? userStackMatch[0] : null;
+
+        const userNoSpanMatch = userInput.match(/#nospan\b/i);
+        const userNoSpan = !!userNoSpanMatch;
+
+        const userNoStackMatch = userInput.match(/#nostack\b/i);
+        const userNoStack = !!userNoStackMatch;
+
+        // Clean the user input of all layout tags to get the base title
+        let cleanTitle = userInput
+            .replace(/#row\d+\b/gi, '')
+            .replace(/#span\d+\b/gi, '')
+            .replace(/#stack\b/gi, '')
+            .replace(/#nospan\b/gi, '')
+            .replace(/#nostack\b/gi, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        let result = cleanTitle;
+
+        // Handle row tags (preserve original unless user specified different)
+        const finalRow = userRow || originalRow;
+        if (finalRow && finalRow !== '#row1') {
+            result += ` ${finalRow}`;
+        }
+
+        // Handle span tags with conflict resolution
+        if (userNoSpan) {
+            // User explicitly disabled span - don't add any span tag
+        } else if (userSpan) {
+            // User specified a span tag - use it (overrides original)
+            result += ` ${userSpan}`;
+        } else if (originalSpan) {
+            // Keep original span tag if user didn't specify one
+            result += ` ${originalSpan}`;
+        }
+
+        // Handle stack tags with conflict resolution
+        if (userNoStack) {
+            // User explicitly disabled stack - don't add stack tag
+        } else if (userStack) {
+            // User specified stack tag - use it
+            result += ` #stack`;
+        } else if (originalStack) {
+            // Keep original stack tag if user didn't specify one
+            result += ` #stack`;
+        }
+
+        return result.trim();
+    }
+
+    /**
+     * Checks if layout-affecting tags changed between old and new titles
+     * @param {string} oldTitle - Original title
+     * @param {string} newTitle - New title
+     * @returns {boolean} - True if layout changed
+     */
+    hasLayoutChanged(oldTitle, newTitle) {
+        // Extract layout tags from both titles
+        const getLayoutTags = (title) => {
+            const span = title.match(/#span(\d+)\b/i)?.[0] || '';
+            const stack = title.match(/#stack\b/i)?.[0] || '';
+            const row = title.match(/#row(\d+)\b/i)?.[0] || '';
+            return `${span}|${stack}|${row}`;
+        };
+
+        return getLayoutTags(oldTitle) !== getLayoutTags(newTitle);
     }
 }
 
