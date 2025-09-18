@@ -1462,14 +1462,18 @@ export class KanbanWebviewPanel {
     private async _createBoardStateBackup(boardMarkdown: string, label: string): Promise<string> {
         const document = this._fileManager.getDocument()!;
         const originalPath = document.uri.fsPath;
-        const pathParts = originalPath.split('.');
-        const extension = pathParts.pop();
-        const basePath = pathParts.join('.');
+        const dir = path.dirname(originalPath);
+        const basename = path.basename(originalPath, path.extname(originalPath));
+        const extension = path.extname(originalPath);
 
         // Use standardized timestamp format: YYYYMMDDTHHmmss
         const now = new Date();
         const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-        const backupPath = `${basePath}-${label}-${timestamp}.${extension}`;
+
+        // Follow BackupManager convention: hidden files for periodic backups, visible for conflicts
+        const prefix = label === 'backup' ? '.' : '';
+        const backupFileName = `${prefix}${basename}-${label}-${timestamp}${extension}`;
+        const backupPath = path.join(dir, backupFileName);
 
         // Write backup file with board state as markdown
         const backupUri = vscode.Uri.file(backupPath);
@@ -1598,40 +1602,129 @@ export class KanbanWebviewPanel {
      * Check for external unsaved changes when about to save
      */
     private async checkForExternalUnsavedChanges(): Promise<boolean> {
+        // First check main file for external changes
         const document = this._fileManager.getDocument();
-        if (!document || !this._hasExternalUnsavedChanges) {
-            return true; // No conflicts, safe to save
+        if (!document) {
+            return true; // No document, nothing to check
         }
 
-        const currentContent = document.getText();
-        const hasRealChanges = currentContent !== this._lastKnownFileContent;
+        // Check main file external changes
+        if (this._hasExternalUnsavedChanges) {
+            const currentContent = document.getText();
+            const hasRealChanges = currentContent !== this._lastKnownFileContent;
 
-        if (!hasRealChanges) {
-            // False alarm - no real external changes
-            this._hasExternalUnsavedChanges = false;
+            if (hasRealChanges) {
+                // Real external unsaved changes detected in main file
+                const fileName = path.basename(document.fileName);
+                const context: ConflictContext = {
+                    type: 'presave_check',
+                    fileType: 'main',
+                    filePath: document.uri.fsPath,
+                    fileName: fileName,
+                    hasMainUnsavedChanges: true, // We're in the process of saving
+                    hasIncludeUnsavedChanges: false,
+                    changedIncludeFiles: []
+                };
+
+                try {
+                    const resolution = await this._conflictResolver.resolveConflict(context);
+                    if (!resolution.shouldProceed) {
+                        return false; // User chose not to proceed
+                    }
+                } catch (error) {
+                    console.error('[checkForExternalUnsavedChanges] Error in main file conflict resolution:', error);
+                    return false;
+                }
+            } else {
+                // False alarm - no real external changes
+                this._hasExternalUnsavedChanges = false;
+            }
+        }
+
+        // Now check include files for external changes
+        const hasExternalIncludeChanges = await this.checkForExternalIncludeFileChanges();
+        if (!hasExternalIncludeChanges) {
+            return false; // User chose not to proceed with include file conflicts
+        }
+
+        return true; // All checks passed
+    }
+
+    /**
+     * Check for external changes in column include files before saving
+     */
+    private async checkForExternalIncludeFileChanges(): Promise<boolean> {
+        if (!this._board) {
             return true;
         }
 
-        // Real external unsaved changes detected - use unified conflict resolver
-        const fileName = path.basename(document.fileName);
-        const context: ConflictContext = {
-            type: 'presave_check',
-            fileType: 'main',
-            filePath: document.uri.fsPath,
-            fileName: fileName,
-            hasMainUnsavedChanges: true, // We're in the process of saving
-            hasIncludeUnsavedChanges: false, // Not relevant for pre-save check
-            changedIncludeFiles: []
-        };
-
-        try {
-            const resolution = await this._conflictResolver.resolveConflict(context);
-            return resolution.shouldProceed;
-        } catch (error) {
-            console.error('[checkForExternalUnsavedChanges] Error in conflict resolution:', error);
-            // Default to not proceeding if there's an error
-            return false;
+        const currentDocument = this._fileManager.getDocument();
+        if (!currentDocument) {
+            return true;
         }
+
+        const basePath = path.dirname(currentDocument.uri.fsPath);
+
+        // Check each column that has include mode enabled
+        for (const column of this._board.columns) {
+            if (column.includeMode && column.includeFiles && column.includeFiles.length > 0) {
+                for (const includeFile of column.includeFiles) {
+                    const absolutePath = path.resolve(basePath, includeFile);
+
+                    // Skip if file doesn't exist
+                    if (!fs.existsSync(absolutePath)) {
+                        continue;
+                    }
+
+                    // Read current file content
+                    const currentFileContent = fs.readFileSync(absolutePath, 'utf8');
+
+                    // Get our known content for this file
+                    const knownContent = this._knownIncludeFileContents.get(absolutePath);
+
+                    // If we have known content and it differs from current file content,
+                    // there's an external modification
+                    if (knownContent !== undefined && knownContent.trim() !== currentFileContent.trim()) {
+                        console.log(`[External Include Check] Detected external changes in ${includeFile}`);
+
+                        // Check if we also have unsaved internal changes to this file
+                        const hasInternalChanges = this._includeFileUnsavedChanges.get(absolutePath) || false;
+
+                        if (hasInternalChanges) {
+                            // We have both internal changes and external changes - conflict!
+                            const fileName = path.basename(absolutePath);
+                            const context: ConflictContext = {
+                                type: 'presave_check',
+                                fileType: 'include',
+                                filePath: absolutePath,
+                                fileName: fileName,
+                                hasMainUnsavedChanges: false,
+                                hasIncludeUnsavedChanges: true,
+                                changedIncludeFiles: [absolutePath]
+                            };
+
+                            try {
+                                const resolution = await this._conflictResolver.resolveConflict(context);
+                                if (!resolution.shouldProceed) {
+                                    return false; // User chose not to proceed
+                                }
+                                // If user chose to proceed, update our known content to the external version
+                                // so we can overwrite it
+                                this._knownIncludeFileContents.set(absolutePath, currentFileContent);
+                            } catch (error) {
+                                console.error(`[checkForExternalIncludeFileChanges] Error in include file conflict resolution for ${includeFile}:`, error);
+                                return false;
+                            }
+                        } else {
+                            // External changes but no internal changes - update our baseline
+                            this._knownIncludeFileContents.set(absolutePath, currentFileContent);
+                        }
+                    }
+                }
+            }
+        }
+
+        return true; // All include file checks passed
     }
 
     /**
@@ -2078,7 +2171,19 @@ export class KanbanWebviewPanel {
             return;
         }
 
-        const backupPath = filePath.replace(path.extname(filePath), `_backup_${Date.now()}${path.extname(filePath)}`);
+        // Create backup filename with dot prefix and consistent format
+        const dir = path.dirname(filePath);
+        const basename = path.basename(filePath, path.extname(filePath));
+        const extension = path.extname(filePath);
+
+        // Use standardized timestamp format: YYYYMMDDTHHmmss
+        const now = new Date();
+        const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+
+        // Create conflict backup file WITHOUT dot prefix (visible to user)
+        // Use 'conflict' label to be consistent with main file conflict backups
+        const backupFileName = `${basename}-conflict-${timestamp}${extension}`;
+        const backupPath = path.join(dir, backupFileName);
 
         // Find the column that uses this include file and save its content as backup
         const currentDocument = this._fileManager.getDocument();

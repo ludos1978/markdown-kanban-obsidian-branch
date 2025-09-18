@@ -380,8 +380,16 @@ export class ConflictResolver {
         const overwriteExternal = 'Overwrite external changes';
         const cancelSave = 'Cancel save';
 
+        // Customize message based on file type
+        let message: string;
+        if (context.fileType === 'include') {
+            message = `⚠️ CONFLICT: The include file "${context.fileName}" has been modified externally. Saving your kanban changes will overwrite these external changes.`;
+        } else {
+            message = `⚠️ CONFLICT: The file "${context.fileName}" has unsaved external modifications. Saving kanban changes will overwrite these external changes.`;
+        }
+
         const choice = await vscode.window.showWarningMessage(
-            `⚠️ CONFLICT: The file "${context.fileName}" has unsaved external modifications. Saving kanban changes will overwrite these external changes.`,
+            message,
             { modal: true },
             overwriteExternal,
             cancelSave
