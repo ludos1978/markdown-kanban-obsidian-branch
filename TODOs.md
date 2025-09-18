@@ -3,6 +3,7 @@ kanban-plugin: board
 ---
 
 ## Open Bugs
+- [ ] find code duplicates. find parts that do something similar or the same. create a comprehensive list of all functions in all js und ts html and css an note what they are for (for functions larger then a few lines, split it int mutiple features). write the result into @FUNCTIONS.md .  try to create  unique naming system for features and write down the functions and line number within the function. later we are going to compare the results and fin duplicates.
 - [ ] The view doesnt properly restore the content when automatically opening. for example when restarting debugging or when restoring a work-view it stays empty and must be manually be reopened.
 - [ ] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).
 - [ ] i allways need to build before restarting the debugging to see the changes applied. can you modify the configuration that this happens automatically
