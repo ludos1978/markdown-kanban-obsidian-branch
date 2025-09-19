@@ -3,7 +3,11 @@ kanban-plugin: board
 ---
 
 ## Open Bugs
-- [x] When folding all cards of the column: under some circumstances it doesnt fold the cards below the column. but rather folds a card that is in another column, when i first create a card in this column and then move it to another column. the column should just fold/unfold all cards below itself.
+- [ ] When dragging a column in a multi-row setup the lower, the lower row overlays the rows above, hiding the cards. the rows should keep the same height as when working normally.
+- [ ] undo does not work anymore.
+- [ ] when converting paths to media assets that are converted to links:
+  - make sure windows paths are also discovered as urls
+	- make sure to convert paths to %-encoding / url encoding. for example a space is %20, etc. use a library to do the conversion.
 
 - [ ] find code duplicates. find parts that do something similar or the same. create a comprehensive list of all functions in all js und ts html and css an note what they are for (for functions larger then a few lines, split it int mutiple features). write the result into @FUNCTIONS.md .  try to create  unique naming system for features and write down the functions and line number within the function. later we are going to compare the results and fin duplicates.
 - [ ] The view doesnt properly restore the content when automatically opening. for example when restarting debugging or when restoring a work-view it stays empty and must be manually be reopened.
@@ -16,6 +20,8 @@ kanban-plugin: board
 
 
 ## Closed Bugs
+- [x] When folding all cards of the column: under some circumstances it doesnt fold the cards below the column. but rather folds a card that is in another column, when i first create a card in this column and then move it to another column. the column should just fold/unfold all cards below itself.
+
 - [x] Add an configuration option: It should define which tags are exported when copying as markdown (in the cards burger menus and the column burger menus). have the same options as when changing the displaying in the kaban board (all tags, standard tags, custom tags, @tags only, no tags). 
 - [x] add a #stack tag, that makes a column not be moved on a new line, but stay below the column previous to it. it can be saved to the markdown. also add a column option to toggle the #stack tag on and off for a column.- [x] pressing escape should no more undo the changes of a editing in a field, but should end editing. also tab should no more end editing. shift+enter is ending edi  also. so escape and shift+enter = end editing. dont undo changes if pressing escale. tab works as tab entry.- [x] it must be possible to enter layout and any other tags using the edit field manually, or if available using the interfaces provided. it should likely edit the contents by javascript in the frontend, and refresh without involving the backend at all, except for caching the modified data. when tags are hidden, they should be also hidden in the editor. so after editing they disappear. if something conflicting is added it must overwrite the conflicting tag (new span tags for example). also add a #nospan or #nostack for that to function properly. this has worked before, but doesnt work anymore. no tag (#tags) editing should happen in the backend. move all functionality to the frontend. layout changes should be handled using a text parsing, using the interface (#span{number} tags) should do text parsing and editing. hiding tags also hides them in the editor, in that case the interface should generally be used, but manual entry is allowed and supported.
 - [x] folding a column after a new column has been added might fold the wrong column. are unique id correctly added and everything setup correctly?
