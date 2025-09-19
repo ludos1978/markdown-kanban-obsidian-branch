@@ -11,6 +11,7 @@ export interface ConflictContext {
     fileName: string;
     hasMainUnsavedChanges: boolean;
     hasIncludeUnsavedChanges: boolean;
+    hasExternalChanges?: boolean;
     changedIncludeFiles: string[];
     isClosing?: boolean;
 }
@@ -293,9 +294,22 @@ export class ConflictResolver {
      */
     private async showExternalIncludeFileDialog(context: ConflictContext): Promise<ConflictResolution> {
         const hasIncludeChanges = context.hasIncludeUnsavedChanges;
+        const hasExternalChanges = context.hasExternalChanges ?? true; // Default to true for safety
 
-        if (!hasIncludeChanges) {
-            // No unsaved changes in this include file - simple reload
+        if (!hasIncludeChanges && !hasExternalChanges) {
+            // No unsaved changes and no external changes - nothing to do
+            return {
+                action: 'ignore',
+                shouldProceed: true,
+                shouldCreateBackup: false,
+                shouldSave: false,
+                shouldReload: false,
+                shouldIgnore: true
+            };
+        }
+
+        if (!hasIncludeChanges && hasExternalChanges) {
+            // External changes but no internal changes - simple reload
             return {
                 action: 'discard_local',
                 shouldProceed: true,
@@ -312,8 +326,15 @@ export class ConflictResolver {
         const saveAndIgnoreExternal = 'Save my changes and ignore external';
         const ignoreExternal = 'Ignore external changes (Esc)';
 
+        let message: string;
+        if (hasExternalChanges) {
+            message = `The include file "${context.fileName}" has been modified externally. Your current kanban changes to this file may be lost if you reload.`;
+        } else {
+            message = `You have unsaved changes in the include file "${context.fileName}". How would you like to proceed?`;
+        }
+
         const choice = await vscode.window.showWarningMessage(
-            `The include file "${context.fileName}" has been modified externally. Your current kanban changes to this file may be lost if you reload.`,
+            message,
             { modal: true },
             discardMyChanges,
             saveAsBackup,

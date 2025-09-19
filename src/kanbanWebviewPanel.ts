@@ -1759,6 +1759,29 @@ export class KanbanWebviewPanel {
                 this._includeFileContents.set(filePath, content);
             }
         }
+
+        // Also initialize known content for column include files
+        if (this._board) {
+            const currentDocument = this._fileManager.getDocument();
+            if (currentDocument) {
+                const basePath = path.dirname(currentDocument.uri.fsPath);
+
+                for (const column of this._board.columns) {
+                    if (column.includeMode && column.includeFiles) {
+                        for (const includeFile of column.includeFiles) {
+                            const absolutePath = path.resolve(basePath, includeFile);
+                            const content = await this._readFileContent(absolutePath);
+                            if (content !== null) {
+                                // Initialize known content for conflict detection
+                                this._knownIncludeFileContents.set(absolutePath, content);
+                                this._includeFileUnsavedChanges.set(absolutePath, false);
+                                console.log(`[InitializeInclude] Set known content for column include file: ${includeFile}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -2110,8 +2133,26 @@ export class KanbanWebviewPanel {
         const fileName = path.basename(filePath);
         const hasUnsavedIncludeChanges = this._includeFileUnsavedChanges.get(filePath) || false;
 
-        if (!hasUnsavedIncludeChanges) {
-            // No unsaved changes - simple reload
+        // Check if the external file has changed from our known baseline
+        let hasExternalChanges = false;
+        const knownContent = this._knownIncludeFileContents.get(filePath);
+        if (knownContent !== undefined) {
+            try {
+                const currentFileContent = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+                hasExternalChanges = knownContent.trim() !== currentFileContent.trim();
+            } catch (error) {
+                console.error(`[handleIncludeFileConflict] Error reading file ${filePath}:`, error);
+                hasExternalChanges = true; // Assume changes if we can't read the file
+            }
+        }
+
+        if (!hasUnsavedIncludeChanges && !hasExternalChanges) {
+            // No unsaved changes and no external changes - nothing to do
+            return;
+        }
+
+        if (!hasUnsavedIncludeChanges && hasExternalChanges) {
+            // External changes but no internal changes - simple reload
             await this.reloadIncludeFile(filePath);
             return;
         }
@@ -2124,6 +2165,7 @@ export class KanbanWebviewPanel {
             fileName: fileName,
             hasMainUnsavedChanges: false, // Not relevant for include file conflicts
             hasIncludeUnsavedChanges: hasUnsavedIncludeChanges,
+            hasExternalChanges: hasExternalChanges,
             changedIncludeFiles: [filePath]
         };
 
