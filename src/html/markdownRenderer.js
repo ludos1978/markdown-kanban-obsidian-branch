@@ -247,12 +247,16 @@ function datePersonTagPlugin(md, options = {}) {
 
 // Helper function to extract first tag from text
 function extractFirstTag(text) {
-    return tagUtils.extractFirstTag(text, true);
+    if (!text) {return null;}
+    const tagMatch = text.match(/#([a-zA-Z0-9_-]+)/);
+    return tagMatch ? tagMatch[1].toLowerCase() : null;
 }
 
 // Helper function to extract all tags from text
 function extractAllTags(text) {
-    return tagUtils.extractTags(text, { includeHash: true, excludeLayout: true });
+    if (!text) {return [];}
+    const tagMatches = text.match(/#([a-zA-Z0-9_-]+)/g);
+    return tagMatches ? tagMatches.map(tag => tag.substring(1).toLowerCase()) : [];
 }
 
 function renderMarkdown(text) {

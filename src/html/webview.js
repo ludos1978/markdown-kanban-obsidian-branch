@@ -1358,8 +1358,31 @@ let currentTagVisibility = 'standard'; // Default to standard (exclude #span and
 
 // Helper function to filter tags from text based on current visibility setting
 function filterTagsFromText(text) {
+    if (!text) {return text;}
+
     const setting = currentTagVisibility || 'standard';
-    return tagUtils.filterTagsFromText(text, setting);
+
+    switch (setting) {
+        case 'all':
+            // Show all tags - don't filter anything
+            return text;
+        case 'standard':
+            // Hide #span and #row tags only, but preserve include syntax
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+        case 'custom':
+            // Hide #span, #row, and configured tags (but show @ tags)
+            // For now, just hide #span and #row (configured tag filtering happens in CSS)
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+        case 'mentions':
+            // Hide all tags except @ tags - need to preserve @mentions but remove # tags
+            return text.replace(/#\w+/gi, '').trim();
+        case 'none':
+            // Hide all tags
+            return text.replace(/#\w+/gi, '').replace(/@\w+/gi, '').trim();
+        default:
+            // Default to standard behavior
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+    }
 }
 
 function applyTagVisibility(setting) {
@@ -1432,8 +1455,30 @@ function setExportTagVisibility(setting) {
 
 // Helper function to filter tags from text based on export tag visibility setting
 function filterTagsForExport(text) {
+    if (!text) return text;
+
     const setting = window.currentExportTagVisibility || 'allexcludinglayout';
-    return tagUtils.filterTagsForExport(text, setting);
+
+    switch (setting) {
+        case 'all':
+            // Export all tags - don't filter anything
+            return text;
+        case 'allexcludinglayout':
+            // Export all except #span, #row, and #stack tags
+            return text.replace(/#row\d+\b/gi, '').replace(/#span\d+\b/gi, '').replace(/#stack\b/gi, '').trim();
+        case 'customonly':
+            // Export only custom tags and @ tags (remove standard layout tags)
+            return text.replace(/#row\d+\b/gi, '').replace(/#span\d+\b/gi, '').replace(/#stack\b/gi, '').trim();
+        case 'mentionsonly':
+            // Export only @ tags - remove all # tags
+            return text.replace(/#\w+\b/gi, '').trim();
+        case 'none':
+            // Export no tags - remove all tags
+            return text.replace(/#\w+\b/gi, '').replace(/@\w+\b/gi, '').trim();
+        default:
+            // Default to allexcludinglayout behavior
+            return text.replace(/#row\d+\b/gi, '').replace(/#span\d+\b/gi, '').replace(/#stack\b/gi, '').trim();
+    }
 }
 
 // Image fill functionality

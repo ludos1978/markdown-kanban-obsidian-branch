@@ -19,7 +19,17 @@ let renderTimeout = null;
  * Note: Skips row tags (#rowN), span tags (#spanN), and gather tags (#gather_...)
  */
 function extractFirstTag(text) {
-    return tagUtils.extractFirstTag(text, true);
+    if (!text) {return null;}
+    const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const raw = m[1];
+        const baseMatch = raw.match(/^([a-zA-Z0-9_-]+)/);
+        const base = (baseMatch ? baseMatch[1] : raw).toLowerCase();
+        if (base.startsWith('gather_')) {continue;} // do not use gather tags for styling
+        return base;
+    }
+    return null;
 }
 
 
