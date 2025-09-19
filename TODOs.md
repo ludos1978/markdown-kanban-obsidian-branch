@@ -3,6 +3,8 @@ kanban-plugin: board
 ---
 
 ## Open Bugs
+- [ ] When folding all cards of the column: under some circumstances it doesnt fold the cards below the column. but rather folds a card that is in another column, when i first create a card in this column and then move it to another column. the column should just fold/unfold all cards below itself.
+
 - [ ] find code duplicates. find parts that do something similar or the same. create a comprehensive list of all functions in all js und ts html and css an note what they are for (for functions larger then a few lines, split it int mutiple features). write the result into @FUNCTIONS.md .  try to create  unique naming system for features and write down the functions and line number within the function. later we are going to compare the results and fin duplicates.
 - [ ] The view doesnt properly restore the content when automatically opening. for example when restarting debugging or when restoring a work-view it stays empty and must be manually be reopened.
 - [ ] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).

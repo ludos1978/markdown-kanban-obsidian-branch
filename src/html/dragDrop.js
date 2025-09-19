@@ -1436,6 +1436,15 @@ function setupTaskDragHandle(handle) {
                                         }
                                     }
                                 }
+
+                                // Update column displays after task move
+                                if (typeof window.updateColumnDisplay === 'function') {
+                                    // Update both source and destination columns
+                                    window.updateColumnDisplay(originalColumnId);
+                                    if (originalColumnId !== finalColumnId) {
+                                        window.updateColumnDisplay(finalColumnId);
+                                    }
+                                }
                             }
                         }
 

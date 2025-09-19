@@ -1348,18 +1348,47 @@ function getFoldAllButtonState(columnId) {
 }
 
 function toggleAllTasksInColumn(columnId) {
-    if (!currentBoard || !currentBoard.columns) {return;}
-    
+    if (!currentBoard || !currentBoard.columns) {
+        return;
+    }
+
     // Ensure state variables are initialized
     if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
     if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
-    
+
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column || column.tasks.length === 0) {return;}
-    
-    const collapsedCount = column.tasks.filter(task => window.collapsedTasks.has(task.id)).length;
-    const totalTasks = column.tasks.length;
-    
+    if (!column) {
+        return;
+    }
+
+    // Get the full column element (kanban-full-height-column)
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"].kanban-full-height-column`);
+    if (!columnElement) {
+        return;
+    }
+
+    // Find the tasks container within the column structure
+    const tasksContainer = columnElement.querySelector('.tasks-container');
+    if (!tasksContainer) {
+        return;
+    }
+
+    // Get all task elements currently in this column's tasks container
+    const taskElements = tasksContainer.querySelectorAll('.task-item[data-task-id]');
+    if (taskElements.length === 0) {
+        return;
+    }
+
+    // Count collapsed tasks in this column's DOM
+    let collapsedCount = 0;
+    taskElements.forEach(taskElement => {
+        if (taskElement.classList.contains('collapsed')) {
+            collapsedCount++;
+        }
+    });
+
+    const totalTasks = taskElements.length;
+
     // Determine action based on current state
     let shouldCollapse;
     if (collapsedCount === totalTasks) {
@@ -1377,23 +1406,17 @@ function toggleAllTasksInColumn(columnId) {
             shouldCollapse = true; // Default or was expanded, so collapse
         }
     }
-    
-    // Apply the action to all tasks - scope to this column only
-    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
-    if (!columnElement) {return;}
-    
-    column.tasks.forEach(task => {
-        const taskElement = columnElement.querySelector(`[data-task-id="${task.id}"]`);
-        const toggle = taskElement?.querySelector('.task-collapse-toggle');
-        
-        if (shouldCollapse) {
-            window.collapsedTasks.add(task.id);
-            taskElement?.classList.add('collapsed');
-            toggle?.classList.add('rotated');
-        } else {
-            window.collapsedTasks.delete(task.id);
-            taskElement?.classList.remove('collapsed');
-            toggle?.classList.remove('rotated');
+
+    // Apply the action to all tasks using existing toggleTaskCollapse function
+    taskElements.forEach(taskElement => {
+        const taskId = taskElement.getAttribute('data-task-id');
+        const isCollapsed = taskElement.classList.contains('collapsed');
+
+        // Only toggle if state needs to change
+        if (shouldCollapse && !isCollapsed) {
+            toggleTaskCollapse(taskId);
+        } else if (!shouldCollapse && isCollapsed) {
+            toggleTaskCollapse(taskId);
         }
     });
     
@@ -2589,6 +2612,35 @@ function removeAllTags(id, type, columnId = null) {
 }
 
 window.removeAllTags = removeAllTags;
+
+// Function to update task count display for a column
+function updateColumnTaskCount(columnId) {
+    const column = currentBoard?.columns?.find(c => c.id === columnId);
+    if (!column) return;
+
+    const taskCountElement = document.querySelector(`[data-column-id="${columnId}"] .task-count`);
+    if (taskCountElement) {
+        // Update the text content while preserving the button
+        const buttonHTML = taskCountElement.innerHTML.match(/<button[\s\S]*<\/button>/);
+        taskCountElement.innerHTML = `${column.tasks.length}${buttonHTML ? buttonHTML[0] : ''}`;
+    }
+}
+
+// Function to update fold button state for a column
+function updateColumnFoldState(columnId) {
+    updateFoldAllButton(columnId);
+}
+
+// Function to update both task count and fold state after task moves
+function updateColumnDisplay(columnId) {
+    updateColumnTaskCount(columnId);
+    updateColumnFoldState(columnId);
+}
+
+// Expose fold/collapse functions for onclick handlers
+window.toggleTaskCollapse = toggleTaskCollapse;
+window.toggleAllTasksInColumn = toggleAllTasksInColumn;
+window.updateColumnDisplay = updateColumnDisplay;
 
 // TODO: These functions are not defined - commenting out to prevent errors
 // window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
