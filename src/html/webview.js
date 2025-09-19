@@ -880,70 +880,8 @@ async function updateClipboardCardSource() {
     }
 }
 
-function initializeClipboardCardSource() {
-    const clipboardSource = document.getElementById('clipboard-card-source');
-    if (!clipboardSource) {
-        return;
-    }
-    
-    clipboardSource.addEventListener('dragstart', (e) => {
-        // Check if this is an image - if so, don't override the image handling
-        if (clipboardCardData && clipboardCardData.isImage) {
-            console.log('=== CONFLICTING HANDLER: Skipping for image ===');
-            return; // Let the main handler deal with images
-        }
-
-        console.log('=== CONFLICTING HANDLER: Processing as text ===');
-        // For testing - create dummy data if no clipboard data
-        if (!clipboardCardData) {
-            clipboardCardData = {
-                title: 'Test Clipboard Card',
-                content: 'This is a test card from clipboard',
-                isLink: false
-            };
-        }
-
-        // Create a temporary task object for the drag operation
-        const tempTask = {
-            id: 'temp-clipboard-' + Date.now(),
-            title: clipboardCardData.title,
-            description: clipboardCardData.isImage ? '[Image from clipboard]' : clipboardCardData.content,
-            isFromClipboard: true
-        };
-
-
-        // Store in drag data
-        const dragData = JSON.stringify({
-            type: 'clipboard-card',
-            task: tempTask
-        });
-
-        // Use text/plain with a special prefix for clipboard cards
-        // Custom MIME types don't work reliably across browsers
-        e.dataTransfer.setData('text/plain', `CLIPBOARD_CARD:${dragData}`);
-        e.dataTransfer.effectAllowed = 'copy';
-        
-        
-        // Set drag state to prevent interference with internal drag detection
-        if (window.dragState) {
-            window.dragState.isDragging = true;
-            window.dragState.draggedClipboardCard = tempTask;
-        } else {
-        }
-        
-        clipboardSource.classList.add('dragging');
-    });
-    
-    clipboardSource.addEventListener('dragend', (e) => {
-        clipboardSource.classList.remove('dragging');
-        
-        // Clear drag state
-        if (window.dragState) {
-            window.dragState.isDragging = false;
-            window.dragState.draggedClipboardCard = null;
-        }
-    });
-}
+// Removed conflicting initializeClipboardCardSource function
+// HTML element already has ondragstart="handleClipboardDragStart(event)" and ondragend="handleClipboardDragEnd(event)"
 
 // Function to position file bar dropdown
 function positionFileBarDropdown(triggerButton, dropdown) {
@@ -1827,8 +1765,7 @@ function updateDocumentUri(newUri) {
 document.addEventListener('DOMContentLoaded', () => {
     // Theme observer is set up later in the file
     
-    // Initialize clipboard card source
-    initializeClipboardCardSource();
+    // Initialize clipboard card source - handled by HTML ondragstart/ondragend attributes
     
     // Populate dynamic menus
     populateDynamicMenus();
