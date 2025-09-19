@@ -1,4 +1,5 @@
-const vscode = acquireVsCodeApi();
+// Use the global vscode instance set up in HTML
+// (vscode is already declared globally in webview.html)
 
 // Global variables
 let currentFileInfo = null;
@@ -168,6 +169,13 @@ const menuConfig = {
         { label: "@ Tags Only", value: "mentionsonly", description: "Show only @ tags" },
         { label: "No Tags", value: "none", description: "Hide all tags" }
     ],
+    exportTagVisibility: [
+        { label: "All Tags", value: "all", description: "Export all tags including #span, #row, and @ tags" },
+        { label: "All Excluding Layout", value: "allexcludinglayout", description: "Export all except #span and #row (includes @ tags)" },
+        { label: "Custom Tags Only", value: "customonly", description: "Export only custom tags (not configured ones) and @ tags" },
+        { label: "@ Tags Only", value: "mentionsonly", description: "Export only @ tags" },
+        { label: "No Tags", value: "none", description: "Export without any tags" }
+    ],
     imageFill: [
         { label: "Fit Content", value: "fit", description: "Images size to their natural dimensions" },
         { label: "Fill Space", value: "fill", description: "Images fill available space while keeping aspect ratio" }
@@ -198,6 +206,8 @@ function getCurrentSettingValue(configKey) {
             return window.currentStickyHeaders || 'enabled';
         case 'tagVisibility':
             return window.currentTagVisibility || 'allexcludinglayout';
+        case 'exportTagVisibility':
+            return window.currentExportTagVisibility || 'allexcludinglayout';
         case 'imageFill':
             return window.currentImageFill || 'fit';
         default:
@@ -217,6 +227,7 @@ function updateAllMenuIndicators() {
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
         { selector: '[data-menu="stickyHeaders"]', config: 'stickyHeaders', function: 'setStickyHeaders' },
         { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
+        { selector: '[data-menu="exportTagVisibility"]', config: 'exportTagVisibility', function: 'setExportTagVisibility' },
         { selector: '[data-menu="imageFill"]', config: 'imageFill', function: 'setImageFill' }
     ];
 
@@ -685,17 +696,7 @@ function isFilePath(text) {
     return true;
 }
 
-function escapeFilePath(filePath) {
-    // Don't resolve or modify paths - just escape special characters that break markdown
-    // Only escape characters that actually break markdown syntax, not the whole path
-    return filePath
-        .replace(/\(/g, '\\(')
-        .replace(/\)/g, '\\)')
-        .replace(/\[/g, '\\[')
-        .replace(/\]/g, '\\]')
-        .replace(/'/g, "\\'")
-        .replace(/"/g, '\\"');
-}
+// escapeFilePath function moved to utils/validationUtils.js
 
 function createFileMarkdownLink(filePath) {
     const fileName = filePath.split(/[\/\\]/).pop() || filePath;
@@ -819,15 +820,7 @@ function isImageFile(fileName) {
     return imageExtensions.includes(extension);
 }
 
-function escapeHtml(unsafe) {
-    if (!unsafe) {return '';}
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
+// escapeHtml function moved to utils/validationUtils.js
 
 function extractDomainFromUrl(url) {
     try {
@@ -1179,9 +1172,13 @@ function setColumnWidth(size) {
  * @param {number} rows - Number of rows (1, 2, or 3)
  * Side effects: Updates board layout, triggers re-render
  */
+// Refactored layout rows functions using styleManager
 function applyLayoutRows(rows) {
     currentLayoutRows = rows;
     window.currentLayoutRows = rows;
+
+    // Use styleManager to apply CSS variable
+    styleManager.applyLayoutRows(rows);
 
     // Re-render the board to apply row layout
     if (currentBoard) {
@@ -1190,24 +1187,20 @@ function applyLayoutRows(rows) {
 }
 
 function setLayoutRows(rows) {
-    // Apply the layout rows
     applyLayoutRows(rows);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'layoutRows',
         value: rows
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
-    
+
     vscode.postMessage({ type: 'showMessage', text: `Layout set to ${rows} row${rows > 1 ? 's' : ''}` });
 }
 
@@ -1290,31 +1283,37 @@ function applyRowHeight(height) {
     }
 }
 
-// Function to set row height (applies and stores)
+// Refactored row height functions using styleManager
 function applyRowHeightSetting(height) {
-    // Store current height setting
     currentRowHeight = height;
     window.currentRowHeight = height;
-    
-    // Apply the height using the existing applyRowHeight function
-    applyRowHeight(height);
+
+    // Convert percentage values to viewport units
+    let cssValue = height;
+    if (height.includes('percent')) {
+        const percent = parseInt(height.replace('percent', ''));
+        cssValue = `${percent}vh`;
+    }
+
+    styleManager.applyRowHeight(cssValue === 'auto' ? 'auto' : cssValue);
+
+    // Call legacy applyRowHeight if it exists
+    if (typeof applyRowHeight === 'function') {
+        applyRowHeight(height);
+    }
 }
 
 function setRowHeight(height) {
-    // Apply the row height
     applyRowHeightSetting(height);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'rowHeight',
         value: height
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
@@ -1452,6 +1451,58 @@ function setTagVisibility(setting) {
     });
 }
 
+// Export tag visibility functionality
+let currentExportTagVisibility = 'allexcludinglayout'; // Default setting
+
+function setExportTagVisibility(setting) {
+    // Store the export tag visibility setting
+    currentExportTagVisibility = setting;
+    window.currentExportTagVisibility = setting;
+
+    // Store preference
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'exportTagVisibility',
+        value: setting
+    });
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
+    // Close menu
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+}
+
+// Helper function to filter tags from text based on export tag visibility setting
+function filterTagsForExport(text) {
+    if (!text) return text;
+
+    const setting = window.currentExportTagVisibility || 'allexcludinglayout';
+
+    switch (setting) {
+        case 'all':
+            // Export all tags - don't filter anything
+            return text;
+        case 'allexcludinglayout':
+            // Export all except #span, #row, and #stack tags
+            return text.replace(/#row\d+\b/gi, '').replace(/#span\d+\b/gi, '').replace(/#stack\b/gi, '').trim();
+        case 'customonly':
+            // Export only custom tags and @ tags (remove standard layout tags)
+            return text.replace(/#row\d+\b/gi, '').replace(/#span\d+\b/gi, '').replace(/#stack\b/gi, '').trim();
+        case 'mentionsonly':
+            // Export only @ tags - remove all # tags
+            return text.replace(/#\w+\b/gi, '').trim();
+        case 'none':
+            // Export no tags - remove all tags
+            return text.replace(/#\w+\b/gi, '').replace(/@\w+\b/gi, '').trim();
+        default:
+            // Default to allexcludinglayout behavior
+            return text.replace(/#row\d+\b/gi, '').replace(/#span\d+\b/gi, '').replace(/#stack\b/gi, '').trim();
+    }
+}
+
 // Image fill functionality
 let currentImageFill = 'fit'; // Default to fit content
 
@@ -1487,62 +1538,61 @@ function setImageFill(setting) {
     });
 }
 
-// Function to set whitespace
+// Refactored whitespace functions using styleManager
 function applyWhitespace(spacing) {
-    // Store current whitespace setting
     currentWhitespace = spacing;
     window.currentWhitespace = spacing;
-    
-    // Apply the whitespace immediately
-    updateWhitespace(spacing);
+
+    // Use styleManager to apply CSS variable
+    styleManager.applyWhitespace(spacing);
+
+    // Call legacy updateWhitespace if it exists for compatibility
+    if (typeof updateWhitespace === 'function') {
+        updateWhitespace(spacing);
+    }
 }
 
 function setWhitespace(spacing) {
-    // Apply the whitespace
     applyWhitespace(spacing);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'whitespace',
         value: spacing
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
 }
 
-// Function to apply task minimum height (without saving preference)
+// Refactored task min height functions using styleManager
 function applyTaskMinHeight(height) {
-    // Store current task min height setting
     currentTaskMinHeight = height;
     window.currentTaskMinHeight = height;
-    
-    // Apply the task min height immediately
-    updateTaskMinHeight(height);
+
+    // Use styleManager to apply card height
+    styleManager.applyCardHeight(height);
+
+    // Call legacy updateTaskMinHeight if it exists for compatibility
+    if (typeof updateTaskMinHeight === 'function') {
+        updateTaskMinHeight(height);
+    }
 }
 
-// Function to set task minimum height
 function setTaskMinHeight(height) {
-    // Apply the task min height
     applyTaskMinHeight(height);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'taskMinHeight',
         value: height
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
@@ -2356,6 +2406,15 @@ window.addEventListener('message', event => {
                     applyTagVisibility(tagVisibility);
                 } else {
                     applyTagVisibility('allexcludinglayout'); // Default fallback
+                }
+
+                // Update export tag visibility with the value from configuration
+                if (message.exportTagVisibility) {
+                    currentExportTagVisibility = message.exportTagVisibility;
+                    window.currentExportTagVisibility = message.exportTagVisibility;
+                } else {
+                    currentExportTagVisibility = 'allexcludinglayout'; // Default fallback
+                    window.currentExportTagVisibility = 'allexcludinglayout';
                 }
 
                 // Update image fill with the value from configuration
@@ -3440,6 +3499,7 @@ window.setTagVisibility = setTagVisibility;
 window.applyTagVisibility = applyTagVisibility;
 window.currentTagVisibility = currentTagVisibility;
 window.filterTagsFromText = filterTagsFromText;
+window.filterTagsForExport = filterTagsForExport;
 window.setImageFill = setImageFill;
 window.applyImageFill = applyImageFill;
 window.currentImageFill = currentImageFill;
@@ -3452,6 +3512,7 @@ window.performSort = performSort;
 // Font size functionality
 let currentFontSize = '1x'; // Default to 1.0x (current behavior)
 
+// Refactored font size functions using styleManager
 function applyFontSize(size) {
     // Remove all font size classes
     fontSizeMultipliers.forEach(multiplier => {
@@ -3459,30 +3520,27 @@ function applyFontSize(size) {
         document.body.classList.remove(`font-size-${safeName}x`);
     });
 
-    // Remove old small-card-fonts class for backward compatibility
     document.body.classList.remove('small-card-fonts');
-
-    // Add the selected font size class
     document.body.classList.add(`font-size-${size}`);
     currentFontSize = size;
     window.currentFontSize = size;
+
+    // Also use styleManager for consistency
+    const multiplier = size.replace('x', '').replace('_', '.');
+    styleManager.applyFontSize(parseFloat(multiplier) * 14);
 }
 
 function setFontSize(size) {
-    // Apply the font size
     applyFontSize(size);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'fontSize',
         value: size
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
@@ -3491,31 +3549,48 @@ function setFontSize(size) {
 // Font family functionality
 let currentFontFamily = 'system'; // Default to system fonts
 
+// Refactored font family functions using styleManager
 function applyFontFamily(family) {
     // Remove all font family classes
-    document.body.classList.remove('font-family-system', 'font-family-roboto', 'font-family-opensans', 'font-family-lato', 'font-family-poppins', 'font-family-inter', 'font-family-helvetica', 'font-family-arial', 'font-family-georgia', 'font-family-times', 'font-family-firacode', 'font-family-jetbrains', 'font-family-sourcecodepro', 'font-family-consolas');
-    
-    // Add the selected font family class
+    const families = ['system', 'roboto', 'opensans', 'lato', 'poppins', 'inter', 'helvetica', 'arial', 'georgia', 'times', 'firacode', 'jetbrains', 'sourcecodepro', 'consolas'];
+    families.forEach(f => document.body.classList.remove(`font-family-${f}`));
+
     document.body.classList.add(`font-family-${family}`);
     currentFontFamily = family;
     window.currentFontFamily = family;
+
+    // Map to actual font names for styleManager
+    const fontMap = {
+        'system': 'var(--vscode-font-family)',
+        'roboto': "'Roboto', sans-serif",
+        'opensans': "'Open Sans', sans-serif",
+        'lato': "'Lato', sans-serif",
+        'poppins': "'Poppins', sans-serif",
+        'inter': "'Inter', sans-serif",
+        'helvetica': "'Helvetica Neue', Helvetica, Arial, sans-serif",
+        'arial': "Arial, sans-serif",
+        'georgia': "Georgia, serif",
+        'times': "'Times New Roman', serif",
+        'firacode': "'Fira Code', monospace",
+        'jetbrains': "'JetBrains Mono', monospace",
+        'sourcecodepro': "'Source Code Pro', monospace",
+        'consolas': "Consolas, monospace"
+    };
+
+    styleManager.applyFontFamily(fontMap[family] || fontMap['system']);
 }
 
 function setFontFamily(family) {
-    // Apply the font family
     applyFontFamily(family);
 
-    // Store preference
     vscode.postMessage({
         type: 'setPreference',
         key: 'fontFamily',
         value: family
     });
 
-    // Update menu indicators
     updateAllMenuIndicators();
 
-    // Close menu
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });

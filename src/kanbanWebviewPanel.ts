@@ -1266,6 +1266,13 @@ export class KanbanWebviewPanel {
         
         // Replace all JavaScript file references
         const jsFiles = [
+            'utils/colorUtils.js',
+            'utils/configManager.js',
+            'utils/styleManager.js',
+            'utils/menuManager.js',
+            'utils/dragStateManager.js',
+            'utils/validationUtils.js',
+            'utils/modalUtils.js',
             'runtime-tracker.js',
             'markdownRenderer.js',
             'taskEditor.js',
@@ -1752,6 +1759,29 @@ export class KanbanWebviewPanel {
                 this._includeFileContents.set(filePath, content);
             }
         }
+
+        // Also initialize known content for column include files
+        if (this._board) {
+            const currentDocument = this._fileManager.getDocument();
+            if (currentDocument) {
+                const basePath = path.dirname(currentDocument.uri.fsPath);
+
+                for (const column of this._board.columns) {
+                    if (column.includeMode && column.includeFiles) {
+                        for (const includeFile of column.includeFiles) {
+                            const absolutePath = path.resolve(basePath, includeFile);
+                            const content = await this._readFileContent(absolutePath);
+                            if (content !== null) {
+                                // Initialize known content for conflict detection
+                                this._knownIncludeFileContents.set(absolutePath, content);
+                                this._includeFileUnsavedChanges.set(absolutePath, false);
+                                console.log(`[InitializeInclude] Set known content for column include file: ${includeFile}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -1977,6 +2007,12 @@ export class KanbanWebviewPanel {
                 return false;
             }
 
+            // Create backup before writing (same protection as main file)
+            await this._backupManager.createFileBackup(absolutePath, presentationContent, {
+                label: 'auto',
+                forceCreate: false
+            });
+
             // Write to file
             fs.writeFileSync(absolutePath, presentationContent, 'utf8');
 
@@ -1985,6 +2021,13 @@ export class KanbanWebviewPanel {
 
             // Clear unsaved changes flag for this include file
             this._includeFileUnsavedChanges.set(absolutePath, false);
+
+            // Clear from changed files tracking and update visual indicators
+            this._changedIncludeFiles.delete(includeFile);
+            if (this._changedIncludeFiles.size === 0) {
+                this._includeFilesChanged = false;
+            }
+            this._sendIncludeFileChangeNotification();
 
             // Update known content to detect future external changes
             this._knownIncludeFileContents.set(absolutePath, presentationContent);
@@ -2090,8 +2133,26 @@ export class KanbanWebviewPanel {
         const fileName = path.basename(filePath);
         const hasUnsavedIncludeChanges = this._includeFileUnsavedChanges.get(filePath) || false;
 
-        if (!hasUnsavedIncludeChanges) {
-            // No unsaved changes - simple reload
+        // Check if the external file has changed from our known baseline
+        let hasExternalChanges = false;
+        const knownContent = this._knownIncludeFileContents.get(filePath);
+        if (knownContent !== undefined) {
+            try {
+                const currentFileContent = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+                hasExternalChanges = knownContent.trim() !== currentFileContent.trim();
+            } catch (error) {
+                console.error(`[handleIncludeFileConflict] Error reading file ${filePath}:`, error);
+                hasExternalChanges = true; // Assume changes if we can't read the file
+            }
+        }
+
+        if (!hasUnsavedIncludeChanges && !hasExternalChanges) {
+            // No unsaved changes and no external changes - nothing to do
+            return;
+        }
+
+        if (!hasUnsavedIncludeChanges && hasExternalChanges) {
+            // External changes but no internal changes - simple reload
             await this.reloadIncludeFile(filePath);
             return;
         }
@@ -2104,6 +2165,7 @@ export class KanbanWebviewPanel {
             fileName: fileName,
             hasMainUnsavedChanges: false, // Not relevant for include file conflicts
             hasIncludeUnsavedChanges: hasUnsavedIncludeChanges,
+            hasExternalChanges: hasExternalChanges,
             changedIncludeFiles: [filePath]
         };
 
@@ -2168,20 +2230,6 @@ export class KanbanWebviewPanel {
             return;
         }
 
-        // Create backup filename with dot prefix and consistent format
-        const dir = path.dirname(filePath);
-        const basename = path.basename(filePath, path.extname(filePath));
-        const extension = path.extname(filePath);
-
-        // Use standardized timestamp format: YYYYMMDDTHHmmss
-        const now = new Date();
-        const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-
-        // Create conflict backup file WITHOUT dot prefix (visible to user)
-        // Use 'conflict' label to be consistent with main file conflict backups
-        const backupFileName = `${basename}-conflict-${timestamp}${extension}`;
-        const backupPath = path.join(dir, backupFileName);
-
         // Find the column that uses this include file and save its content as backup
         const currentDocument = this._fileManager.getDocument();
         if (!currentDocument) {
@@ -2194,16 +2242,23 @@ export class KanbanWebviewPanel {
         for (const column of this._board.columns) {
             if (column.includeMode && column.includeFiles?.includes(relativePath)) {
                 const presentationContent = PresentationParser.tasksToPresentation(column.tasks);
-                fs.writeFileSync(backupPath, presentationContent, 'utf8');
 
-                vscode.window.showInformationMessage(
-                    `Backup saved as "${path.basename(backupPath)}"`,
-                    'Open backup file'
-                ).then(choice => {
-                    if (choice === 'Open backup file') {
-                        vscode.commands.executeCommand('vscode.open', vscode.Uri.file(backupPath));
-                    }
+                // Use BackupManager for consistent backup creation
+                const backupPath = await this._backupManager.createFileBackup(filePath, presentationContent, {
+                    label: 'conflict',
+                    forceCreate: true
                 });
+
+                if (backupPath) {
+                    vscode.window.showInformationMessage(
+                        `Backup saved as "${path.basename(backupPath)}"`,
+                        'Open backup file'
+                    ).then(choice => {
+                        if (choice === 'Open backup file') {
+                            vscode.commands.executeCommand('vscode.open', vscode.Uri.file(backupPath));
+                        }
+                    });
+                }
                 break;
             }
         }
@@ -2250,8 +2305,16 @@ export class KanbanWebviewPanel {
 
             // Handle different types of file changes
             if (event.fileType === 'include') {
-                // This is a column include file - handle conflict resolution
-                await this.handleIncludeFileConflict(event.path, event.changeType);
+                // Check if this is a column include file or inline include file
+                const isColumnInclude = await this.isColumnIncludeFile(event.path);
+
+                if (isColumnInclude) {
+                    // This is a column include file - handle conflict resolution
+                    await this.handleIncludeFileConflict(event.path, event.changeType);
+                } else {
+                    // This is an inline include file - send updated content and trigger visual indicators
+                    await this.handleInlineIncludeFileChange(event.path, event.changeType);
+                }
             } else if (event.fileType === 'main') {
                 // This is the main kanban file - handle external changes
                 const currentDocument = this._fileManager.getDocument();
@@ -2263,6 +2326,70 @@ export class KanbanWebviewPanel {
 
         } catch (error) {
             console.error('[ExternalFileChange] Error handling file change:', error);
+        }
+    }
+
+    /**
+     * Check if a file path is used as a column include file
+     */
+    private async isColumnIncludeFile(filePath: string): Promise<boolean> {
+        if (!this._board) return false;
+
+        const currentDocument = this._fileManager.getDocument();
+        if (!currentDocument) return false;
+
+        const basePath = path.dirname(currentDocument.uri.fsPath);
+        const relativePath = path.relative(basePath, filePath);
+
+        // Check if any column uses this file as an include file
+        for (const column of this._board.columns) {
+            if (column.includeMode && column.includeFiles?.includes(relativePath)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Handle changes to inline include files (!!!include(file)!!! statements)
+     */
+    private async handleInlineIncludeFileChange(filePath: string, changeType: string): Promise<void> {
+        try {
+            console.log(`[InlineInclude] External change detected in ${filePath} (${changeType})`);
+
+            // Read the updated file content
+            let updatedContent: string | null = null;
+            try {
+                if (fs.existsSync(filePath)) {
+                    updatedContent = fs.readFileSync(filePath, 'utf8');
+                }
+            } catch (error) {
+                console.error(`[InlineInclude] Error reading file:`, error);
+            }
+
+            // Convert absolute path to relative for frontend
+            const currentDocument = this._fileManager.getDocument();
+            if (currentDocument) {
+                const basePath = path.dirname(currentDocument.uri.fsPath);
+                const relativePath = path.relative(basePath, filePath);
+
+                // Send updated content to frontend using existing system
+                this._panel?.webview.postMessage({
+                    type: 'includeFileContent',
+                    filePath: relativePath,
+                    content: updatedContent
+                });
+
+                // Use existing visual indicator system
+                this._includeFilesChanged = true;
+                this._changedIncludeFiles.add(relativePath);
+                this._sendIncludeFileChangeNotification();
+
+                console.log(`[InlineInclude] Updated cache and visual indicators for ${relativePath}`);
+            }
+
+        } catch (error) {
+            console.error('[InlineInclude] Error handling inline include file change:', error);
         }
     }
 
@@ -2296,6 +2423,24 @@ export class KanbanWebviewPanel {
 
                         if (knownContent.trim() !== currentPresentationContent.trim()) {
                             this._includeFileUnsavedChanges.set(absolutePath, true);
+
+                            // Add to changed files tracking and trigger visual indicators
+                            this._includeFilesChanged = true;
+                            this._changedIncludeFiles.add(includeFile);
+                            this._sendIncludeFileChangeNotification();
+                        } else {
+                            // No changes detected, clear unsaved flag if it was set
+                            const wasChanged = this._includeFileUnsavedChanges.get(absolutePath);
+                            if (wasChanged) {
+                                this._includeFileUnsavedChanges.set(absolutePath, false);
+                                this._changedIncludeFiles.delete(includeFile);
+
+                                // Update visual indicators if no more changes
+                                if (this._changedIncludeFiles.size === 0) {
+                                    this._includeFilesChanged = false;
+                                }
+                                this._sendIncludeFileChangeNotification();
+                            }
                         }
                     }
                 }

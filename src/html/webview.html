@@ -161,6 +161,12 @@
                                 <!-- Dynamic content populated by JavaScript -->
                             </div>
                         </div>
+                        <div class="file-bar-menu-item has-submenu">
+                            <span class="menu-icon">📤</span> Export Tags
+                            <div class="file-bar-menu-submenu" data-menu="exportTagVisibility">
+                                <!-- Dynamic content populated by JavaScript -->
+                            </div>
+                        </div>
                         <div class="file-bar-menu-divider"></div>
                         <div class="file-bar-menu-item has-submenu">
                             <span class="menu-icon">🖼️</span> Image Fill
@@ -243,6 +249,23 @@
     </div>
 
     <!-- JavaScript modules in dependency order -->
+    <!-- Initialize vscode API first -->
+    <script>
+        // Initialize VS Code API globally before any modules load
+        const vscode = acquireVsCodeApi();
+        window.vscode = vscode;
+    </script>
+
+    <!-- Utility modules -->
+    <script src="utils/colorUtils.js"></script>
+    <script src="utils/configManager.js"></script>
+    <script src="utils/styleManager.js"></script>
+    <script src="utils/menuManager.js"></script>
+    <script src="utils/dragStateManager.js"></script>
+    <script src="utils/validationUtils.js"></script>
+    <script src="utils/modalUtils.js"></script>
+
+    <!-- Core modules -->
     <script src="runtime-tracker.js"></script>
     <script src="markdownRenderer.js"></script>
     <script src="taskEditor.js"></script>

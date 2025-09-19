@@ -273,7 +273,7 @@ export class BoardOperations {
         const column = this.findColumn(board, columnId);
         if (!column) {return false;}
 
-        // Just use the title as provided - layout tags are preserved as regular text
+        // Simply save the title as provided - all tag handling is done in frontend
         column.title = title;
 
         // Check for column include syntax changes

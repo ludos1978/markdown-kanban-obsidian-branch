@@ -32,17 +32,31 @@ const copyStaticFilesPlugin = {
 
 			const srcHtmlDir = 'src/html';
 			const distHtmlDir = 'dist/src/html';
-			
+
 			if (fs.existsSync(srcHtmlDir)) {
 				fs.mkdirSync(distHtmlDir, { recursive: true });
-				
-				const files = fs.readdirSync(srcHtmlDir);
-				files.forEach(file => {
-					const srcFile = path.join(srcHtmlDir, file);
-					const distFile = path.join(distHtmlDir, file);
-					fs.copyFileSync(srcFile, distFile);
-					console.log(`Copied ${srcFile} to ${distFile}`);
-				});
+
+				// Recursive function to copy directory contents
+				function copyDirRecursive(src, dist) {
+					const files = fs.readdirSync(src);
+					files.forEach(file => {
+						const srcFile = path.join(src, file);
+						const distFile = path.join(dist, file);
+						const stat = fs.statSync(srcFile);
+
+						if (stat.isDirectory()) {
+							// Create subdirectory and copy its contents
+							fs.mkdirSync(distFile, { recursive: true });
+							copyDirRecursive(srcFile, distFile);
+						} else if (stat.isFile()) {
+							// Copy file
+							fs.copyFileSync(srcFile, distFile);
+							console.log(`Copied ${srcFile} to ${distFile}`);
+						}
+					});
+				}
+
+				copyDirRecursive(srcHtmlDir, distHtmlDir);
 			}
 
 			// Convert markdown-it-media-lib CommonJS modules to browser-compatible IIFE format

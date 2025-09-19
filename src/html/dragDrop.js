@@ -13,41 +13,69 @@ let externalDropIndicator = null;
 // Track recently created tasks to prevent duplicates
 let recentlyCreatedTasks = new Set();
 
-// Real-time drag preview tracking
-let dragState = {
-    // For columns
-    draggedColumn: null,
-    draggedColumnId: null,
-    originalColumnIndex: -1,
-    originalColumnNextSibling: null,
-    originalColumnParent: null,
-    originalDataIndex: -1,
-    
-    // For tasks
-    draggedTask: null,
-    originalTaskIndex: -1,
-    originalTaskParent: null,
-    originalTaskNextSibling: null,
-    
-    // Common
-    isDragging: false,
-    lastValidDropTarget: null,
-    lastDropTarget: null,
-    lastRowDropTarget: null,
-    lastRow: null,
-    targetRowNumber: null,
-    targetPosition: null,
-    finalRowNumber: null,
-    
-    // Clipboard card
-    draggedClipboardCard: null,
-    
-    // Empty card
-    draggedEmptyCard: null
-};
+// Use centralized DragStateManager instead of local state
+// The dragStateManager is already available globally as window.dragState
+// for backward compatibility
 
-// Expose dragState globally for clipboard card coordination
-window.dragState = dragState;
+// Create local references for frequently accessed properties
+// Wait for dragStateManager to be available via window.dragState
+let dragState = window.dragState;
+
+// Add custom properties that aren't in base DragStateManager
+// Initialize dragState if not available yet
+if (!dragState) {
+    dragState = {
+        isDragging: false,
+        draggedTask: null,
+        draggedColumn: null,
+        draggedClipboardCard: null,
+        draggedEmptyCard: null,
+        // Column-specific
+        draggedColumnId: null,
+        originalColumnIndex: -1,
+        originalColumnNextSibling: null,
+        originalColumnParent: null,
+        originalDataIndex: -1,
+
+        // Task-specific
+        originalTaskIndex: -1,
+        originalTaskParent: null,
+        originalTaskNextSibling: null,
+
+        // Drop tracking
+        lastValidDropTarget: null,
+        lastDropTarget: null,
+        lastRowDropTarget: null,
+        lastRow: null,
+        targetRowNumber: null,
+        targetPosition: null,
+        finalRowNumber: null
+    };
+    window.dragState = dragState;
+} else if (!dragState.originalColumnIndex) {
+    Object.assign(dragState, {
+        // Column-specific
+        draggedColumnId: null,
+        originalColumnIndex: -1,
+        originalColumnNextSibling: null,
+        originalColumnParent: null,
+        originalDataIndex: -1,
+
+        // Task-specific
+        originalTaskIndex: -1,
+        originalTaskParent: null,
+        originalTaskNextSibling: null,
+
+        // Drop tracking
+        lastValidDropTarget: null,
+        lastDropTarget: null,
+        lastRowDropTarget: null,
+        lastRow: null,
+        targetRowNumber: null,
+        targetPosition: null,
+        finalRowNumber: null
+    });
+}
 
 // External file drop location indicators
 function createExternalDropIndicator() {
@@ -1406,6 +1434,15 @@ function setupTaskDragHandle(handle) {
                                             const [currentTask] = currentOriginal.tasks.splice(currentTaskIndex, 1);
                                             currentFinal.tasks.splice(insertIndex, 0, currentTask);
                                         }
+                                    }
+                                }
+
+                                // Update column displays after task move
+                                if (typeof window.updateColumnDisplay === 'function') {
+                                    // Update both source and destination columns
+                                    window.updateColumnDisplay(originalColumnId);
+                                    if (originalColumnId !== finalColumnId) {
+                                        window.updateColumnDisplay(finalColumnId);
                                     }
                                 }
                             }

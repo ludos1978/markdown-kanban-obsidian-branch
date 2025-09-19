@@ -883,6 +883,79 @@ function changeColumnSpan(columnId, delta) {
     updateRefreshButtonState('unsaved', 1);
 }
 
+function toggleColumnStack(columnId) {
+    if (!currentBoard?.columns) {return;}
+
+    const column = currentBoard.columns.find(c => c.id === columnId);
+    if (!column) {return;}
+
+    // Flush pending tag changes first
+    if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
+        (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)) {
+        flushPendingTagChanges();
+    }
+
+    // Check current stack state
+    const hasStack = /#stack\b/i.test(column.title);
+    let newTitle = column.title;
+
+    if (hasStack) {
+        // Remove stack tag
+        newTitle = newTitle.replace(/#stack\b\s*/gi, '').replace(/\s+/g, ' ').trim();
+    } else {
+        // Add stack tag
+        newTitle += ' #stack';
+    }
+
+    // Update the column in currentBoard and cachedBoard
+    column.title = newTitle;
+
+    if (typeof cachedBoard !== 'undefined' && cachedBoard?.columns) {
+        const cachedColumn = cachedBoard.columns.find(c => c.id === columnId);
+        if (cachedColumn) {
+            cachedColumn.title = newTitle;
+        }
+    }
+
+    // Update the column element immediately
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (columnElement) {
+        // Update the title display (without stack tags if they're hidden)
+        const titleElement = columnElement.querySelector('.column-title-display');
+        if (titleElement) {
+            const displayTitle = window.filterTagsFromText(newTitle);
+            titleElement.innerHTML = renderMarkdown(displayTitle);
+        }
+
+        // Update the stack toggle button
+        const stackToggleBtn = document.querySelector(`button.stack-toggle-btn[onclick*="${columnId}"]`);
+        if (stackToggleBtn) {
+            const newHasStack = /#stack\b/i.test(newTitle);
+            stackToggleBtn.textContent = newHasStack ? 'On' : 'Off';
+            if (newHasStack) {
+                stackToggleBtn.classList.add('active');
+            } else {
+                stackToggleBtn.classList.remove('active');
+            }
+        }
+    }
+
+    // Trigger board refresh for layout changes
+    setTimeout(() => {
+        if (typeof window.renderBoard === 'function' && window.currentBoard) {
+            window.renderBoard(window.currentBoard);
+        }
+    }, 50);
+
+    // Mark as unsaved
+    if (typeof markUnsavedChanges === 'function') {
+        markUnsavedChanges();
+    }
+
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+}
+
 function deleteColumn(columnId) {
     // Close all menus properly
     closeAllMenus();
@@ -926,17 +999,22 @@ function copyColumnAsMarkdown(columnId) {
     if (!currentBoard?.columns) {return;}
     const column = currentBoard.columns.find(c => c.id === columnId);
     if (!column) {return;}
-    
-    let markdown = `# ${column.title}\n`;
+
+    // Filter column title based on export tag visibility setting
+    const filteredTitle = window.filterTagsForExport ? window.filterTagsForExport(column.title) : column.title;
+    let markdown = `# ${filteredTitle}\n`;
+
     column.tasks.forEach(task => {
-        markdown += task.title.startsWith('#') ? 
-            `\n---\n\n${task.title || ''}\n` : 
-            `\n---\n\n## ${task.title || ''}\n`;
+        // Filter task title based on export tag visibility setting
+        const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title) : task.title;
+        markdown += filteredTaskTitle.startsWith('#') ?
+            `\n---\n\n${filteredTaskTitle || ''}\n` :
+            `\n---\n\n## ${filteredTaskTitle || ''}\n`;
         if (task.description?.trim()) {
             markdown += `\n${task.description}\n`;
         }
     });
-    
+
     copyToClipboard(markdown);
     document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
 }
@@ -946,14 +1024,16 @@ function copyTaskAsMarkdown(taskId, columnId) {
     const column = currentBoard.columns.find(c => c.id === columnId);
     const task = column?.tasks.find(t => t.id === taskId);
     if (!task) {return;}
-    
-    let markdown = task.title.startsWith('#') ? 
-        `${task.title || ''}\n` : 
-        `## ${task.title || ''}\n`;
+
+    // Filter task title based on export tag visibility setting
+    const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title) : task.title;
+    let markdown = filteredTaskTitle.startsWith('#') ?
+        `${filteredTaskTitle || ''}\n` :
+        `## ${filteredTaskTitle || ''}\n`;
     if (task.description?.trim()) {
         markdown += `\n${task.description}\n`;
     }
-    
+
     copyToClipboard(markdown);
     document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
 }
@@ -2322,32 +2402,44 @@ function handleSaveError(errorMessage) {
 
 // Modal functions
 function showInputModal(title, message, placeholder, onConfirm) {
-    document.getElementById('input-modal-title').textContent = title;
-    document.getElementById('input-modal-message').textContent = message;
-    const inputField = document.getElementById('input-modal-field');
-    inputField.placeholder = placeholder;
-    inputField.value = '';
-    document.getElementById('input-modal').style.display = 'block';
-    setTimeout(() => inputField.focus(), 100);
+    // Use centralized modal utility
+    if (window.modalUtils) {
+        window.modalUtils.showInputModal(title, message, placeholder, onConfirm);
+    } else {
+        // Fallback to original implementation if utility not loaded
+        document.getElementById('input-modal-title').textContent = title;
+        document.getElementById('input-modal-message').textContent = message;
+        const inputField = document.getElementById('input-modal-field');
+        inputField.placeholder = placeholder;
+        inputField.value = '';
+        document.getElementById('input-modal').style.display = 'block';
+        setTimeout(() => inputField.focus(), 100);
 
-    const confirmAction = () => {
-        const value = inputField.value.trim();
-        if (value) {
-            closeInputModal();
-            onConfirm(value);
-        }
-    };
+        const confirmAction = () => {
+            const value = inputField.value.trim();
+            if (value) {
+                closeInputModal();
+                onConfirm(value);
+            }
+        };
 
-    document.getElementById('input-ok-btn').onclick = confirmAction;
-    inputField.onkeydown = e => {
-        if (e.key === 'Enter') {
-            confirmAction();
-        }
-    };
+        document.getElementById('input-ok-btn').onclick = confirmAction;
+        inputField.onkeydown = e => {
+            if (e.key === 'Enter') {
+                confirmAction();
+            }
+        };
+    }
 }
 
 function closeInputModal() {
-    document.getElementById('input-modal').style.display = 'none';
+    // Use centralized modal utility
+    if (window.modalUtils) {
+        window.modalUtils.closeInputModal();
+    } else {
+        // Fallback to original implementation
+        document.getElementById('input-modal').style.display = 'none';
+    }
 }
 
 function autoResize(textarea) {

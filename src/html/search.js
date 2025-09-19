@@ -100,10 +100,10 @@ class KanbanSearch {
             if (this.useRegex) {
                 searchPattern = new RegExp(searchTerm, this.caseSensitive ? 'g' : 'gi');
             } else if (this.wholeWords) {
-                const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const escapedTerm = window.escapeRegex ? window.escapeRegex(searchTerm) : searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 searchPattern = new RegExp(`\\b${escapedTerm}\\b`, this.caseSensitive ? 'g' : 'gi');
             } else {
-                const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const escapedTerm = window.escapeRegex ? window.escapeRegex(searchTerm) : searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 searchPattern = new RegExp(escapedTerm, this.caseSensitive ? 'g' : 'gi');
             }
         } catch (e) {

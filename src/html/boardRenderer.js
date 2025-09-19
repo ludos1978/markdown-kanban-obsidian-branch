@@ -16,11 +16,11 @@ let renderTimeout = null;
  * Used by: renderBoard(), generateTagStyles(), task/column rendering
  * @param {string} text - Text containing hashtags
  * @returns {string|null} - Lowercase tag name without # or null if none found
- * Note: Skips row tags (#rowN), span tags (#spanN), stack tags (#stack), and gather tags (#gather_...)
+ * Note: Skips row tags (#rowN), span tags (#spanN), and gather tags (#gather_...)
  */
 function extractFirstTag(text) {
     if (!text) {return null;}
-    const re = /#(?!row\d+\b)(?!span\d+\b)(?!stack\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
+    const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
     let m;
     while ((m = re.exec(text)) !== null) {
         const raw = m[1];
@@ -33,40 +33,23 @@ function extractFirstTag(text) {
 }
 
 
+// Import colorUtils at the top of the file (will be included via HTML)
+// The colorUtils module provides: hexToRgb, rgbToHex, withAlpha, etc.
+
 /**
- * Converts hex color to RGBA format with specified alpha
- * Purpose: Creates semi-transparent colors for backgrounds and borders
- * Used by: generateTagStyles() for creating tag-based styling
- * @param {string} hex - Hex color code (with or without #)
- * @param {number} alpha - Opacity value (0-1)
- * @returns {string} - RGBA color string
+ * Legacy wrapper for backward compatibility - delegates to colorUtils
+ * @deprecated Use colorUtils.withAlpha() instead
  */
 function hexToRgba(hex, alpha) {
-    // Remove the # if present
-    hex = hex.replace('#', '');
-    
-    // Parse the hex values
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    return colorUtils.withAlpha(hex, alpha);
 }
 
 /**
- * Parses hex color into RGB components
- * Purpose: Breaks down colors for interpolation calculations
- * Used by: interpolateColor() for gradient calculations
- * @param {string} hex - Hex color code
- * @returns {Object} - Object with r, g, b numeric values (0-255)
+ * Legacy wrapper for backward compatibility - delegates to colorUtils
+ * @deprecated Use colorUtils.hexToRgb() instead
  */
 function hexToRgb(hex) {
-    hex = hex.replace('#', '');
-    return {
-        r: parseInt(hex.substring(0, 2), 16),
-        g: parseInt(hex.substring(2, 4), 16),
-        b: parseInt(hex.substring(4, 6), 16)
-    };
+    return colorUtils.hexToRgb(hex);
 }
 
 /**
@@ -79,18 +62,21 @@ function hexToRgb(hex) {
  * @returns {string} - Interpolated hex color
  */
 function interpolateColor(color1, color2, factor) {
-    // Parse colors
-    const c1 = hexToRgb(color1);
-    const c2 = hexToRgb(color2);
-    
+    // Parse colors using colorUtils
+    const c1 = colorUtils.hexToRgb(color1);
+    const c2 = colorUtils.hexToRgb(color2);
+
+    if (!c1 || !c2) {
+        return color1; // Fallback if parsing fails
+    }
+
     // Interpolate each component
     const r = Math.round(c1.r + (c2.r - c1.r) * factor);
     const g = Math.round(c1.g + (c2.g - c1.g) * factor);
     const b = Math.round(c1.b + (c2.b - c1.b) * factor);
-    
-    // Convert to hex
-    const toHex = (n) => n.toString(16).padStart(2, '0');
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+
+    // Convert to hex using colorUtils
+    return colorUtils.rgbToHex(r, g, b);
 }
 
 /**
@@ -631,8 +617,8 @@ function applyFoldingStates() {
 function getActiveTagsInTitle(text) {
     if (!text || typeof text !== 'string') {return [];}
     // Match all tags - for gather tags, include the full expression until next space
-    // Skip row tags, span tags, and stack tags
-    const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)(?!stack\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
+    // Skip row tags and span tags
+    const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
     return matches.map(tag => {
         const fullTag = tag.substring(1);
         // For gather tags, keep the full expression
@@ -728,7 +714,7 @@ function getUserAddedTags() {
     // Find tags that are in use but not configured
     const userAddedTags = [];
     allTagsInUse.forEach(tag => {
-        if (!configuredTags.has(tag) && !tag.startsWith('row') && tag !== 'stack') { // Exclude layout tags
+        if (!configuredTags.has(tag) && !tag.startsWith('row')) { // Exclude row tags
             userAddedTags.push(tag);
         }
     });
@@ -1020,7 +1006,7 @@ function renderSingleColumn(columnId, columnData) {
         const handlersToCleanup = Object.keys(window.tagHandlers).filter(key => {
             // Pattern: tag-chip-column-{columnId}-{tagName} or tag-chip-task-{taskId}-{tagName}
             return key.startsWith(`tag-chip-column-${columnId}-`) ||
-                   (key.startsWith(`tag-chip-task-`) && existingColumnElement.querySelector(`[data-task-id]`));
+                   (key.startsWith(`tag-chip-task-`) && existingColumnElement.querySelector(`[data-task-id]`))
         });
 
         // Also find task handlers by checking actual task IDs in the existing column
@@ -1066,9 +1052,7 @@ function renderSingleColumn(columnId, columnData) {
     if (window.collapsedColumns && window.collapsedColumns.has(columnId)) {
         newColumnElement.classList.add('collapsed');
         const toggle = newColumnElement.querySelector('.collapse-toggle');
-        if (toggle) {
-            toggle.classList.add('rotated');
-        }
+        if (toggle) toggle.classList.add('rotated');
     }
 
     // Update image sources for the new content
@@ -1203,44 +1187,36 @@ function renderBoard() {
             // rowContainer.appendChild(rowHeader);
             
             // Add columns for this row with stacking support
-            const columnsInRow = currentBoard.columns.filter(col => getColumnRow(col.title) === row);
             let currentStackContainer = null;
             let lastColumnElement = null;
 
-            columnsInRow.forEach((column, index) => {
-                const isStacked = getColumnStacked(column.title);
-                const globalIndex = currentBoard.columns.indexOf(column);
-                const columnElement = createColumnElement(column, globalIndex);
+            currentBoard.columns.forEach((column, index) => {
+                const columnRow = getColumnRow(column.title);
+                if (columnRow === row) {
+                    const columnElement = createColumnElement(column, index);
+                    const isStacked = /#stack\b/i.test(column.title);
 
-                if (isStacked) {
-                    if (currentStackContainer) {
-                        // Add to existing stack container
+                    if (isStacked && lastColumnElement) {
+                        // This column should be stacked below the previous one
+                        if (!currentStackContainer) {
+                            // Create a new stack container and move the previous column into it
+                            currentStackContainer = document.createElement('div');
+                            currentStackContainer.className = 'kanban-column-stack';
+
+                            // Replace the previous column with the stack container
+                            lastColumnElement.parentNode.replaceChild(currentStackContainer, lastColumnElement);
+                            currentStackContainer.appendChild(lastColumnElement);
+                        }
+
+                        // Add the current stacked column to the stack
                         currentStackContainer.appendChild(columnElement);
-                    } else if (lastColumnElement) {
-                        // Create a new stack container and move the previous column into it
-                        currentStackContainer = document.createElement('div');
-                        currentStackContainer.className = 'kanban-column-stack';
-
-                        // Remove the last column from its current position
-                        lastColumnElement.parentNode.removeChild(lastColumnElement);
-
-                        // Add both the previous column and current stacked column to the stack
-                        currentStackContainer.appendChild(lastColumnElement);
-                        currentStackContainer.appendChild(columnElement);
-                        rowContainer.appendChild(currentStackContainer);
                     } else {
-                        // First column is stacked (unusual case) - treat as regular column
-                        console.warn('First column in row has #stack tag, treating as regular column');
+                        // Regular column - add to row and reset stack container
                         rowContainer.appendChild(columnElement);
                         currentStackContainer = null;
+                        lastColumnElement = columnElement;
                     }
-                } else {
-                    // Regular column - reset stack container
-                    currentStackContainer = null;
-                    rowContainer.appendChild(columnElement);
                 }
-
-                lastColumnElement = columnElement;
             });
             
             // Add the "Add Column" button to each row
@@ -1258,46 +1234,36 @@ function renderBoard() {
             boardElement.appendChild(rowContainer);
         }
     } else {
-        // Single row layout (existing behavior)
-        boardElement.classList.remove('multi-row');
-        
         // Single row layout with stacking support
+        boardElement.classList.remove('multi-row');
+
         let currentStackContainer = null;
         let lastColumnElement = null;
 
         currentBoard.columns.forEach((column, index) => {
-            const isStacked = getColumnStacked(column.title);
             const columnElement = createColumnElement(column, index);
+            const isStacked = /#stack\b/i.test(column.title);
 
-            if (isStacked) {
-                if (currentStackContainer) {
-                    // Add to existing stack container
-                    currentStackContainer.appendChild(columnElement);
-                } else if (lastColumnElement) {
+            if (isStacked && lastColumnElement) {
+                // This column should be stacked below the previous one
+                if (!currentStackContainer) {
                     // Create a new stack container and move the previous column into it
                     currentStackContainer = document.createElement('div');
                     currentStackContainer.className = 'kanban-column-stack';
 
-                    // Remove the last column from its current position
-                    lastColumnElement.parentNode.removeChild(lastColumnElement);
-
-                    // Add both the previous column and current stacked column to the stack
+                    // Replace the previous column with the stack container
+                    lastColumnElement.parentNode.replaceChild(currentStackContainer, lastColumnElement);
                     currentStackContainer.appendChild(lastColumnElement);
-                    currentStackContainer.appendChild(columnElement);
-                    boardElement.appendChild(currentStackContainer);
-                } else {
-                    // First column is stacked (unusual case) - treat as regular column
-                    console.warn('First column has #stack tag, treating as regular column');
-                    boardElement.appendChild(columnElement);
-                    currentStackContainer = null;
                 }
-            } else {
-                // Regular column - reset stack container
-                currentStackContainer = null;
-                boardElement.appendChild(columnElement);
-            }
 
-            lastColumnElement = columnElement;
+                // Add the current stacked column to the stack
+                currentStackContainer.appendChild(columnElement);
+            } else {
+                // Regular column - add to board and reset stack container
+                boardElement.appendChild(columnElement);
+                currentStackContainer = null;
+                lastColumnElement = columnElement;
+            }
         });
 
         const addColumnBtn = document.createElement('button');
@@ -1382,18 +1348,47 @@ function getFoldAllButtonState(columnId) {
 }
 
 function toggleAllTasksInColumn(columnId) {
-    if (!currentBoard || !currentBoard.columns) {return;}
-    
+    if (!currentBoard || !currentBoard.columns) {
+        return;
+    }
+
     // Ensure state variables are initialized
     if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
     if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
-    
+
     const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column || column.tasks.length === 0) {return;}
-    
-    const collapsedCount = column.tasks.filter(task => window.collapsedTasks.has(task.id)).length;
-    const totalTasks = column.tasks.length;
-    
+    if (!column) {
+        return;
+    }
+
+    // Get the full column element (kanban-full-height-column)
+    const columnElement = document.querySelector(`[data-column-id="${columnId}"].kanban-full-height-column`);
+    if (!columnElement) {
+        return;
+    }
+
+    // Find the tasks container within the column structure
+    const tasksContainer = columnElement.querySelector('.tasks-container');
+    if (!tasksContainer) {
+        return;
+    }
+
+    // Get all task elements currently in this column's tasks container
+    const taskElements = tasksContainer.querySelectorAll('.task-item[data-task-id]');
+    if (taskElements.length === 0) {
+        return;
+    }
+
+    // Count collapsed tasks in this column's DOM
+    let collapsedCount = 0;
+    taskElements.forEach(taskElement => {
+        if (taskElement.classList.contains('collapsed')) {
+            collapsedCount++;
+        }
+    });
+
+    const totalTasks = taskElements.length;
+
     // Determine action based on current state
     let shouldCollapse;
     if (collapsedCount === totalTasks) {
@@ -1411,23 +1406,17 @@ function toggleAllTasksInColumn(columnId) {
             shouldCollapse = true; // Default or was expanded, so collapse
         }
     }
-    
-    // Apply the action to all tasks - scope to this column only
-    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
-    if (!columnElement) {return;}
-    
-    column.tasks.forEach(task => {
-        const taskElement = columnElement.querySelector(`[data-task-id="${task.id}"]`);
-        const toggle = taskElement?.querySelector('.task-collapse-toggle');
-        
-        if (shouldCollapse) {
-            window.collapsedTasks.add(task.id);
-            taskElement?.classList.add('collapsed');
-            toggle?.classList.add('rotated');
-        } else {
-            window.collapsedTasks.delete(task.id);
-            taskElement?.classList.remove('collapsed');
-            toggle?.classList.remove('rotated');
+
+    // Apply the action to all tasks using existing toggleTaskCollapse function
+    taskElements.forEach(taskElement => {
+        const taskId = taskElement.getAttribute('data-task-id');
+        const isCollapsed = taskElement.classList.contains('collapsed');
+
+        // Only toggle if state needs to change
+        if (shouldCollapse && !isCollapsed) {
+            toggleTaskCollapse(taskId);
+        } else if (!shouldCollapse && isCollapsed) {
+            toggleTaskCollapse(taskId);
         }
     });
     
@@ -1529,8 +1518,8 @@ function createColumnElement(column, columnIndex) {
     columnDiv.setAttribute('data-column-index', columnIndex);
     columnDiv.setAttribute('data-row', getColumnRow(column.title));
 
-    // Add primary tag for background color only (ignore row/gather/span/stack)
-    if (columnTag && !columnTag.startsWith('row') && !columnTag.startsWith('gather_') && !columnTag.startsWith('span') && columnTag !== 'stack') {
+    // Add primary tag for background color only (ignore row/gather/span)
+    if (columnTag && !columnTag.startsWith('row') && !columnTag.startsWith('gather_') && !columnTag.startsWith('span')) {
         columnDiv.setAttribute('data-column-tag', columnTag);
     }
     
@@ -1595,6 +1584,12 @@ function createColumnElement(column, columnIndex) {
 														})()}</span>
 														<button class="span-width-btn" onclick="changeColumnSpan('${column.id}', 1)">+</button>
 													</div>
+												</div>
+												<div class="donut-menu-item stack-control">
+													<span class="stack-label">Stack:</span>
+													<button class="stack-toggle-btn ${/#stack\b/i.test(column.title) ? 'active' : ''}" onclick="toggleColumnStack('${column.id}')">
+														${/#stack\b/i.test(column.title) ? 'On' : 'Off'}
+													</button>
 												</div>
 												<div class="donut-menu-divider"></div>
 												${column.includeMode ? `
@@ -2565,8 +2560,8 @@ function removeAllTags(id, type, columnId = null) {
     }
     
     // Remove all tags from the title (keep everything except tags)
-    // Tags are in format #tagname, but preserve #row tags, #span tags, and #stack tags
-    const newTitle = currentTitle.replace(/#(?!row\d+\b)(?!span\d+\b)(?!stack\b)[a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*/g, '').trim();
+    // Tags are in format #tagname, but preserve #row tags and #span tags
+    const newTitle = currentTitle.replace(/#(?!row\d+\b)(?!span\d+\b)[a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*/g, '').trim();
     
     // Update the element
     element.title = newTitle;
@@ -2617,6 +2612,38 @@ function removeAllTags(id, type, columnId = null) {
 }
 
 window.removeAllTags = removeAllTags;
+
+// Function to update task count display for a column
+function updateColumnTaskCount(columnId) {
+    const column = currentBoard?.columns?.find(c => c.id === columnId);
+    if (!column) return;
+
+    const taskCountElement = document.querySelector(`[data-column-id="${columnId}"] .task-count`);
+    if (taskCountElement) {
+        // Update the text content while preserving the button
+        const buttonHTML = taskCountElement.innerHTML.match(/<button[\s\S]*<\/button>/);
+        taskCountElement.innerHTML = `${column.tasks.length}${buttonHTML ? buttonHTML[0] : ''}`;
+    }
+}
+
+// Function to update fold button state for a column
+function updateColumnFoldState(columnId) {
+    updateFoldAllButton(columnId);
+}
+
+// Function to update both task count and fold state after task moves
+function updateColumnDisplay(columnId) {
+    updateColumnTaskCount(columnId);
+    updateColumnFoldState(columnId);
+}
+
+// Expose fold/collapse functions for onclick handlers
+window.toggleTaskCollapse = toggleTaskCollapse;
+window.toggleAllTasksInColumn = toggleAllTasksInColumn;
+window.updateColumnDisplay = updateColumnDisplay;
+
+// Expose rendering functions for include file updates
+window.renderSingleColumn = renderSingleColumn;
 
 // TODO: These functions are not defined - commenting out to prevent errors
 // window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
