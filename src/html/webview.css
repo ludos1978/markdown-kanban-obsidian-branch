@@ -549,14 +549,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
   gap: var(--whitespace);
 }
 
-/* Column stacking support */
-.kanban-column-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--whitespace);
-  flex-shrink: 0;
-}
-
 .kanban-board.multi-row {
   display: flex;
   flex-direction: column;

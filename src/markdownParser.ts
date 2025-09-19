@@ -17,7 +17,6 @@ export interface KanbanColumn {
   includeFiles?: string[]; // Paths to included presentation files
   originalTitle?: string;  // Original title before include processing
   displayTitle?: string;   // Cleaned title for display (without include syntax)
-  isStacked?: boolean;     // When true, column is positioned below previous column
 }
 
 export interface KanbanBoard {
@@ -176,9 +175,6 @@ export class MarkdownKanbanParser {
               displayTitle = path.basename(includeFiles[0], path.extname(includeFiles[0]));
             }
 
-            // Check for stack tag
-            const isStacked = /#stack\b/i.test(columnTitle);
-
             currentColumn = {
               id: IdGenerator.generateColumnId(),
               title: columnTitle, // Keep full title with include syntax for editing
@@ -186,19 +182,14 @@ export class MarkdownKanbanParser {
               includeMode: true,
               includeFiles: includeFiles,
               originalTitle: columnTitle,
-              displayTitle: displayTitle || 'Included Column', // Store cleaned title for display
-              isStacked: isStacked
+              displayTitle: displayTitle || 'Included Column' // Store cleaned title for display
             };
           } else {
             // Regular column
-            // Check for stack tag
-            const isStacked = /#stack\b/i.test(columnTitle);
-
             currentColumn = {
               id: IdGenerator.generateColumnId(),
               title: columnTitle,
-              tasks: [],
-              isStacked: isStacked
+              tasks: []
             };
           }
 

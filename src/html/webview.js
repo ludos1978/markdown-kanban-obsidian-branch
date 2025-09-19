@@ -163,8 +163,8 @@ const menuConfig = {
         { label: "Disabled", value: "disabled", description: "Headers scroll with content" }
     ],
     tagVisibility: [
-        { label: "All Tags", value: "all", description: "Show all tags including #span, #row, #stack, and @ tags" },
-        { label: "All Excluding Layout", value: "allexcludinglayout", description: "Show all except layout tags #span, #row (includes #stack and @ tags)" },
+        { label: "All Tags", value: "all", description: "Show all tags including #span, #row, and @ tags" },
+        { label: "All Excluding Layout", value: "allexcludinglayout", description: "Show all except #span and #row (includes @ tags)" },
         { label: "Custom Tags Only", value: "customonly", description: "Show only custom tags (not configured ones) and @ tags" },
         { label: "@ Tags Only", value: "mentionsonly", description: "Show only @ tags" },
         { label: "No Tags", value: "none", description: "Hide all tags" }
@@ -678,20 +678,12 @@ function isFilePath(text) {
     // Don't try to validate or resolve paths - just check if it looks like a filename/path
 
     // Has file extension
-    if (!/\.[a-zA-Z0-9]{1,10}$/.test(text)) {
-        return false;
-    }
+    if (!/\.[a-zA-Z0-9]{1,10}$/.test(text)) return false;
 
     // Basic checks to avoid false positives
-    if (text.includes('://')) {
-        return false; // URLs
-    }
-    if (text.startsWith('mailto:')) {
-        return false; // Email links
-    }
-    if (text.includes('@') && !text.includes('/') && !text.includes('\\')) {
-        return false; // Email addresses
-    }
+    if (text.includes('://')) return false; // URLs
+    if (text.startsWith('mailto:')) return false; // Email links
+    if (text.includes('@') && !text.includes('/') && !text.includes('\\')) return false; // Email addresses
 
     return true;
 }
@@ -1385,17 +1377,14 @@ function filterTagsFromText(text) {
         case 'all':
             // Show all tags - don't filter anything
             return text;
-        case 'allexcludinglayout':
-            // Hide layout tags (#span, #row) but show #stack and everything else
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
         case 'standard':
-            // Hide #span, #row, and #stack tags only, but preserve include syntax
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').replace(/#stack/gi, '').trim();
-        case 'customonly':
-            // Hide #span, #row, #stack, and configured tags (but show @ tags)
-            // For now, just hide layout tags (configured tag filtering happens in CSS)
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').replace(/#stack/gi, '').trim();
-        case 'mentionsonly':
+            // Hide #span and #row tags only, but preserve include syntax
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+        case 'custom':
+            // Hide #span, #row, and configured tags (but show @ tags)
+            // For now, just hide #span and #row (configured tag filtering happens in CSS)
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+        case 'mentions':
             // Hide all tags except @ tags - need to preserve @mentions but remove # tags
             return text.replace(/#\w+/gi, '').trim();
         case 'none':
@@ -1403,7 +1392,7 @@ function filterTagsFromText(text) {
             return text.replace(/#\w+/gi, '').replace(/@\w+/gi, '').trim();
         default:
             // Default to standard behavior
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').replace(/#stack/gi, '').trim();
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
     }
 }
 
@@ -1639,14 +1628,6 @@ function getColumnRow(title) {
         return Math.min(Math.max(rowNum, 1), 6); // Ensure it's between 1 and 6
     }
     return 1;
-}
-
-// Function to check if column is stacked (should be positioned below previous column)
-function getColumnStacked(title) {
-    if (!title) {return false;}
-
-    // Check for #stack tag
-    return /#stack\b/i.test(title);
 }
 
 // Function to update column row tag
@@ -2550,10 +2531,10 @@ window.addEventListener('message', event => {
                 // Button is always visible, just update its state
                 if (message.hasChanges) {
                     refreshIncludesBtn.classList.add('has-changes');
-                    if (iconSpan) {iconSpan.textContent = '❗';}
+                    if (iconSpan) iconSpan.textContent = '❗';
                 } else {
                     refreshIncludesBtn.classList.remove('has-changes');
-                    if (iconSpan) {iconSpan.textContent = '✓';}
+                    if (iconSpan) iconSpan.textContent = '✓';
                 }
 
                 // Update badge count
@@ -3505,7 +3486,6 @@ window.applyImageFill = applyImageFill;
 window.currentImageFill = currentImageFill;
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
-window.getColumnStacked = getColumnStacked;
 
 window.performSort = performSort;
 
@@ -3682,7 +3662,7 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 function initializeLayoutPresetsMenu() {
     const dropdown = document.getElementById('layout-presets-dropdown');
-    if (!dropdown) {return;}
+    if (!dropdown) return;
 
     // Clear existing content
     dropdown.innerHTML = '';
@@ -3718,7 +3698,7 @@ function toggleLayoutPresetsMenu() {
     const dropdown = document.getElementById('layout-presets-dropdown');
     const button = document.getElementById('layout-presets-btn');
 
-    if (!dropdown || !button) {return;}
+    if (!dropdown || !button) return;
 
     const isVisible = dropdown.classList.contains('show');
 
@@ -3749,7 +3729,7 @@ function toggleLayoutPresetsMenu() {
  */
 function applyLayoutPreset(presetKey) {
     const preset = layoutPresets[presetKey];
-    if (!preset) {return;}
+    if (!preset) return;
 
     // Apply each setting in the preset
     Object.entries(preset.settings).forEach(([settingKey, value]) => {
