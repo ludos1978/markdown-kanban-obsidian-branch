@@ -3,7 +3,7 @@ kanban-plugin: board
 ---
 
 ## Open Bugs
-- [ ] When dragging a column in a multi-row setup the lower, the lower row overlays the rows above, hiding the cards. the rows should keep the same height as when working normally.
+- [ ] When dragging a column in a multi-row setup the lower, the lower  row overlays the rows above, hiding the cards. the rows should keep the same height as when working normally.
 - [ ] undo does not work anymore.
 - [ ] when converting paths to media assets that are converted to links:
   - make sure windows paths are also discovered as urls
