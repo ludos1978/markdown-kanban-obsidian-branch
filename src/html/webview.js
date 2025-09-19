@@ -275,6 +275,8 @@ function populateDynamicMenus() {
 
 // Clipboard card source functionality
 let clipboardCardData = null;
+let lastClipboardCheck = 0;
+const CLIPBOARD_CHECK_THROTTLE = 1000; // Only check clipboard once per second
 
 /**
  * Legacy clipboard mousedown handler (deprecated)
@@ -283,19 +285,13 @@ let clipboardCardData = null;
  * @param {MouseEvent} e - Mouse event
  */
 window.handleClipboardMouseDown = async function(e) {
-    // Refresh clipboard data immediately when user starts interacting
-    clipboardCardData = await readClipboardContent();
+    // Ensure element is focused for clipboard access
+    e.target.focus();
 
-    // Update the visual indicator immediately after refresh
-    const clipboardSource = document.getElementById('clipboard-card-source');
-    if (clipboardSource) {
-        const iconSpan = clipboardSource.querySelector('.clipboard-icon');
-        if (clipboardCardData && clipboardCardData.isImage) {
-            iconSpan.textContent = '🖼️';
-        } else if (clipboardCardData) {
-            iconSpan.textContent = '📋';
-        }
-    }
+    // Wait a moment for focus to be established
+    setTimeout(async () => {
+        await updateClipboardCardSource(true); // Force update
+    }, 50);
 };
 
 /**
@@ -557,9 +553,19 @@ window.handleEmptyCardDragEnd = function(e) {
 
 async function readClipboardContent() {
     try {
+        // Check if document is focused (required for clipboard access)
+        if (!document.hasFocus()) {
+            // Try to focus the window
+            window.focus();
+            // Wait a moment and try again
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (!document.hasFocus()) {
+                return null;
+            }
+        }
+
         // Check clipboard permissions first
         if (!navigator.clipboard) {
-            console.error('❌ Clipboard API not available');
             return null;
         }
 
@@ -567,11 +573,10 @@ async function readClipboardContent() {
         try {
             const permission = await navigator.permissions.query({ name: 'clipboard-read' });
             if (permission.state === 'denied') {
-                console.warn('⚠️ Clipboard read permission denied');
                 return null;
             }
         } catch (permError) {
-            console.warn('⚠️ Could not check clipboard permissions:', permError.message);
+            // Permission check failed, continue anyway
         }
 
         // First check for clipboard images
@@ -579,7 +584,6 @@ async function readClipboardContent() {
         try {
             clipboardItems = await navigator.clipboard.read();
         } catch (error) {
-            console.error('❌ Failed to read clipboard items:', error.message);
             // Fall back to text reading
             try {
                 const text = await navigator.clipboard.readText();
@@ -587,7 +591,7 @@ async function readClipboardContent() {
                     return await processClipboardText(text.trim());
                 }
             } catch (textError) {
-                console.error('❌ Failed to read clipboard text as fallback:', textError.message);
+                // Clipboard reading failed
             }
             return null;
         }
@@ -599,7 +603,6 @@ async function readClipboardContent() {
                     try {
                         blob = await clipboardItem.getType(type);
                     } catch (error) {
-                        console.error('❌ Failed to get blob for type', type, ':', error.message);
                         continue;
                     }
 
@@ -652,13 +655,10 @@ async function readClipboardContent() {
 
             return await processClipboardText(text.trim());
         } catch (error) {
-            console.error('❌ Failed to read clipboard text:', error.message);
             return null;
         }
 
     } catch (error) {
-        console.error('❌ Unexpected error in readClipboardContent:', error.message);
-
         // Last resort fallback to text-only clipboard reading
         try {
             const text = await navigator.clipboard.readText();
@@ -666,7 +666,7 @@ async function readClipboardContent() {
                 return await processClipboardText(text.trim());
             }
         } catch (fallbackError) {
-            console.error('❌ Last resort text reading failed:', fallbackError.message);
+            // All clipboard reading failed
         }
 
         return null;
@@ -674,12 +674,18 @@ async function readClipboardContent() {
 }
 
 // Helper functions for file path processing
-/**
- * Legacy wrapper for backward compatibility - delegates to fileTypeUtils
- * @deprecated Use fileTypeUtils.isFilePath() instead
- */
 function isFilePath(text) {
-    return fileTypeUtils.isFilePath(text);
+    // Don't try to validate or resolve paths - just check if it looks like a filename/path
+
+    // Has file extension
+    if (!/\.[a-zA-Z0-9]{1,10}$/.test(text)) return false;
+
+    // Basic checks to avoid false positives
+    if (text.includes('://')) return false; // URLs
+    if (text.startsWith('mailto:')) return false; // Email links
+    if (text.includes('@') && !text.includes('/') && !text.includes('\\')) return false; // Email addresses
+
+    return true;
 }
 
 // escapeFilePath function moved to utils/validationUtils.js
@@ -797,12 +803,13 @@ async function processClipboardText(text) {
     };
 }
 
-/**
- * Legacy wrapper for backward compatibility - delegates to fileTypeUtils
- * @deprecated Use fileTypeUtils.isImageFile() instead
- */
 function isImageFile(fileName) {
-    return fileTypeUtils.isImageFile(fileName);
+    const imageExtensions = [
+        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp',
+        'ico', 'tiff', 'tif', 'avif', 'heic', 'heif'
+    ];
+    const extension = fileName.split('.').pop().toLowerCase();
+    return imageExtensions.includes(extension);
 }
 
 // escapeHtml function moved to utils/validationUtils.js
@@ -830,9 +837,17 @@ async function fetchUrlTitle(url) {
     }
 }
 
-async function updateClipboardCardSource() {
-    // Update clipboard content
-    clipboardCardData = await readClipboardContent();
+async function updateClipboardCardSource(force = false) {
+    // Throttle clipboard reading to avoid over-requesting
+    const now = Date.now();
+    if (!force && (now - lastClipboardCheck) < CLIPBOARD_CHECK_THROTTLE) {
+        // Use cached data
+    } else {
+        lastClipboardCheck = now;
+        // Update clipboard content
+        clipboardCardData = await readClipboardContent();
+    }
+
     const clipboardSource = document.getElementById('clipboard-card-source');
     
     if (clipboardSource) {
@@ -1772,7 +1787,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update clipboard content when window gets focus
     window.addEventListener('focus', async () => {
-        await updateClipboardCardSource();
+        // Wait a moment for focus to be fully established
+        setTimeout(async () => {
+            await updateClipboardCardSource(true); // Force update on focus
+        }, 100);
     });
     
     // Function to auto-save pending changes
@@ -1851,14 +1869,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Listen for Cmd/Ctrl+C to update clipboard
+    // Listen for copy events to update clipboard
+    document.addEventListener('copy', async (e) => {
+        // Wait a bit for the clipboard to be updated
+        setTimeout(async () => {
+            await updateClipboardCardSource(true); // Force update after copy
+        }, 100);
+    });
+
+    // Listen for Cmd/Ctrl+C to update clipboard (backup)
     document.addEventListener('keydown', async (e) => {
         // Check for Cmd+C (Mac) or Ctrl+C (Windows/Linux)
         if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
             // Wait a bit for the clipboard to be updated
             setTimeout(async () => {
-                // Use the main clipboard reader to preserve image detection
-                await updateClipboardCardSource();
+                await updateClipboardCardSource(true); // Force update after copy
             }, 200);
         }
     });
@@ -1868,43 +1893,14 @@ document.addEventListener('DOMContentLoaded', () => {
         await updateClipboardCardSource();
     }, 1000); // Delay to ensure everything is initialized
     
-    // Add a simple test to verify clipboard functionality is working
-    // setTimeout(() => {
-    //     const clipboardSource = document.getElementById('clipboard-card-source');
-    //     if (clipboardSource) {
-    //         // Force update with test data
-    //         clipboardCardData = {
-    //             title: 'Test Update',
-    //             content: 'Testing clipboard update functionality',
-    //             isLink: false
-    //         };
-    //         // Update UI without trying to read clipboard again
-    //         const iconSpan = clipboardSource.querySelector('.clipboard-icon');
-    //         const textSpan = clipboardSource.querySelector('.clipboard-text');
-            
-    //         if (iconSpan && textSpan) {
-    //             const rawPreview = clipboardCardData.content.length > 15 
-    //                 ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
-    //                 : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
-                
-    //             // Escape preview content to prevent HTML rendering
-    //             const preview = escapeHtml(rawPreview);
-                
-    //             iconSpan.textContent = '📋';
-    //             textSpan.textContent = preview;
-    //             clipboardSource.style.opacity = '1';
-    //             clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
-    //         }
-    //     } else {
-    //     }
-    // }, 2000);
+    // Removed test code - clipboard should work automatically
     
     // Add click handler to read clipboard (user interaction required for clipboard API)
     const clipboardSource = document.getElementById('clipboard-card-source');
     if (clipboardSource) {
         clipboardSource.addEventListener('click', async () => {
-            // Use the main clipboard reader to preserve image detection
-            await updateClipboardCardSource();
+            // Manual update on click
+            await updateClipboardCardSource(true); // Force update on click
         });
     }
  
