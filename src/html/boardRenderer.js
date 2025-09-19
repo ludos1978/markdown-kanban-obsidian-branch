@@ -2642,6 +2642,9 @@ window.toggleTaskCollapse = toggleTaskCollapse;
 window.toggleAllTasksInColumn = toggleAllTasksInColumn;
 window.updateColumnDisplay = updateColumnDisplay;
 
+// Expose rendering functions for include file updates
+window.renderSingleColumn = renderSingleColumn;
+
 // TODO: These functions are not defined - commenting out to prevent errors
 // window.getAllHeaderBarsHtml = getAllHeaderBarsHtml;
 // window.getAllFooterBarsHtml = getAllFooterBarsHtml;
