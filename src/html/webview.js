@@ -694,7 +694,7 @@ function createFileMarkdownLink(filePath) {
     const markdownExtensions = ['md', 'markdown', 'mdown', 'mkd', 'mdx'];
 
     // Use original path without modification - let the system handle path resolution
-    const safePath = escapeFilePath(filePath);
+    const safePath = (typeof escapeFilePath === 'function') ? escapeFilePath(filePath) : filePath;
 
     if (imageExtensions.includes(extension)) {
         // Image: ![](path) - use original path
@@ -841,15 +841,16 @@ async function updateClipboardCardSource() {
         
         if (clipboardCardData && clipboardCardData.content) {
             clipboardSource.style.opacity = '1';
-            clipboardSource.title = `Drag to create card: "${escapeHtml(clipboardCardData.title)}"`;
-            
+            const escapedTitle = (typeof escapeHtml === 'function') ? escapeHtml(clipboardCardData.title) : clipboardCardData.title;
+            clipboardSource.title = `Drag to create card: "${escapedTitle}"`;
+
             // Show first 15 characters + character count (escaped for display)
-            const rawPreview = clipboardCardData.content.length > 15 
+            const rawPreview = clipboardCardData.content.length > 15
                 ? clipboardCardData.content.substring(0, 15) + `... (${clipboardCardData.content.length})`
                 : `${clipboardCardData.content} (${clipboardCardData.content.length})`;
-            
+
             // Escape the preview content to prevent HTML rendering
-            const preview = escapeHtml(rawPreview);
+            const preview = (typeof escapeHtml === 'function') ? escapeHtml(rawPreview) : rawPreview;
             
             // Update visual indicator based on content type
             if (clipboardCardData.isImage) {
