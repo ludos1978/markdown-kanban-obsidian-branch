@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { FileTypeUtils } from './utils/fileTypeUtils';
 import * as fs from 'fs';
 
 export interface FileInfo {
@@ -170,9 +171,7 @@ export class FileManager {
     }
 
     private isImageFile(fileName: string): boolean {
-        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.bmp', '.webp'];
-        const ext = path.extname(fileName).toLowerCase();
-        return imageExtensions.includes(ext);
+        return FileTypeUtils.isImageFile(fileName);
     }
 
     public async handleFileDrop(message: any) {
@@ -387,15 +386,7 @@ export class FileManager {
      * Check if a file path is a media file (image, video, or audio)
      */
     private isMediaFile(filePath: string): boolean {
-        const extension = filePath.split('.').pop()?.toLowerCase() || '';
-        
-        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff', 'tif'];
-        const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'm4v', 'mpg', 'ogv', 'webm', 'wmv'];
-        const audioExts = ['mp3', 'm4a', 'wav', 'ogg', 'flac', 'aac', 'oga'];
-        
-        return imageExts.includes(extension) || 
-               videoExts.includes(extension) || 
-               audioExts.includes(extension);
+        return FileTypeUtils.isMediaFile(filePath);
     }
 
     /**

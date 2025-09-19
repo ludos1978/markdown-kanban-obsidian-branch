@@ -674,18 +674,12 @@ async function readClipboardContent() {
 }
 
 // Helper functions for file path processing
+/**
+ * Legacy wrapper for backward compatibility - delegates to fileTypeUtils
+ * @deprecated Use fileTypeUtils.isFilePath() instead
+ */
 function isFilePath(text) {
-    // Don't try to validate or resolve paths - just check if it looks like a filename/path
-
-    // Has file extension
-    if (!/\.[a-zA-Z0-9]{1,10}$/.test(text)) return false;
-
-    // Basic checks to avoid false positives
-    if (text.includes('://')) return false; // URLs
-    if (text.startsWith('mailto:')) return false; // Email links
-    if (text.includes('@') && !text.includes('/') && !text.includes('\\')) return false; // Email addresses
-
-    return true;
+    return fileTypeUtils.isFilePath(text);
 }
 
 // escapeFilePath function moved to utils/validationUtils.js
@@ -803,13 +797,12 @@ async function processClipboardText(text) {
     };
 }
 
+/**
+ * Legacy wrapper for backward compatibility - delegates to fileTypeUtils
+ * @deprecated Use fileTypeUtils.isImageFile() instead
+ */
 function isImageFile(fileName) {
-    const imageExtensions = [
-        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 
-        'ico', 'tiff', 'tif', 'avif', 'heic', 'heif'
-    ];
-    const extension = fileName.split('.').pop().toLowerCase();
-    return imageExtensions.includes(extension);
+    return fileTypeUtils.isImageFile(fileName);
 }
 
 // escapeHtml function moved to utils/validationUtils.js
