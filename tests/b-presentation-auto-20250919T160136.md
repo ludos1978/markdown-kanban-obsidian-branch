@@ -1,4 +1,4 @@
-# B Heading 1 asdf #inprogress asdf
+# B Heading 1 asdf #inprogress xxx
 
 > B Quote
 
@@ -13,13 +13,3 @@ b Text bbb
 # # a #done #inprogress
 
 a Text
-
----
-
-# asdf
-
-text
-
----
-
-notext

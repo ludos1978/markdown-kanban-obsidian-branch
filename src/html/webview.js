@@ -2991,111 +2991,56 @@ document.addEventListener('keydown', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Show confirmation dialog
+                // Show confirmation dialog using modalUtils
                 const message = `You have unsaved changes. What would you like to do?`;
-                
-                // Create a custom modal for save confirmation
-                const modal = document.createElement('div');
-                modal.className = 'modal';
-                modal.style.cssText = `
-                    display: flex;
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(0, 0, 0, 0.5);
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 10000;
-                `;
-                
-                const dialog = document.createElement('div');
-                dialog.style.cssText = `
-                    background: var(--vscode-dropdown-background);
-                    border: 1px solid var(--vscode-dropdown-border);
-                    border-radius: 8px;
-                    padding: 20px;
-                    max-width: 400px;
-                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-                `;
-                
-                dialog.innerHTML = `
-                    <h3 style="margin: 0 0 15px 0; color: var(--vscode-foreground);">Unsaved Changes</h3>
-                    <p style="margin: 0 0 20px 0; color: var(--vscode-descriptionForeground);">${message}</p>
-                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                        <button id="save-and-close" style="
-                            padding: 6px 12px;
-                            background: var(--vscode-button-background);
-                            color: var(--vscode-button-foreground);
-                            border: none;
-                            border-radius: 4px;
-                            cursor: pointer;
-                        ">Save & Close</button>
-                        <button id="discard-and-close" style="
-                            padding: 6px 12px;
-                            background: var(--vscode-button-secondaryBackground);
-                            color: var(--vscode-button-secondaryForeground);
-                            border: 1px solid var(--vscode-button-border);
-                            border-radius: 4px;
-                            cursor: pointer;
-                        ">Discard & Close</button>
-                        <button id="cancel-close" style="
-                            padding: 6px 12px;
-                            background: transparent;
-                            color: var(--vscode-foreground);
-                            border: 1px solid var(--vscode-panel-border);
-                            border-radius: 4px;
-                            cursor: pointer;
-                        ">Cancel</button>
-                    </div>
-                `;
-                
-                modal.appendChild(dialog);
-                document.body.appendChild(modal);
-                
-                // Handle button clicks
-                document.getElementById('save-and-close').addEventListener('click', () => {
-                    // Save changes first using new cache system
-                    if (typeof saveCachedBoard === 'function') {
-                        saveCachedBoard();
+
+                modalUtils.showConfirmModal('Unsaved Changes', message, [
+                    {
+                        text: 'Cancel',
+                        action: () => {
+                            // Do nothing - just close modal
+                        }
+                    },
+                    {
+                        text: 'Discard & Close',
+                        variant: 'danger',
+                        action: () => {
+                            // Clear unsaved changes flag - discard all changes
+                            if (typeof markSavedChanges === 'function') {
+                                markSavedChanges();
+                            } else {
+                                // Fallback if function not available
+                                window.hasUnsavedChanges = false;
+                                updateRefreshButtonState('default');
+                                vscode.postMessage({
+                                    type: 'markUnsavedChanges',
+                                    hasUnsavedChanges: false
+                                });
+                            }
+
+                            // Clear old pending changes (legacy cleanup)
+                            if (window.pendingColumnChanges) {window.pendingColumnChanges.clear();}
+                            if (window.pendingTaskChanges) {window.pendingTaskChanges.clear();}
+
+                            // Let VS Code handle the close
+                            vscode.postMessage({ type: 'closeWindow' });
+                        }
+                    },
+                    {
+                        text: 'Save & Close',
+                        primary: true,
+                        action: () => {
+                            // Save changes first using new cache system
+                            if (typeof saveCachedBoard === 'function') {
+                                saveCachedBoard();
+                            }
+
+                            updateRefreshButtonState('saved');
+                            // Let VS Code handle the close
+                            vscode.postMessage({ type: 'closeWindow' });
+                        }
                     }
-                    
-                    updateRefreshButtonState('saved');
-                    // Remove modal
-                    modal.remove();
-                    // Let VS Code handle the close
-                    vscode.postMessage({ type: 'closeWindow' });
-                });
-                
-                document.getElementById('discard-and-close').addEventListener('click', () => {
-                    // Clear unsaved changes flag - discard all changes
-                    if (typeof markSavedChanges === 'function') {
-                        markSavedChanges();
-                    } else {
-                        // Fallback if function not available
-                        window.hasUnsavedChanges = false;
-                        updateRefreshButtonState('default');
-                        vscode.postMessage({
-                            type: 'markUnsavedChanges',
-                            hasUnsavedChanges: false
-                        });
-                    }
-                    
-                    // Clear old pending changes (legacy cleanup)
-                    if (window.pendingColumnChanges) {window.pendingColumnChanges.clear();}
-                    if (window.pendingTaskChanges) {window.pendingTaskChanges.clear();}
-                    
-                    // Remove modal
-                    modal.remove();
-                    // Let VS Code handle the close
-                    vscode.postMessage({ type: 'closeWindow' });
-                });
-                
-                document.getElementById('cancel-close').addEventListener('click', () => {
-                    // Just remove the modal
-                    modal.remove();
-                });
+                ]);
                 
                 // Also close on escape key
                 const escapeHandler = (e) => {

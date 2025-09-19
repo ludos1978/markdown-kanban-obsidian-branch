@@ -13,13 +13,3 @@ b Text bbb
 # # a #done #inprogress
 
 a Text
-
----
-
-# asdf
-
-text
-
----
-
-notext
