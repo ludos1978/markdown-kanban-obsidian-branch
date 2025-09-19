@@ -1,0 +1,439 @@
+/**
+ * Tag Processing Utility Module for TypeScript/Node.js
+ * Centralizes all tag extraction, parsing, and processing functionality
+ */
+
+export interface TagExtractionOptions {
+    includeHash?: boolean | 'withSymbol';
+    includeAt?: boolean | 'withSymbol';
+    excludeLayout?: boolean;
+    unique?: boolean;
+}
+
+export interface LayoutConfig {
+    row: number | null;
+    span: number | null;
+    stack: boolean;
+    fold: boolean;
+    archive: boolean;
+    hidden: boolean;
+    include: string | null;
+}
+
+export interface GatherConditions {
+    include: string[];
+    exclude: string[];
+    operator: 'AND' | 'OR';
+}
+
+export interface GroupedTags {
+    priority: string[];
+    state: string[];
+    date: string[];
+    person: string[];
+    layout: string[];
+    gather: string[];
+    regular: string[];
+}
+
+export class TagUtils {
+    private patterns = {
+        // Basic tag patterns
+        basicTags: /#([a-zA-Z0-9_-]+)/g,
+        atTags: /@([a-zA-Z0-9_&-]+)/g,
+
+        // Layout-specific tags
+        rowTag: /#row(\d+)\b/i,
+        spanTag: /#span(\d+)\b/i,
+        stackTag: /#stack\b/i,
+        includeTag: /#include:([^\s]+)/i,
+
+        // Special gather tags
+        gatherTags: /#(gather_[a-zA-Z0-9_&|=><!\-]+|ungathered)/g,
+
+        // Date patterns
+        dateTags: /@(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4})(?:\s|$)/,
+
+        // Priority/state tags
+        priorityTag: /#(high|medium|low|urgent)\b/i,
+        stateTag: /#(todo|doing|done|blocked|waiting)\b/i,
+
+        // Card/column state tags
+        foldTag: /#fold\b/i,
+        archiveTag: /#archive\b/i,
+        hiddenTag: /#hidden\b/i
+    };
+
+    private layoutTags = ['row', 'span', 'stack', 'fold', 'archive', 'hidden', 'include'];
+    private excludedTags = ['gather_', 'ungathered', 'fold', 'archive', 'hidden'];
+
+    /**
+     * Extract all tags from text
+     */
+    public extractTags(text: string, options: TagExtractionOptions = {}): string[] {
+        const {
+            includeHash = false,
+            includeAt = false,
+            excludeLayout = true,
+            unique = true
+        } = options;
+
+        if (!text || typeof text !== 'string') {
+            return [];
+        }
+
+        const tags: string[] = [];
+
+        // Extract hash tags
+        if (includeHash !== false) {
+            const hashMatches = text.matchAll(this.patterns.basicTags);
+            for (const match of hashMatches) {
+                const tag = includeHash === 'withSymbol' ? `#${match[1]}` : match[1];
+                tags.push(tag);
+            }
+        }
+
+        // Extract @ tags
+        if (includeAt) {
+            const atMatches = text.matchAll(this.patterns.atTags);
+            for (const match of atMatches) {
+                const tag = includeAt === 'withSymbol' ? `@${match[1]}` : match[1];
+                tags.push(tag);
+            }
+        }
+
+        // Filter out layout tags if requested
+        let filteredTags = tags;
+        if (excludeLayout) {
+            filteredTags = tags.filter(tag => {
+                const cleanTag = tag.replace(/^[#@]/, '').toLowerCase();
+                return !this.isLayoutTag(cleanTag);
+            });
+        }
+
+        // Return unique tags if requested
+        return unique ? [...new Set(filteredTags)] : filteredTags;
+    }
+
+    /**
+     * Extract the first tag from text
+     */
+    public extractFirstTag(text: string, excludeLayout: boolean = true): string | null {
+        const tags = this.extractTags(text, {
+            includeHash: true,
+            excludeLayout: excludeLayout
+        });
+        return tags.length > 0 ? tags[0] : null;
+    }
+
+    /**
+     * Check if a tag is a layout tag
+     */
+    public isLayoutTag(tag: string): boolean {
+        if (!tag) return false;
+
+        const cleanTag = tag.replace(/^[#@]/, '').toLowerCase();
+
+        // Check static layout tags
+        if (this.layoutTags.includes(cleanTag)) {
+            return true;
+        }
+
+        // Check pattern-based layout tags
+        if (this.patterns.rowTag.test(`#${cleanTag}`)) return true;
+        if (this.patterns.spanTag.test(`#${cleanTag}`)) return true;
+        if (this.patterns.stackTag.test(`#${cleanTag}`)) return true;
+        if (this.patterns.includeTag.test(`#${cleanTag}`)) return true;
+
+        return false;
+    }
+
+    /**
+     * Check if a tag is a gather tag
+     */
+    public isGatherTag(tag: string): boolean {
+        if (!tag) return false;
+        const cleanTag = tag.replace(/^[#@]/, '');
+        return cleanTag.startsWith('gather_') || cleanTag === 'ungathered';
+    }
+
+    /**
+     * Extract layout configuration from tags
+     */
+    public extractLayoutConfig(text: string): LayoutConfig {
+        const config: LayoutConfig = {
+            row: null,
+            span: null,
+            stack: false,
+            fold: false,
+            archive: false,
+            hidden: false,
+            include: null
+        };
+
+        if (!text) return config;
+
+        // Extract row number
+        const rowMatch = text.match(this.patterns.rowTag);
+        if (rowMatch) {
+            config.row = parseInt(rowMatch[1]);
+        }
+
+        // Extract span number
+        const spanMatch = text.match(this.patterns.spanTag);
+        if (spanMatch) {
+            config.span = parseInt(spanMatch[1]);
+        }
+
+        // Check for stack tag
+        config.stack = this.patterns.stackTag.test(text);
+
+        // Check for fold tag
+        config.fold = this.patterns.foldTag.test(text);
+
+        // Check for archive tag
+        config.archive = this.patterns.archiveTag.test(text);
+
+        // Check for hidden tag
+        config.hidden = this.patterns.hiddenTag.test(text);
+
+        // Extract include path
+        const includeMatch = text.match(this.patterns.includeTag);
+        if (includeMatch) {
+            config.include = includeMatch[1];
+        }
+
+        return config;
+    }
+
+    /**
+     * Filter tags for display (exclude layout and special tags)
+     */
+    public filterDisplayTags(tags: string[]): string[] {
+        if (!Array.isArray(tags)) return [];
+
+        return tags.filter(tag => {
+            const cleanTag = tag.replace(/^[#@]/, '').toLowerCase();
+
+            // Skip layout tags
+            if (this.isLayoutTag(cleanTag)) return false;
+
+            // Skip gather tags
+            if (this.isGatherTag(cleanTag)) return false;
+
+            // Skip excluded tags
+            if (this.excludedTags.some(excluded => cleanTag.startsWith(excluded))) {
+                return false;
+            }
+
+            return true;
+        });
+    }
+
+    /**
+     * Group tags by type
+     */
+    public groupTagsByType(tags: string[]): GroupedTags {
+        const groups: GroupedTags = {
+            priority: [],
+            state: [],
+            date: [],
+            person: [],
+            layout: [],
+            gather: [],
+            regular: []
+        };
+
+        tags.forEach(tag => {
+            const cleanTag = tag.replace(/^[#@]/, '');
+
+            if (this.patterns.priorityTag.test(`#${cleanTag}`)) {
+                groups.priority.push(tag);
+            } else if (this.patterns.stateTag.test(`#${cleanTag}`)) {
+                groups.state.push(tag);
+            } else if (this.patterns.dateTags.test(`@${cleanTag}`)) {
+                groups.date.push(tag);
+            } else if (tag.startsWith('@')) {
+                groups.person.push(tag);
+            } else if (this.isLayoutTag(cleanTag)) {
+                groups.layout.push(tag);
+            } else if (this.isGatherTag(cleanTag)) {
+                groups.gather.push(tag);
+            } else {
+                groups.regular.push(tag);
+            }
+        });
+
+        return groups;
+    }
+
+    /**
+     * Generate CSS class names from tags
+     */
+    public generateTagClasses(tags: string[] | string): string {
+        let tagArray = tags;
+
+        if (typeof tags === 'string') {
+            tagArray = this.extractTags(tags, {
+                includeHash: true,
+                includeAt: true,
+                excludeLayout: false
+            });
+        }
+
+        if (!Array.isArray(tagArray)) return '';
+
+        return tagArray
+            .map(tag => {
+                const cleanTag = tag.replace(/^[#@]/, '').replace(/[^a-zA-Z0-9_-]/g, '-');
+                return `tag-${cleanTag}`;
+            })
+            .join(' ');
+    }
+
+    /**
+     * Parse gather tag conditions
+     */
+    public parseGatherConditions(gatherTag: string): GatherConditions | null {
+        if (!gatherTag || !gatherTag.startsWith('gather_')) {
+            return null;
+        }
+
+        const conditionString = gatherTag.substring(7); // Remove 'gather_'
+        const conditions: GatherConditions = {
+            include: [],
+            exclude: [],
+            operator: 'AND'
+        };
+
+        // Parse OR conditions
+        if (conditionString.includes('|')) {
+            conditions.operator = 'OR';
+            conditions.include = conditionString.split('|').map(t => t.trim());
+        }
+        // Parse AND conditions
+        else if (conditionString.includes('&')) {
+            conditions.operator = 'AND';
+            conditions.include = conditionString.split('&').map(t => t.trim());
+        }
+        // Parse NOT conditions
+        else if (conditionString.includes('!')) {
+            const parts = conditionString.split('!');
+            conditions.include = parts[0] ? [parts[0].trim()] : [];
+            conditions.exclude = parts.slice(1).map(t => t.trim());
+        }
+        // Single condition
+        else {
+            conditions.include = [conditionString.trim()];
+        }
+
+        return conditions;
+    }
+
+    /**
+     * Clean tags from text (remove all tag patterns)
+     */
+    public removeTagsFromText(text: string, options: {
+        removeHash?: boolean;
+        removeAt?: boolean;
+        keepLayout?: boolean;
+    } = {}): string {
+        const {
+            removeHash = true,
+            removeAt = false,
+            keepLayout = false
+        } = options;
+
+        if (!text) return '';
+
+        let cleanedText = text;
+
+        // Remove hash tags
+        if (removeHash) {
+            if (keepLayout) {
+                // Remove only non-layout tags
+                cleanedText = cleanedText.replace(this.patterns.basicTags, (match, tag) => {
+                    return this.isLayoutTag(tag) ? match : '';
+                });
+            } else {
+                cleanedText = cleanedText.replace(this.patterns.basicTags, '');
+            }
+        }
+
+        // Remove @ tags
+        if (removeAt) {
+            cleanedText = cleanedText.replace(this.patterns.atTags, '');
+        }
+
+        // Clean up extra spaces
+        cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+
+        return cleanedText;
+    }
+
+    /**
+     * Sort tags by priority/importance
+     */
+    public sortTags(tags: string[]): string[] {
+        if (!Array.isArray(tags)) return [];
+
+        const priority: { [key: string]: number } = {
+            urgent: 0,
+            high: 1,
+            blocked: 2,
+            todo: 3,
+            doing: 4,
+            medium: 5,
+            waiting: 6,
+            low: 7,
+            done: 8
+        };
+
+        return tags.sort((a, b) => {
+            const cleanA = a.replace(/^[#@]/, '').toLowerCase();
+            const cleanB = b.replace(/^[#@]/, '').toLowerCase();
+
+            const priorityA = priority[cleanA] ?? 999;
+            const priorityB = priority[cleanB] ?? 999;
+
+            if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+            }
+
+            // Alphabetical for same priority
+            return cleanA.localeCompare(cleanB);
+        });
+    }
+
+    /**
+     * Validate tag format
+     */
+    public isValidTag(tag: string): boolean {
+        if (!tag || typeof tag !== 'string') return false;
+
+        // Remove symbol if present
+        const cleanTag = tag.replace(/^[#@]/, '');
+
+        // Check if empty after cleaning
+        if (!cleanTag) return false;
+
+        // Check valid characters (alphanumeric, underscore, hyphen)
+        if (!/^[a-zA-Z0-9_-]+$/.test(cleanTag)) return false;
+
+        // Check length (reasonable limits)
+        if (cleanTag.length < 1 || cleanTag.length > 50) return false;
+
+        return true;
+    }
+
+    /**
+     * Get tag color configuration key
+     */
+    public getTagColorKey(tag: string): string {
+        const cleanTag = tag.replace(/^[#@]/, '');
+        return `tag-${cleanTag}`;
+    }
+}
+
+// Export singleton instance
+export const tagUtils = new TagUtils();
