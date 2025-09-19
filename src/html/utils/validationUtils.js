@@ -172,6 +172,130 @@ class ValidationUtils {
         if (!text || text.length <= maxLength) return text || '';
         return text.substring(0, maxLength - ellipsis.length) + ellipsis;
     }
+
+    /**
+     * Unescape HTML entities back to their original characters
+     * @param {string} text - Text to unescape
+     * @returns {string} Unescaped text
+     */
+    static unescapeHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'")
+            .replace(/&apos;/g, "'");
+    }
+
+    /**
+     * Encode text for URL usage
+     * @param {string} text - Text to encode
+     * @returns {string} URL-encoded text
+     */
+    static encodeUrl(text) {
+        if (!text) return '';
+        return encodeURIComponent(text);
+    }
+
+    /**
+     * Decode URL-encoded text
+     * @param {string} text - Text to decode
+     * @returns {string} Decoded text
+     */
+    static decodeUrl(text) {
+        if (!text) return '';
+        try {
+            return decodeURIComponent(text);
+        } catch {
+            return text; // Return original if decoding fails
+        }
+    }
+
+    /**
+     * Sanitize text for safe display by removing dangerous patterns
+     * @param {string} text - Text to sanitize
+     * @param {Object} options - Sanitization options
+     * @returns {string} Sanitized text
+     */
+    static sanitizeText(text, options = {}) {
+        if (!text) return '';
+
+        const { preserveWhitespace = false } = options;
+        let sanitized = this.escapeHtml(text);
+
+        // Normalize whitespace unless preserving
+        if (!preserveWhitespace) {
+            sanitized = sanitized.replace(/\s+/g, ' ').trim();
+        }
+
+        return sanitized;
+    }
+
+    /**
+     * Clean HTML by removing script tags and dangerous attributes
+     * @param {string} html - HTML to clean
+     * @returns {string} Cleaned HTML
+     */
+    static cleanHtml(html) {
+        if (!html) return '';
+
+        return html
+            // Remove script tags
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            // Remove dangerous event handlers
+            .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
+            // Remove javascript: urls
+            .replace(/href\s*=\s*["']javascript:[^"']*["']/gi, '')
+            .replace(/src\s*=\s*["']javascript:[^"']*["']/gi, '');
+    }
+
+    /**
+     * Strip all HTML tags from text
+     * @param {string} html - HTML to strip
+     * @returns {string} Text without HTML tags
+     */
+    static stripHtml(html) {
+        if (!html) return '';
+        return html.replace(/<[^>]*>/g, '');
+    }
+
+    /**
+     * Safe innerHTML replacement that escapes content
+     * @param {HTMLElement} element - Element to set content for
+     * @param {string} content - Content to set
+     * @param {boolean} allowMarkdown - Whether to allow markdown content
+     */
+    static safeInnerHtml(element, content, allowMarkdown = false) {
+        if (!element) return;
+
+        if (allowMarkdown) {
+            // For markdown content, we trust it's been processed safely
+            element.innerHTML = content;
+        } else {
+            // For user content, always escape
+            element.textContent = content;
+        }
+    }
+
+    /**
+     * Safely set an attribute on an element
+     * @param {HTMLElement} element - Element to set attribute on
+     * @param {string} name - Attribute name
+     * @param {string} value - Attribute value
+     */
+    static setSafeAttribute(element, name, value) {
+        if (!element || !name) return;
+
+        // Prevent dangerous attributes
+        const dangerousAttrs = ['onclick', 'onload', 'onerror', 'onmouseover', 'onfocus'];
+        if (dangerousAttrs.includes(name.toLowerCase())) {
+            return;
+        }
+
+        element.setAttribute(name, this.escapeHtml(value || ''));
+    }
 }
 
 // Make it globally available for compatibility
@@ -180,10 +304,18 @@ if (typeof window !== 'undefined') {
 
     // Export individual functions for backward compatibility
     window.escapeHtml = ValidationUtils.escapeHtml;
+    window.unescapeHtml = ValidationUtils.unescapeHtml;
     window.escapeFilePath = ValidationUtils.escapeFilePath;
     window.escapeRegex = ValidationUtils.escapeRegex;
+    window.encodeUrl = ValidationUtils.encodeUrl;
+    window.decodeUrl = ValidationUtils.decodeUrl;
     window.isValidHexColor = ValidationUtils.isValidHexColor;
     window.sanitizeFilename = ValidationUtils.sanitizeFilename;
+    window.sanitizeText = ValidationUtils.sanitizeText;
+    window.cleanHtml = ValidationUtils.cleanHtml;
+    window.stripHtml = ValidationUtils.stripHtml;
+    window.safeInnerHtml = ValidationUtils.safeInnerHtml;
+    window.setSafeAttribute = ValidationUtils.setSafeAttribute;
 }
 
 // Export for use in other modules
