@@ -2618,10 +2618,10 @@ function updateTagButtonAppearance(id, type, tagName, isActive) {
         textColor = colorConfig.text || '#fff';
         
         // If we have a backgroundDark, interpolate it for a subtle effect
-        if (bgDark && window.interpolateColor) {
+        if (bgDark && typeof colorUtils !== 'undefined') {
             const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
             // Use a lighter interpolation for the button background when active
-            bgColor = window.interpolateColor(editorBg, bgDark, isActive ? 0.25 : 0.1);
+            bgColor = colorUtils.interpolateColor(editorBg, bgDark, isActive ? 0.25 : 0.1);
         }
     }
     

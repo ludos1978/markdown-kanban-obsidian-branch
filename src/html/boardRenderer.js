@@ -53,30 +53,11 @@ function hexToRgb(hex) {
 }
 
 /**
- * Interpolates between two colors for gradient effects
- * Purpose: Creates smooth color transitions for multi-tag combinations
- * Used by: generateTagStyles() when handling multiple tags
- * @param {string} color1 - Starting hex color
- * @param {string} color2 - Ending hex color
- * @param {number} factor - Interpolation factor (0-1)
- * @returns {string} - Interpolated hex color
+ * Legacy wrapper for backward compatibility - delegates to colorUtils
+ * @deprecated Use colorUtils.interpolateColor() instead
  */
 function interpolateColor(color1, color2, factor) {
-    // Parse colors using colorUtils
-    const c1 = colorUtils.hexToRgb(color1);
-    const c2 = colorUtils.hexToRgb(color2);
-
-    if (!c1 || !c2) {
-        return color1; // Fallback if parsing fails
-    }
-
-    // Interpolate each component
-    const r = Math.round(c1.r + (c2.r - c1.r) * factor);
-    const g = Math.round(c1.g + (c2.g - c1.g) * factor);
-    const b = Math.round(c1.b + (c2.b - c1.b) * factor);
-
-    // Convert to hex using colorUtils
-    return colorUtils.rgbToHex(r, g, b);
+    return colorUtils.interpolateColor(color1, color2, factor);
 }
 
 /**

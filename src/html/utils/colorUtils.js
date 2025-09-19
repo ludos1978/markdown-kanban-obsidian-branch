@@ -156,6 +156,30 @@ class ColorUtils {
         alpha = Math.max(0, Math.min(1, alpha));
         return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
     }
+
+    /**
+     * Interpolates between two colors for gradient effects
+     * @param {string} color1 - Starting hex color
+     * @param {string} color2 - Ending hex color
+     * @param {number} factor - Interpolation factor (0-1)
+     * @returns {string} Interpolated hex color
+     */
+    interpolateColor(color1, color2, factor) {
+        // Parse colors using internal methods
+        const c1 = this.hexToRgb(color1);
+        const c2 = this.hexToRgb(color2);
+
+        if (!c1 || !c2) {
+            return color1; // Fallback if parsing fails
+        }
+
+        // Interpolate each component
+        const r = Math.round(c1.r + (c2.r - c1.r) * factor);
+        const g = Math.round(c1.g + (c2.g - c1.g) * factor);
+        const b = Math.round(c1.b + (c2.b - c1.b) * factor);
+
+        return this.rgbToHex(r, g, b);
+    }
 }
 
 // Create singleton instance
@@ -164,4 +188,9 @@ const colorUtils = new ColorUtils();
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = colorUtils;
+}
+
+// Global window exposure
+if (typeof window !== 'undefined') {
+    window.colorUtils = colorUtils;
 }
