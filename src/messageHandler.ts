@@ -4,6 +4,7 @@ import { BoardOperations } from './boardOperations';
 import { LinkHandler } from './linkHandler';
 import { KanbanBoard } from './markdownParser';
 import { ExternalFileWatcher } from './externalFileWatcher';
+import { configService } from './configurationService';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -690,8 +691,7 @@ export class MessageHandler {
 
     private async handleSetPreference(key: string, value: string): Promise<void> {
         try {
-            const config = vscode.workspace.getConfiguration('markdown-kanban');
-            await config.update(key, value, vscode.ConfigurationTarget.Workspace);
+            await configService.updateConfig(key as any, value, vscode.ConfigurationTarget.Workspace);
         } catch (error) {
             console.error(`Failed to update preference ${key}:`, error);
             vscode.window.showErrorMessage(`Failed to update ${key} preference: ${error}`);

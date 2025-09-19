@@ -1130,11 +1130,7 @@ function setColumnWidth(size) {
     applyColumnWidth(size);
 
     // Store preference
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'columnWidth',
-        value: size
-    });
+    configManager.setPreference('columnWidth', size);
 
     // Update menu indicators
     updateAllMenuIndicators();

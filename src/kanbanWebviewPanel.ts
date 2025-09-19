@@ -13,6 +13,7 @@ import { BackupManager } from './backupManager';
 import { CacheManager } from './cacheManager';
 import { ExternalFileWatcher } from './externalFileWatcher';
 import { ConflictResolver, ConflictContext, ConflictResolution } from './conflictResolver';
+import { configService, ConfigurationService } from './configurationService';
 
 export class KanbanWebviewPanel {
     private static panels: Map<string, KanbanWebviewPanel> = new Map();
@@ -419,62 +420,43 @@ export class KanbanWebviewPanel {
     }
 
     private async _getTagConfiguration(): Promise<any> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const tagColors = config.get<any>('tagColors', {});
-        return tagColors;
+        return configService.getConfig('tagColors', {});
     }
 
     private async _getWhitespaceConfiguration(): Promise<string> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const whitespace = config.get<string>('whitespace', '8px');
-        return whitespace;
+        return configService.getConfig('whitespace', '8px');
     }
 
     private async _getTaskMinHeightConfiguration(): Promise<string> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const taskMinHeight = config.get<string>('taskMinHeight', 'auto');
-        return taskMinHeight;
+        return configService.getConfig('taskMinHeight');
     }
 
     private async _getFontSizeConfiguration(): Promise<string> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const fontSize = config.get<string>('fontSize', '1x');
-        return fontSize;
+        return configService.getConfig('fontSize');
     }
 
     private async _getFontFamilyConfiguration(): Promise<string> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const fontFamily = config.get<string>('fontFamily', 'system');
-        return fontFamily;
+        return configService.getConfig('fontFamily');
     }
 
     private async _getColumnWidthConfiguration(): Promise<string> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const columnWidth = config.get<string>('columnWidth', '350px');
-        return columnWidth;
+        return configService.getConfig('columnWidth', '350px');
     }
 
     private async _getLayoutRowsConfiguration(): Promise<number> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const layoutRows = config.get<number>('layoutRows', 1);
-        return layoutRows;
+        return configService.getConfig('layoutRows');
     }
 
     private async _getRowHeightConfiguration(): Promise<string> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const rowHeight = config.get<string>('rowHeight', 'auto');
-        return rowHeight;
+        return configService.getConfig('rowHeight');
     }
 
     private async _getLayoutPresetConfiguration(): Promise<string> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const layoutPreset = config.get<string>('layoutPreset', 'normal');
-        return layoutPreset;
+        return configService.getConfig('layoutPreset', 'normal');
     }
 
     private async _getLayoutPresetsConfiguration(): Promise<any> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const userPresets = config.get<any>('layoutPresets', {});
+        const userPresets = configService.getConfig('layoutPresets', {});
 
         // Default presets as fallback
         const defaultPresets = {
@@ -530,9 +512,7 @@ export class KanbanWebviewPanel {
     }
 
     private async _getMaxRowHeightConfiguration(): Promise<number> {
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const maxRowHeight = config.get<number>('maxRowHeight', 0);
-        return maxRowHeight;
+        return configService.getConfig('maxRowHeight', 0);
     }
 
     // Public methods for external access

@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { FileManager, FileResolutionResult } from './fileManager';
 import { FileSearchService } from './fileSearchService';
+import { configService } from './configurationService';
 
 export class LinkHandler {
     private _fileManager: FileManager;
@@ -139,8 +140,7 @@ export class LinkHandler {
                             basename.startsWith('.') && !ext;
 
             if (isTextFile) {
-                const config = vscode.workspace.getConfiguration('markdownKanban');
-                const openInNewTab = config.get<boolean>('openLinksInNewTab', false);
+                const openInNewTab = configService.getConfig('openLinksInNewTab');
                 
                 try {
                     const document = await vscode.workspace.openTextDocument(resolvedPath);
