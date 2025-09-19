@@ -1,19 +1,44 @@
 /**
- * Configuration Management Utility
+ * Enhanced Configuration Management Utility
  * Centralizes all configuration retrieval and application logic
+ * Provides feature-specific configuration methods and preference management
  */
 
 class ConfigManager {
     constructor() {
         this.cache = new Map();
+        this.preferenceCache = new Map();
         // Use the global vscode instance if it exists, otherwise try window.vscode
         this.vscode = (typeof vscode !== 'undefined' && vscode) ||
                       (typeof window !== 'undefined' && window.vscode) ||
                       null;
+
+        // Configuration defaults
+        this.defaults = {
+            enableBackups: true,
+            backupInterval: 300,
+            backupLocation: '',
+            openLinksInNewTab: true,
+            whitespace: 'normal',
+            maxRowHeight: 'auto',
+            showRowTags: true,
+            taskMinHeight: 'auto',
+            fontSize: 'medium',
+            fontFamily: 'default',
+            columnWidth: 'auto',
+            layoutRows: 1,
+            rowHeight: 'auto',
+            layoutPreset: 'default',
+            stickyHeaders: false,
+            tagVisibility: 'visible',
+            exportTagVisibility: true,
+            imageFill: 'contain',
+            tagColors: {}
+        };
     }
 
     /**
-     * Generic configuration getter with caching
+     * Generic configuration getter with caching and defaults
      * @param {string} key - Configuration key
      * @param {*} defaultValue - Default value if config not found
      * @returns {*} Configuration value
@@ -25,12 +50,13 @@ class ConfigManager {
 
         try {
             const config = window.vscode?.getConfiguration?.('markdown-kanban') || {};
-            const value = this.getNestedProperty(config, key) ?? defaultValue;
+            const finalDefault = defaultValue ?? this.defaults[key] ?? null;
+            const value = this.getNestedProperty(config, key) ?? finalDefault;
             this.cache.set(key, value);
             return value;
         } catch (error) {
             console.error(`Error getting config for ${key}:`, error);
-            return defaultValue;
+            return defaultValue ?? this.defaults[key] ?? null;
         }
     }
 
@@ -64,6 +90,125 @@ class ConfigManager {
                 value: value
             });
             this.cache.set(key, value);
+        }
+    }
+
+    /**
+     * Send preference update to VS Code
+     * @param {string} key - Preference key
+     * @param {*} value - New value
+     */
+    setPreference(key, value) {
+        if (this.vscode) {
+            this.vscode.postMessage({
+                type: 'setPreference',
+                key: key,
+                value: value
+            });
+            this.preferenceCache.set(key, value);
+        }
+    }
+
+    /**
+     * Get preference value with caching
+     * @param {string} key - Preference key
+     * @param {*} defaultValue - Default value
+     * @returns {*} Preference value
+     */
+    getPreference(key, defaultValue = null) {
+        return this.preferenceCache.get(key) ?? defaultValue;
+    }
+
+    /**
+     * Feature-specific configuration getters
+     */
+
+    // Tag configuration
+    getTagConfiguration() {
+        return {
+            showRowTags: this.getConfig('showRowTags'),
+            tagColors: this.getConfig('tagColors'),
+            tagVisibility: this.getConfig('tagVisibility'),
+            exportTagVisibility: this.getConfig('exportTagVisibility')
+        };
+    }
+
+    // Layout configuration
+    getLayoutConfiguration() {
+        return {
+            whitespace: this.getConfig('whitespace'),
+            taskMinHeight: this.getConfig('taskMinHeight'),
+            fontSize: this.getConfig('fontSize'),
+            fontFamily: this.getConfig('fontFamily'),
+            columnWidth: this.getConfig('columnWidth'),
+            layoutRows: this.getConfig('layoutRows'),
+            rowHeight: this.getConfig('rowHeight'),
+            maxRowHeight: this.getConfig('maxRowHeight'),
+            layoutPreset: this.getConfig('layoutPreset'),
+            layoutPresets: this.getConfig('layoutPresets'),
+            stickyHeaders: this.getConfig('stickyHeaders')
+        };
+    }
+
+    // Backup configuration
+    getBackupConfiguration() {
+        return {
+            enableBackups: this.getConfig('enableBackups'),
+            backupInterval: this.getConfig('backupInterval'),
+            backupLocation: this.getConfig('backupLocation')
+        };
+    }
+
+    // Link configuration
+    getLinkConfiguration() {
+        return {
+            openLinksInNewTab: this.getConfig('openLinksInNewTab')
+        };
+    }
+
+    // Media configuration
+    getMediaConfiguration() {
+        return {
+            imageFill: this.getConfig('imageFill')
+        };
+    }
+
+    /**
+     * Get all configuration as object
+     * @returns {object} All configuration values
+     */
+    getAllConfig() {
+        const result = {};
+        for (const key of Object.keys(this.defaults)) {
+            result[key] = this.getConfig(key);
+        }
+        return result;
+    }
+
+    /**
+     * Validate configuration value
+     * @param {string} key - Configuration key
+     * @param {*} value - Value to validate
+     * @returns {boolean} True if valid
+     */
+    validateConfig(key, value) {
+        switch (key) {
+            case 'enableBackups':
+                return typeof value === 'boolean';
+            case 'backupInterval':
+                return typeof value === 'number' && value > 0;
+            case 'layoutRows':
+                return typeof value === 'number' && value >= 1;
+            case 'fontSize':
+                return ['small', 'medium', 'large', 'xlarge'].includes(value);
+            case 'whitespace':
+                return ['normal', 'nowrap', 'pre', 'pre-wrap'].includes(value);
+            case 'tagVisibility':
+                return ['visible', 'hover', 'hidden'].includes(value);
+            case 'imageFill':
+                return ['contain', 'cover', 'fill', 'scale-down', 'none'].includes(value);
+            default:
+                return true; // Default to valid for unknown keys
         }
     }
 }

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { KanbanWebviewPanel } from './kanbanWebviewPanel';
 import { ExternalFileWatcher } from './externalFileWatcher';
+import { configService } from './configurationService';
 
 export function activate(context: vscode.ExtensionContext) {
 	let fileListenerEnabled = true;
@@ -133,10 +134,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Command to toggle file opening behavior
 	const toggleFileOpeningCommand = vscode.commands.registerCommand('markdown-kanban.toggleFileOpening', async () => {
-		const config = vscode.workspace.getConfiguration('markdownKanban');
-		const currentSetting = config.get<boolean>('openLinksInNewTab', false);
-		
-		await config.update('openLinksInNewTab', !currentSetting, vscode.ConfigurationTarget.Global);
+		const currentSetting = configService.getConfig('openLinksInNewTab');
+
+		await configService.updateConfig('openLinksInNewTab', !currentSetting, vscode.ConfigurationTarget.Global);
 		
 		const newBehavior = !currentSetting ? 'new tabs' : 'current tab';
 		vscode.window.showInformationMessage(`Kanban file links will now open in ${newBehavior}`);

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { configService } from './configurationService';
 
 export interface BackupOptions {
     label?: string;           // 'backup', 'conflict', etc.
@@ -43,9 +44,8 @@ export class BackupManager {
      */
     public async createBackup(document: vscode.TextDocument, options: BackupOptions = {}): Promise<boolean> {
         try {
-            const config = vscode.workspace.getConfiguration('markdown-kanban');
-            const enableBackups = config.get<boolean>('enableBackups', true);
-            const defaultIntervalMinutes = config.get<number>('backupInterval', 15);
+            const enableBackups = configService.getConfig('enableBackups');
+            const defaultIntervalMinutes = configService.getConfig('backupInterval', 15);
 
             if (!enableBackups && !options.forceCreate) {
                 return false;
@@ -111,8 +111,7 @@ export class BackupManager {
         const now = new Date();
         const timestamp = this.formatTimestamp(now);
 
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const backupLocation = config.get<string>('backupLocation', 'same-folder');
+        const backupLocation = configService.getConfig('backupLocation', 'same-folder');
 
         let backupDir = dir;
 
@@ -135,8 +134,7 @@ export class BackupManager {
      */
     public async createFileBackup(filePath: string, content: string, options: BackupOptions = {}): Promise<string | null> {
         try {
-            const config = vscode.workspace.getConfiguration('markdown-kanban');
-            const enableBackups = config.get<boolean>('enableBackups', true);
+            const enableBackups = configService.getConfig('enableBackups');
 
             if (!enableBackups && !options.forceCreate) {
                 return null;
@@ -199,8 +197,7 @@ export class BackupManager {
         const now = new Date();
         const timestamp = this.formatTimestamp(now);
 
-        const config = vscode.workspace.getConfiguration('markdown-kanban');
-        const backupLocation = config.get<string>('backupLocation', 'same-folder');
+        const backupLocation = configService.getConfig('backupLocation', 'same-folder');
 
         let backupDir = dir;
 
