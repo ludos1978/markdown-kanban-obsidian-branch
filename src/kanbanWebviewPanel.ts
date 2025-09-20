@@ -2445,14 +2445,6 @@ export class KanbanWebviewPanel {
                 task.description = descriptionLines.join('\n').trim(); // Description from file
 
                 console.log(`[LoadNewTaskInclude] Loaded content from ${includeFile} into task ${task.id}`);
-                console.log(`[LoadNewTaskInclude] Task update:`, {
-                    taskId: task.id,
-                    title: task.title,
-                    displayTitle: task.displayTitle,
-                    descriptionLength: task.description.length,
-                    includeMode: task.includeMode,
-                    includeFiles: task.includeFiles
-                });
 
                 // Send targeted update message to frontend instead of full refresh
                 this._panel.webview.postMessage({

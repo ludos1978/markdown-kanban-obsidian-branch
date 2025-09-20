@@ -2,6 +2,8 @@
 kanban-plugin: board
 ---
 
+use all unchecked parts of the @TODOs.md to fix problems i encountered. for each problem start a branch which you work on and cleanup after finishing working on it. then merge with main, mark the task as done and continue to the next unchecked task in todo.md.
+
 ## Open Bugs
 - [ ] When dragging a column in a multi-row setup the lower, the lower row overlays the rows above. this is fine, if the columns in that are #stack'ed also are visible and moveable in this mode. it could make sense to hide all columns inner and set auto height mode.
 - [ ] when converting paths to media assets that are converted to links:
