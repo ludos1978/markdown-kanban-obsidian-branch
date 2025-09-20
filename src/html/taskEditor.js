@@ -399,30 +399,15 @@ class TaskEditor {
      */
     transitionToDescription() {
         if (!this.currentEditor || this.currentEditor.type !== 'task-title') {return;}
-        
+
         this.isTransitioning = true;
-        
+
         const taskId = this.currentEditor.taskId;
         const columnId = this.currentEditor.columnId;
         const taskItem = this.currentEditor.element.closest('.task-item');
-        
-        // Update local state (undo state will be saved when editing completes)
-        const value = this.currentEditor.element.value;
-        if (window.cachedBoard && window.cachedBoard.columns) {
-            const column = window.cachedBoard.columns.find(c => c.id === columnId);
-            const task = column?.tasks.find(t => t.id === taskId);
-            if (task) {
-                task.title = value;
-                if (this.currentEditor.displayElement) {
-                    this.currentEditor.displayElement.innerHTML = renderMarkdown(value);
-                }
-                
-                // Mark as unsaved since we made a change
-                if (typeof markUnsavedChanges === 'function') {
-                    markUnsavedChanges();
-                }
-            }
-        }
+
+        // Use the same save logic as regular saves to handle task includes correctly
+        this.saveCurrentField();
         
         // Remove blur handler
         this.currentEditor.element.onblur = null;
