@@ -256,8 +256,9 @@ class TaskEditor {
      * @param {string} type - 'task-title', 'task-description', 'column-title'
      * @param {string} taskId - Task ID if editing task
      * @param {string} columnId - Column ID
+     * @param {boolean} preserveCursor - Whether to preserve cursor position (default: false, moves to end)
      */
-    startEdit(element, type, taskId = null, columnId = null) {
+    startEdit(element, type, taskId = null, columnId = null, preserveCursor = false) {
         // If transitioning, don't interfere
         if (this.isTransitioning) {return;}
 
@@ -326,9 +327,15 @@ class TaskEditor {
         // Auto-resize if textarea
         this.autoResize(editElement);
         
-        // Focus and position cursor at end (only for new edit sessions)
+        // Focus and position cursor
         editElement.focus();
-        editElement.setSelectionRange(editElement.value.length, editElement.value.length);
+
+        // Position cursor based on preserveCursor flag
+        if (!preserveCursor) {
+            // Default behavior: move cursor to end
+            editElement.setSelectionRange(editElement.value.length, editElement.value.length);
+        }
+        // If preserveCursor is true, don't move cursor - it will stay where the user clicked
 
         // Store current editor info
         this.currentEditor = {
@@ -871,6 +878,18 @@ class TaskEditor {
             displayElement.style.display = 'block';
         }
 
+        // Focus the card after editing ends
+        if (type === 'task-title' || type === 'task-description') {
+            // Find the task item to focus
+            const taskItem = element.closest('.task-item');
+            if (taskItem) {
+                // Small delay to ensure display element is visible
+                setTimeout(() => {
+                    taskItem.focus();
+                }, 10);
+            }
+        }
+
         // Notify VS Code that task editing has stopped (only for task editing, not column editing)
         if (type === 'task-title' || type === 'task-description') {
             if (typeof vscode !== 'undefined') {
@@ -1063,7 +1082,7 @@ function editTitle(element, taskId, columnId) {
         taskEditor.currentEditor.columnId === columnId) {
         return; // Already editing this title
     }
-    taskEditor.startEdit(element, 'task-title', taskId, columnId);
+    taskEditor.startEdit(element, 'task-title', taskId, columnId, true); // preserveCursor=true for clicks
 }
 
 /**
@@ -1084,7 +1103,7 @@ function editDescription(element, taskId, columnId) {
     }
     // Find the actual container if needed
     const container = element.closest('.task-description-container') || element;
-    taskEditor.startEdit(container, 'task-description', taskId, columnId);
+    taskEditor.startEdit(container, 'task-description', taskId, columnId, true); // preserveCursor=true for clicks
 }
 
 /**

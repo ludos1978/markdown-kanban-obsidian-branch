@@ -3,24 +3,21 @@ kanban-plugin: board
 ---
 
 ## Open Bugs
-- [ ] When dragging a column in a multi-row setup the lower, the lower  row overlays the rows above, hiding the cards. the rows should keep the same height as when working normally.
-- [ ] undo does not work anymore.
+- [ ] When dragging a column in a multi-row setup the lower, the lower row overlays the rows above. this is fine, if the columns in that are #stack'ed also are visible and moveable in this mode. it could make sense to hide all columns inner and set auto height mode.
 - [ ] when converting paths to media assets that are converted to links:
   - make sure windows paths are also discovered as urls
 	- make sure to convert paths to %-encoding / url encoding. for example a space is %20, etc. use a library to do the conversion.
-
 - [ ] focus the card after end editing it. also when starting to edit focus the card and the cursor position it's currently at.
-
 - [ ] When a tag is in within the text, make the tag within the text only, dont add header or footers to the card itself. only make a line in the middle of the text.
-
-- [ ] find code duplicates. find parts that do something similar or the same. create a comprehensive list of all functions in all js und ts html and css an note what they are for (for functions larger then a few lines, split it int mutiple features). write the result into @FUNCTIONS.md .  try to create  unique naming system for features and write down the functions and line number within the function. later we are going to compare the results and fin duplicates.
 - [ ] The view doesnt properly restore the content when automatically opening. for example when restarting debugging or when restoring a work-view it stays empty and must be manually be reopened.
 - [ ] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).
-- [ ] i allways need to build before restarting the debugging to see the changes applied. can you modify the configuration that this happens automatically
+- [ ] i allways need to build before restarting the debugging to see the changes applied. can you modify the configuration that this happens automatically and cleanly?
 - [ ] add the build version to the file info burger menu.
 - [ ] the max height of cards is limited after switching back to auto mode from a height limiting (card-height) mode.
-- [ ] when starting with an empty kanban i want 
-
+- [ ] when a markdown file is not initialized reload the file after pressing initialize.
+- [ ] the auto and backup files must allways be created as hidden files (.filename). the conflict files might be visible. there is also an auto type which i did not specify, use backup 
+- [ ] undo does not work anymore consistently. i could not undo edits in a file.
+- [ ] find code duplicates. find parts that do something similar or the same. create a comprehensive list of all functions in all js und ts html and css an note what they are for (for functions larger then a few lines, split it int mutiple features). write the result into @FUNCTIONS.md .  try to create  unique naming system for features and write down the functions and line number within the function. later we are going to compare the results and fin duplicates.
 
 
 ## Closed Bugs
