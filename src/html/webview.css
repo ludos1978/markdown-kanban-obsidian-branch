@@ -2198,6 +2198,31 @@ button.file-bar-menu-item {
   pointer-events: none;
 }
 
+/* Multi-row drag overlay fix: ensure proper stacking context for rows */
+.kanban-board.multi-row .kanban-row {
+  z-index: 1;
+}
+
+/* When dragging in multi-row mode, hide column content and set auto height */
+.kanban-board.multi-row .kanban-row:has(.kanban-full-height-column.dragging) {
+  z-index: 1001; /* Ensure dragging row appears above other rows */
+}
+
+/* Hide column content during drag in multi-row to reduce visual clutter */
+.kanban-board.multi-row .kanban-full-height-column.dragging .column-content {
+  max-height: 100px;
+  overflow: hidden;
+  opacity: 0.3;
+}
+
+/* Show stacked columns during drag operations */
+.kanban-board.multi-row .kanban-full-height-column.dragging.column-span-2,
+.kanban-board.multi-row .kanban-full-height-column.dragging.column-span-3,
+.kanban-board.multi-row .kanban-full-height-column.dragging.column-span-4 {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .kanban-full-height-column.dragging .column-drag-handle {
   pointer-events: auto !important;
 }
