@@ -6,10 +6,10 @@ kanban-plugin: board
 
 ## Open Bugs
 - [x] When dragging a column in a multi-row setup the lower, the lower row overlays the rows above. this is fine, if the columns in that are #stack'ed also are visible and moveable in this mode. it could make sense to hide all columns inner and set auto height mode.
-- [ ] when converting paths to media assets that are converted to links:
+- [x] when converting paths to media assets that are converted to links:
   - make sure windows paths are also discovered as urls
 	- make sure to convert paths to %-encoding / url encoding. for example a space is %20, etc. use a library to do the conversion.
-- [ ] focus the card after end editing it. also when starting to edit focus the card and the cursor position it's currently at.
+- [x] focus the card after end editing it. also when starting to edit focus the card and the cursor position it's currently at.
 - [ ] When a tag is in within the text, make the tag within the text only, dont add header or footers to the card itself. only make a line in the middle of the text.
 - [ ] The view doesnt properly restore the content when automatically opening. for example when restarting debugging or when restoring a work-view it stays empty and must be manually be reopened.
 - [ ] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).

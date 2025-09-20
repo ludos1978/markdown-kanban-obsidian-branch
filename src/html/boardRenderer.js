@@ -1662,11 +1662,11 @@ function createTaskElement(task, columnId, taskIndex) {
 
     // Extract ALL tags for stacking features (from the full title)
     const allTags = getActiveTagsInTitle(task.title);
-    
-    // Use first tag for background color
-    const taskTag = extractFirstTag(task.title);
-    const tagAttribute = taskTag ? ` data-task-tag="${taskTag}"` : '';
-    
+
+    // Tags should be inline only - no card-level styling
+    // Remove automatic tag extraction for card-level styling
+    const tagAttribute = '';
+
     // Add all tags attribute for stacking features
     const allTagsAttribute = allTags.length > 0 ? ` data-all-tags="${allTags.join(' ')}"` : '';
     
