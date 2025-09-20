@@ -647,38 +647,108 @@ class TaskEditor {
                 if (task) {
                     // Capture original values before making changes
                     const originalTitle = task.title || '';
+                    const originalDisplayTitle = task.displayTitle || '';
                     const originalDescription = task.description || '';
 
                     if (type === 'task-title') {
-                        // Handle task title
-                        if (task.title !== value) {
-                            const editContext = `${type}-${taskId}-${columnId}`;
+                        // Handle task title - check for include syntax first
+                        const newIncludeMatches = value.match(/!!!taskinclude\(([^)]+)\)!!!/g) || [];
+                        const oldIncludeMatches = (task.title || '').match(/!!!taskinclude\(([^)]+)\)!!!/g) || [];
 
-                            // Save undo state BEFORE making the change
+                        const hasIncludeChanges =
+                            oldIncludeMatches.length !== newIncludeMatches.length ||
+                            oldIncludeMatches.some((match, index) => match !== newIncludeMatches[index]);
+
+                        if (newIncludeMatches.length > 0 || hasIncludeChanges) {
+                            // This involves include syntax (new include, changed include, or removing include)
+                            const editContext = `${type}-${taskId}-${columnId}`;
                             this.saveUndoStateImmediately('editTaskTitle', taskId, columnId);
                             this.lastEditContext = editContext;
 
-                            // Update the title
                             task.title = value;
+
+                            // Send to backend for include processing
+                            vscode.postMessage({
+                                type: 'editTaskTitle',
+                                taskId: taskId,
+                                columnId: columnId,
+                                title: value
+                            });
+
+                            return; // Skip local updates, let backend handle
+                        } else if (task.includeMode && oldIncludeMatches.length > 0) {
+                            // This is editing the display content of an existing include task
+                            // (the user is editing what appears to be the title but it's actually the display content)
+                            const editContext = `${type}-${taskId}-${columnId}`;
+                            this.saveUndoStateImmediately('editTaskTitle', taskId, columnId);
+                            this.lastEditContext = editContext;
+
+                            // Update displayTitle instead of title for include tasks
+                            task.displayTitle = value;
+                            // title stays the same (contains include syntax)
+                            // No backend message - this is just local editing
+                        } else {
+                            // Regular task title editing
+                            if (task.title !== value) {
+                                const editContext = `${type}-${taskId}-${columnId}`;
+                                this.saveUndoStateImmediately('editTaskTitle', taskId, columnId);
+                                this.lastEditContext = editContext;
+
+                                task.title = value;
+                                // No backend message needed for regular titles
+                            }
                         }
                     } else if (type === 'task-description') {
                         // Handle task description
-                        const currentRawValue = task.description || '';
-                        if (currentRawValue !== value) {
-                            const editContext = `${type}-${taskId}-${columnId}`;
+                        if (task.includeMode) {
+                            // For task includes, the description field contains the ENTIRE file content
+                            // Parse it to extract the first line (new displayTitle) and rest (new description)
+                            const lines = value.split('\n');
+                            const newDisplayTitle = lines[0] || '';
 
-                            // Save undo state BEFORE making the change
+                            // Remove the first line and any immediately following empty lines
+                            let remainingLines = lines.slice(1);
+                            while (remainingLines.length > 0 && remainingLines[0].trim() === '') {
+                                remainingLines.shift();
+                            }
+                            const newDescription = remainingLines.join('\n');
+
+                            const editContext = `${type}-${taskId}-${columnId}`;
                             this.saveUndoStateImmediately('editTaskDescription', taskId, columnId);
                             this.lastEditContext = editContext;
 
-                            // Update description (frontend will handle include processing)
-                            task.description = value;
+                            // Update both displayTitle and description
+                            task.displayTitle = newDisplayTitle;
+                            task.description = newDescription; // Only the content after the first line
+                        } else {
+                            // Regular task description handling
+                            const currentRawValue = task.description || '';
+                            if (currentRawValue !== value) {
+                                const editContext = `${type}-${taskId}-${columnId}`;
+
+                                // Save undo state BEFORE making the change
+                                this.saveUndoStateImmediately('editTaskDescription', taskId, columnId);
+                                this.lastEditContext = editContext;
+
+                                // Update description
+                                task.description = value;
+                            }
                         }
                     }
 
                     // Mark as unsaved and send the specific change to backend if any change was made
-                    const wasChanged = (type === 'task-title' && (task.title || '') !== originalTitle) ||
-                                      (type === 'task-description' && (task.description || '') !== originalDescription);
+                    let wasChanged = false;
+                    if (type === 'task-title') {
+                        if (task.includeMode) {
+                            // For include tasks, check if displayTitle changed
+                            wasChanged = (task.displayTitle || '') !== originalDisplayTitle;
+                        } else {
+                            // For regular tasks, check if title changed
+                            wasChanged = (task.title || '') !== originalTitle;
+                        }
+                    } else if (type === 'task-description') {
+                        wasChanged = (task.description || '') !== originalDescription;
+                    }
 
                     if (wasChanged) {
                         // Ensure currentBoard is synced with cachedBoard for markUnsavedChanges
@@ -695,8 +765,16 @@ class TaskEditor {
                     
                     if (this.currentEditor.displayElement) {
                         if (value.trim()) {
-                            // Use the current value which has already been saved to the task object
-                            const displayValue = value;
+                            // For task includes, determine the correct display value
+                            let displayValue = value;
+                            if (type === 'task-description' && task.includeMode) {
+                                // For task include descriptions, show only the description part (not the title)
+                                displayValue = task.description || '';
+                            } else if (type === 'task-title' && task.includeMode) {
+                                // For task include titles, show the display title
+                                displayValue = task.displayTitle || '';
+                            }
+
                             this.currentEditor.displayElement.innerHTML = renderMarkdown(displayValue);
                         } else {
                             // Handle empty values - must be truly empty for CSS :empty selector
@@ -704,6 +782,17 @@ class TaskEditor {
                         }
                         // Ensure display element is visible
                         this.currentEditor.displayElement.style.display = 'block';
+
+                        // For task includes, also update the title display when description is edited
+                        if (type === 'task-description' && task.includeMode) {
+                            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                            if (taskElement) {
+                                const titleDisplayElement = taskElement.querySelector('.task-title-display');
+                                if (titleDisplayElement && task.displayTitle) {
+                                    titleDisplayElement.innerHTML = renderMarkdown(task.displayTitle);
+                                }
+                            }
+                        }
                     }
 
                     // Update tag-based styling for both titles and descriptions

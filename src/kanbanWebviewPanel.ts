@@ -58,6 +58,9 @@ export class KanbanWebviewPanel {
     private _columnIncludeFiles: string[] = [];
     private _columnIncludeFileContents: Map<string, string> = new Map();
 
+    // Task include file tracking
+    private _taskIncludeFiles: string[] = [];
+
     // External modification tracking
     private _lastKnownFileContent: string = '';
     private _hasExternalUnsavedChanges: boolean = false;
@@ -590,6 +593,7 @@ export class KanbanWebviewPanel {
                 this._board = parseResult.board;
                 this._includedFiles = parseResult.includedFiles;
                 this._columnIncludeFiles = parseResult.columnIncludeFiles;
+                this._taskIncludeFiles = parseResult.taskIncludeFiles || [];
 
                 // Register included files with the external file watcher
                 // First, preserve existing include file content baselines to maintain change detection
@@ -613,15 +617,18 @@ export class KanbanWebviewPanel {
                     const absoluteIncludePaths = this._includedFiles.map(relativePath => {
                         return path.resolve(basePath, relativePath);
                     });
-                    this._fileWatcher.updateIncludeFiles(this, absoluteIncludePaths);
 
-                    // Also register column include files
+                    // Include column include files and task include files in the update
                     const absoluteColumnIncludePaths = this._columnIncludeFiles.map(relativePath => {
                         return path.resolve(basePath, relativePath);
                     });
-                    absoluteColumnIncludePaths.forEach(absolutePath => {
-                        this._fileWatcher.registerFile(absolutePath, 'include', this);
+                    const absoluteTaskIncludePaths = this._taskIncludeFiles.map(relativePath => {
+                        return path.resolve(basePath, relativePath);
                     });
+
+                    // Combine all include files for the update
+                    const allIncludePaths = [...absoluteIncludePaths, ...absoluteColumnIncludePaths, ...absoluteTaskIncludePaths];
+                    this._fileWatcher.updateIncludeFiles(this, allIncludePaths);
                 }
 
                 // Always send notification to update tracked files list
@@ -766,6 +773,7 @@ export class KanbanWebviewPanel {
             this._board = parseResult.board;
             this._includedFiles = parseResult.includedFiles;
             this._columnIncludeFiles = parseResult.columnIncludeFiles;
+            this._taskIncludeFiles = parseResult.taskIncludeFiles || [];
 
             // Update our baseline of known file content
             this.updateKnownFileContent(document.getText());
@@ -794,6 +802,26 @@ export class KanbanWebviewPanel {
                         }
                     }
                 }
+
+                // Also check column include files
+                for (const filePath of this._columnIncludeFiles) {
+                    if (!this._includeFileContents.has(filePath)) {
+                        const content = await this._readFileContent(filePath);
+                        if (content !== null) {
+                            this._includeFileContents.set(filePath, content);
+                        }
+                    }
+                }
+
+                // Also check task include files
+                for (const filePath of this._taskIncludeFiles) {
+                    if (!this._includeFileContents.has(filePath)) {
+                        const content = await this._readFileContent(filePath);
+                        if (content !== null) {
+                            this._includeFileContents.set(filePath, content);
+                        }
+                    }
+                }
             }
 
             // Convert relative paths to absolute paths for file watcher registration
@@ -803,15 +831,18 @@ export class KanbanWebviewPanel {
                 const absoluteIncludePaths = this._includedFiles.map(relativePath => {
                     return path.resolve(basePath, relativePath);
                 });
-                this._fileWatcher.updateIncludeFiles(this, absoluteIncludePaths);
 
-                // Also register column include files
+                // Include column include files and task include files in the update
                 const absoluteColumnIncludePaths = this._columnIncludeFiles.map(relativePath => {
                     return path.resolve(basePath, relativePath);
                 });
-                absoluteColumnIncludePaths.forEach(absolutePath => {
-                    this._fileWatcher.registerFile(absolutePath, 'include', this);
+                const absoluteTaskIncludePaths = this._taskIncludeFiles.map(relativePath => {
+                    return path.resolve(basePath, relativePath);
                 });
+
+                // Combine all include files for the update
+                const allIncludePaths = [...absoluteIncludePaths, ...absoluteColumnIncludePaths, ...absoluteTaskIncludePaths];
+                this._fileWatcher.updateIncludeFiles(this, allIncludePaths);
             }
 
             // Always send notification to update tracked files list
@@ -989,8 +1020,9 @@ export class KanbanWebviewPanel {
                 }
             }
 
-            // First, save any changes to column include files (bidirectional editing)
+            // First, save any changes to column and task include files (bidirectional editing)
             await this.saveAllColumnIncludeChanges();
+            await this.saveAllTaskIncludeChanges();
 
             const markdown = MarkdownKanbanParser.generateMarkdown(this._board);
             // Check for external unsaved changes before proceeding
@@ -1247,6 +1279,8 @@ export class KanbanWebviewPanel {
         // Replace all JavaScript file references
         const jsFiles = [
             'utils/colorUtils.js',
+            'utils/fileTypeUtils.js',
+            'utils/tagUtils.js',
             'utils/configManager.js',
             'utils/styleManager.js',
             'utils/menuManager.js',
@@ -1759,6 +1793,22 @@ export class KanbanWebviewPanel {
                             }
                         }
                     }
+
+                    // Also initialize task include files in this column
+                    for (const task of column.tasks) {
+                        if (task.includeMode && task.includeFiles) {
+                            for (const includeFile of task.includeFiles) {
+                                const absolutePath = path.resolve(basePath, includeFile);
+                                const content = await this._readFileContent(absolutePath);
+                                if (content !== null) {
+                                    // Initialize known content for conflict detection
+                                    this._knownIncludeFileContents.set(absolutePath, content);
+                                    this._includeFileUnsavedChanges.set(absolutePath, false);
+                                    console.log(`[InitializeInclude] Set known content for task include file: ${includeFile}`);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1851,30 +1901,44 @@ export class KanbanWebviewPanel {
         this._includeFilesChanged = false;
         this._changedIncludeFiles.clear();
 
-        // Lightweight refresh: just update include file cache and notify frontend
-        // This preserves any unsaved changes in the webview
-        try {
-            // Re-read all include file contents and UPDATE baselines to current
-            await this._refreshIncludeFileContents();
+        // Check if we have task includes or column includes that require full board re-parsing
+        const hasTaskIncludes = this._taskIncludeFiles && this._taskIncludeFiles.length > 0;
+        const hasColumnIncludes = this._columnIncludeFiles && this._columnIncludeFiles.length > 0;
 
-            // Send updated include file contents to frontend
-            if (this._panel && this._panel.webview) {
-                for (const [filePath, content] of this._includeFileContents) {
+        if (hasTaskIncludes || hasColumnIncludes) {
+            // Full reload required for task/column includes since they need re-parsing
+            console.log('[REFRESH INCLUDES] Task/column includes detected, triggering full board reload');
+            try {
+                await this.forceReloadFromFile();
+            } catch (error) {
+                console.error('[REFRESH INCLUDES] Error during full reload:', error);
+            }
+        } else {
+            // Lightweight refresh: just update include file cache and notify frontend
+            // This preserves any unsaved changes in the webview
+            try {
+                // Re-read all include file contents and UPDATE baselines to current
+                await this._refreshIncludeFileContents();
+
+                // Send updated include file contents to frontend
+                if (this._panel && this._panel.webview) {
+                    for (const [filePath, content] of this._includeFileContents) {
+                        this._panel.webview.postMessage({
+                            type: 'includeFileContent',
+                            filePath: filePath,
+                            content: content
+                        });
+                    }
+
+                    // Then trigger re-render
                     this._panel.webview.postMessage({
-                        type: 'includeFileContent',
-                        filePath: filePath,
-                        content: content
+                        type: 'refreshIncludesOnly',
+                        message: 'Include files refreshed'
                     });
                 }
-
-                // Then trigger re-render
-                this._panel.webview.postMessage({
-                    type: 'refreshIncludesOnly',
-                    message: 'Include files refreshed'
-                });
+            } catch (error) {
+                console.error('[REFRESH INCLUDES] Error refreshing includes:', error);
             }
-        } catch (error) {
-            console.error('[REFRESH INCLUDES] Error refreshing includes:', error);
         }
 
         // Send notification to hide the button
@@ -1887,6 +1951,22 @@ export class KanbanWebviewPanel {
     private async _refreshIncludeFileContents(): Promise<void> {
         // Use the current _includedFiles list from the parsed document
         for (const filePath of this._includedFiles) {
+            const content = await this._readFileContent(filePath);
+            if (content !== null) {
+                this._includeFileContents.set(filePath, content);
+            }
+        }
+
+        // Also refresh column include files
+        for (const filePath of this._columnIncludeFiles) {
+            const content = await this._readFileContent(filePath);
+            if (content !== null) {
+                this._includeFileContents.set(filePath, content);
+            }
+        }
+
+        // Also refresh task include files
+        for (const filePath of this._taskIncludeFiles) {
             const content = await this._readFileContent(filePath);
             if (content !== null) {
                 this._includeFileContents.set(filePath, content);
@@ -2023,6 +2103,236 @@ export class KanbanWebviewPanel {
     }
 
     /**
+     * Save modifications from task includes back to their original files
+     * This enables bidirectional editing for task includes
+     */
+    public async reprocessTaskIncludes(): Promise<void> {
+        console.log('[ReprocessTaskIncludes] Starting reprocessing...');
+
+        if (!this._board) {
+            console.log('[ReprocessTaskIncludes] No board available');
+            return;
+        }
+
+        const currentDocument = this._fileManager.getDocument();
+        if (!currentDocument) {
+            console.log('[ReprocessTaskIncludes] No document available');
+            return;
+        }
+
+        const basePath = path.dirname(currentDocument.uri.fsPath);
+        console.log(`[ReprocessTaskIncludes] Base path: ${basePath}`);
+
+        // Process task includes in the current board
+        let tasksProcessed = 0;
+        for (const column of this._board.columns) {
+            console.log(`[ReprocessTaskIncludes] Processing column ${column.id} with ${column.tasks.length} tasks`);
+            for (const task of column.tasks) {
+                console.log(`[ReprocessTaskIncludes] Checking task ${task.id}: "${task.title}"`);
+                tasksProcessed++;
+                // Check if task title contains taskinclude syntax
+                const taskIncludeMatches = task.title.match(/!!!taskinclude\(([^)]+)\)!!!/g);
+
+                if (taskIncludeMatches && taskIncludeMatches.length > 0) {
+                    console.log(`[ReprocessTaskIncludes] Found task include matches in task ${task.id}:`, taskIncludeMatches);
+
+                    // Process this task as a task include
+                    const includeFiles: string[] = [];
+                    taskIncludeMatches.forEach(match => {
+                        const filePath = match.replace(/!!!taskinclude\(([^)]+)\)!!!/, '$1').trim();
+                        includeFiles.push(filePath);
+                    });
+
+                    console.log(`[ReprocessTaskIncludes] Include files to process:`, includeFiles);
+
+                    // Read content from included files
+                    let includeTitle = '';
+                    let includeDescription = '';
+
+                    for (const filePath of includeFiles) {
+                        const resolvedPath = path.resolve(basePath, filePath);
+                        try {
+                            if (fs.existsSync(resolvedPath)) {
+                                const fileContent = fs.readFileSync(resolvedPath, 'utf8');
+                                const lines = fileContent.split('\n');
+
+                                // Find first non-empty line for title
+                                let titleFound = false;
+                                let descriptionLines: string[] = [];
+
+                                for (let i = 0; i < lines.length; i++) {
+                                    const line = lines[i].trim();
+                                    if (!titleFound && line) {
+                                        includeTitle = lines[i]; // Use original line with indentation
+                                        titleFound = true;
+                                    } else if (titleFound) {
+                                        descriptionLines.push(lines[i]);
+                                    }
+                                }
+
+                                // Join remaining lines as description
+                                includeDescription = descriptionLines.join('\n').trim();
+
+                                console.log(`[ReprocessTaskIncludes] Processed: ${filePath}`);
+                            } else {
+                                console.warn(`[ReprocessTaskIncludes] File not found: ${resolvedPath}`);
+                            }
+                        } catch (error) {
+                            console.error(`[ReprocessTaskIncludes] Error processing ${filePath}:`, error);
+                        }
+                    }
+
+                    // If no title found in file, use filename
+                    if (!includeTitle && includeFiles.length > 0) {
+                        const path = require('path');
+                        includeTitle = path.basename(includeFiles[0], path.extname(includeFiles[0]));
+                    }
+
+                    // Update task properties for include mode
+                    task.includeMode = true;
+                    task.includeFiles = includeFiles;
+                    task.originalTitle = task.title; // Keep original title with include syntax
+                    task.displayTitle = includeTitle || 'Untitled'; // Display title from file
+                    task.description = includeDescription; // Description from file
+
+                    console.log(`[ReprocessTaskIncludes] Updated task ${task.id} with content from ${includeFiles.join(', ')}`);
+
+                    // Send targeted update to frontend for this specific task
+                    this._panel.webview.postMessage({
+                        type: 'updateTaskContent',
+                        taskId: task.id,
+                        taskTitle: task.title, // Contains include syntax
+                        displayTitle: task.displayTitle, // Content from file
+                        description: task.description, // Description from file
+                        includeMode: task.includeMode,
+                        includeFiles: task.includeFiles
+                    });
+                }
+            }
+        }
+
+        console.log(`[ReprocessTaskIncludes] Completed processing ${tasksProcessed} tasks`);
+        // Send targeted update to frontend instead of full board refresh
+        // This mimics how column includes work - only update the affected elements
+    }
+
+    public async checkTaskIncludeUnsavedChanges(task: KanbanTask): Promise<boolean> {
+        if (!task.includeMode || !task.includeFiles || task.includeFiles.length === 0) {
+            return false;
+        }
+
+        const currentDocument = this._fileManager.getDocument();
+        if (!currentDocument) {
+            return false;
+        }
+
+        const basePath = path.dirname(currentDocument.uri.fsPath);
+        const includeFile = task.includeFiles[0];
+        const absolutePath = path.resolve(basePath, includeFile);
+
+        // Check if this file has unsaved changes
+        return this._includeFileUnsavedChanges.get(absolutePath) === true;
+    }
+
+    public async saveTaskIncludeChanges(task: KanbanTask): Promise<boolean> {
+        if (!task.includeMode || !task.includeFiles || task.includeFiles.length === 0) {
+            return false;
+        }
+
+        try {
+            const currentDocument = this._fileManager.getDocument();
+            if (!currentDocument) {
+                return false;
+            }
+
+            const basePath = path.dirname(currentDocument.uri.fsPath);
+
+            // For now, handle single file includes (could be extended for multi-file)
+            const includeFile = task.includeFiles[0];
+            const absolutePath = path.resolve(basePath, includeFile);
+
+            // Check if the file exists - if not, create it
+            if (!fs.existsSync(absolutePath)) {
+                console.log(`[Task Include] Creating new file: ${absolutePath}`);
+                // Ensure directory exists
+                const dir = path.dirname(absolutePath);
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                }
+            }
+
+            // Reconstruct file content from task title and description
+            let fileContent = '';
+
+            // First line: use displayTitle (the content from the file), not title (which contains include syntax)
+            // This matches the column include pattern where displayTitle is the actual content
+            const titleToSave = task.displayTitle || '';
+            if (titleToSave) {
+                fileContent = titleToSave;
+            }
+
+            // Remaining lines: task description
+            if (task.description && task.description.trim()) {
+                if (fileContent) {
+                    fileContent += '\n\n'; // Add blank line between title and description
+                }
+                fileContent += task.description;
+            }
+
+            // Don't write if the content would be empty
+            if (!fileContent || fileContent.trim() === '') {
+                console.log(`[Task Include] Skipping save of empty content to ${includeFile}`);
+                return false;
+            }
+
+            // Read current file content to check if it's actually different
+            let currentFileContent = '';
+            if (fs.existsSync(absolutePath)) {
+                currentFileContent = fs.readFileSync(absolutePath, 'utf8');
+            }
+
+            // Don't write if the content is identical
+            if (currentFileContent.trim() === fileContent.trim()) {
+                console.log(`[Task Include] Content unchanged, skipping save to ${includeFile}`);
+                return false;
+            }
+
+            // Create backup before writing (same protection as main file)
+            await this._backupManager.createFileBackup(absolutePath, fileContent, {
+                label: 'auto',
+                forceCreate: false
+            });
+
+            // Write to file
+            fs.writeFileSync(absolutePath, fileContent, 'utf8');
+
+            // Update our tracking to prevent unnecessary change notifications
+            this._includeFileContents.set(includeFile, fileContent);
+
+            // Clear unsaved changes flag for this include file
+            this._includeFileUnsavedChanges.set(absolutePath, false);
+
+            // Clear from changed files tracking and update visual indicators
+            this._changedIncludeFiles.delete(includeFile);
+            if (this._changedIncludeFiles.size === 0) {
+                this._includeFilesChanged = false;
+            }
+            this._sendIncludeFileChangeNotification();
+
+            // Update known content to detect future external changes
+            this._knownIncludeFileContents.set(absolutePath, fileContent);
+
+            console.log(`[Task Include] Saved changes to ${includeFile}`);
+            return true;
+
+        } catch (error) {
+            console.error(`[Task Include] Error saving changes to ${task.includeFiles[0]}:`, error);
+            vscode.window.showErrorMessage(`Failed to save changes to task include file: ${error}`);
+            return false;
+        }
+    }
+
+    /**
      * Load new content into a column when its include files change
      */
     public async loadNewIncludeContent(column: KanbanColumn, newIncludeFiles: string[]): Promise<void> {
@@ -2088,6 +2398,98 @@ export class KanbanWebviewPanel {
         }
     }
 
+    public async loadNewTaskIncludeContent(task: KanbanTask, newIncludeFiles: string[]): Promise<void> {
+        console.log(`[LoadNewTaskInclude] Loading new content for task ${task.id}`);
+
+        try {
+            const currentDocument = this._fileManager.getDocument();
+            if (!currentDocument) {
+                return;
+            }
+
+            const basePath = path.dirname(currentDocument.uri.fsPath);
+
+            // For now, handle single file includes
+            const includeFile = newIncludeFiles[0];
+            const absolutePath = path.resolve(basePath, includeFile);
+
+            if (fs.existsSync(absolutePath)) {
+                const fileContent = fs.readFileSync(absolutePath, 'utf8');
+                const lines = fileContent.split('\n');
+
+                // Initialize known content for conflict detection
+                this._knownIncludeFileContents.set(absolutePath, fileContent);
+                this._includeFileUnsavedChanges.set(absolutePath, false);
+
+                // Parse first non-empty line as title, rest as description
+                let titleFound = false;
+                let newTitle = '';
+                let descriptionLines: string[] = [];
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!titleFound && line) {
+                        newTitle = lines[i]; // Use original line with indentation
+                        titleFound = true;
+                    } else if (titleFound) {
+                        descriptionLines.push(lines[i]);
+                    }
+                }
+
+                // Update the task with parsed content
+                // Keep the original title (with include syntax) and set display properties
+                task.includeMode = true;
+                task.includeFiles = newIncludeFiles;
+                task.originalTitle = task.title; // Preserve the include syntax
+                task.displayTitle = newTitle || 'Untitled'; // Title from file
+                task.description = descriptionLines.join('\n').trim(); // Description from file
+
+                console.log(`[LoadNewTaskInclude] Loaded content from ${includeFile} into task ${task.id}`);
+                console.log(`[LoadNewTaskInclude] Task update:`, {
+                    taskId: task.id,
+                    title: task.title,
+                    displayTitle: task.displayTitle,
+                    descriptionLength: task.description.length,
+                    includeMode: task.includeMode,
+                    includeFiles: task.includeFiles
+                });
+
+                // Send targeted update message to frontend instead of full refresh
+                this._panel.webview.postMessage({
+                    type: 'updateTaskContent',
+                    taskId: task.id,
+                    description: task.description,
+                    includeFile: includeFile,
+                    taskTitle: task.title,
+                    displayTitle: task.displayTitle,
+                    originalTitle: task.originalTitle,
+                    includeMode: task.includeMode,
+                    includeFiles: task.includeFiles
+                });
+
+            } else {
+                console.warn(`[LoadNewTaskInclude] Include file not found: ${absolutePath}`);
+                // Clear description if file doesn't exist
+                task.description = '';
+
+                // Send targeted update with empty description
+                this._panel.webview.postMessage({
+                    type: 'updateTaskContent',
+                    taskId: task.id,
+                    description: '',
+                    includeFile: includeFile,
+                    taskTitle: task.title,
+                    displayTitle: task.displayTitle,
+                    originalTitle: task.originalTitle,
+                    includeMode: task.includeMode,
+                    includeFiles: task.includeFiles
+                });
+            }
+        } catch (error) {
+            console.error(`[LoadNewTaskInclude] Error loading new task include content:`, error);
+        }
+    }
+
     /**
      * Save all modified column includes when the board is saved
      */
@@ -2103,6 +2505,37 @@ export class KanbanWebviewPanel {
             await Promise.all(savePromises);
         } catch (error) {
             console.error('[Column Include] Error saving column include changes:', error);
+        }
+    }
+
+    /**
+     * Save all modified task includes when the board is saved
+     */
+    public async saveAllTaskIncludeChanges(): Promise<void> {
+        if (!this._board) {
+            return;
+        }
+
+        // Collect all tasks with include mode from all columns
+        const includeTasks: KanbanTask[] = [];
+        for (const column of this._board.columns) {
+            for (const task of column.tasks) {
+                if (task.includeMode) {
+                    includeTasks.push(task);
+                }
+            }
+        }
+
+        if (includeTasks.length === 0) {
+            return;
+        }
+
+        const savePromises = includeTasks.map(task => this.saveTaskIncludeChanges(task));
+
+        try {
+            await Promise.all(savePromises);
+        } catch (error) {
+            console.error('[Task Include] Error saving task include changes:', error);
         }
     }
 
@@ -2420,6 +2853,56 @@ export class KanbanWebviewPanel {
                                     this._includeFilesChanged = false;
                                 }
                                 this._sendIncludeFileChangeNotification();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check each task that has include mode enabled
+            for (const task of column.tasks) {
+                if (task.includeMode && task.includeFiles && task.includeFiles.length > 0) {
+                    for (const includeFile of task.includeFiles) {
+                        const absolutePath = path.resolve(basePath, includeFile);
+
+                        // Compare current task content with known file content to detect changes
+                        const knownContent = this._knownIncludeFileContents.get(absolutePath);
+                        if (knownContent) {
+                            // Reconstruct what the file content should be from task data
+                            let expectedContent = '';
+                            if (task.displayTitle) {
+                                expectedContent = task.displayTitle;
+                            }
+                            if (task.description && task.description.trim()) {
+                                if (expectedContent) {
+                                    expectedContent += '\n\n';
+                                }
+                                expectedContent += task.description;
+                            }
+
+                            if (knownContent.trim() !== expectedContent.trim()) {
+                                this._includeFileUnsavedChanges.set(absolutePath, true);
+
+                                // Add to changed files tracking and trigger visual indicators
+                                this._includeFilesChanged = true;
+                                this._changedIncludeFiles.add(includeFile);
+                                this._sendIncludeFileChangeNotification();
+
+                                // Mark as changed but don't auto-save (user controls when to save)
+                                console.log(`[TrackChanges] Task include changes detected in ${includeFile}`);
+                            } else {
+                                // No changes detected, clear unsaved flag if it was set
+                                const wasChanged = this._includeFileUnsavedChanges.get(absolutePath);
+                                if (wasChanged) {
+                                    this._includeFileUnsavedChanges.set(absolutePath, false);
+                                    this._changedIncludeFiles.delete(includeFile);
+
+                                    // Update visual indicators if no more changes
+                                    if (this._changedIncludeFiles.size === 0) {
+                                        this._includeFilesChanged = false;
+                                    }
+                                    this._sendIncludeFileChangeNotification();
+                                }
                             }
                         }
                     }

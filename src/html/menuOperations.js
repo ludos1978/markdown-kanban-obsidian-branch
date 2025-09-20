@@ -1266,6 +1266,247 @@ function disableColumnIncludeMode(columnId) {
     });
 }
 
+// Task include operations
+function enableTaskIncludeMode(taskId, columnId, fileName) {
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    const task = column.tasks.find(t => t.id === taskId);
+    if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+    }
+
+    // Update task title to include the syntax
+    const currentTitle = task.title || '';
+    const newTitle = `${currentTitle} !!!taskinclude(${fileName.trim()})!!!`.trim();
+
+    // Update the cached board
+    task.originalTitle = currentTitle;
+    task.title = newTitle;
+
+    // Also update currentBoard for compatibility
+    if (window.currentBoard !== window.cachedBoard) {
+        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+        if (currentColumn) {
+            const currentTask = currentColumn.tasks.find(t => t.id === taskId);
+            if (currentTask) {
+                currentTask.originalTitle = currentTitle;
+                currentTask.title = newTitle;
+            }
+        }
+    }
+
+    // Send update to backend
+    vscode.postMessage({
+        type: 'updateBoard',
+        board: window.cachedBoard
+    });
+
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+}
+
+// Edit task include file
+function editTaskIncludeFile(taskId, columnId) {
+    // Close all menus properly
+    closeAllMenus();
+
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    const task = column.tasks.find(t => t.id === taskId);
+    if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+    }
+
+    if (!task.includeMode || !task.includeFiles || task.includeFiles.length === 0) {
+        vscode.postMessage({
+            type: 'showMessage',
+            text: 'This task is not in include mode or has no include files.'
+        });
+        return;
+    }
+
+    // Get current include file path
+    const currentFile = task.includeFiles[0]; // For now, handle single file includes
+
+    // Request new filename from backend
+    vscode.postMessage({
+        type: 'requestInput',
+        prompt: 'Enter the new include file name:',
+        value: currentFile,
+        callback: 'updateTaskIncludeFile',
+        params: { taskId: taskId, columnId: columnId }
+    });
+}
+
+// Function called from backend after user provides new include file name
+function updateTaskIncludeFile(taskId, columnId, newFileName) {
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    const task = column.tasks.find(t => t.id === taskId);
+    if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+    }
+
+    // Update task title with new include file
+    let cleanTitle = task.title || '';
+
+    // Remove all existing taskinclude patterns
+    cleanTitle = cleanTitle.replace(/!!!taskinclude\([^)]+\)!!!/g, '').trim();
+
+    // Add new include pattern
+    const newTitle = `${cleanTitle} !!!taskinclude(${newFileName.trim()})!!!`.trim();
+
+    // Update cached board
+    task.title = newTitle;
+    task.originalTitle = cleanTitle;
+
+    // Also update currentBoard for compatibility
+    if (window.currentBoard !== window.cachedBoard) {
+        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+        if (currentColumn) {
+            const currentTask = currentColumn.tasks.find(t => t.id === taskId);
+            if (currentTask) {
+                currentTask.title = newTitle;
+                currentTask.originalTitle = cleanTitle;
+            }
+        }
+    }
+
+    // Send update to backend
+    vscode.postMessage({
+        type: 'updateBoard',
+        board: window.cachedBoard
+    });
+
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+}
+
+// Disable task include mode
+function disableTaskIncludeMode(taskId, columnId) {
+    // Close all menus properly
+    closeAllMenus();
+
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    const task = column.tasks.find(t => t.id === taskId);
+    if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+    }
+
+    // Clean title to remove include syntax
+    let cleanTitle = task.title || '';
+    cleanTitle = cleanTitle.replace(/!!!taskinclude\([^)]+\)!!!/g, '').trim();
+
+    // Update cached board
+    task.title = cleanTitle;
+    task.includeMode = false;
+    task.includeFiles = undefined;
+    task.originalTitle = undefined;
+    task.displayTitle = undefined;
+
+    // Also update currentBoard for compatibility
+    if (window.currentBoard !== window.cachedBoard) {
+        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+        if (currentColumn) {
+            const currentTask = currentColumn.tasks.find(t => t.id === taskId);
+            if (currentTask) {
+                currentTask.title = cleanTitle;
+                currentTask.includeMode = false;
+                delete currentTask.includeFiles;
+                delete currentTask.originalTitle;
+                delete currentTask.displayTitle;
+            }
+        }
+    }
+
+    // Send update to backend
+    vscode.postMessage({
+        type: 'updateBoard',
+        board: window.cachedBoard
+    });
+
+    // Update button state to show unsaved changes
+    updateRefreshButtonState('unsaved', 1);
+
+    vscode.postMessage({
+        type: 'showMessage',
+        text: 'Task include mode disabled. Content converted to regular description.'
+    });
+}
+
+// Main toggle function for task include mode
+function toggleTaskIncludeMode(taskId, columnId) {
+    if (!window.cachedBoard) {
+        console.error('No cached board available');
+        return;
+    }
+
+    const column = window.cachedBoard.columns.find(col => col.id === columnId);
+    if (!column) {
+        console.error('Column not found:', columnId);
+        return;
+    }
+
+    const task = column.tasks.find(t => t.id === taskId);
+    if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+    }
+
+    if (task.includeMode) {
+        // Disable include mode
+        disableTaskIncludeMode(taskId, columnId);
+    } else {
+        // Enable include mode - request filename from backend
+        vscode.postMessage({
+            type: 'requestTaskIncludeFileName',
+            taskId: taskId,
+            columnId: columnId
+        });
+    }
+}
+
 // Task operations
 function duplicateTask(taskId, columnId) {
     // Close all menus properly
@@ -3153,4 +3394,6 @@ window.manualRefresh = manualRefresh;
 window.updateVisualTagState = updateVisualTagState;
 window.updateAllVisualTagElements = updateAllVisualTagElements;
 window.refreshIncludes = refreshIncludes;
+window.toggleTaskIncludeMode = toggleTaskIncludeMode;
+window.editTaskIncludeFile = editTaskIncludeFile;
 

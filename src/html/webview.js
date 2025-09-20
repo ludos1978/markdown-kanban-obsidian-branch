@@ -2475,6 +2475,12 @@ window.addEventListener('message', event => {
                 window.renderBoard();
             }
             break;
+        case 'enableTaskIncludeMode':
+            // Call the enableTaskIncludeMode function with the provided parameters
+            if (typeof window.enableTaskIncludeMode === 'function') {
+                window.enableTaskIncludeMode(message.taskId, message.columnId, message.fileName);
+            }
+            break;
         case 'clipboardImageSaved':
             // Handle clipboard image save response from backend
             console.log('[DEBUG] Received clipboardImageSaved message:', message);
@@ -2563,6 +2569,62 @@ window.addEventListener('message', event => {
                 }
             } else {
                 console.warn(`[Frontend Debug] No cached board available for column update`);
+            }
+            break;
+        case 'updateTaskContent':
+            // Handle targeted task content update for include file changes
+            console.log(`[Frontend Debug] Received updateTaskContent for task ${message.taskId}:`, {
+                description: message.description?.substring(0, 100) + (message.description?.length > 100 ? '...' : ''),
+                includeFile: message.includeFile
+            });
+
+            // Update the task in cached board
+            if (window.cachedBoard && window.cachedBoard.columns) {
+                // Find the task across all columns
+                let foundTask = null;
+                let foundColumn = null;
+
+                for (const column of window.cachedBoard.columns) {
+                    const task = column.tasks.find(t => t.id === message.taskId);
+                    if (task) {
+                        foundTask = task;
+                        foundColumn = column;
+                        break;
+                    }
+                }
+
+                if (foundTask && foundColumn) {
+                    // Update task metadata
+                    foundTask.description = message.description || '';
+                    foundTask.title = message.taskTitle || foundTask.title;
+                    foundTask.displayTitle = message.displayTitle || foundTask.displayTitle;
+                    foundTask.includeMode = message.includeMode;
+                    foundTask.includeFiles = message.includeFiles;
+                    foundTask.originalTitle = message.originalTitle || foundTask.originalTitle;
+
+                    console.log(`[Frontend Debug] Updated task ${message.taskId}:`, {
+                        description: foundTask.description?.substring(0, 100) + (foundTask.description?.length > 100 ? '...' : ''),
+                        title: foundTask.title,
+                        displayTitle: foundTask.displayTitle,
+                        includeMode: foundTask.includeMode,
+                        includeFiles: foundTask.includeFiles
+                    });
+
+                    // Re-render just this column to reflect the task update
+                    if (typeof renderSingleColumn === 'function') {
+                        renderSingleColumn(foundColumn.id, foundColumn);
+                        console.log(`[Frontend Debug] Re-rendered column ${foundColumn.id} for task update`);
+                    } else {
+                        console.warn(`[Frontend Debug] renderSingleColumn function not available, falling back to full render`);
+                        if (typeof window.renderBoard === 'function') {
+                            window.renderBoard();
+                        }
+                    }
+                } else {
+                    console.warn(`[Frontend Debug] Task ${message.taskId} not found in cached board`);
+                }
+            } else {
+                console.warn(`[Frontend Debug] No cached board available for task update`);
             }
             break;
     }

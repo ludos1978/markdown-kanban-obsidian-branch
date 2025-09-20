@@ -290,11 +290,32 @@ function ensureTagStyleExists(tagName) {
             transition: all 0.2s ease;
         }\n`;
     }
-    
+
     // Append new styles
     if (newStyles) {
         styleElement.textContent += newStyles;
     }
+}
+
+/**
+ * Extract the first tag from text (boardRenderer.js internal use)
+ * @param {string} text - Text to extract tag from
+ * @returns {string|null} First tag or null
+ */
+function extractFirstTag(text) {
+    if (!text) return null;
+
+    // Use boardRenderer.js compatible regex with exclusions
+    const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const raw = m[1];
+        const baseMatch = raw.match(/^([a-zA-Z0-9_-]+)/);
+        const base = (baseMatch ? baseMatch[1] : raw).toLowerCase();
+        if (base.startsWith('gather_')) continue; // do not use gather tags for styling
+        return base;
+    }
+    return null;
 }
 
 // Make functions globally available
@@ -1596,6 +1617,23 @@ function createColumnElement(column, columnIndex) {
 }
 
 /**
+ * Get the content that should be shown in the edit field for a task
+ * For task includes, this is the complete file content
+ * For regular tasks, this is just the description
+ */
+function getTaskEditContent(task) {
+    if (task.includeMode && task.displayTitle) {
+        // For task includes, combine displayTitle and description to reconstruct complete file content
+        let fullContent = task.displayTitle;
+        if (task.description && task.description.trim()) {
+            fullContent += '\n\n' + task.description;
+        }
+        return fullContent;
+    }
+    return task.description || '';
+}
+
+/**
  * Creates HTML element for a single task/card
  * Purpose: Generates task card with title, description, tags
  * Used by: createColumnElement() for each task
@@ -1610,10 +1648,19 @@ function createTaskElement(task, columnId, taskIndex) {
     }
 
     const renderedDescription = (task.description && typeof task.description === 'string' && task.description.trim()) ? renderMarkdown(task.description) : '';
-    const renderedTitle = (task.title && typeof task.title === 'string' && task.title.trim()) ? renderMarkdown(task.title) : '';
+
+    // Use same pattern as column includes:
+    // - displayTitle for display (content from file or filtered title)
+    // - task.title for editing (includes the !!!taskinclude(...)!!! syntax)
+    const displayTitle = task.displayTitle || (task.title ? window.filterTagsFromText(task.title) : '');
+    const renderedTitle = (displayTitle && typeof displayTitle === 'string' && displayTitle.trim()) ? renderMarkdown(displayTitle) : '';
+
+    // For editing, always use the full title including include syntax
+    const editTitle = task.title || '';
+
     const isCollapsed = window.collapsedTasks.has(task.id);
-    
-    // Extract ALL tags for stacking features
+
+    // Extract ALL tags for stacking features (from the full title)
     const allTags = getActiveTagsInTitle(task.title);
     
     // Use first tag for background color
@@ -1689,6 +1736,12 @@ function createTaskElement(task, columnId, taskIndex) {
                             <div class="donut-menu-divider"></div>
                             ${generateTagMenuItems(task.id, 'task', columnId)}
                             <div class="donut-menu-divider"></div>
+                            ${task.includeMode ?
+                                `<button class="donut-menu-item" onclick="toggleTaskIncludeMode('${task.id}', '${columnId}')">Disable include mode</button>
+                                <button class="donut-menu-item" onclick="editTaskIncludeFile('${task.id}', '${columnId}')">Edit include file</button>` :
+                                `<button class="donut-menu-item" onclick="toggleTaskIncludeMode('${task.id}', '${columnId}')">Enable include mode</button>`
+                            }
+                            <div class="donut-menu-divider"></div>
                             <button class="donut-menu-item danger" onclick="deleteTask('${task.id}', '${columnId}')">Delete card</button>
                         </div>
                     </div>
@@ -1705,7 +1758,7 @@ function createTaskElement(task, columnId, taskIndex) {
                             data-column-id="${columnId}"
                             data-field="description"
                             placeholder="Add description (Markdown supported)..."
-                            style="display: none;">${escapeHtml(task.description || '')}</textarea>
+                            style="display: none;">${escapeHtml(getTaskEditContent(task))}</textarea>
             </div>
             ${footerBarsHtml}
         </div>

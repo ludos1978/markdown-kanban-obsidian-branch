@@ -7,6 +7,10 @@ export interface KanbanTask {
   id: string;
   title: string;
   description?: string;
+  includeMode?: boolean;  // When true, content is generated from included files
+  includeFiles?: string[]; // Paths to included files
+  originalTitle?: string;  // Original title before include processing
+  displayTitle?: string;   // Cleaned title for display (without include syntax)
 }
 
 export interface KanbanColumn {
@@ -31,7 +35,7 @@ export class MarkdownKanbanParser {
   // Runtime-only ID generation - no persistence to markdown
 
 
-  static parseMarkdown(content: string, basePath?: string): { board: KanbanBoard, includedFiles: string[], columnIncludeFiles: string[] } {
+  static parseMarkdown(content: string, basePath?: string): { board: KanbanBoard, includedFiles: string[], columnIncludeFiles: string[], taskIncludeFiles: string[] } {
       // First parse with original content to preserve raw descriptions
       const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
 
@@ -55,6 +59,17 @@ export class MarkdownKanbanParser {
           if (!columnIncludeFiles.includes(includeFile)) {
               columnIncludeFiles.push(includeFile);
               console.log(`[Parser] Found column include file: ${includeFile}`);
+          }
+      }
+
+      // Detect task include files in task titles
+      let taskIncludeFiles: string[] = [];
+      const taskIncludeRegex = /!!!taskinclude\(([^)]+)\)!!!/gi;
+      while ((match = taskIncludeRegex.exec(content)) !== null) {
+          const includeFile = match[1].trim();
+          if (!taskIncludeFiles.includes(includeFile)) {
+              taskIncludeFiles.push(includeFile);
+              console.log(`[Parser] Found task include file: ${includeFile}`);
           }
       }
       const board: KanbanBoard = {
@@ -94,7 +109,7 @@ export class MarkdownKanbanParser {
             board.yamlHeader = yamlLines.join('\n');
             board.valid = board.yamlHeader.includes('kanban-plugin: board');
             if (!board.valid) {
-              return { board, includedFiles, columnIncludeFiles };
+              return { board, includedFiles, columnIncludeFiles, taskIncludeFiles };
             }
             inYamlHeader = false;
             continue;
@@ -259,8 +274,77 @@ export class MarkdownKanbanParser {
         board.kanbanFooter = footerLines.join('\n');
       }
 
+      // Process task includes AFTER normal parsing
+      this.processTaskIncludes(board, basePath);
 
-      return { board, includedFiles, columnIncludeFiles };
+      return { board, includedFiles, columnIncludeFiles, taskIncludeFiles };
+  }
+
+  private static processTaskIncludes(board: KanbanBoard, basePath?: string): void {
+    for (const column of board.columns) {
+      for (const task of column.tasks) {
+        // Check if task title contains taskinclude syntax
+        const taskIncludeMatches = task.title.match(/!!!taskinclude\(([^)]+)\)!!!/g);
+
+        if (taskIncludeMatches && taskIncludeMatches.length > 0) {
+          // Process this task as a task include
+          const includeFiles: string[] = [];
+          taskIncludeMatches.forEach(match => {
+            const filePath = match.replace(/!!!taskinclude\(([^)]+)\)!!!/, '$1').trim();
+            includeFiles.push(filePath);
+          });
+
+          // Read content from included files
+          let includeTitle = '';
+          let includeDescription = '';
+
+          for (const filePath of includeFiles) {
+            const resolvedPath = basePath ? path.resolve(basePath, filePath) : filePath;
+            try {
+              if (fs.existsSync(resolvedPath)) {
+                const fileContent = fs.readFileSync(resolvedPath, 'utf8');
+                const lines = fileContent.split('\n');
+
+                // Find first non-empty line for title
+                let titleFound = false;
+                let descriptionLines: string[] = [];
+
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i].trim();
+                  if (!titleFound && line) {
+                    includeTitle = lines[i]; // Use original line with indentation
+                    titleFound = true;
+                  } else if (titleFound) {
+                    descriptionLines.push(lines[i]);
+                  }
+                }
+
+                // Join remaining lines as description
+                includeDescription = descriptionLines.join('\n').trim();
+
+                console.log(`[Parser] Processed task include: ${filePath}`);
+              } else {
+                console.warn(`[Parser] Task include file not found: ${resolvedPath}`);
+              }
+            } catch (error) {
+              console.error(`[Parser] Error processing task include ${filePath}:`, error);
+            }
+          }
+
+          // If no title found in file, use filename
+          if (!includeTitle && includeFiles.length > 0) {
+            includeTitle = path.basename(includeFiles[0], path.extname(includeFiles[0]));
+          }
+
+          // Update task properties for include mode
+          task.includeMode = true;
+          task.includeFiles = includeFiles;
+          task.originalTitle = task.title; // Keep original title with include syntax
+          task.displayTitle = includeTitle || 'Untitled'; // Display title from file
+          task.description = includeDescription; // Description from file
+        }
+      }
+    }
   }
 
   private static finalizeCurrentTask(task: KanbanTask | null, column: KanbanColumn | null): void {
@@ -302,14 +386,19 @@ export class MarkdownKanbanParser {
         markdown += `## ${column.title}\n`;
 
         for (const task of column.tasks) {
-          markdown += `- [ ] ${task.title}\n`;
+          // For taskinclude tasks, use the original title with include syntax
+          const titleToSave = task.includeMode && task.originalTitle ? task.originalTitle : task.title;
+          markdown += `- [ ] ${titleToSave}\n`;
 
-          // Add description with proper indentation
-          const descriptionToUse = task.description;
-          if (descriptionToUse && descriptionToUse.trim() !== '') {
-            const descriptionLines = descriptionToUse.split('\n');
-            for (const descLine of descriptionLines) {
-              markdown += `  ${descLine}\n`;
+          // For taskinclude tasks, don't save the description (it comes from the file)
+          if (!task.includeMode) {
+            // Add description with proper indentation
+            const descriptionToUse = task.description;
+            if (descriptionToUse && descriptionToUse.trim() !== '') {
+              const descriptionLines = descriptionToUse.split('\n');
+              for (const descLine of descriptionLines) {
+                markdown += `  ${descLine}\n`;
+              }
             }
           }
         }

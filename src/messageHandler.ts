@@ -194,6 +194,18 @@ export class MessageHandler {
                 await this.performBoardActionSilent(() =>
                     this._boardOperations.editTask(this._getCurrentBoard()!, message.taskId, message.columnId, message.taskData)
                 );
+
+                // If this is a task with include mode, save changes to the included file immediately
+                const boardForTask = this._getCurrentBoard();
+                if (boardForTask) {
+                    const column = boardForTask.columns.find(col => col.id === message.columnId);
+                    const task = column?.tasks.find(t => t.id === message.taskId);
+                    if (task && task.includeMode) {
+                        const panel = this._getWebviewPanel();
+                        await panel.saveTaskIncludeChanges(task);
+                        console.log(`[MessageHandler] Saved task include changes for task ${message.taskId}`);
+                    }
+                }
                 break;
             case 'moveTask':
                 await this.performBoardAction(() => 
@@ -335,6 +347,98 @@ export class MessageHandler {
                     await panel.loadNewIncludeContent(column, newIncludeFiles);
                 }
                 break;
+            case 'editTaskTitle':
+                console.log(`[MessageHandler Debug] editTaskTitle received:`, {
+                    taskId: message.taskId,
+                    columnId: message.columnId,
+                    title: message.title
+                });
+
+                // Check if this might be a task include file change
+                const currentBoardForTask = this._getCurrentBoard();
+                const targetColumn = currentBoardForTask?.columns.find(col => col.id === message.columnId);
+                const task = targetColumn?.tasks.find(t => t.id === message.taskId);
+                const oldTaskIncludeFiles = task?.includeFiles ? [...task.includeFiles] : [];
+
+                console.log(`[MessageHandler Debug] Task before edit:`, {
+                    taskId: message.taskId,
+                    columnId: message.columnId,
+                    currentTitle: task?.title,
+                    includeMode: task?.includeMode,
+                    oldIncludeFiles: oldTaskIncludeFiles
+                });
+
+                // Check if the new title contains task include syntax
+                const hasTaskIncludeMatches = message.title.match(/!!!taskinclude\(([^)]+)\)!!!/g);
+
+                if (hasTaskIncludeMatches) {
+                    console.log(`[MessageHandler] Task include syntax detected`);
+
+                    // Check if this task currently has unsaved changes
+                    if (task && task.includeMode && task.includeFiles && task.includeFiles.length > 0) {
+                        const panel = this._getWebviewPanel();
+                        const hasUnsavedChanges = await panel.checkTaskIncludeUnsavedChanges(task);
+
+                        if (hasUnsavedChanges) {
+                            // Prompt user to save before switching
+                            const saveChoice = await vscode.window.showWarningMessage(
+                                `The included file "${task.includeFiles[0]}" has unsaved changes. Do you want to save before switching to a new file?`,
+                                { modal: true },
+                                'Save and Switch',
+                                'Discard and Switch',
+                                'Cancel'
+                            );
+
+                            if (saveChoice === 'Save and Switch') {
+                                // Save current changes first
+                                await panel.saveTaskIncludeChanges(task);
+                            } else if (saveChoice === 'Cancel') {
+                                // User cancelled, don't switch
+                                return;
+                            }
+                            // If 'Discard and Switch', just continue without saving
+                        }
+                    }
+
+                    console.log(`[MessageHandler] Proceeding with include file switch, triggering board re-parse`);
+
+                    // Update the task title first
+                    await this.performBoardActionSilent(() =>
+                        this._boardOperations.editTask(currentBoardForTask!, message.taskId, message.columnId, { title: message.title })
+                    );
+
+                    console.log(`[MessageHandler] Task title updated, extracting include files from new title`);
+
+                    // Extract the include files from the new title
+                    const newIncludeFiles: string[] = [];
+                    hasTaskIncludeMatches.forEach((match: string) => {
+                        const filePath = match.replace(/!!!taskinclude\(([^)]+)\)!!!/, '$1').trim();
+                        newIncludeFiles.push(filePath);
+                    });
+
+                    console.log(`[MessageHandler] Found include files:`, newIncludeFiles);
+
+                    // Get the updated task and load new content
+                    const updatedBoard = this._getCurrentBoard();
+                    const updatedColumn = updatedBoard?.columns.find(col => col.id === message.columnId);
+                    const updatedTask = updatedColumn?.tasks.find(t => t.id === message.taskId);
+
+                    if (updatedTask && newIncludeFiles.length > 0) {
+                        console.log(`[MessageHandler] Loading new content for task ${message.taskId}`);
+
+                        // Use the existing method that works
+                        const panel = this._getWebviewPanel();
+                        await panel.loadNewTaskIncludeContent(updatedTask, newIncludeFiles);
+                    } else {
+                        console.log(`[MessageHandler] Could not find updated task or no include files`);
+                    }
+                } else {
+                    // Regular title edit without include syntax
+                    await this.performBoardActionSilent(() =>
+                        this._boardOperations.editTask(currentBoardForTask!, message.taskId, message.columnId, { title: message.title })
+                    );
+                }
+                break;
             case 'moveColumnWithRowUpdate':
                 await this.performBoardAction(() => 
                     this._boardOperations.moveColumnWithRowUpdate(
@@ -362,6 +466,9 @@ export class MessageHandler {
                 break;
             case 'saveBoardState':
                 await this.handleSaveBoardState(message.board);
+                break;
+            case 'requestTaskIncludeFileName':
+                await this.handleRequestTaskIncludeFileName(message.taskId, message.columnId);
                 break;
             case 'updateTaskInBackend':
                 // DEPRECATED: This is now handled via markUnsavedChanges with cachedBoard
@@ -1392,6 +1499,45 @@ export class MessageHandler {
 
         } catch (error) {
             console.error('[requestEditIncludeFileName] Error handling input request:', error);
+        }
+    }
+
+    /**
+     * Handle request for task include filename
+     */
+    private async handleRequestTaskIncludeFileName(taskId: string, columnId: string): Promise<void> {
+        try {
+            // Request filename from user using input box
+            const fileName = await vscode.window.showInputBox({
+                prompt: 'Enter the task include file name (e.g., task-content.md)',
+                placeHolder: 'task-content.md',
+                validateInput: (value) => {
+                    if (!value || value.trim() === '') {
+                        return 'File name cannot be empty';
+                    }
+                    if (!value.trim().endsWith('.md')) {
+                        return 'File name must end with .md';
+                    }
+                    return null;
+                }
+            });
+
+            if (fileName && fileName.trim()) {
+                // User provided a file name - enable task include mode
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'enableTaskIncludeMode',
+                        taskId: taskId,
+                        columnId: columnId,
+                        fileName: fileName.trim()
+                    });
+                }
+            }
+            // If cancelled, do nothing
+
+        } catch (error) {
+            console.error('[requestTaskIncludeFileName] Error handling input request:', error);
         }
     }
 }

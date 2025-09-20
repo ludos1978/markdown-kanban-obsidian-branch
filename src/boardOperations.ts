@@ -110,6 +110,9 @@ export class BoardOperations {
         if (taskData.description !== undefined) {
             task.description = taskData.description;
         }
+        if (taskData.displayTitle !== undefined && task.includeMode) {
+            task.displayTitle = taskData.displayTitle;
+        }
 
         return true;
     }
@@ -121,7 +124,11 @@ export class BoardOperations {
         const newTask: KanbanTask = {
             id: this.generateId('task', columnId),
             title: result.task.title,
-            description: result.task.description
+            description: result.task.description,
+            includeMode: result.task.includeMode,
+            includeFiles: result.task.includeFiles ? [...result.task.includeFiles] : undefined,
+            originalTitle: result.task.originalTitle,
+            displayTitle: result.task.displayTitle
         };
 
         result.column.tasks.splice(result.index + 1, 0, newTask);
