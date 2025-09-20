@@ -296,6 +296,37 @@ class ValidationUtils {
 
         element.setAttribute(name, this.escapeHtml(value || ''));
     }
+
+    /**
+     * Check if text looks like a file path
+     * @param {string} text - Text to check
+     * @returns {boolean} True if text appears to be a file path
+     */
+    static isFilePath(text) {
+        if (!text) return false;
+        // Has file extension
+        if (!/\.[a-zA-Z0-9]{1,10}$/.test(text)) return false;
+        // Basic checks to avoid false positives
+        if (text.includes('://')) return false; // URLs
+        if (text.startsWith('mailto:')) return false; // Email links
+        if (text.includes('@') && !text.includes('/') && !text.includes('\\')) return false; // Email addresses
+        return true;
+    }
+
+    /**
+     * Check if filename is an image file
+     * @param {string} fileName - Filename to check
+     * @returns {boolean} True if filename has image extension
+     */
+    static isImageFile(fileName) {
+        if (!fileName) return false;
+        const imageExtensions = [
+            'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp',
+            'ico', 'tiff', 'tif', 'avif', 'heic', 'heif'
+        ];
+        const extension = fileName.split('.').pop().toLowerCase();
+        return imageExtensions.includes(extension);
+    }
 }
 
 // Make it globally available for compatibility
@@ -316,6 +347,8 @@ if (typeof window !== 'undefined') {
     window.stripHtml = ValidationUtils.stripHtml;
     window.safeInnerHtml = ValidationUtils.safeInnerHtml;
     window.setSafeAttribute = ValidationUtils.setSafeAttribute;
+    window.isFilePath = ValidationUtils.isFilePath;
+    window.isImageFile = ValidationUtils.isImageFile;
 }
 
 // Export for use in other modules

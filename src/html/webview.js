@@ -673,20 +673,7 @@ async function readClipboardContent() {
     }
 }
 
-// Helper functions for file path processing
-function isFilePath(text) {
-    // Don't try to validate or resolve paths - just check if it looks like a filename/path
-
-    // Has file extension
-    if (!/\.[a-zA-Z0-9]{1,10}$/.test(text)) return false;
-
-    // Basic checks to avoid false positives
-    if (text.includes('://')) return false; // URLs
-    if (text.startsWith('mailto:')) return false; // Email links
-    if (text.includes('@') && !text.includes('/') && !text.includes('\\')) return false; // Email addresses
-
-    return true;
-}
+// File path processing functions now in utils/validationUtils.js
 
 // escapeFilePath function moved to utils/validationUtils.js
 
@@ -803,14 +790,7 @@ async function processClipboardText(text) {
     };
 }
 
-function isImageFile(fileName) {
-    const imageExtensions = [
-        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp',
-        'ico', 'tiff', 'tif', 'avif', 'heic', 'heif'
-    ];
-    const extension = fileName.split('.').pop().toLowerCase();
-    return imageExtensions.includes(extension);
-}
+// isImageFile function now in utils/validationUtils.js
 
 // escapeHtml function moved to utils/validationUtils.js
 
