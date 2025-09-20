@@ -10,27 +10,7 @@ let currentBoard = null;
 // Don't set window.currentBoard here as it will be set when board is loaded
 let renderTimeout = null;
 
-/**
- * Extracts the first valid style tag from text (e.g., #urgent, #feature)
- * Purpose: Used to determine primary tag for styling columns and tasks
- * Used by: renderBoard(), generateTagStyles(), task/column rendering
- * @param {string} text - Text containing hashtags
- * @returns {string|null} - Lowercase tag name without # or null if none found
- * Note: Skips row tags (#rowN), span tags (#spanN), and gather tags (#gather_...)
- */
-function extractFirstTag(text) {
-    if (!text) {return null;}
-    const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
-    let m;
-    while ((m = re.exec(text)) !== null) {
-        const raw = m[1];
-        const baseMatch = raw.match(/^([a-zA-Z0-9_-]+)/);
-        const base = (baseMatch ? baseMatch[1] : raw).toLowerCase();
-        if (base.startsWith('gather_')) {continue;} // do not use gather tags for styling
-        return base;
-    }
-    return null;
-}
+// extractFirstTag function now in utils/tagUtils.js
 
 
 // Import colorUtils at the top of the file (will be included via HTML)

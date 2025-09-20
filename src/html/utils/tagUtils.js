@@ -92,17 +92,36 @@ class TagUtils {
     }
 
     /**
-     * Extract the first tag from text
+     * Extract the first tag from text (boardRenderer.js compatible)
      * @param {string} text - Text to extract tag from
      * @param {boolean} excludeLayout - Whether to exclude layout tags
      * @returns {string|null} First tag or null
      */
     extractFirstTag(text, excludeLayout = true) {
-        const tags = this.extractTags(text, {
-            includeHash: true,
-            excludeLayout: excludeLayout
-        });
-        return tags.length > 0 ? tags[0] : null;
+        if (!text) return null;
+
+        // Use boardRenderer.js compatible regex with exclusions
+        const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            const raw = m[1];
+            const baseMatch = raw.match(/^([a-zA-Z0-9_-]+)/);
+            const base = (baseMatch ? baseMatch[1] : raw).toLowerCase();
+            if (base.startsWith('gather_')) continue; // do not use gather tags for styling
+            return base;
+        }
+        return null;
+    }
+
+    /**
+     * Extract the first tag from text (simple version for markdownRenderer.js)
+     * @param {string} text - Text to extract tag from
+     * @returns {string|null} First tag or null
+     */
+    extractFirstTagSimple(text) {
+        if (!text) return null;
+        const tagMatch = text.match(/#([a-zA-Z0-9_-]+)/);
+        return tagMatch ? tagMatch[1].toLowerCase() : null;
     }
 
     /**
@@ -530,4 +549,8 @@ if (typeof module !== 'undefined' && module.exports) {
 // Global window exposure
 if (typeof window !== 'undefined') {
     window.tagUtils = tagUtils;
+
+    // Backward compatibility functions
+    window.extractFirstTag = (text) => tagUtils.extractFirstTag(text);
+    window.extractAllTags = (text) => tagUtils.extractTags(text, { includeHash: false });
 }
