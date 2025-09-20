@@ -20,22 +20,31 @@ class ValidationUtils {
     }
 
     /**
-     * Escape file paths for safe use in markdown and HTML
+     * Escape file paths for safe use in markdown and HTML with proper URL encoding
      * @param {string} filePath - File path to escape
-     * @returns {string} Escaped file path
+     * @returns {string} URL-encoded file path safe for markdown links
      */
     static escapeFilePath(filePath) {
         if (!filePath) return '';
 
-        // Don't resolve or modify paths - just escape special characters that break markdown
-        // Only escape characters that actually break markdown syntax, not the whole path
-        return filePath
-            .replace(/\(/g, '\\(')
-            .replace(/\)/g, '\\)')
-            .replace(/\[/g, '\\[')
-            .replace(/\]/g, '\\]')
-            .replace(/'/g, "\\'")
-            .replace(/"/g, '\\"');
+        // Convert Windows backslashes to forward slashes for URL compatibility
+        let normalizedPath = filePath.replace(/\\/g, '/');
+
+        // URL encode the path components to handle spaces, special characters, etc.
+        // Split on slashes, encode each part, then rejoin
+        const pathParts = normalizedPath.split('/');
+        const encodedParts = pathParts.map(part => {
+            // Don't encode empty parts (from leading slashes or double slashes)
+            if (!part) return part;
+
+            // Don't encode Windows drive letters (C:, D:, etc.)
+            if (/^[a-zA-Z]:$/.test(part)) return part;
+
+            // URL encode the part
+            return encodeURIComponent(part);
+        });
+
+        return encodedParts.join('/');
     }
 
     /**
@@ -304,13 +313,34 @@ class ValidationUtils {
      */
     static isFilePath(text) {
         if (!text) return false;
-        // Has file extension
-        if (!/\.[a-zA-Z0-9]{1,10}$/.test(text)) return false;
-        // Basic checks to avoid false positives
+
+        // Basic checks to avoid false positives first
         if (text.includes('://')) return false; // URLs
         if (text.startsWith('mailto:')) return false; // Email links
         if (text.includes('@') && !text.includes('/') && !text.includes('\\')) return false; // Email addresses
-        return true;
+
+        // Check for Windows absolute paths (C:\ or C:/ style)
+        if (/^[a-zA-Z]:[\/\\]/.test(text)) {
+            // Has file extension
+            if (/\.[a-zA-Z0-9]{1,10}$/.test(text)) return true;
+        }
+
+        // Check for Unix/Linux absolute paths starting with /
+        if (text.startsWith('/')) {
+            // Has file extension
+            if (/\.[a-zA-Z0-9]{1,10}$/.test(text)) return true;
+        }
+
+        // Check for relative paths with directory separators
+        if (text.includes('/') || text.includes('\\')) {
+            // Has file extension
+            if (/\.[a-zA-Z0-9]{1,10}$/.test(text)) return true;
+        }
+
+        // Check for simple filename with extension
+        if (/\.[a-zA-Z0-9]{1,10}$/.test(text)) return true;
+
+        return false;
     }
 
     /**
