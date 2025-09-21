@@ -185,11 +185,33 @@ export class KanbanWebviewPanel {
         const kanbanPanel = new KanbanWebviewPanel(panel, extensionUri, context);
 
         // Try to restore the previously loaded document from state
-        const panelState = KanbanWebviewPanel.getPanelState(panel) || state;
-        const documentUri = panelState?.documentUri;
+        // First check the serializer state parameter, then check workspace state for recent panels
+        let documentUri = state?.documentUri;
+
+        if (!documentUri) {
+            // Fallback: Look for recent panel states in workspace
+            const allKeys = context.globalState.keys();
+            const panelKeys = allKeys.filter(key => key.startsWith('kanban_panel_'));
+
+            if (panelKeys.length > 0) {
+                // Find the most recently accessed panel
+                let mostRecentUri = null;
+                let mostRecentTime = 0;
+
+                for (const key of panelKeys) {
+                    const panelState = context.globalState.get(key) as any;
+                    if (panelState?.documentUri && panelState?.lastAccessed > mostRecentTime) {
+                        mostRecentTime = panelState.lastAccessed;
+                        mostRecentUri = panelState.documentUri;
+                    }
+                }
+
+                documentUri = mostRecentUri;
+                console.log('[DEBUG] Using most recent panel state, found document:', documentUri);
+            }
+        }
 
         console.log('[DEBUG] Revival attempting to restore document:', documentUri);
-        console.log('[DEBUG] Panel state:', panelState);
         console.log('[DEBUG] State parameter:', state);
 
         if (documentUri) {
