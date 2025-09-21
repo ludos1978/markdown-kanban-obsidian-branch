@@ -567,10 +567,10 @@ class TaskEditor {
                     // Update tag-based styling for columns (following task pattern)
                     const columnElement2 = document.querySelector(`[data-column-id="${columnId}"]`);
                     if (columnElement2) {
-                        // Get tags from column title and description (like tasks do)
+                        // Only use column title tags for card-level styling (headers/footers)
+                        // Column description tags should remain inline-only
                         const titleTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(column.title || '') : [];
-                        const descTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(column.description || '') : [];
-                        const allTags = [...new Set([...titleTags, ...descTags])];
+                        const allTags = titleTags; // Only title tags get card-level styling
 
                         // Update primary tag (first non-special tag from title)
                         const primaryTag = window.extractFirstTag ? window.extractFirstTag(column.title) : null;
@@ -787,13 +787,13 @@ class TaskEditor {
                         }
                     }
 
-                    // Update tag-based styling for both titles and descriptions
+                    // Update tag-based styling (only title tags for card-level styling)
                     const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
                     if (taskElement) {
-                        // Combine tags from title and description
+                        // Only use title tags for card-level styling (headers/footers)
+                        // Description tags should remain inline-only
                         const titleTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(task.title || '') : [];
-                        const descTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(task.description || '') : [];
-                        const allTags = [...new Set([...titleTags, ...descTags])];
+                        const allTags = titleTags; // Only title tags get card-level styling
 
                         // Update primary tag (first non-special tag from title)
                         const primaryTag = window.extractFirstTag ? window.extractFirstTag(task.title) : null;
