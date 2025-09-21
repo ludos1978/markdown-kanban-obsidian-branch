@@ -3292,10 +3292,31 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         }
     }
     
-    // 4. HEADER BARS - Always create header-bars-container in column-header
+    // 4. HEADER BARS - Create header bars only for title tags (not description tags)
     const headerBars = [];
     let hasHeaderLabel = false;
-    allTags.forEach(tag => {
+
+    // Filter out tags that are only in description for task elements
+    let tagsForCardStyling = allTags;
+    if (elementType === 'task') {
+        // For tasks, check if tags exist in description and exclude them
+        const taskDescDisplay = element.querySelector('.task-description-display');
+        if (taskDescDisplay) {
+            const descriptionTags = new Set();
+            // Find all tag spans in the description
+            taskDescDisplay.querySelectorAll('.kanban-tag').forEach(tagSpan => {
+                const tagName = tagSpan.getAttribute('data-tag');
+                if (tagName) {
+                    descriptionTags.add(tagName);
+                }
+            });
+
+            // Only use tags that are NOT in description for card-level styling
+            tagsForCardStyling = allTags.filter(tag => !descriptionTags.has(tag));
+        }
+    }
+
+    tagsForCardStyling.forEach(tag => {
         if (window.getTagConfig) {
             const config = window.getTagConfig(tag);
             if (config && config.headerBar) {
@@ -3340,10 +3361,11 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         // if (hasHeaderLabel) element.classList.add('has-header-label');
     }
     
-    // 5. FOOTER BARS - Create footer bars for tags that have them
+    // 5. FOOTER BARS - Create footer bars only for title tags (not description tags)
     const footerBars = [];
     let hasFooterLabel = false;
-    allTags.forEach(tag => {
+    // Use the same filtered tags as for header bars
+    tagsForCardStyling.forEach(tag => {
         if (window.getTagConfig) {
             const config = window.getTagConfig(tag);
             if (config && config.footerBar) {
