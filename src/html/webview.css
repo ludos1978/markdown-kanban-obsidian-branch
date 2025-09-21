@@ -2641,6 +2641,29 @@ blockquote {
   display: unset;
 }
 
+/* Ensure tags in task descriptions are strictly inline without any card-level styling */
+.task-description-display .kanban-tag {
+  vertical-align: middle;
+  display: inline !important;
+  position: static !important;
+  /* Ensure inline-only styling - no headers/footers */
+  border: 1px solid var(--vscode-badge-background) !important;
+  background-color: var(--vscode-badge-background) !important;
+  margin: 0 !important;
+  padding: 0px 2px !important;
+  /* Explicitly remove any pseudo-elements that might create header/footer appearance */
+  border-top: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+/* Explicitly prevent any pseudo-elements on description tags */
+.task-description-display .kanban-tag::before,
+.task-description-display .kanban-tag::after {
+  display: none !important;
+  content: none !important;
+}
+
 .kanban-full-height-column.collapsed .column-title .kanban-tag {
   margin: 4px 0px;
   padding: 2px 0px;
