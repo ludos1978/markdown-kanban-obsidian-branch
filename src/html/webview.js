@@ -686,24 +686,30 @@ function createFileMarkdownLink(filePath) {
     // Markdown file extensions
     const markdownExtensions = ['md', 'markdown', 'mdown', 'mkd', 'mdx'];
 
-    // Use original path without modification - let the system handle path resolution
-    const safePath = (typeof escapeFilePath === 'function') ? escapeFilePath(filePath) : filePath;
-
     if (imageExtensions.includes(extension)) {
-        // Image: ![](path) - use original path
+        // Image: ![](path) - use URL encoding for spaces and special characters
+        const safePath = (typeof escapeFilePath === 'function') ? escapeFilePath(filePath) : filePath;
         return `![](${safePath})`;
     } else if (markdownExtensions.includes(extension)) {
-        // Markdown: [[filename]] - for relative paths use just filename, for absolute paths use full path
+        // Markdown: [[filename]] - wiki links don't use URL encoding
+        const wikiPath = (typeof ValidationUtils !== 'undefined' && ValidationUtils.escapeWikiLinkPath)
+            ? ValidationUtils.escapeWikiLinkPath(filePath)
+            : filePath;
         if (filePath.includes('/') || filePath.includes('\\')) {
-            return `[[${safePath}]]`;
+            return `[[${wikiPath}]]`;
         } else {
-            return `[[${fileName}]]`;
+            // For simple filenames, also use wiki link escaping
+            const wikiFileName = (typeof ValidationUtils !== 'undefined' && ValidationUtils.escapeWikiLinkPath)
+                ? ValidationUtils.escapeWikiLinkPath(fileName)
+                : fileName;
+            return `[[${wikiFileName}]]`;
         }
     } else if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-        // URL: <url>
+        // URL: <url> - URLs are already encoded
         return `<${filePath}>`;
     } else {
-        // Other files: [filename](path)
+        // Other files: [filename](path) - use URL encoding
+        const safePath = (typeof escapeFilePath === 'function') ? escapeFilePath(filePath) : filePath;
         const baseName = fileName.replace(/\.[^/.]+$/, "");
         return `[${baseName}](${safePath})`;
     }

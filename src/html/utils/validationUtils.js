@@ -21,6 +21,7 @@ class ValidationUtils {
 
     /**
      * Escape file paths for safe use in markdown and HTML with proper URL encoding
+     * For standard markdown links [](path) and image links ![](path)
      * @param {string} filePath - File path to escape
      * @returns {string} URL-encoded file path safe for markdown links
      */
@@ -45,6 +46,25 @@ class ValidationUtils {
         });
 
         return encodedParts.join('/');
+    }
+
+    /**
+     * Escape file paths for wiki links [[...]]
+     * Wiki links don't use URL encoding, just escape special markdown characters
+     * @param {string} filePath - File path to escape
+     * @returns {string} Escaped file path safe for wiki links
+     */
+    static escapeWikiLinkPath(filePath) {
+        if (!filePath) return '';
+
+        // Convert Windows backslashes to forward slashes for consistency
+        let normalizedPath = filePath.replace(/\\/g, '/');
+
+        // Only escape characters that break wiki link syntax
+        // Wiki links can contain spaces and most special characters
+        return normalizedPath
+            .replace(/\]/g, '\\]')  // Escape closing brackets
+            .replace(/\|/g, '\\|'); // Escape pipe character (used for aliases)
     }
 
     /**
@@ -367,6 +387,7 @@ if (typeof window !== 'undefined') {
     window.escapeHtml = ValidationUtils.escapeHtml;
     window.unescapeHtml = ValidationUtils.unescapeHtml;
     window.escapeFilePath = ValidationUtils.escapeFilePath;
+    window.escapeWikiLinkPath = ValidationUtils.escapeWikiLinkPath;
     window.escapeRegex = ValidationUtils.escapeRegex;
     window.encodeUrl = ValidationUtils.encodeUrl;
     window.decodeUrl = ValidationUtils.decodeUrl;
