@@ -589,12 +589,21 @@ export class KanbanWebviewPanel {
         if (this._fileManager.getDocument()) {
             try {
                 const document = this._fileManager.getDocument()!;
-                const basePath = path.dirname(document.uri.fsPath);
-                const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
-                this._board = parseResult.board;
-                this._includedFiles = parseResult.includedFiles;
-                this._columnIncludeFiles = parseResult.columnIncludeFiles;
-                this._taskIncludeFiles = parseResult.taskIncludeFiles || [];
+
+                // If we have unsaved changes with a cached board, use that instead of re-parsing
+                // This preserves user's work when switching views
+                if (this._hasUnsavedChanges && this._cachedBoardFromWebview) {
+                    this._board = this._cachedBoardFromWebview;
+                    // Keep using the cached board and existing include file states
+                } else {
+                    // Only re-parse from document if no unsaved changes
+                    const basePath = path.dirname(document.uri.fsPath);
+                    const parseResult = MarkdownKanbanParser.parseMarkdown(document.getText(), basePath);
+                    this._board = parseResult.board;
+                    this._includedFiles = parseResult.includedFiles;
+                    this._columnIncludeFiles = parseResult.columnIncludeFiles;
+                    this._taskIncludeFiles = parseResult.taskIncludeFiles || [];
+                }
 
                 // Register included files with the external file watcher
                 // First, preserve existing include file content baselines to maintain change detection
@@ -651,7 +660,9 @@ export class KanbanWebviewPanel {
                     this._sendIncludeFileChangeNotification();
                 }
 
-                this._boardOperations.setOriginalTaskOrder(this._board);
+                if (this._board) {
+                    this._boardOperations.setOriginalTaskOrder(this._board);
+                }
             } catch (error) {
                 this._board = { 
                     valid: false, 
