@@ -127,7 +127,15 @@ styleManager.applyColumnWidth = function(width) {
 };
 
 styleManager.applyCardHeight = function(height) {
-    this.setCSSVariable('card-height', height);
+    // Use the correct CSS variable name
+    this.setCSSVariable('task-height', height);
+
+    // Properly manage the task-height-limited class
+    if (height !== 'auto') {
+        document.body.classList.add('task-height-limited');
+    } else {
+        document.body.classList.remove('task-height-limited');
+    }
 };
 
 styleManager.applyWhitespace = function(spacing) {

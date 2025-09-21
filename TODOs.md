@@ -2,6 +2,11 @@
 kanban-plugin: board
 ---
 
+- [ ] when converting paths to media links for the drag & drop task source:
+  - make sure windows paths are also discovered as urls!
+	- make sure to convert paths to %-encoding / url encoding. for example a space is %20, etc. use a library to do the conversion!
+	- dont add any ` " or anything else but the defined markdown link styles and the url-encoding!!!
+
 - [x] use all unchecked parts of the @TODOs.md to fix problems i encountered. for each problem start a branch which you work on and cleanup after finishing working on it. then merge with main, mark the task as done and continue to the next unchecked task in todo.md.
 
 ## Open Bugs
@@ -14,7 +19,7 @@ kanban-plugin: board
 - [x] The view doesnt properly restore the content when automatically opening. for example when restarting debugging or when restoring a work-view it stays empty and must be manually be reopened.
 - [x] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).
 - [x] i allways need to build before restarting the debugging to see the changes applied. can you modify the configuration that this happens automatically and cleanly?
-- [ ] add the build version to the file info burger menu.
+- [x] add the build version to the file info burger menu.
 - [ ] the max height of cards is limited after switching back to auto mode from a height limiting (card-height) mode.
 - [ ] when a markdown file is not initialized reload the file after pressing initialize.
 - [ ] the auto and backup files must allways be created as hidden files (.filename). the conflict files might be visible. there is also an auto type which i did not specify, use backup 
