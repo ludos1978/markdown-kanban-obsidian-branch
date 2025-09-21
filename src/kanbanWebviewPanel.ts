@@ -551,9 +551,10 @@ export class KanbanWebviewPanel {
                 if (e.webviewPanel.visible) {
                     // Panel became visible - send file info and ensure board
                     this._fileManager.sendFileInfo();
-                    
-                    // Only ensure board if we don't have one
-                    if (!this._board && this._fileManager.getDocument()) {
+
+                    // Always ensure board content is sent when view becomes visible
+                    // This fixes empty view issues after debug restart or workspace restore
+                    if (this._fileManager.getDocument()) {
                         this._ensureBoardAndSendUpdate();
                     }
                 }
@@ -585,7 +586,7 @@ export class KanbanWebviewPanel {
     }
 
     private async _ensureBoardAndSendUpdate() {
-        if (!this._board && this._fileManager.getDocument()) {
+        if (this._fileManager.getDocument()) {
             try {
                 const document = this._fileManager.getDocument()!;
                 const basePath = path.dirname(document.uri.fsPath);
