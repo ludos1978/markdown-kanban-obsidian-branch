@@ -1944,48 +1944,81 @@ function addColumn(rowNumber) {
  * Side effects: Updates pending changes, triggers visual updates
  */
 function toggleColumnTag(columnId, tagName, event) {
-    
+    console.log('DEBUG: toggleColumnTag called', { columnId, tagName, event });
+
     // Enhanced duplicate prevention with stronger key and longer timeout
     const key = `column-${columnId}-${tagName}`;
     const now = Date.now();
     if (!window._lastTagExecution) {
         window._lastTagExecution = {};
     }
-    
+
     if (window._lastTagExecution[key] && now - window._lastTagExecution[key] < 500) {
+        console.log('DEBUG: toggleColumnTag blocked by duplicate prevention');
         return;
     }
     window._lastTagExecution[key] = now;
-    
+
     if (event) {
         event.stopPropagation();
         event.preventDefault();
     }
-    
-    if (!window.currentBoard?.columns) {
+
+    // Try to find the column in the best available board data
+    let boardToUse = null;
+    let column = null;
+
+    // First try cachedBoard (most current)
+    if (window.cachedBoard?.columns) {
+        column = window.cachedBoard.columns.find(c => c.id === columnId);
+        if (column) {
+            boardToUse = window.cachedBoard;
+            console.log('DEBUG: Using cachedBoard');
+        }
+    }
+
+    // If not found, try currentBoard
+    if (!column && window.currentBoard?.columns) {
+        column = window.currentBoard.columns.find(c => c.id === columnId);
+        if (column) {
+            boardToUse = window.currentBoard;
+            console.log('DEBUG: Using currentBoard');
+        }
+    }
+
+    if (!column) {
+        console.log('DEBUG: Column not found in any board', columnId);
+        if (window.currentBoard?.columns) {
+            console.log('DEBUG: currentBoard column IDs:', window.currentBoard.columns.map(c => c.id));
+        }
+        if (window.cachedBoard?.columns) {
+            console.log('DEBUG: cachedBoard column IDs:', window.cachedBoard.columns.map(c => c.id));
+        }
         return;
     }
 
-    const column = window.currentBoard.columns.find(c => c.id === columnId);
-    if (!column) {
-        return;
-    }
-    
-    
+    console.log('DEBUG: Found column', column);
+
     // Also check DOM element
     const domElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (!domElement) {
+        console.log('DEBUG: DOM element not found for column', columnId);
         return;
     }
+
+    console.log('DEBUG: Found DOM element for column');
     
     const tagWithHash = `#${tagName}`;
     let title = column.title || '';
     const wasActive = new RegExp(`#${tagName}\\b`, 'gi').test(title);
-    
-    
+
+    console.log('DEBUG: Current title:', title);
+    console.log('DEBUG: Tag was active:', wasActive);
+
     if (wasActive) {
         const beforeRemoval = title;
         title = title.replace(new RegExp(`#${tagName}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
+        console.log('DEBUG: Removed tag, new title:', title);
     } else {
         const rowMatch = title.match(/(#row\d+)$/i);
         if (rowMatch) {
@@ -1994,17 +2027,28 @@ function toggleColumnTag(columnId, tagName, event) {
         } else {
             title = `${title} ${tagWithHash}`.trim();
         }
+        console.log('DEBUG: Added tag, new title:', title);
     }
     
-    // Update cached board directly - single source of truth
+    // Update the board data - make sure both boards are updated
     const oldTitle = column.title;
     column.title = title;
+    console.log('DEBUG: Updated column.title from', oldTitle, 'to', title);
 
-    // Also update in cached board if different reference
-    if (window.cachedBoard) {
+    // Ensure both currentBoard and cachedBoard are updated if they exist and are different
+    if (window.currentBoard && window.currentBoard !== boardToUse) {
+        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+        if (currentColumn) {
+            currentColumn.title = title;
+            console.log('DEBUG: Updated currentBoard column title');
+        }
+    }
+
+    if (window.cachedBoard && window.cachedBoard !== boardToUse) {
         const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (cachedColumn) {
             cachedColumn.title = title;
+            console.log('DEBUG: Updated cachedBoard column title');
         }
     }
 
@@ -2013,9 +2057,11 @@ function toggleColumnTag(columnId, tagName, event) {
         window.pendingColumnChanges = new Map();
     }
     window.pendingColumnChanges.set(columnId, { columnId, title });
+    console.log('DEBUG: Added to pendingColumnChanges');
 
     // Mark as unsaved since we made a change
     markUnsavedChanges();
+    console.log('DEBUG: Marked as unsaved');
     
     // Update DOM immediately using unique ID
     updateColumnDisplayImmediate(columnId, title, !wasActive, tagName);
@@ -2049,84 +2095,133 @@ function toggleColumnTag(columnId, tagName, event) {
  * Side effects: Updates pending changes, triggers visual updates
  */
 function toggleTaskTag(taskId, columnId, tagName, event) {
-    
+    console.log('DEBUG: toggleTaskTag called', { taskId, columnId, tagName });
+
     // Enhanced duplicate prevention with stronger key and longer timeout
     const key = `task-${taskId}-${tagName}`;
     const now = Date.now();
     if (!window._lastTagExecution) {
         window._lastTagExecution = {};
     }
-    
+
     if (window._lastTagExecution[key] && now - window._lastTagExecution[key] < 500) {
+        console.log('DEBUG: toggleTaskTag blocked by duplicate prevention');
         return;
     }
     window._lastTagExecution[key] = now;
-    
+
     if (event) {
         event.stopPropagation();
         event.preventDefault();
     }
-    
-    if (!window.currentBoard?.columns) {
-        return;
-    }
-    
-    let column = window.currentBoard.columns.find(c => c.id === columnId);
-    let task = column?.tasks.find(t => t.id === taskId);
 
-    // If task not found in the expected column, search all columns for the task
-    if (!task) {
-        for (const col of window.currentBoard.columns) {
-            const foundTask = col.tasks.find(t => t.id === taskId);
-            if (foundTask) {
-                column = col;
-                task = foundTask;
-                break;
+    // Try to find the task in the best available board data
+    let boardToUse = null;
+    let column = null;
+    let task = null;
+
+    // First try cachedBoard (most current)
+    if (window.cachedBoard?.columns) {
+        column = window.cachedBoard.columns.find(c => c.id === columnId);
+        task = column?.tasks.find(t => t.id === taskId);
+
+        // If task not found in expected column, search all columns
+        if (!task) {
+            for (const col of window.cachedBoard.columns) {
+                const foundTask = col.tasks.find(t => t.id === taskId);
+                if (foundTask) {
+                    column = col;
+                    task = foundTask;
+                    break;
+                }
             }
+        }
+
+        if (task) {
+            boardToUse = window.cachedBoard;
+            console.log('DEBUG: Using cachedBoard for task');
+        }
+    }
+
+    // If not found, try currentBoard
+    if (!task && window.currentBoard?.columns) {
+        column = window.currentBoard.columns.find(c => c.id === columnId);
+        task = column?.tasks.find(t => t.id === taskId);
+
+        // If task not found in expected column, search all columns
+        if (!task) {
+            for (const col of window.currentBoard.columns) {
+                const foundTask = col.tasks.find(t => t.id === taskId);
+                if (foundTask) {
+                    column = col;
+                    task = foundTask;
+                    break;
+                }
+            }
+        }
+
+        if (task) {
+            boardToUse = window.currentBoard;
+            console.log('DEBUG: Using currentBoard for task');
         }
     }
 
     if (!column || !task) {
+        console.log('DEBUG: Task or column not found in any board', { taskId, columnId });
         return;
     }
+
+    console.log('DEBUG: Found task', task);
     
     
     // Also check DOM element
     const domElement = document.querySelector(`[data-task-id="${taskId}"]`);
     if (!domElement) {
+        console.log('DEBUG: DOM element not found for task', taskId);
         return;
     }
-    
+
     const tagWithHash = `#${tagName}`;
     let title = task.title || '';
     const wasActive = new RegExp(`#${tagName}\\b`, 'gi').test(title);
-    
-    
+
+    console.log('DEBUG: Current task title:', title);
+    console.log('DEBUG: Tag was active:', wasActive);
+
     if (wasActive) {
-        const beforeRemoval = title;
         title = title.replace(new RegExp(`#${tagName}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
+        console.log('DEBUG: Removed tag, new title:', title);
     } else {
         title = `${title} ${tagWithHash}`.trim();
+        console.log('DEBUG: Added tag, new title:', title);
     }
-    
-    // NEW CACHE SYSTEM: Update cached board first - single source of truth
+
+    // Update the task in the found board
     const oldTitle = task.title;
-    
-    // Update in cached board (primary source of truth for saves)
-    if (window.cachedBoard) {
-        const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+    task.title = title;
+    console.log('DEBUG: Updated task.title from', oldTitle, 'to', title);
+
+    // Ensure both currentBoard and cachedBoard are updated if they exist and are different
+    if (window.currentBoard && window.currentBoard !== boardToUse) {
+        const currentColumn = window.currentBoard.columns.find(col => col.id === column.id);
+        if (currentColumn) {
+            const currentTask = currentColumn.tasks.find(t => t.id === taskId);
+            if (currentTask) {
+                currentTask.title = title;
+                console.log('DEBUG: Updated currentBoard task title');
+            }
+        }
+    }
+
+    if (window.cachedBoard && window.cachedBoard !== boardToUse) {
+        const cachedColumn = window.cachedBoard.columns.find(col => col.id === column.id);
         if (cachedColumn) {
             const cachedTask = cachedColumn.tasks.find(t => t.id === taskId);
             if (cachedTask) {
                 cachedTask.title = title;
+                console.log('DEBUG: Updated cachedBoard task title');
             }
         }
-    }
-    
-    // Also update currentBoard for compatibility (if it's a different reference)
-    task.title = title; // Update the task we found from currentBoard
-    if (window.currentBoard !== window.cachedBoard) {
-        // Task is already updated above since 'task' came from currentBoard
     }
     
     // Mark as unsaved since we made a change
@@ -3163,7 +3258,10 @@ function updateTagCategoryCounts(id, type, columnId = null) {
 window.toggleDonutMenu = toggleDonutMenu;
 window.toggleFileBarMenu = toggleFileBarMenu;
 window.closeAllMenus = closeAllMenus;
-window.handleColumnTagClick = (columnId, tagName, event) => toggleColumnTag(columnId, tagName, event);
+window.handleColumnTagClick = (columnId, tagName, event) => {
+    console.log('DEBUG: handleColumnTagClick called', { columnId, tagName });
+    return toggleColumnTag(columnId, tagName, event);
+};
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(taskId, columnId, tagName, event);
 window.updateTagChipStyle = updateTagChipStyle;
 window.updateTagButtonAppearance = updateTagButtonAppearance;

@@ -2,6 +2,15 @@
 kanban-plugin: board
 ---
 
+## Open Bugs
+
+
+
+
+
+## Closed Bugs
+- [x] use all unchecked parts of the @TODOs.md to fix problems i encountered. for each problem start a branch which you work on and cleanup after finishing working on it. then merge with main, mark the task as done and continue to the next unchecked task in todo.md.
+
 - [x] if i focus another view in vscode the kanban board looses all unsaved changes.
 - [x] if still tries to add headers/footers for tags with theses aspects within the task description. only if in the title of the task, should it add headers footers. othervise add these styles inline (a line with the headers/footers within the descripiton)
 - [x] when converting paths to media links for the drag & drop task source:
@@ -9,9 +18,6 @@ kanban-plugin: board
 	- make sure to convert paths to %-encoding / url encoding. for example a space is %20, etc. use a library to do the conversion!
 	- dont add any ` " or anything else but the defined markdown link styles and the url-encoding!!!
 
-- [x] use all unchecked parts of the @TODOs.md to fix problems i encountered. for each problem start a branch which you work on and cleanup after finishing working on it. then merge with main, mark the task as done and continue to the next unchecked task in todo.md.
-
-## Open Bugs
 - [x] When dragging a column in a multi-row setup the lower, the lower row overlays the rows above. this is fine, if the columns in that are #stack'ed also are visible and moveable in this mode. it could make sense to hide all columns inner and set auto height mode.
 - [x] when converting paths to media assets that are converted to links:
   - make sure windows paths are also discovered as urls
@@ -28,8 +34,6 @@ kanban-plugin: board
 - [x] undo does not work anymore consistently. i could not undo edits in a file.
 - [x] find code duplicates. find parts that do something similar or the same. create a comprehensive list of all functions in all js und ts html and css an note what they are for (for functions larger then a few lines, split it int mutiple features). write the result into @FUNCTIONS.md .  try to create  unique naming system for features and write down the functions and line number within the function. later we are going to compare the results and fin duplicates.
 
-
-## Closed Bugs
 - [x] When folding all cards of the column: under some circumstances it doesnt fold the cards below the column. but rather folds a card that is in another column, when i first create a card in this column and then move it to another column. the column should just fold/unfold all cards below itself.
 
 - [x] Add an configuration option: It should define which tags are exported when copying as markdown (in the cards burger menus and the column burger menus). have the same options as when changing the displaying in the kaban board (all tags, standard tags, custom tags, @tags only, no tags). 

@@ -728,6 +728,11 @@ function getUserAddedTags() {
  */
 function generateTagMenuItems(id, type, columnId = null) {
     const tagConfig = window.tagColors || {};
+
+    // Debug: Check if tagColors is available
+    console.log('DEBUG: window.tagColors:', window.tagColors);
+    console.log('DEBUG: tagConfig keys:', Object.keys(tagConfig));
+
     const userAddedTags = getUserAddedTags();
     
     // Get current title to check which tags are active
@@ -897,19 +902,26 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         // Store the handler in a global object
         if (!window.tagHandlers) {window.tagHandlers = {};}
         window.tagHandlers[buttonId] = function(event) {
+            console.log('DEBUG: Tag button clicked', { buttonId, type, id, tagName });
             event.stopPropagation();
             event.preventDefault();
             if (type === 'column') {
+                console.log('DEBUG: Calling column tag handler');
                 if (typeof handleColumnTagClick === 'function') {
                     handleColumnTagClick(id, tagName, event);
                 } else if (typeof window.handleColumnTagClick === 'function') {
                     window.handleColumnTagClick(id, tagName, event);
+                } else {
+                    console.log('DEBUG: No column tag handler found');
                 }
             } else {
+                console.log('DEBUG: Calling task tag handler');
                 if (typeof handleTaskTagClick === 'function') {
                     handleTaskTagClick(id, columnId, tagName, event);
                 } else if (typeof window.handleTaskTagClick === 'function') {
                     window.handleTaskTagClick(id, columnId, tagName, event);
+                } else {
+                    console.log('DEBUG: No task tag handler found');
                 }
             }
             return false;
@@ -1674,9 +1686,11 @@ function createTaskElement(task, columnId, taskIndex) {
     // Extract ALL tags for stacking features (from the full title)
     const allTags = getActiveTagsInTitle(task.title);
 
-    // Tags should be inline only - no card-level styling
-    // Remove automatic tag extraction for card-level styling
-    const tagAttribute = '';
+    // Extract primary tag for styling (first non-special tag)
+    const primaryTag = window.extractFirstTag ? window.extractFirstTag(task.title) : null;
+    const tagAttribute = (primaryTag && !primaryTag.startsWith('row') && !primaryTag.startsWith('gather_') && !primaryTag.startsWith('span'))
+        ? ` data-task-tag="${primaryTag}"`
+        : '';
 
     // Add all tags attribute for stacking features
     const allTagsAttribute = allTags.length > 0 ? ` data-all-tags="${allTags.join(' ')}"` : '';
