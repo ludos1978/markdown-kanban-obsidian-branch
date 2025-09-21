@@ -122,8 +122,8 @@ export class BackupManager {
             }
         }
 
-        // Hidden file with . prefix for periodic backups, normal files for conflicts
-        const prefix = label === 'backup' ? '.' : '';
+        // Hidden file with . prefix for auto and backup files, normal files for conflicts
+        const prefix = (label === 'backup' || label === 'auto') ? '.' : '';
         const backupFileName = `${prefix}${basename}-${label}-${timestamp}.md`;
 
         return path.join(backupDir, backupFileName);
@@ -209,8 +209,8 @@ export class BackupManager {
             }
         }
 
-        // Hidden file with . prefix for periodic backups, normal files for conflicts
-        const prefix = label === 'backup' ? '.' : '';
+        // Hidden file with . prefix for auto and backup files, normal files for conflicts
+        const prefix = (label === 'backup' || label === 'auto') ? '.' : '';
         const backupFileName = `${prefix}${basename}-${label}-${timestamp}${ext}`;
 
         return path.join(backupDir, backupFileName);
@@ -269,9 +269,9 @@ export class BackupManager {
                 return;
             }
 
-            // Find all backup files for this document
-            // Pattern matches: .basename-backup-YYYYMMDDTHHmmss.md
-            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-backup-\\d{8}T\\d{6}\\.md$`);
+            // Find all backup and auto files for this document
+            // Pattern matches: .basename-(backup|auto)-YYYYMMDDTHHmmss.md
+            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(backup|auto)-\\d{8}T\\d{6}\\.md$`);
 
             const files = fs.readdirSync(backupDir);
             const backupFiles = files
@@ -343,7 +343,7 @@ export class BackupManager {
             const dir = path.dirname(originalPath);
             const basename = path.basename(originalPath, '.md');
             
-            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-backup-(\\d{8})-(\\d{4})\\.md$`);
+            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(backup|auto)-(\\d{8}T\\d{6})\\.md$`);
             
             const files = fs.readdirSync(dir);
             const backups = files
@@ -351,18 +351,19 @@ export class BackupManager {
                 .map(file => {
                     const match = file.match(backupPattern);
                     if (!match) {return null;}
-                    
-                    const dateStr = match[1];
-                    const timeStr = match[2];
-                    
-                    // Parse date from filename
-                    const year = parseInt(dateStr.substring(0, 4));
-                    const month = parseInt(dateStr.substring(4, 6)) - 1;
-                    const day = parseInt(dateStr.substring(6, 8));
-                    const hours = parseInt(timeStr.substring(0, 2));
-                    const minutes = parseInt(timeStr.substring(2, 4));
-                    
-                    const date = new Date(year, month, day, hours, minutes);
+
+                    const backupType = match[1]; // backup or auto
+                    const timestamp = match[2]; // YYYYMMDDTHHmmss
+
+                    // Parse date from timestamp
+                    const year = parseInt(timestamp.substring(0, 4));
+                    const month = parseInt(timestamp.substring(4, 6)) - 1;
+                    const day = parseInt(timestamp.substring(6, 8));
+                    const hours = parseInt(timestamp.substring(9, 11)); // Skip 'T'
+                    const minutes = parseInt(timestamp.substring(11, 13));
+                    const seconds = parseInt(timestamp.substring(13, 15));
+
+                    const date = new Date(year, month, day, hours, minutes, seconds);
                     
                     return {
                         name: file,
