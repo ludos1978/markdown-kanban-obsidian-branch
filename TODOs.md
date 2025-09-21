@@ -12,7 +12,7 @@ kanban-plugin: board
 - [x] focus the card after end editing it. also when starting to edit focus the card and the cursor position it's currently at.
 - [x] When a tag is in within the text, make the tag within the text only, dont add header or footers to the card itself. only make a line in the middle of the text.
 - [x] The view doesnt properly restore the content when automatically opening. for example when restarting debugging or when restoring a work-view it stays empty and must be manually be reopened.
-- [ ] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).
+- [x] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).
 - [ ] i allways need to build before restarting the debugging to see the changes applied. can you modify the configuration that this happens automatically and cleanly?
 - [ ] add the build version to the file info burger menu.
 - [ ] the max height of cards is limited after switching back to auto mode from a height limiting (card-height) mode.
