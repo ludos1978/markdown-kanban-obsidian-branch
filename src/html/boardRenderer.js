@@ -2348,9 +2348,27 @@ function injectStackableBars(targetElement = null) {
 
     elementsToProcess.forEach(element => {
         const allTagsAttr = element.getAttribute('data-all-tags');
-        const tags = allTagsAttr ? allTagsAttr.split(' ').filter(tag => tag.trim()) : [];
+        let tags = allTagsAttr ? allTagsAttr.split(' ').filter(tag => tag.trim()) : [];
         const isColumn = element.classList.contains('kanban-full-height-column');
         const isCollapsed = isColumn && element.classList.contains('collapsed');
+
+        // Filter out tags that are only in description for task elements
+        if (!isColumn) { // This is a task element
+            const taskDescDisplay = element.querySelector('.task-description-display');
+            if (taskDescDisplay) {
+                const descriptionTags = new Set();
+                // Find all tag spans in the description
+                taskDescDisplay.querySelectorAll('.kanban-tag').forEach(tagSpan => {
+                    const tagName = tagSpan.getAttribute('data-tag');
+                    if (tagName) {
+                        descriptionTags.add(tagName);
+                    }
+                });
+
+                // Only use tags that are NOT in description for card-level styling
+                tags = tags.filter(tag => !descriptionTags.has(tag));
+            }
+        }
         
         // Remove existing bars/containers - only from appropriate areas
         if (isColumn) {
