@@ -17,6 +17,7 @@ import { configService, ConfigurationService } from './configurationService';
 
 export class KanbanWebviewPanel {
     private static panels: Map<string, KanbanWebviewPanel> = new Map();
+    private static panelStates: Map<string, any> = new Map();
 
     public static readonly viewType = 'markdownKanbanPanel';
 
@@ -46,6 +47,7 @@ export class KanbanWebviewPanel {
     private _cachedBoardFromWebview: any = null;  // Store the latest cached board from webview
     private _isClosingPrevented: boolean = false;  // Flag to prevent recursive closing attempts
     private _lastDocumentUri?: string;  // Track current document for serialization
+    private _panelId: string;  // Unique identifier for this panel
 
     // Include file tracking
     private _includedFiles: string[] = [];
@@ -183,11 +185,19 @@ export class KanbanWebviewPanel {
         const kanbanPanel = new KanbanWebviewPanel(panel, extensionUri, context);
 
         // Try to restore the previously loaded document from state
-        if (state?.documentUri) {
+        const panelState = KanbanWebviewPanel.getPanelState(panel) || state;
+        const documentUri = panelState?.documentUri;
+
+        console.log('[DEBUG] Revival attempting to restore document:', documentUri);
+        console.log('[DEBUG] Panel state:', panelState);
+        console.log('[DEBUG] State parameter:', state);
+
+        if (documentUri) {
             try {
-                vscode.workspace.openTextDocument(vscode.Uri.parse(state.documentUri))
+                vscode.workspace.openTextDocument(vscode.Uri.parse(documentUri))
                     .then(async document => {
                         try {
+                            console.log('[DEBUG] Successfully restored document:', document.uri.toString());
                             await kanbanPanel.loadMarkdownFile(document);
                         } catch (error) {
                             console.warn('Failed to load document on panel revival:', error);
@@ -201,6 +211,7 @@ export class KanbanWebviewPanel {
                 kanbanPanel.tryAutoLoadActiveMarkdown();
             }
         } else {
+            console.log('[DEBUG] No document URI found in state, using fallback');
             // No state available, try to auto-load active markdown document
             kanbanPanel.tryAutoLoadActiveMarkdown();
         }
@@ -217,9 +228,31 @@ export class KanbanWebviewPanel {
         return Array.from(KanbanWebviewPanel.panels.values());
     }
 
+    // Panel state management methods
+    public setPanelState(state: any): void {
+        KanbanWebviewPanel.panelStates.set(this._panelId, state);
+        console.log('[DEBUG] Stored panel state for:', this._panelId, state);
+    }
+
+    public getPanelState(): any {
+        const state = KanbanWebviewPanel.panelStates.get(this._panelId);
+        console.log('[DEBUG] Retrieved panel state for:', this._panelId, state);
+        return state;
+    }
+
+    public clearPanelState(): void {
+        KanbanWebviewPanel.panelStates.delete(this._panelId);
+        console.log('[DEBUG] Cleared panel state for:', this._panelId);
+    }
+
+    public getPanelId(): string {
+        return this._panelId;
+    }
+
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
         this._panel = panel;
         this._extensionUri = extensionUri;
+        this._panelId = `panel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; // Generate unique ID
         this._context = context;
 
         // Initialize components
@@ -709,6 +742,18 @@ export class KanbanWebviewPanel {
 
         // Store document URI for serialization
         this._lastDocumentUri = document.uri.toString();
+
+        // Store panel state for serialization in VSCode context
+        this.setPanelState({
+            documentUri: document.uri.toString(),
+            panelId: this._panelId
+        });
+
+        // Also store in VSCode's global state for persistence across restarts
+        this._context.globalState.update(`kanban_panel_${this._panelId}`, {
+            documentUri: document.uri.toString(),
+            lastAccessed: Date.now()
+        });
         
         // Ensure file watcher is always set up for the current document
         const currentDocumentUri = this._fileManager.getDocument()?.uri.toString();
@@ -1454,8 +1499,10 @@ export class KanbanWebviewPanel {
         );
 
         if (openMarkdownDocs.length > 0) {
-            // Load the first available markdown document
-            this.loadMarkdownFile(openMarkdownDocs[0]);
+            // TEMP DISABLED: Don't auto-load random markdown files
+            // This was causing wrong files to be loaded on revival
+            // this.loadMarkdownFile(openMarkdownDocs[0]);
+            console.log('[DEBUG] Found', openMarkdownDocs.length, 'open markdown docs, but not auto-loading to prevent wrong file selection');
             return;
         }
 
@@ -1483,6 +1530,9 @@ export class KanbanWebviewPanel {
         if (documentUri && KanbanWebviewPanel.panels.get(documentUri) === this) {
             KanbanWebviewPanel.panels.delete(documentUri);
         }
+
+        // Clear panel state
+        this.clearPanelState();
 
         // Stop backup timer
         this._backupManager.dispose();
