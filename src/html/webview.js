@@ -2082,10 +2082,6 @@ function performFocusActions(focusTargets) {
             setTimeout(() => {
                 element.classList.remove('focus-highlight');
             }, 2000);
-        } else {
-            if (index === 0) {
-                // Only debug for first target to avoid spam
-            }
         }
     });
 }
@@ -2104,10 +2100,6 @@ window.addEventListener('message', event => {
     
     switch (message.type) {
         case 'updateBoard':
-            console.log('[UPDATE BOARD DEBUG] Received updateBoard message from VS Code');
-            console.log('[UPDATE BOARD DEBUG] Message contains board with', message.board?.columns?.length || 0, 'columns');
-            console.log('[UPDATE BOARD DEBUG] isFullRefresh:', message.isFullRefresh);
-            console.log('[UPDATE BOARD DEBUG] Stack trace:', new Error().stack);
             const previousBoard = currentBoard;
             
             // Clear card focus when board is updated
@@ -2452,10 +2444,10 @@ window.addEventListener('message', event => {
                 // Button is always visible, just update its state
                 if (message.hasChanges) {
                     refreshIncludesBtn.classList.add('has-changes');
-                    if (iconSpan) iconSpan.textContent = '❗';
+                    if (iconSpan) { iconSpan.textContent = '❗'; }
                 } else {
                     refreshIncludesBtn.classList.remove('has-changes');
-                    if (iconSpan) iconSpan.textContent = '✓';
+                    if (iconSpan) { iconSpan.textContent = '✓'; }
                 }
 
                 // Update badge count
@@ -3552,7 +3544,7 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 function initializeLayoutPresetsMenu() {
     const dropdown = document.getElementById('layout-presets-dropdown');
-    if (!dropdown) return;
+    if (!dropdown) { return; }
 
     // Clear existing content
     dropdown.innerHTML = '';
@@ -3588,7 +3580,7 @@ function toggleLayoutPresetsMenu() {
     const dropdown = document.getElementById('layout-presets-dropdown');
     const button = document.getElementById('layout-presets-btn');
 
-    if (!dropdown || !button) return;
+    if (!dropdown || !button) { return; }
 
     const isVisible = dropdown.classList.contains('show');
 
@@ -3619,7 +3611,7 @@ function toggleLayoutPresetsMenu() {
  */
 function applyLayoutPreset(presetKey) {
     const preset = layoutPresets[presetKey];
-    if (!preset) return;
+    if (!preset) { return; }
 
     // Apply each setting in the preset
     Object.entries(preset.settings).forEach(([settingKey, value]) => {

@@ -1086,8 +1086,6 @@ function renderSingleColumn(columnId, columnData) {
  * Performance: Debounced to prevent rapid re-renders
  */
 function renderBoard() {
-    console.log('[RENDER BOARD DEBUG] renderBoard() called');
-    console.log('[RENDER BOARD DEBUG] Stack trace:', new Error().stack);
 
     // Apply tag styles first
     applyTagStyles();
@@ -1606,7 +1604,7 @@ function createColumnElement(column, columnIndex) {
 												<div class="donut-menu-divider"></div>
 												${generateTagMenuItems(column.id, 'column')}
 												<div class="donut-menu-divider"></div>
-												<button class="donut-menu-item danger" onclick="console.log('[DELETE BUTTON DEBUG] Delete button clicked for column:', '${column.id}'); deleteColumn('${column.id}')">Delete list</button>
+												<button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
 										</div>
 								</div>
 						</div>

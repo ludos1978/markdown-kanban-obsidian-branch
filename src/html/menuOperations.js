@@ -53,10 +53,7 @@ class SimpleMenuManager {
 
     // Safe function execution without eval
     executeSafeFunction(functionString, element) {
-        if (functionString.includes('console.log')) {
-            functionString = functionString.replace(/console\.log\([^)]*\);?\s*/g, '');
-        }
-        
+
         // Handle window.tagHandlers pattern - but check if already handled
         const tagHandlerMatch = functionString.match(/window\.tagHandlers\['([^']+)'\]\(([^)]*)\)/);
         if (tagHandlerMatch) {
@@ -845,7 +842,7 @@ function changeColumnSpan(columnId, delta) {
     }
 
     // Update the column element immediately
-    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (columnElement) {
         // Update CSS classes (only blocked by viewport-based widths, not pixel widths)
         columnElement.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
@@ -918,7 +915,7 @@ function toggleColumnStack(columnId) {
     }
 
     // Update the column element immediately
-    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (columnElement) {
         // Update the title display (without stack tags if they're hidden)
         const titleElement = columnElement.querySelector('.column-title-display');
@@ -957,191 +954,36 @@ function toggleColumnStack(columnId) {
 }
 
 function deleteColumn(columnId) {
-    console.log('[DELETE COLUMN DEBUG] Starting deletion process for columnId:', columnId);
-    console.log('[DELETE COLUMN DEBUG] Type of columnId:', typeof columnId);
-
     // Close all menus properly
     closeAllMenus();
-    console.log('[DELETE COLUMN DEBUG] Menus closed');
-
-    // Check if cachedBoard exists
-    if (!window.cachedBoard) {
-        console.error('[DELETE COLUMN DEBUG] No cachedBoard found - deletion aborted');
-        return;
-    }
-    console.log('[DELETE COLUMN DEBUG] CachedBoard exists with', window.cachedBoard.columns?.length || 0, 'columns');
-
-    // Check if cachedBoard has columns
-    if (!window.cachedBoard.columns) {
-        console.error('[DELETE COLUMN DEBUG] CachedBoard has no columns array - deletion aborted');
-        return;
-    }
-
-    // Log all column IDs for debugging
-    console.log('[DELETE COLUMN DEBUG] Available column IDs:', window.cachedBoard.columns.map(col => `"${col.id}" (${typeof col.id})`));
 
     // NEW CACHE SYSTEM: Remove column from cached board first
-    const columnIndex = window.cachedBoard.columns.findIndex(col => col.id === columnId);
-    console.log('[DELETE COLUMN DEBUG] Column index found:', columnIndex);
+    if (window.cachedBoard) {
+        const columnIndex = window.cachedBoard.columns.findIndex(col => col.id === columnId);
+        if (columnIndex >= 0) {
+            const deletedColumn = window.cachedBoard.columns.splice(columnIndex, 1)[0];
 
-    if (columnIndex >= 0) {
-        console.log('[DELETE COLUMN DEBUG] Column found at index', columnIndex);
-        const deletedColumn = window.cachedBoard.columns.splice(columnIndex, 1)[0];
-        console.log('[DELETE COLUMN DEBUG] Column removed from cachedBoard:', deletedColumn.title);
-
-        // Also update currentBoard for compatibility
-        if (window.currentBoard !== window.cachedBoard) {
-            console.log('[DELETE COLUMN DEBUG] Updating separate currentBoard');
-            const currentColumnIndex = window.currentBoard.columns.findIndex(col => col.id === columnId);
-            console.log('[DELETE COLUMN DEBUG] CurrentBoard column index:', currentColumnIndex);
-            if (currentColumnIndex >= 0) {
-                window.currentBoard.columns.splice(currentColumnIndex, 1);
-                console.log('[DELETE COLUMN DEBUG] Column removed from currentBoard');
-            } else {
-                console.warn('[DELETE COLUMN DEBUG] Column not found in currentBoard');
-            }
-        } else {
-            console.log('[DELETE COLUMN DEBUG] CurrentBoard and cachedBoard are the same object');
-        }
-
-        // Remove column from DOM immediately
-        const allMatchingElements = document.querySelectorAll(`[data-column-id="${columnId}"]`);
-        console.log('[DELETE COLUMN DEBUG] Total elements with this column ID:', allMatchingElements.length);
-
-        const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
-        console.log('[DELETE COLUMN DEBUG] DOM column element found:', !!columnElement);
-
-        if (allMatchingElements.length > 1) {
-            console.warn('[DELETE COLUMN DEBUG] MULTIPLE ELEMENTS with same column ID found!');
-            allMatchingElements.forEach((el, index) => {
-                console.warn(`[DELETE COLUMN DEBUG] Element ${index}:`, el);
-                console.warn(`[DELETE COLUMN DEBUG] Element ${index} parent:`, el.parentElement);
-            });
-        }
-        if (columnElement) {
-            console.log('[DELETE COLUMN DEBUG] Removing column element from DOM');
-
-            // Add a mutation observer to detect if the element gets re-added
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    if (mutation.type === 'childList') {
-                        mutation.addedNodes.forEach((node) => {
-                            if (node.nodeType === Node.ELEMENT_NODE) {
-                                const element = node;
-                                // Check if this is our deleted column being re-added
-                                if (element.getAttribute && element.getAttribute('data-column-id') === columnId) {
-                                    console.error('[DELETE COLUMN DEBUG] COLUMN RE-ADDED TO DOM!');
-                                    console.error('[DELETE COLUMN DEBUG] Element re-added:', element);
-                                    console.error('[DELETE COLUMN DEBUG] Parent:', element.parentElement);
-                                    console.error('[DELETE COLUMN DEBUG] Stack trace:', new Error().stack);
-                                    observer.disconnect(); // Stop observing after we catch the culprit
-                                }
-                                // Also check child elements
-                                const reAddedColumn = element.querySelector && element.querySelector(`[data-column-id="${columnId}"]`);
-                                if (reAddedColumn) {
-                                    console.error('[DELETE COLUMN DEBUG] COLUMN RE-ADDED AS CHILD!');
-                                    console.error('[DELETE COLUMN DEBUG] Element re-added:', reAddedColumn);
-                                    console.error('[DELETE COLUMN DEBUG] Added via parent:', element);
-                                    console.error('[DELETE COLUMN DEBUG] Stack trace:', new Error().stack);
-                                    observer.disconnect();
-                                }
-                            }
-                        });
-                    }
-                });
-            });
-
-            // Start observing the document for changes
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-
-            // Stop observing after 2 seconds to prevent memory leaks
-            setTimeout(() => {
-                observer.disconnect();
-                console.log('[DELETE COLUMN DEBUG] Mutation observer stopped');
-            }, 2000);
-
-            // Log detailed info about the element we're removing
-            console.log('[DELETE COLUMN DEBUG] Element to remove:', columnElement);
-            console.log('[DELETE COLUMN DEBUG] Element parent:', columnElement.parentElement);
-            console.log('[DELETE COLUMN DEBUG] Element innerHTML preview:', columnElement.innerHTML.substring(0, 200));
-            console.log('[DELETE COLUMN DEBUG] Element classes:', columnElement.className);
-
-            // Remove ALL elements with this column ID (not just the first one)
-            console.log('[DELETE COLUMN DEBUG] Removing', allMatchingElements.length, 'elements');
-            allMatchingElements.forEach((el, index) => {
-                console.log(`[DELETE COLUMN DEBUG] Removing element ${index}:`, el);
-                el.remove();
-            });
-            console.log('[DELETE COLUMN DEBUG] All column elements removed from DOM');
-
-            // Immediately check if any are still there
-            const stillThere = document.querySelectorAll(`[data-column-id="${columnId}"]`);
-            console.log('[DELETE COLUMN DEBUG] Elements still in DOM immediately after removal:', stillThere.length);
-            if (stillThere.length > 0) {
-                console.error('[DELETE COLUMN DEBUG] Some elements were NOT removed!');
-                stillThere.forEach((el, index) => {
-                    console.error(`[DELETE COLUMN DEBUG] Still there element ${index}:`, el);
-                    console.error(`[DELETE COLUMN DEBUG] Still there element ${index} parent:`, el.parentElement);
-                });
-            }
-        } else {
-            console.warn('[DELETE COLUMN DEBUG] Column element not found in DOM with selector:', `[data-column-id="${columnId}"]`);
-            // Try to find elements with similar IDs for debugging
-            const allColumns = document.querySelectorAll('[data-column-id]');
-            console.log('[DELETE COLUMN DEBUG] All column elements in DOM:', Array.from(allColumns).map(el => el.getAttribute('data-column-id')));
-        }
-
-        // Mark board as having unsaved changes
-        console.log('[DELETE COLUMN DEBUG] Marking unsaved changes');
-        markUnsavedChanges();
-
-        // Send message to VS Code for undo tracking
-        console.log('[DELETE COLUMN DEBUG] Sending message to VS Code');
-        vscode.postMessage({ type: 'deleteColumn', columnId });
-        console.log('[DELETE COLUMN DEBUG] Message sent to VS Code');
-
-        console.log('[DELETE COLUMN DEBUG] Column deletion completed successfully');
-
-        // Add debugging to check if anything undoes our changes
-        setTimeout(() => {
-            console.log('[DELETE COLUMN DEBUG] Post-deletion check (100ms later):');
-            console.log('[DELETE COLUMN DEBUG] CachedBoard still has', window.cachedBoard?.columns?.length || 0, 'columns');
-            const columnStillExists = window.cachedBoard?.columns?.find(col => col.id === columnId);
-            console.log('[DELETE COLUMN DEBUG] Column still exists in cachedBoard:', !!columnStillExists);
-
-            const domElementStillExists = document.querySelector(`[data-column-id="${columnId}"]`);
-            console.log('[DELETE COLUMN DEBUG] DOM element still exists:', !!domElementStillExists);
-
-            if (columnStillExists || domElementStillExists) {
-                console.warn('[DELETE COLUMN DEBUG] Column was restored! Something undid the deletion.');
-                if (columnStillExists) {
-                    console.warn('[DELETE COLUMN DEBUG] Column restored in data:', columnStillExists.title);
-                }
-                if (domElementStillExists) {
-                    console.warn('[DELETE COLUMN DEBUG] DOM element restored');
+            // Also update currentBoard for compatibility
+            if (window.currentBoard !== window.cachedBoard) {
+                const currentColumnIndex = window.currentBoard.columns.findIndex(col => col.id === columnId);
+                if (currentColumnIndex >= 0) {
+                    window.currentBoard.columns.splice(currentColumnIndex, 1);
                 }
             }
-        }, 100);
 
-        setTimeout(() => {
-            console.log('[DELETE COLUMN DEBUG] Post-deletion check (500ms later):');
-            const columnStillExists = window.cachedBoard?.columns?.find(col => col.id === columnId);
-            const domElementStillExists = document.querySelector(`[data-column-id="${columnId}"]`);
-            console.log('[DELETE COLUMN DEBUG] Column still exists in cachedBoard (500ms):', !!columnStillExists);
-            console.log('[DELETE COLUMN DEBUG] DOM element still exists (500ms):', !!domElementStillExists);
-        }, 500);
-    } else {
-        console.error('[DELETE COLUMN DEBUG] Column not found in cachedBoard - deletion failed');
-        console.error('[DELETE COLUMN DEBUG] Search was for columnId:', columnId);
-        console.error('[DELETE COLUMN DEBUG] Available columns:', window.cachedBoard.columns.map(col => ({
-            id: col.id,
-            title: col.title,
-            type: typeof col.id,
-            matches: col.id === columnId
-        })));
+            // Remove column from DOM immediately - use specific selector to avoid removing tasks
+            const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
+            if (columnElement) {
+                columnElement.remove();
+            }
+
+            // Mark board as having unsaved changes
+            markUnsavedChanges();
+
+            // Send message to VS Code for undo tracking
+            vscode.postMessage({ type: 'deleteColumn', columnId });
+
+        }
     }
 }
 
@@ -1901,42 +1743,78 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
 function deleteTask(taskId, columnId) {
     // Close all menus properly
     closeAllMenus();
-    
+
     // NEW CACHE SYSTEM: Remove task from cached board instead of sending to VS Code immediately
     if (window.cachedBoard) {
-        const column = window.cachedBoard.columns.find(col => col.id === columnId);
-        if (column) {
-            const taskIndex = column.tasks.findIndex(t => t.id === taskId);
+        // Find the task in any column (task might have been moved since the menu was generated)
+        let foundColumn = null;
+        let taskIndex = -1;
+
+        for (const column of window.cachedBoard.columns) {
+            taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex >= 0) {
-                const deletedTask = column.tasks.splice(taskIndex, 1)[0];
-                
-                // Also update currentBoard for compatibility
-                if (window.currentBoard !== window.cachedBoard) {
-                    const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
-                    if (currentColumn) {
-                        const currentTaskIndex = currentColumn.tasks.findIndex(t => t.id === taskId);
-                        if (currentTaskIndex >= 0) {
-                            currentColumn.tasks.splice(currentTaskIndex, 1);
-                        }
+                foundColumn = column;
+                break;
+            }
+        }
+
+        if (foundColumn && taskIndex >= 0) {
+            const deletedTask = foundColumn.tasks.splice(taskIndex, 1)[0];
+
+            // Also update currentBoard for compatibility
+            if (window.currentBoard !== window.cachedBoard) {
+                for (const currentColumn of window.currentBoard.columns) {
+                    const currentTaskIndex = currentColumn.tasks.findIndex(t => t.id === taskId);
+                    if (currentTaskIndex >= 0) {
+                        currentColumn.tasks.splice(currentTaskIndex, 1);
+                        break;
                     }
                 }
-                
-                // Remove task from DOM immediately
-                const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
-                if (taskElement) {
-                    taskElement.remove();
-                }
-                
-                // Mark board as having unsaved changes
-                markUnsavedChanges();
-                
-                // Send message to VS Code for undo tracking
-                vscode.postMessage({ type: 'deleteTask', taskId, columnId });
-                
             }
+
+            // Remove task from DOM immediately
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (taskElement) {
+                taskElement.remove();
+            }
+
+            // Check if column is now empty and add placeholder button
+            updateColumnEmptyState(foundColumn.id);
+
+            // Mark board as having unsaved changes
+            markUnsavedChanges();
+
+            // Send message to VS Code for undo tracking - use the actual column where task was found
+            vscode.postMessage({ type: 'deleteTask', taskId, columnId: foundColumn.id });
+
         }
     }
 }
+
+// Helper function to update column empty state (add/remove placeholder button)
+function updateColumnEmptyState(columnId) {
+    const tasksContainer = document.querySelector(`#tasks-${columnId}`);
+    if (!tasksContainer) { return; }
+
+    // Count actual task elements (not placeholder buttons)
+    const taskElements = tasksContainer.querySelectorAll('.task-item');
+    const hasAddButton = tasksContainer.querySelector('.add-task-btn');
+
+    if (taskElements.length === 0 && !hasAddButton) {
+        // Column is empty and has no add button - add it
+        const addButton = document.createElement('button');
+        addButton.className = 'add-task-btn';
+        addButton.setAttribute('onclick', `addTask('${columnId}')`);
+        addButton.innerHTML = '\n                        + Add Task\n                    ';
+        tasksContainer.appendChild(addButton);
+    } else if (taskElements.length > 0 && hasAddButton) {
+        // Column has tasks but still has add button - remove it
+        hasAddButton.remove();
+    }
+}
+
+// Make updateColumnEmptyState globally available
+window.updateColumnEmptyState = updateColumnEmptyState;
 
 // Helper function to update cache when creating tasks
 function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
@@ -2026,7 +1904,7 @@ function addTask(columnId) {
 
 // Helper function to unfold a column if it's collapsed
 function unfoldColumnIfCollapsed(columnId) {
-    const column = document.querySelector(`[data-column-id="${columnId}"]`);
+    const column = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (column?.classList.contains('collapsed')) {
         toggleColumnCollapse(columnId);
         return true; // Column was unfolded
@@ -2095,7 +1973,7 @@ function toggleColumnTag(columnId, tagName, event) {
     
     
     // Also check DOM element
-    const domElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    const domElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (!domElement) {
         return;
     }
@@ -2286,7 +2164,7 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
  */
 function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     // Use unique ID to find column element - NEVER use titles for selection
-    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (!columnElement) {
         return;
     }
@@ -3556,5 +3434,4 @@ window.updateAllVisualTagElements = updateAllVisualTagElements;
 window.refreshIncludes = refreshIncludes;
 window.toggleTaskIncludeMode = toggleTaskIncludeMode;
 window.editTaskIncludeFile = editTaskIncludeFile;
-window.deleteColumn = deleteColumn;
 
