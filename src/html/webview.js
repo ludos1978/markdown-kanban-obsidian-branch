@@ -2497,13 +2497,11 @@ window.addEventListener('message', event => {
             break;
         case 'clipboardImageSaved':
             // Handle clipboard image save response from backend
-            console.log('[DEBUG] Received clipboardImageSaved message:', message);
             if (message.success) {
                 // Create a new task with the image filename as title and markdown link as description
                 const imageFileName = message.relativePath.split('/').pop().replace(/\.[^/.]+$/, ''); // Remove extension
                 const markdownLink = `![](${message.relativePath})`;
 
-                console.log('[DEBUG] Creating task with title:', imageFileName, 'and markdown:', markdownLink);
                 createNewTaskWithContent(
                     imageFileName,
                     message.dropPosition,
@@ -2511,7 +2509,6 @@ window.addEventListener('message', event => {
                 );
             } else {
                 // Create error task if save failed
-                console.log('[DEBUG] Image save failed, creating error task');
                 createNewTaskWithContent(
                     'Clipboard Image (Error)',
                     message.dropPosition,
@@ -2543,11 +2540,6 @@ window.addEventListener('message', event => {
             break;
         case 'updateColumnContent':
             // Handle targeted column content update for include file changes
-            console.log(`[Frontend Debug] Received updateColumnContent for column ${message.columnId}:`, {
-                taskCount: message.tasks?.length || 0,
-                includeFile: message.includeFile,
-                tasks: message.tasks?.map(t => t.title) || []
-            });
 
             // Update the column in cached board
             if (window.cachedBoard && window.cachedBoard.columns) {
@@ -2560,37 +2552,20 @@ window.addEventListener('message', event => {
                     column.includeMode = message.includeMode;
                     column.includeFiles = message.includeFiles;
 
-                    console.log(`[Frontend Debug] Updated column ${message.columnId}:`, {
-                        taskCount: column.tasks.length,
-                        title: column.title,
-                        displayTitle: column.displayTitle,
-                        includeMode: column.includeMode,
-                        includeFiles: column.includeFiles
-                    });
 
                     // Re-render just this column
                     if (typeof renderSingleColumn === 'function') {
                         renderSingleColumn(message.columnId, column);
-                        console.log(`[Frontend Debug] Re-rendered column ${message.columnId}`);
                     } else {
-                        console.warn(`[Frontend Debug] renderSingleColumn function not available, falling back to full render`);
                         if (typeof window.renderBoard === 'function') {
                             window.renderBoard();
                         }
                     }
-                } else {
-                    console.warn(`[Frontend Debug] Column ${message.columnId} not found in cached board`);
                 }
-            } else {
-                console.warn(`[Frontend Debug] No cached board available for column update`);
             }
             break;
         case 'updateTaskContent':
             // Handle targeted task content update for include file changes
-            console.log(`[Frontend Debug] Received updateTaskContent for task ${message.taskId}:`, {
-                description: message.description?.substring(0, 100) + (message.description?.length > 100 ? '...' : ''),
-                includeFile: message.includeFile
-            });
 
             // Update the task in cached board
             if (window.cachedBoard && window.cachedBoard.columns) {
@@ -2616,29 +2591,16 @@ window.addEventListener('message', event => {
                     foundTask.includeFiles = message.includeFiles;
                     foundTask.originalTitle = message.originalTitle || foundTask.originalTitle;
 
-                    console.log(`[Frontend Debug] Updated task ${message.taskId}:`, {
-                        description: foundTask.description?.substring(0, 100) + (foundTask.description?.length > 100 ? '...' : ''),
-                        title: foundTask.title,
-                        displayTitle: foundTask.displayTitle,
-                        includeMode: foundTask.includeMode,
-                        includeFiles: foundTask.includeFiles
-                    });
 
                     // Re-render just this column to reflect the task update
                     if (typeof renderSingleColumn === 'function') {
                         renderSingleColumn(foundColumn.id, foundColumn);
-                        console.log(`[Frontend Debug] Re-rendered column ${foundColumn.id} for task update`);
                     } else {
-                        console.warn(`[Frontend Debug] renderSingleColumn function not available, falling back to full render`);
                         if (typeof window.renderBoard === 'function') {
                             window.renderBoard();
                         }
                     }
-                } else {
-                    console.warn(`[Frontend Debug] Task ${message.taskId} not found in cached board`);
                 }
-            } else {
-                console.warn(`[Frontend Debug] No cached board available for task update`);
             }
             break;
     }

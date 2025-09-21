@@ -2,7 +2,9 @@
 kanban-plugin: board
 ---
 
-- [ ] when converting paths to media links for the drag & drop task source:
+- [x] if i focus another view in vscode the kanban board looses all unsaved changes.
+- [x] if still tries to add headers/footers for tags with theses aspects within the task description. only if in the title of the task, should it add headers footers. othervise add these styles inline (a line with the headers/footers within the descripiton)
+- [x] when converting paths to media links for the drag & drop task source:
   - make sure windows paths are also discovered as urls!
 	- make sure to convert paths to %-encoding / url encoding. for example a space is %20, etc. use a library to do the conversion!
 	- dont add any ` " or anything else but the defined markdown link styles and the url-encoding!!!
@@ -20,11 +22,11 @@ kanban-plugin: board
 - [x] the file-path-parsing of filenames with special characters needs to use percentage encoding %20=space to make sure it can be loaded correctly. use this when converting paths to url's while creating links with [[path/to/markdown]] and [](path/to/image.png) or ![](path/to/image.png).
 - [x] i allways need to build before restarting the debugging to see the changes applied. can you modify the configuration that this happens automatically and cleanly?
 - [x] add the build version to the file info burger menu.
-- [ ] the max height of cards is limited after switching back to auto mode from a height limiting (card-height) mode.
-- [ ] when a markdown file is not initialized reload the file after pressing initialize.
-- [ ] the auto and backup files must allways be created as hidden files (.filename). the conflict files might be visible. there is also an auto type which i did not specify, use backup 
-- [ ] undo does not work anymore consistently. i could not undo edits in a file.
-- [ ] find code duplicates. find parts that do something similar or the same. create a comprehensive list of all functions in all js und ts html and css an note what they are for (for functions larger then a few lines, split it int mutiple features). write the result into @FUNCTIONS.md .  try to create  unique naming system for features and write down the functions and line number within the function. later we are going to compare the results and fin duplicates.
+- [x] the max height of cards is limited after switching back to auto mode from a height limiting (card-height) mode.
+- [x] when a markdown file is not initialized reload the file after pressing initialize.
+- [x] the auto and backup files must allways be created as hidden files (.filename). the conflict files might be visible. there is also an auto type which i did not specify, use backup 
+- [x] undo does not work anymore consistently. i could not undo edits in a file.
+- [x] find code duplicates. find parts that do something similar or the same. create a comprehensive list of all functions in all js und ts html and css an note what they are for (for functions larger then a few lines, split it int mutiple features). write the result into @FUNCTIONS.md .  try to create  unique naming system for features and write down the functions and line number within the function. later we are going to compare the results and fin duplicates.
 
 
 ## Closed Bugs

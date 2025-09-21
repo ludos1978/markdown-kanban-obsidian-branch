@@ -607,7 +607,6 @@ function handleClipboardImageDrop(e, imageData) {
     try {
         // Parse the image data
         const parsedData = JSON.parse(imageData);
-        console.log('[DEBUG] Parsed clipboard image data:', parsedData);
 
         const base64Data = parsedData.data;
         const imageType = parsedData.imageType || 'image/png';
@@ -624,7 +623,6 @@ function handleClipboardImageDrop(e, imageData) {
 
         // Extract the base64 part (remove data:image/png;base64, prefix if present)
         const base64Only = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
-        console.log('[DEBUG] Base64 data length:', base64Only.length);
 
         processImageSave(e, base64Only, imageType, parsedData.md5Hash);
 
@@ -642,13 +640,10 @@ function processImageSave(e, base64Data, imageType, md5Hash) {
     try {
 
         // Get the current markdown file information
-        console.log('=== DEBUG currentFileInfo:', window.currentFileInfo);
         let currentFilePath = window.currentFileInfo?.filePath;
-        console.log('=== DEBUG currentFilePath:', currentFilePath);
 
         // Fallback: Request file path from backend if not available
         if (!currentFilePath) {
-            console.log('=== DEBUG: Requesting file path from backend ===');
             // Send message to backend to get current file path and save image
             vscode.postMessage({
                 type: 'saveClipboardImageWithPath',
@@ -677,14 +672,6 @@ function processImageSave(e, base64Data, imageType, md5Hash) {
         const mediaFolderPath = `${directory}/${mediaFolderName}`;
         const imagePath = `${mediaFolderPath}/${imageFileName}`;
 
-        console.log('[DEBUG] Image paths:', {
-            currentFilePath,
-            baseFileName,
-            mediaFolderName,
-            mediaFolderPath,
-            imagePath,
-            imageFileName
-        });
 
         // Send message to VS Code to save the image
         // The task card will be created by the 'clipboardImageSaved' message handler
