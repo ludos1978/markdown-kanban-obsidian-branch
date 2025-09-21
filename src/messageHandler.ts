@@ -1218,11 +1218,6 @@ export class MessageHandler {
         mediaFolderName: string
     ): Promise<void> {
         try {
-                mediaFolderPath,
-                imagePath,
-                imageFileName,
-                mediaFolderName
-            });
 
             // Ensure the media folder exists
             if (!fs.existsSync(mediaFolderPath)) {
@@ -1307,14 +1302,6 @@ export class MessageHandler {
             const mediaFolderName = `${baseFileName}-MEDIA`;
             const mediaFolderPath = `${directory}/${mediaFolderName}`;
             const imagePath = `${mediaFolderPath}/${imageFileName}`;
-
-                currentFilePath,
-                baseFileName,
-                mediaFolderName,
-                mediaFolderPath,
-                imagePath,
-                imageFileName
-            });
 
             // Ensure the media folder exists
             if (!fs.existsSync(mediaFolderPath)) {

@@ -45,6 +45,7 @@ export class KanbanWebviewPanel {
     private _hasUnsavedChanges: boolean = false;  // Track unsaved changes at panel level
     private _cachedBoardFromWebview: any = null;  // Store the latest cached board from webview
     private _isClosingPrevented: boolean = false;  // Flag to prevent recursive closing attempts
+    private _lastDocumentUri?: string;  // Track current document for serialization
 
     // Include file tracking
     private _includedFiles: string[] = [];
@@ -162,24 +163,47 @@ export class KanbanWebviewPanel {
         }
     }
 
-    public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
+    public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext, state?: any) {
         // ENHANCED: Set comprehensive permissions on revive
         const localResourceRoots = [extensionUri];
-        
+
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (workspaceFolders) {
             workspaceFolders.forEach(folder => {
                 localResourceRoots.push(folder.uri);
             });
         }
-        
+
         panel.webview.options = {
             enableScripts: true,
             localResourceRoots: localResourceRoots,
         };
-        
-        
+
+
         const kanbanPanel = new KanbanWebviewPanel(panel, extensionUri, context);
+
+        // Try to restore the previously loaded document from state
+        if (state?.documentUri) {
+            try {
+                vscode.workspace.openTextDocument(vscode.Uri.parse(state.documentUri))
+                    .then(async document => {
+                        try {
+                            await kanbanPanel.loadMarkdownFile(document);
+                        } catch (error) {
+                            console.warn('Failed to load document on panel revival:', error);
+                            // Fallback: try to find an active markdown document
+                            kanbanPanel.tryAutoLoadActiveMarkdown();
+                        }
+                    });
+            } catch (error) {
+                console.warn('Failed to open document URI on panel revival:', error);
+                // Fallback: try to find an active markdown document
+                kanbanPanel.tryAutoLoadActiveMarkdown();
+            }
+        } else {
+            // No state available, try to auto-load active markdown document
+            kanbanPanel.tryAutoLoadActiveMarkdown();
+        }
         // Don't store in map yet - will be stored when document is loaded
     }
 
@@ -682,6 +706,9 @@ export class KanbanWebviewPanel {
         if (this._isUpdatingFromPanel) {
             return;
         }
+
+        // Store document URI for serialization
+        this._lastDocumentUri = document.uri.toString();
         
         // Ensure file watcher is always set up for the current document
         const currentDocumentUri = this._fileManager.getDocument()?.uri.toString();
@@ -1411,6 +1438,29 @@ export class KanbanWebviewPanel {
             // No unsaved changes, proceed with normal disposal
             this.dispose();
         }
+    }
+
+    private tryAutoLoadActiveMarkdown() {
+        // Try to find the active markdown document in the editor
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor && activeEditor.document.languageId === 'markdown') {
+            this.loadMarkdownFile(activeEditor.document);
+            return;
+        }
+
+        // If no active markdown editor, look for any open markdown document
+        const openMarkdownDocs = vscode.workspace.textDocuments.filter(doc =>
+            doc.languageId === 'markdown' && !doc.isUntitled
+        );
+
+        if (openMarkdownDocs.length > 0) {
+            // Load the first available markdown document
+            this.loadMarkdownFile(openMarkdownDocs[0]);
+            return;
+        }
+
+        // No markdown documents available - panel will remain empty
+        // User can manually select a file to load
     }
 
     public async dispose() {
