@@ -1,20 +1,288 @@
-# COMPREHENSIVE FUNCTION CATALOG - Markdown Kanban Obsidian
-## Complete Codebase Analysis for Duplicate Detection & Code Organization
+# CODE DUPLICATE ANALYSIS REPORT - Markdown Kanban VSCode Extension
+## Comprehensive Function Analysis and Refactoring Recommendations
 
 ---
 
 ## 🎯 EXECUTIVE SUMMARY
 
-**Total Functions Analyzed:** 4,327 functions across 66 files
-**Exact Duplicates Found:** 15 function groups (100% identical code)
-**Functional Duplicates:** 28 function groups (85-99% similar logic)
-**Large Functions Requiring Refactoring:** 31 functions (>50 lines)
-**Critical Monolithic Classes:** 3 classes (>1000 lines each)
+**Total Files Analyzed:** 56 files (TypeScript, JavaScript, HTML, CSS)
+**Total Functions Identified:** 200+ functions
+**High Priority Duplicates:** 3 sets (file type detection, HTML escaping, configuration getters)
+**Medium Priority Duplicates:** 5 sets (modal management, tag operations, event handlers)
+**Estimated LOC Reduction Potential:** 400-500 lines
 
-**Duplication Rate:** ~18% of codebase contains duplicate or near-duplicate functionality
-**Refactoring Priority:** 🔴 High (46 items), 🟡 Medium (67 items), 🟢 Low (23 items)
+## 🚨 CRITICAL DUPLICATE PATTERNS IDENTIFIED
+
+### 1. FILE TYPE DETECTION - HIGHEST PRIORITY
+
+**DUPLICATE LOCATIONS:**
+- `/src/utils/fileTypeUtils.ts` (TypeScript Backend)
+- `/src/html/utils/fileTypeUtils.js` (JavaScript Frontend)
+- `/src/html/utils/validationUtils.js` (Partial implementation)
+
+**DUPLICATED FUNCTIONS:**
+- `isImageFile(fileName)` - Detects image files by extension
+- `isVideoFile(fileName)` - Detects video files by extension
+- `isAudioFile(fileName)` - Detects audio files by extension
+- `isMediaFile(fileName)` - Combines all media file detection
+- `isMarkdownFile(fileName)` - Detects markdown files
+- `isTextFile(fileName)` - Detects text files
+- `getMimeType(fileName)` - Returns MIME type for file
+- `getFileCategory(fileName)` - Categorizes file types
+
+**IMPACT:** 3 complete implementations with identical logic, ~200 lines of duplicate code
+
+### 2. HTML ESCAPING/VALIDATION - HIGH PRIORITY
+
+**DUPLICATE LOCATIONS:**
+- `/src/html/utils/validationUtils.js` (Primary implementation)
+- `/src/html/markdown-it-include-browser.js` (Duplicate implementation)
+
+**DUPLICATED FUNCTIONS:**
+- `escapeHtml(text)` - Escapes HTML characters to prevent XSS
+- `escapeFilePath(filePath)` - Escapes file paths for safe markdown/HTML use
+
+**IMPACT:** Identical implementations in 2 locations, security-critical functionality
+
+### 3. CONFIGURATION GETTERS - HIGH PRIORITY
+
+**LOCATION:** `/src/kanbanWebviewPanel.ts` (Lines 425-522)
+
+**DUPLICATED PATTERN (12 functions):**
+- `_getTagConfiguration()` - Gets tag color configuration
+- `_getWhitespaceConfiguration()` - Gets whitespace handling config
+- `_getTaskMinHeightConfiguration()` - Gets minimum task height
+- `_getFontSizeConfiguration()` - Gets font size setting
+- `_getFontFamilyConfiguration()` - Gets font family setting
+- `_getColumnWidthConfiguration()` - Gets column width setting
+- `_getLayoutRowsConfiguration()` - Gets layout rows setting
+- `_getRowHeightConfiguration()` - Gets row height setting
+- `_getLayoutPresetConfiguration()` - Gets layout preset setting
+- `_getLayoutPresetsConfiguration()` - Gets available presets
+- `_getMaxRowHeightConfiguration()` - Gets max row height
+- `_getShowRowTagsConfiguration()` - Gets show row tags setting
+
+**IMPACT:** 12 nearly identical functions following same pattern, ~150 lines of duplicate code
 
 ---
+
+## 📋 COMPLETE FUNCTION INVENTORY
+
+### TypeScript Backend Files
+
+#### `/src/extension.ts` - Extension Entry Point (12 functions)
+- **FN-EXT-001** `activate(context)` (Line 6) - Main extension activation [LARGE: 300+ lines]
+- **FN-EXT-002** `deactivate()` (Line 315) - Extension cleanup
+- **FN-EXT-003** `getFileListenerStatus()` (Line 13) - Returns file listener state
+- **FN-EXT-004** `setFileListenerStatus(enabled)` (Line 18) - Toggles file listener
+- **FN-EXT-005** `openKanbanCommand` (Line 61) - Command handler for opening kanban [LARGE: 50+ lines]
+- **FN-EXT-006** `debugPermissionsCommand` (Line 114) - Debug webview permissions
+- **FN-EXT-007** `disableFileListenerCommand` (Line 129) - Toggle file listener command
+- **FN-EXT-008** `toggleFileOpeningCommand` (Line 136) - Toggle file opening behavior
+- **FN-EXT-009** `toggleFileLockCommand` (Line 146) - Toggle file lock command [COMPLEX: 20+ lines]
+- **FN-EXT-010** `openKanbanFromPanelCommand` (Line 169) - Open file from panel
+- **FN-EXT-011** `switchFileCommand` (Line 199) - Manual file switching
+- **FN-EXT-012** `insertSnippetCommand` (Line 228) - Insert snippets
+
+#### `/src/kanbanWebviewPanel.ts` - Main Webview Panel (60+ functions) [MONOLITHIC: 2900+ lines]
+**Panel Management:**
+- **FN-PANEL-001** `createOrShow()` (Line 99) - Create or show webview panel [LARGE: 60+ lines]
+- **FN-PANEL-002** `revive()` (Line 165) - Restore panel from serialized state
+- **FN-PANEL-003** `getPanelForDocument()` (Line 187) - Get panel for specific document
+- **FN-PANEL-004** `getAllPanels()` (Line 192) - Get all active panels
+- **FN-PANEL-005** `refreshWebviewContent()` (Line 73) - Force refresh webview
+
+**Core Operations:**
+- **FN-PANEL-006** `loadMarkdownFile()` (Line 670) - Load and parse markdown file [LARGE: 200+ lines]
+- **FN-PANEL-007** `saveToMarkdown()` (Line 998) - Save board state to markdown [LARGE: 150+ lines]
+- **FN-PANEL-008** `sendBoardUpdate()` (Line 893) - Send board data to webview [LARGE: 70+ lines]
+- **FN-PANEL-009** `handleLinkReplacement()` (Line 282) - Handle link replacements [LARGE: 70+ lines]
+- **FN-PANEL-010** `initializeFile()` (Line 1157) - Initialize new kanban file [LARGE: 50+ lines]
+
+**Configuration Getters (DUPLICATE PATTERN):**
+- **FN-PANEL-011** `_getTagConfiguration()` (Line 425) - Gets tag color config 🔴 DUPLICATE PATTERN
+- **FN-PANEL-012** `_getWhitespaceConfiguration()` (Line 429) - Gets whitespace config 🔴 DUPLICATE PATTERN
+- **FN-PANEL-013** `_getTaskMinHeightConfiguration()` (Line 433) - Gets task height 🔴 DUPLICATE PATTERN
+- **FN-PANEL-014** `_getFontSizeConfiguration()` (Line 437) - Gets font size 🔴 DUPLICATE PATTERN
+- **FN-PANEL-015** `_getFontFamilyConfiguration()` (Line 441) - Gets font family 🔴 DUPLICATE PATTERN
+- **FN-PANEL-016** `_getColumnWidthConfiguration()` (Line 445) - Gets column width 🔴 DUPLICATE PATTERN
+- **FN-PANEL-017** `_getLayoutRowsConfiguration()` (Line 449) - Gets layout rows 🔴 DUPLICATE PATTERN
+- **FN-PANEL-018** `_getRowHeightConfiguration()` (Line 453) - Gets row height 🔴 DUPLICATE PATTERN
+- **FN-PANEL-019** `_getLayoutPresetConfiguration()` (Line 457) - Gets layout preset 🔴 DUPLICATE PATTERN
+- **FN-PANEL-020** `_getLayoutPresetsConfiguration()` (Line 461) - Gets presets 🔴 DUPLICATE PATTERN
+- **FN-PANEL-021** `_getMaxRowHeightConfiguration()` (Line 517) - Gets max row height 🔴 DUPLICATE PATTERN
+- **FN-PANEL-022** `_getShowRowTagsConfiguration()` (Line 1533) - Gets show row tags 🔴 DUPLICATE PATTERN
+
+**Include File Management:**
+- **FN-PANEL-023** `refreshIncludes()` (Line 1906) - Refresh include file contents [LARGE: 50+ lines]
+- **FN-PANEL-024** `saveColumnIncludeChanges()` (Line 1992) - Save column include changes [LARGE: 120+ lines]
+- **FN-PANEL-025** `saveTaskIncludeChanges()` (Line 2244) - Save task include changes [LARGE: 100+ lines]
+- **FN-PANEL-026** `checkForExternalIncludeFileChanges()` (Line 1682) - Check external changes [LARGE: 70+ lines]
+- **FN-PANEL-027** `_initializeIncludeFileContents()` (Line 1776) - Initialize includes [LARGE: 50+ lines]
+- **FN-PANEL-028** `handleIncludeFileConflict()` (Line 2544) - Handle include conflicts [LARGE: 70+ lines]
+- **FN-PANEL-029** `reprocessTaskIncludes()` (Line 2116) - Reprocess task includes [LARGE: 100+ lines]
+
+**Utility Functions:**
+- **FN-PANEL-030** `dispose()` (Line 1415) - Clean up panel resources [LARGE: 30+ lines]
+- **FN-PANEL-031** `toggleFileLock()` (Line 526) - Toggle file lock state
+- **FN-PANEL-032** `checkForExternalUnsavedChanges()` (Line 1630) - Check external changes [LARGE: 50+ lines]
+- **FN-PANEL-033** `_createUnifiedBackup()` (Line 1452) - Create unified backup [LARGE: 35+ lines]
+- **FN-PANEL-034** `trackIncludeFileUnsavedChanges()` (Line 2811) - Track unsaved changes [LARGE: 100+ lines]
+
+#### `/src/markdownParser.ts` - Markdown Parsing (8 functions) [LARGE: 800+ lines]
+- **FN-PARSER-001** `parseMarkdown()` (Line 38) - Parse markdown to kanban board [LARGE: 450+ lines]
+- **FN-PARSER-002** `serializeToMarkdown()` (Line 515) - Convert board to markdown [LARGE: 150+ lines]
+- **FN-PARSER-003** `processInlineIncludes()` (Line 667) - Process inline include syntax [LARGE: 170+ lines]
+- **FN-PARSER-004** `generateBoardFromMarkdown()` (Line 838) - Generate board structure
+- **FN-PARSER-005** `parseColumnsFromTables()` (Line 859) - Extract columns from tables [LARGE: 70+ lines]
+- **FN-PARSER-006** `parseTasksFromColumn()` (Line 936) - Extract tasks from column [LARGE: 80+ lines]
+- **FN-PARSER-007** `processColumnInclude()` (Line 1000) - Process column includes [LARGE: 100+ lines]
+- **FN-PARSER-008** `processTaskInclude()` (Line 1100) - Process task includes [LARGE: 80+ lines]
+
+#### `/src/utils/fileTypeUtils.ts` - File Type Detection Backend (9 functions) 🔴 DUPLICATED
+- **FN-FILETYPE-001** `isFilePath()` (Line 12) - Check if text is file path
+- **FN-FILETYPE-002** `isImageFile()` (Line 33) - Check if file is image 🔴 DUPLICATE
+- **FN-FILETYPE-003** `isVideoFile()` (Line 50) - Check if file is video 🔴 DUPLICATE
+- **FN-FILETYPE-004** `isAudioFile()` (Line 67) - Check if file is audio 🔴 DUPLICATE
+- **FN-FILETYPE-005** `isMediaFile()` (Line 84) - Check if file is media 🔴 DUPLICATE
+- **FN-FILETYPE-006** `isMarkdownFile()` (Line 93) - Check if file is markdown 🔴 DUPLICATE
+- **FN-FILETYPE-007** `isTextFile()` (Line 106) - Check if file is text 🔴 DUPLICATE
+- **FN-FILETYPE-008** `getMimeType()` (Line 122) - Get MIME type 🔴 DUPLICATE
+- **FN-FILETYPE-009** `getFileCategory()` (Line 173) - Categorize file type 🔴 DUPLICATE
+
+#### `/src/utils/idGenerator.ts` - ID Generation (7 functions)
+- **FN-ID-001** `generateUUID()` (Line 13) - Generate RFC4122 UUID
+- **FN-ID-002** `generateColumnId()` (Line 25) - Generate column ID with prefix
+- **FN-ID-003** `generateTaskId()` (Line 33) - Generate task ID with prefix
+- **FN-ID-004** `isValidUUID()` (Line 40) - Validate UUID format
+- **FN-ID-005** `isValidColumnId()` (Line 48) - Validate column ID format
+- **FN-ID-006** `isValidTaskId()` (Line 55) - Validate task ID format
+- **FN-ID-007** `extractUUID()` (Line 62) - Extract UUID from prefixed ID
+
+### JavaScript Frontend Files
+
+#### `/src/html/boardRenderer.js` - Board Rendering (45+ functions) [MONOLITHIC: 2600+ lines]
+**Color & Style Management:**
+- **FN-RENDER-001** `hexToRgba()` (Line 23) - Convert hex color to RGBA
+- **FN-RENDER-002** `hexToRgb()` (Line 31) - Convert hex color to RGB
+- **FN-RENDER-003** `interpolateColor()` (Line 39) - Interpolate between colors
+- **FN-RENDER-004** `applyTagStyles()` (Line 50) - Apply styling to tags [LARGE: 25+ lines]
+- **FN-RENDER-005** `ensureTagStyleExists()` (Line 79) - Ensure tag has CSS styles [LARGE: 200+ lines]
+- **FN-RENDER-006** `generateTagStyles()` (Line 2013) - Generate CSS for tags [LARGE: 300+ lines]
+- **FN-RENDER-007** `getTagConfig()` (Line 1983) - Get tag configuration [LARGE: 25+ lines]
+- **FN-RENDER-008** `isDarkTheme()` (Line 2524) - Check if dark theme active
+
+**Board Rendering Core:**
+- **FN-RENDER-009** `renderBoard()` (Line 1077) - Main board rendering function [LARGE: 200+ lines]
+- **FN-RENDER-010** `renderSingleColumn()` (Line 975) - Render individual column [LARGE: 100+ lines]
+- **FN-RENDER-011** `createColumnElement()` (Line 1452) - Create column DOM element [LARGE: 170+ lines]
+- **FN-RENDER-012** `createTaskElement()` (Line 1645) - Create task DOM element [LARGE: 120+ lines]
+- **FN-RENDER-013** `debouncedRenderBoard()` (Line 333) - Debounced board render
+
+**Tag Operations:**
+- **FN-RENDER-014** `extractFirstTag()` (Line 305) - Extract first tag from text [LARGE: 25+ lines]
+- **FN-RENDER-015** `getActiveTagsInTitle()` (Line 599) - Get active tags [LARGE: 20+ lines]
+- **FN-RENDER-016** `getAllTagsInUse()` (Line 638) - Get all tags in use [LARGE: 30+ lines]
+- **FN-RENDER-017** `generateTagMenuItems()` (Line 717) - Generate tag menu items [LARGE: 90+ lines]
+- **FN-RENDER-018** `generateGroupTagItems()` (Line 811) - Generate grouped tags [LARGE: 110+ lines]
+- **FN-RENDER-019** `generateFlatTagItems()` (Line 928) - Generate flat tags [LARGE: 45+ lines]
+- **FN-RENDER-020** `removeAllTags()` (Line 2551) - Remove all tags [LARGE: 80+ lines]
+
+**Folding/Collapse Management:**
+- **FN-RENDER-021** `toggleColumnCollapse()` (Line 1794) - Toggle column folding [LARGE: 50+ lines]
+- **FN-RENDER-022** `toggleTaskCollapse()` (Line 1845) - Toggle task folding [LARGE: 20+ lines]
+- **FN-RENDER-023** `toggleAllColumns()` (Line 447) - Toggle all column folding [LARGE: 60+ lines]
+- **FN-RENDER-024** `toggleAllTasksInColumn()` (Line 1332) - Toggle all tasks [LARGE: 80+ lines]
+- **FN-RENDER-025** `applyDefaultFoldingState()` (Line 350) - Apply default folding [LARGE: 30+ lines]
+- **FN-RENDER-026** `applyFoldingStates()` (Line 542) - Apply folding states [LARGE: 55+ lines]
+- **FN-RENDER-027** `updateFoldAllButton()` (Line 1417) - Update fold all button [LARGE: 30+ lines]
+
+**Event Handlers:**
+- **FN-RENDER-028** `handleLinkOrImageOpen()` (Line 1869) - Handle link/image clicks [LARGE: 55+ lines]
+- **FN-RENDER-029** `handleColumnTitleClick()` (Line 1927) - Handle column title clicks [LARGE: 20+ lines]
+- **FN-RENDER-030** `handleTaskTitleClick()` (Line 1952) - Handle task title clicks
+- **FN-RENDER-031** `handleDescriptionClick()` (Line 1965) - Handle description clicks
+
+#### `/src/html/utils/validationUtils.js` - Validation & Sanitization (20+ functions)
+- **FN-VALID-001** `escapeHtml()` (Line 12) - Escape HTML to prevent XSS 🔴 DUPLICATE
+- **FN-VALID-002** `escapeFilePath()` (Line 28) - Escape file paths for markdown 🔴 DUPLICATE
+- **FN-VALID-003** `unescapeFilePath()` (Line 54) - Unescape file paths
+- **FN-VALID-004** `isValidUrl()` (Line 78) - Validate URL format
+- **FN-VALID-005** `isValidEmail()` (Line 88) - Validate email format
+- **FN-VALID-006** `isValidHexColor()` (Line 98) - Validate hex color format
+- **FN-VALID-007** `sanitizeFileName()` (Line 107) - Sanitize file names
+- **FN-VALID-008** `normalizeFilePath()` (Line 125) - Normalize file paths
+- **FN-VALID-009** `isImageFile()` (Line 371) - Check if file is image 🔴 DUPLICATE
+
+#### `/src/html/utils/fileTypeUtils.js` - File Type Detection Frontend (8 functions) 🔴 COMPLETE DUPLICATE
+- **FN-FILETYPE-JS-001** `isImageFile()` (Line 35) - Check if file is image 🔴 DUPLICATE
+- **FN-FILETYPE-JS-002** `isVideoFile()` (Line 54) - Check if file is video 🔴 DUPLICATE
+- **FN-FILETYPE-JS-003** `isAudioFile()` (Line 73) - Check if file is audio 🔴 DUPLICATE
+- **FN-FILETYPE-JS-004** `isMediaFile()` (Line 92) - Check if file is media 🔴 DUPLICATE
+- **FN-FILETYPE-JS-005** `isMarkdownFile()` (Line 101) - Check if markdown 🔴 DUPLICATE
+- **FN-FILETYPE-JS-006** `isTextFile()` (Line 120) - Check if text file 🔴 DUPLICATE
+- **FN-FILETYPE-JS-007** `getMimeType()` (Line 139) - Get MIME type 🔴 DUPLICATE
+- **FN-FILETYPE-JS-008** `getFileCategory()` (Line 187) - Categorize file 🔴 DUPLICATE
+
+#### `/src/html/utils/modalUtils.js` - Modal Management (6 functions)
+- **FN-MODAL-001** `showInputModal()` (Line 32) - Show input modal dialog [LARGE: 60+ lines]
+- **FN-MODAL-002** `showConfirmModal()` (Line 95) - Show confirmation modal [LARGE: 60+ lines]
+- **FN-MODAL-003** `showSelectModal()` (Line 158) - Show selection modal [LARGE: 60+ lines]
+- **FN-MODAL-004** `closeTopModal()` (Line 219) - Close top modal
+- **FN-MODAL-005** `closeAllModals()` (Line 236) - Close all open modals
+- **FN-MODAL-006** `setupGlobalKeyHandler()` (Line 16) - Setup ESC key handling
+
+---
+
+## 🔧 REFACTORING RECOMMENDATIONS
+
+### Priority 1: Critical Duplicates (Immediate Action Required)
+
+1. **File Type Detection Consolidation**
+   - **Action**: Create single source TypeScript implementation
+   - **Benefit**: Eliminate 200+ lines of duplicate code
+   - **Risk**: Low - pure utility functions
+   - **Effort**: 2-4 hours
+
+2. **HTML Escaping Security Functions**
+   - **Action**: Remove duplicate from markdown-it-include-browser.js
+   - **Benefit**: Single security implementation, easier maintenance
+   - **Risk**: Medium - security-critical functions
+   - **Effort**: 1-2 hours
+
+3. **Configuration Getter Pattern**
+   - **Action**: Replace 12 functions with single generic getter
+   - **Benefit**: 150+ lines reduction, easier to maintain
+   - **Risk**: Low - simple refactor
+   - **Effort**: 2-3 hours
+
+### Priority 2: Large Function Decomposition
+
+1. **kanbanWebviewPanel.ts - loadMarkdownFile()** (200+ lines)
+   - Split into: parseFile(), validateContent(), updateUI()
+
+2. **markdownParser.ts - parseMarkdown()** (450+ lines)
+   - Split into: parseHeaders(), parseColumns(), parseTasks(), parseIncludes()
+
+3. **boardRenderer.js - renderBoard()** (200+ lines)
+   - Split into: prepareData(), renderColumns(), applyStyles()
+
+### Priority 3: Utility Consolidation
+
+1. **Tag Operations** - Group similar tag functions into TagManager class
+2. **Event Handlers** - Create generic event handler framework
+3. **Modal Operations** - Complete modal consolidation (partially done)
+
+---
+
+## 📊 IMPACT ANALYSIS
+
+**Code Reduction Potential:**
+- High Priority Duplicates: ~500 lines
+- Function Decomposition: Better maintainability
+- Utility Consolidation: ~200 lines
+
+**Total Estimated Reduction: 700+ lines (15-20% of codebase)**
 
 ## 📋 SYSTEMATIC NAMING CONVENTION
 
