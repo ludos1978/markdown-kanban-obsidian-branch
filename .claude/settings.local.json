@@ -29,7 +29,8 @@
       "Bash(sed:*)",
       "Read(///**)",
       "Bash(npm run:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

@@ -580,19 +580,29 @@ body.small-card-fonts .task-title-container .markdown-content img {
   /* overflow-y: auto; */ /* must be disabled for sticky childs to work */
 	border-left: 0.5px solid var(--vscode-panel-border);
 	border-right: 0.5px solid var(--vscode-panel-border);
-	border-bottom: 0.5px solid var(--vscode-panel-border);
-	border-radius: 0px 0px 4px 4px;
+	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
+	/* border-radius: 0px 0px 4px 4px; */
   overflow-x: visible;
   /* min-height: 100%; */
 	max-height: min-content;
   background-color: transparent;
 }
 
+.column-footer {
+	padding-top: 8px;
+	border-bottom: 0.5px solid var(--vscode-panel-border);
+	border-left: 0.5px solid var(--vscode-panel-border);
+	border-right: 0.5px solid var(--vscode-panel-border);
+	border-radius: 0px 0px 4px 4px;
+}
+
+/* .column-inner :not(has) */
+
 .column-content {
   /* This contains the actual visual column with border and background */
   display: flex;
   flex-direction: column;
-  padding: var(--whitespace)  var(--whitespace) var(--whitespace) var(--whitespace);
+  padding: var(--whitespace)  var(--whitespace) 0 var(--whitespace);
   flex: 0 0 auto;
   background-color: var(--vscode-editor-background);
   /* border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4); */
@@ -667,15 +677,18 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	border-radius: 4px 4px 0px 0px;
 	border-left: 0.5px solid var(--vscode-panel-border);
 	border-right: 0.5px solid var(--vscode-panel-border);
-	border-top: 0.5px solid var(--vscode-panel-border);
-  border-bottom: 0.5px solid var(--vscode-panel-border);
+  /* border-bottom: 0.5px solid var(--vscode-panel-border); */
   margin-bottom: 0;
   flex-direction: column;
 }
 
+.column-header:not(:has(.header-bars-container):has(.header-bar)) {
+	border-top: 0.5px solid var(--vscode-panel-border);
+}
+
 .kanban-full-height-column.collapsed .column-header {
   flex-direction: column;
-  border: 0.5px solid var(--vscode-panel-border);
+  /* border: 0.5px solid var(--vscode-panel-border); */
   border-radius: 4px 4px 0px 0px;
   align-items: center;
   flex: none;
@@ -689,7 +702,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Column title section */
 .column-title-section {
-  padding: var(--whitespace-div2);
+  padding: var(--whitespace-div2) var(--whitespace-div2) 0 var(--whitespace-div2);
   display: flex;
   align-items: center;
   gap: var(--whitespace-div2);;
@@ -2747,8 +2760,16 @@ h6 .kanban-tag {
   transition: all 0.2s ease;
 }
 
-/* Footer bars styling when in column-inner */
-.column-inner > .footer-bars-container {
+.header-bar:first-of-type {
+	border-radius: 4px 4px 0px 0px;
+}
+
+.footer-bar:last-of-type {
+	border-radius: 0px 0px 4px 4px;
+}
+
+/* Footer bars styling when in column-footer */
+.column-footer > .footer-bars-container {
   position: sticky;
   border-top: none;
   /* bottom: 0; */
@@ -2844,7 +2865,7 @@ h6 .kanban-tag {
   justify-content: center !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-	border-radius: 0px 0px 4px 4px;
+	/* border-radius: 0px 0px 4px 4px; */
   /* white-space: nowrap !important; */
 }
 
@@ -2895,7 +2916,7 @@ h6 .kanban-tag {
   min-height: 60px;
 }
 
-.kanban-full-height-column.collapsed .footer-bars-container {
+.kanban-full-height-column.collapsed .column-footer .footer-bars-container {
   display: flex;
   flex-direction: column-reverse;
   width: 100%;

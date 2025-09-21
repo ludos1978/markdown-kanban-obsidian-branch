@@ -3328,31 +3328,20 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         }
     });
 
-    // Always try to add header-bars-container to column-header (even if empty)
-    const isCollapsed = element.classList.contains('collapsed');
-    if (isCollapsed) {
-        // For collapsed elements, add bars directly to the column
-        if (headerBars.length > 0) {
-            headerBars.forEach(bar => element.appendChild(bar));
-        }
-    } else {
-        // For expanded elements, always add header-bars-container to column-header
-        const columnHeader = element.querySelector('.column-header');
-        if (columnHeader) {
-            const headerContainer = document.createElement('div');
-            headerContainer.className = 'header-bars-container';
-            headerBars.forEach(bar => headerContainer.appendChild(bar));
-            // Header container should be first child, so insert at the beginning
-            columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
-        } else {
-            // Fallback: add directly to element if no column-header found
-            if (headerBars.length > 0) {
-                const headerContainer = document.createElement('div');
-                headerContainer.className = 'header-bars-container';
-                headerBars.forEach(bar => headerContainer.appendChild(bar));
-                element.appendChild(headerContainer);
-            }
-        }
+    // Always try to add header-bars-container to column-header (regardless of collapsed state)
+    const columnHeader = element.querySelector('.column-header');
+    if (columnHeader && headerBars.length > 0) {
+        const headerContainer = document.createElement('div');
+        headerContainer.className = 'header-bars-container';
+        headerBars.forEach(bar => headerContainer.appendChild(bar));
+        // Header container should be first child, so insert at the beginning
+        columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
+    } else if (headerBars.length > 0) {
+        // Fallback: add directly to element if no column-header found
+        const headerContainer = document.createElement('div');
+        headerContainer.className = 'header-bars-container';
+        headerBars.forEach(bar => headerContainer.appendChild(bar));
+        element.appendChild(headerContainer);
     }
 
     // Set classes only if there are actual header bars
@@ -3378,25 +3367,19 @@ function updateAllVisualTagElements(element, allTags, elementType) {
     });
     
     if (footerBars.length > 0) {
-        const isCollapsed = element.classList.contains('collapsed');
-        if (isCollapsed) {
-            // For collapsed elements, add bars directly to the column
-            footerBars.forEach(bar => element.appendChild(bar));
+        // Always try to add footer-bars-container to column-footer (regardless of collapsed state)
+        const columnFooter = element.querySelector('.column-footer');
+        if (columnFooter) {
+            const footerContainer = document.createElement('div');
+            footerContainer.className = 'footer-bars-container';
+            footerBars.forEach(bar => footerContainer.appendChild(bar));
+            columnFooter.appendChild(footerContainer);
         } else {
-            // For expanded elements, find column-footer and add container there
-            const columnFooter = element.querySelector('.column-footer');
-            if (columnFooter) {
-                const footerContainer = document.createElement('div');
-                footerContainer.className = 'footer-bars-container';
-                footerBars.forEach(bar => footerContainer.appendChild(bar));
-                columnFooter.appendChild(footerContainer);
-            } else {
-                // Fallback: add directly to element if no column-footer found
-                const footerContainer = document.createElement('div');
-                footerContainer.className = 'footer-bars-container';
-                footerBars.forEach(bar => footerContainer.appendChild(bar));
-                element.appendChild(footerContainer);
-            }
+            // Fallback: add directly to element if no column-footer found
+            const footerContainer = document.createElement('div');
+            footerContainer.className = 'footer-bars-container';
+            footerBars.forEach(bar => footerContainer.appendChild(bar));
+            element.appendChild(footerContainer);
         }
         element.classList.add('has-footer-bar');
         if (hasFooterLabel) {element.classList.add('has-footer-label');}

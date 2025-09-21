@@ -82,7 +82,10 @@ export class BackupManager {
 
             // Write backup file
             fs.writeFileSync(backupPath, content, 'utf8');
-            
+
+            // Set hidden attribute on Windows
+            await this.setFileHidden(backupPath);
+
             this._lastBackupTime = new Date();
             this._lastContentHash = contentHash;
             
@@ -122,8 +125,8 @@ export class BackupManager {
             }
         }
 
-        // Hidden file with . prefix for auto and backup files, normal files for conflicts
-        const prefix = (label === 'backup' || label === 'auto') ? '.' : '';
+        // All automatically generated files should be hidden
+        const prefix = '.';
         const backupFileName = `${prefix}${basename}-${label}-${timestamp}.md`;
 
         return path.join(backupDir, backupFileName);
@@ -176,6 +179,9 @@ export class BackupManager {
             // Write backup file with current content
             fs.writeFileSync(backupPath, backupContent, 'utf8');
 
+            // Set hidden attribute on Windows
+            await this.setFileHidden(backupPath);
+
             console.log(`Include file backup created: ${backupPath}`);
             return backupPath;
 
@@ -209,8 +215,8 @@ export class BackupManager {
             }
         }
 
-        // Hidden file with . prefix for auto and backup files, normal files for conflicts
-        const prefix = (label === 'backup' || label === 'auto') ? '.' : '';
+        // All automatically generated files should be hidden
+        const prefix = '.';
         const backupFileName = `${prefix}${basename}-${label}-${timestamp}${ext}`;
 
         return path.join(backupDir, backupFileName);
@@ -269,7 +275,7 @@ export class BackupManager {
                 return;
             }
 
-            // Find all backup and auto files for this document
+            // Find backup and auto files for this document (excluding conflicts which should be preserved)
             // Pattern matches: .basename-(backup|auto)-YYYYMMDDTHHmmss.md
             const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(backup|auto)-\\d{8}T\\d{6}\\.md$`);
 
@@ -406,6 +412,32 @@ export class BackupManager {
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to restore from backup: ${error}`);
             return false;
+        }
+    }
+
+    /**
+     * Set file as hidden on Windows using attrib command
+     * On Unix systems, files starting with . are already hidden
+     */
+    private async setFileHidden(filePath: string): Promise<void> {
+        try {
+            // Only need to set hidden attribute on Windows
+            if (process.platform === 'win32') {
+                const { exec } = await import('child_process');
+                const util = await import('util');
+                const execPromise = util.promisify(exec);
+
+                try {
+                    await execPromise(`attrib +H "${filePath}"`);
+                } catch (error) {
+                    // Silently fail if attrib command fails
+                    // The . prefix will still make it hidden in most file managers
+                    console.debug(`Failed to set hidden attribute for ${filePath}:`, error);
+                }
+            }
+        } catch (error) {
+            // Silently fail - file is still created with . prefix
+            console.debug(`Error setting file hidden:`, error);
         }
     }
 

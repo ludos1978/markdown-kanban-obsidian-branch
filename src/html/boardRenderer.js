@@ -122,8 +122,16 @@ function ensureTagStyleExists(tagName) {
 .kanban-full-height-column[data-all-tags~="${tagName}"] .column-content {
     background-color: ${columnBg} !important;
 }
+.kanban-full-height-column[data-column-tag="${tagName}"] .column-footer,
+.kanban-full-height-column[data-all-tags~="${tagName}"] .column-footer {
+    background-color: ${columnBg} !important;
+}
 .kanban-full-height-column.collapsed[data-column-tag="${tagName}"] .column-header,
 .kanban-full-height-column.collapsed[data-all-tags~="${tagName}"] .column-header {
+    background-color: ${columnCollapsedBg} !important;
+}
+.kanban-full-height-column.collapsed[data-column-tag="${tagName}"] .column-footer,
+.kanban-full-height-column.collapsed[data-all-tags~="${tagName}"] .column-footer {
     background-color: ${columnCollapsedBg} !important;
 }\n`;
         }
@@ -2048,16 +2056,26 @@ function generateTagStyles() {
                 styles += `.kanban-full-height-column:not([data-column-tag]) .column-header {
                     background-color: ${columnBg} !important;
                 }\n`;
-                
+
                 // Default column content background
                 styles += `.kanban-full-height-column:not([data-column-tag]) .column-content {
                     background-color: ${columnBg} !important;
                 }\n`;
 
+                // Default column footer background
+                styles += `.kanban-full-height-column:not([data-column-tag]) .column-footer {
+                    background-color: ${columnBg} !important;
+                }\n`;
+
                 const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
-                
+
                 // Default collapsed column header background
                 styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-header {
+                    background-color: ${columnCollapsedBg} !important;
+                }\n`;
+
+                // Default collapsed column footer background
+                styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-footer {
                     background-color: ${columnCollapsedBg} !important;
                 }\n`;
             }
@@ -2128,17 +2146,27 @@ function generateTagStyles() {
                     styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
                         background-color: ${columnBg} !important;
                     }\n`;
-                    
-                    // Column content background  
+
+                    // Column content background
                     styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-content {
                         background-color: ${columnBg} !important;
                     }\n`;
-                    
+
+                    // Column footer background
+                    styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-footer {
+                        background-color: ${columnBg} !important;
+                    }\n`;
+
                     // Column collapsed state - interpolate 20% towards the darker color
                     const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
-                    
+
                     // Collapsed column header background
                     styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-header {
+                        background-color: ${columnCollapsedBg} !important;
+                    }\n`;
+
+                    // Collapsed column footer background
+                    styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-footer {
                         background-color: ${columnCollapsedBg} !important;
                     }\n`;
                     
@@ -2163,8 +2191,14 @@ function generateTagStyles() {
                         const borderStyle = config.border.style || 'solid';
                         
                         if (config.border.position === 'left') {
-                            // Use data-column-tag for left border on column-inner only
+                            // Use data-column-tag for left border on all column parts
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
                             styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-inner {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-footer {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
@@ -2175,12 +2209,17 @@ function generateTagStyles() {
                             styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-inner {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                                border-bottom: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-bottom: none !important;
                             }\n
 														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-top: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n
+														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-footer {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-bottom: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                             styles += `.task-item[data-task-tag="${lowerTagName}"] {
                                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
@@ -2443,13 +2482,12 @@ function injectStackableBars(targetElement = null) {
         
         // Handle collapsed columns with flex containers
         if (isCollapsed) {
-            // Find the column-inner element to insert bars into
-            // const columnInner = element.querySelector('.column-inner');
-						const kanbanFullHeight = element.querySelector('.kanban-full-height-column');
+            // Find the header and footer elements to insert bars into
 						const columnHeader = element.querySelector('.column-header');
-            
-            // Create and insert header container at the beginning of column-inner
-            if (headerBars.length > 0 && kanbanFullHeight) {
+						const columnFooter = element.querySelector('.column-footer');
+
+            // Create and insert header container at the beginning of column-header
+            if (headerBars.length > 0 && columnHeader) {
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
                 headerBars.forEach(bar => headerContainer.appendChild(bar));
@@ -2457,21 +2495,21 @@ function injectStackableBars(targetElement = null) {
                 element.classList.add('has-header-bar');
                 if (hasHeaderLabel) {element.classList.add('has-header-label');}
             }
-            
-            // Create and append footer container at the end of column-inner
-            if (footerBars.length > 0 && kanbanFullHeight) {
+
+            // Create and append footer container to column-footer (not column-inner)
+            if (footerBars.length > 0 && columnFooter) {
                 const footerContainer = document.createElement('div');
                 footerContainer.className = 'footer-bars-container';
                 footerBars.forEach(bar => footerContainer.appendChild(bar));
-                kanbanFullHeight.appendChild(footerContainer);
+                columnFooter.appendChild(footerContainer);
                 element.classList.add('has-footer-bar');
                 if (hasFooterLabel) {element.classList.add('has-footer-label');}
             }
-            
+
             // Clear any inline padding styles for collapsed columns
             element.style.paddingTop = '';
             element.style.paddingBottom = '';
-            
+
         } else {
             // For non-collapsed elements, use column-header and column-footer
             const columnHeader = element.querySelector('.column-header');
@@ -2645,7 +2683,9 @@ window.removeAllTags = removeAllTags;
 // Function to update task count display for a column
 function updateColumnTaskCount(columnId) {
     const column = currentBoard?.columns?.find(c => c.id === columnId);
-    if (!column) return;
+    if (!column) {
+        return;
+    }
 
     const taskCountElement = document.querySelector(`[data-column-id="${columnId}"] .task-count`);
     if (taskCountElement) {

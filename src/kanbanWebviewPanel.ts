@@ -1620,14 +1620,17 @@ export class KanbanWebviewPanel {
         const now = new Date();
         const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
 
-        // Follow BackupManager convention: hidden files for periodic backups, visible for conflicts
-        const prefix = label === 'backup' ? '.' : '';
+        // All automatically generated files should be hidden
+        const prefix = '.';
         const backupFileName = `${prefix}${basename}-${label}-${timestamp}${extension}`;
         const backupPath = path.join(dir, backupFileName);
 
         // Write backup file with board state as markdown
         const backupUri = vscode.Uri.file(backupPath);
         await vscode.workspace.fs.writeFile(backupUri, Buffer.from(boardMarkdown, 'utf8'));
+
+        // Set hidden attribute on Windows
+        await this.setFileHidden(backupPath);
 
         return backupPath;
     }
@@ -2848,10 +2851,14 @@ export class KanbanWebviewPanel {
      * Check if a file path is used as a column include file
      */
     private async isColumnIncludeFile(filePath: string): Promise<boolean> {
-        if (!this._board) return false;
+        if (!this._board) {
+            return false;
+        }
 
         const currentDocument = this._fileManager.getDocument();
-        if (!currentDocument) return false;
+        if (!currentDocument) {
+            return false;
+        }
 
         const basePath = path.dirname(currentDocument.uri.fsPath);
         const relativePath = path.relative(basePath, filePath);
@@ -3010,6 +3017,32 @@ export class KanbanWebviewPanel {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Set file as hidden on Windows using attrib command
+     * On Unix systems, files starting with . are already hidden
+     */
+    private async setFileHidden(filePath: string): Promise<void> {
+        try {
+            // Only need to set hidden attribute on Windows
+            if (process.platform === 'win32') {
+                const { exec } = await import('child_process');
+                const util = await import('util');
+                const execPromise = util.promisify(exec);
+
+                try {
+                    await execPromise(`attrib +H "${filePath}"`);
+                } catch (error) {
+                    // Silently fail if attrib command fails
+                    // The . prefix will still make it hidden in most file managers
+                    console.debug(`Failed to set hidden attribute for ${filePath}:`, error);
+                }
+            }
+        } catch (error) {
+            // Silently fail - file is still created with . prefix
+            console.debug(`Error setting file hidden:`, error);
         }
     }
 
