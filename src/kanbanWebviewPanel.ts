@@ -765,8 +765,9 @@ export class KanbanWebviewPanel {
             this._lastDocumentVersion = document.version;
 
             // Handle undo/redo history
-            if (isDifferentDocument && !this._isUndoRedoOperation && !this._isUpdatingFromPanel) {
+            if (isDifferentDocument && !this._isUndoRedoOperation && !this._isUpdatingFromPanel && !forceReload) {
                 // Only clear history when switching to completely different documents
+                // Don't clear on force reload of same document (e.g., external changes)
                 this._undoRedoManager.clear();
             }
 
@@ -1198,8 +1199,9 @@ export class KanbanWebviewPanel {
             await document.save();
 
             // Reload the file after successful initialization
-            this._isUpdatingFromPanel = false;
+            // Keep _isUpdatingFromPanel = true during reload to prevent undo stack clearing
             await this.loadMarkdownFile(document);
+            this._isUpdatingFromPanel = false;
 
             vscode.window.showInformationMessage('Kanban board initialized successfully');
         } catch (error) {
