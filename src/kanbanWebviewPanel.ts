@@ -1196,12 +1196,11 @@ export class KanbanWebviewPanel {
         try {
             await vscode.workspace.applyEdit(edit);
             await document.save();
-            
-            setTimeout(() => {
-                this.loadMarkdownFile(document);
-                this._isUpdatingFromPanel = false;
-            }, 100);
-            
+
+            // Reload the file after successful initialization
+            this._isUpdatingFromPanel = false;
+            await this.loadMarkdownFile(document);
+
             vscode.window.showInformationMessage('Kanban board initialized successfully');
         } catch (error) {
             this._isUpdatingFromPanel = false;
