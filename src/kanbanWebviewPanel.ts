@@ -566,7 +566,6 @@ export class KanbanWebviewPanel {
 
         this._panel.webview.onDidReceiveMessage(
             async (message) => {
-                console.log(`[Cache Backend] Received message:`, message.type, message);
 
                 if (message.type === 'undo' || message.type === 'redo') {
                 }
@@ -691,11 +690,9 @@ export class KanbanWebviewPanel {
 
         // Set up file watcher if needed (first load or different document)
         if (isFirstFileLoad || isDifferentDocument) {
-            console.log(`[File Watcher] Setting up watcher - firstLoad: ${isFirstFileLoad}, different: ${isDifferentDocument}`);
 
             // Clean up old watcher if switching documents
             if (isDifferentDocument && currentDocumentUri) {
-                console.log(`[File Watcher] Cleaning up old watcher for: ${currentDocumentUri}`);
                 // Note: We'll clean this up in the document changed section below
             }
         }
@@ -716,10 +713,8 @@ export class KanbanWebviewPanel {
                                      !this._isUpdatingFromPanel &&
                                      !isFromEditorFocus; // Don't show dialog on editor focus
 
-            console.log(`[External Change Check] lastVersion: ${this._lastDocumentVersion}, currentVersion: ${document.version}, isUndoRedo: ${this._isUndoRedoOperation}, isUpdating: ${this._isUpdatingFromPanel}, isFromFocus: ${isFromEditorFocus}, hasChanges: ${hasExternalChanges}`);
 
             if (hasExternalChanges) {
-                console.log('[External Change] Showing notification dialog');
                 await this.notifyExternalChanges(document);
             } else {
                 // Only update version if no external changes were detected (to avoid blocking future detections)
@@ -731,7 +726,6 @@ export class KanbanWebviewPanel {
         const previousDocument = this._fileManager.getDocument();
         const documentChanged = previousDocument?.uri.toString() !== document.uri.toString();
         const isFirstDocumentLoad = !previousDocument;
-        console.log(`[Include Debug] loadMarkdownFile() path decision - documentChanged=${documentChanged}, isFirstDocumentLoad=${isFirstDocumentLoad}, isInitialLoad=${isInitialLoad}`);
 
         // If document changed or this is the first document, update panel tracking
         if (documentChanged || isFirstDocumentLoad) {
@@ -751,7 +745,6 @@ export class KanbanWebviewPanel {
             this._panel.title = `Kanban: ${fileName}`;
 
             // Register the new main file with the external file watcher
-            console.log(`[File Watcher] Registering main file: ${document.uri.fsPath}`);
             this._fileWatcher.registerFile(document.uri.fsPath, 'main', this);
         }
         
@@ -1007,7 +1000,6 @@ export class KanbanWebviewPanel {
     }
 
     private async saveToMarkdown(updateVersionTracking: boolean = true) {
-        console.log(`💾 Saving kanban to markdown... hasUnsavedChanges: ${this._hasUnsavedChanges}`);
         let document = this._fileManager.getDocument();
         if (!document || !this._board || !this._board.valid) {
             console.warn('Cannot save: no document or invalid board');
@@ -1046,7 +1038,6 @@ export class KanbanWebviewPanel {
             // Check for external unsaved changes before proceeding
             const canProceed = await this.checkForExternalUnsavedChanges();
             if (!canProceed) {
-                console.log('📄 Save cancelled due to external conflicts');
                 return;
             }
 
@@ -1054,7 +1045,6 @@ export class KanbanWebviewPanel {
             const currentContent = document.getText();
             if (currentContent === markdown) {
                 // No changes needed, skip the edit to avoid unnecessary re-renders
-                console.log('📄 No changes detected, skipping save');
                 this._hasUnsavedChanges = false;
                 return;
             }
@@ -1492,7 +1482,6 @@ export class KanbanWebviewPanel {
                 });
             }
 
-            console.log(`Created ${label} backup for "${path.basename(document.fileName)}"`);
         } catch (error) {
             console.error(`Error creating ${label} backup:`, error);
         }
@@ -1628,7 +1617,6 @@ export class KanbanWebviewPanel {
                 // Document was modified externally (not by our kanban save operation)
                 if (!this._isUpdatingFromPanel) {
                     this._hasExternalUnsavedChanges = true;
-                    console.log('[External Modification] Detected unsaved external changes');
                 }
             }
         });
@@ -1807,7 +1795,6 @@ export class KanbanWebviewPanel {
                                 // Initialize known content for conflict detection
                                 this._knownIncludeFileContents.set(absolutePath, content);
                                 this._includeFileUnsavedChanges.set(absolutePath, false);
-                                console.log(`[InitializeInclude] Set known content for column include file: ${includeFile}`);
                             }
                         }
                     }
@@ -1822,7 +1809,6 @@ export class KanbanWebviewPanel {
                                     // Initialize known content for conflict detection
                                     this._knownIncludeFileContents.set(absolutePath, content);
                                     this._includeFileUnsavedChanges.set(absolutePath, false);
-                                    console.log(`[InitializeInclude] Set known content for task include file: ${includeFile}`);
                                 }
                             }
                         }
@@ -1925,7 +1911,6 @@ export class KanbanWebviewPanel {
 
         if (hasTaskIncludes || hasColumnIncludes) {
             // Full reload required for task/column includes since they need re-parsing
-            console.log('[REFRESH INCLUDES] Task/column includes detected, triggering full board reload');
             try {
                 await this.forceReloadFromFile();
             } catch (error) {
@@ -2019,7 +2004,6 @@ export class KanbanWebviewPanel {
 
             // Check if the file exists - if not, this might be a new file path that hasn't been loaded yet
             if (!fs.existsSync(absolutePath)) {
-                console.log(`[Column Include] Skipping save to non-existent file: ${absolutePath}`);
                 return false;
             }
 
@@ -2059,14 +2043,12 @@ export class KanbanWebviewPanel {
             const isLikelyFilePathChange = taskCountDifference > 2 && !hasContentOverlap;
 
             if (isLikelyFilePathChange) {
-                console.log(`[Column Include] Detected file path change, skipping save to prevent overwrite`);
                 return false;
             }
 
             // Check if we have any actual task changes to save
             // If the tasks came from a file include and haven't been modified, don't overwrite
             if (column.tasks.length === 0) {
-                console.log(`[Column Include] No tasks to save for ${includeFile}`);
                 return false;
             }
 
@@ -2075,13 +2057,11 @@ export class KanbanWebviewPanel {
 
             // Don't write if the content would be empty or just separators
             if (!presentationContent || presentationContent.trim() === '' || presentationContent.trim() === '---') {
-                console.log(`[Column Include] Skipping save of empty content to ${includeFile}`);
                 return false;
             }
 
             // Additional safety check: don't write if the generated content is identical to current file
             if (currentFileContent.trim() === presentationContent.trim()) {
-                console.log(`[Column Include] Content unchanged, skipping save to ${includeFile}`);
                 return false;
             }
 
@@ -2110,7 +2090,6 @@ export class KanbanWebviewPanel {
             // Update known content to detect future external changes
             this._knownIncludeFileContents.set(absolutePath, presentationContent);
 
-            console.log(`[Column Include] Saved changes to ${includeFile} (${column.tasks.length} slides)`);
             return true;
 
         } catch (error) {
@@ -2125,34 +2104,27 @@ export class KanbanWebviewPanel {
      * This enables bidirectional editing for task includes
      */
     public async reprocessTaskIncludes(): Promise<void> {
-        console.log('[ReprocessTaskIncludes] Starting reprocessing...');
 
         if (!this._board) {
-            console.log('[ReprocessTaskIncludes] No board available');
             return;
         }
 
         const currentDocument = this._fileManager.getDocument();
         if (!currentDocument) {
-            console.log('[ReprocessTaskIncludes] No document available');
             return;
         }
 
         const basePath = path.dirname(currentDocument.uri.fsPath);
-        console.log(`[ReprocessTaskIncludes] Base path: ${basePath}`);
 
         // Process task includes in the current board
         let tasksProcessed = 0;
         for (const column of this._board.columns) {
-            console.log(`[ReprocessTaskIncludes] Processing column ${column.id} with ${column.tasks.length} tasks`);
             for (const task of column.tasks) {
-                console.log(`[ReprocessTaskIncludes] Checking task ${task.id}: "${task.title}"`);
                 tasksProcessed++;
                 // Check if task title contains taskinclude syntax
                 const taskIncludeMatches = task.title.match(/!!!taskinclude\(([^)]+)\)!!!/g);
 
                 if (taskIncludeMatches && taskIncludeMatches.length > 0) {
-                    console.log(`[ReprocessTaskIncludes] Found task include matches in task ${task.id}:`, taskIncludeMatches);
 
                     // Process this task as a task include
                     const includeFiles: string[] = [];
@@ -2161,7 +2133,6 @@ export class KanbanWebviewPanel {
                         includeFiles.push(filePath);
                     });
 
-                    console.log(`[ReprocessTaskIncludes] Include files to process:`, includeFiles);
 
                     // Read content from included files
                     let includeTitle = '';
@@ -2191,7 +2162,6 @@ export class KanbanWebviewPanel {
                                 // Join remaining lines as description
                                 includeDescription = descriptionLines.join('\n').trim();
 
-                                console.log(`[ReprocessTaskIncludes] Processed: ${filePath}`);
                             } else {
                                 console.warn(`[ReprocessTaskIncludes] File not found: ${resolvedPath}`);
                             }

@@ -973,12 +973,10 @@ function generateFlatTagItems(tags, id, type, columnId = null) {
  * Side effects: Updates DOM for specific column, preserves styles
  */
 function renderSingleColumn(columnId, columnData) {
-    console.log(`[RenderSingleColumn] Starting render for column ${columnId}`);
 
     // Find the existing column element
     const existingColumnElement = document.querySelector(`[data-column-id="${columnId}"]`);
     if (!existingColumnElement) {
-        console.warn(`[RenderSingleColumn] Column element not found for ${columnId}`);
         return;
     }
 
@@ -1063,7 +1061,6 @@ function renderSingleColumn(columnId, columnData) {
         setupColumnDragAndDrop();
     }
 
-    console.log(`[RenderSingleColumn] Completed render for column ${columnId}`);
 }
 
 // Render Kanban board

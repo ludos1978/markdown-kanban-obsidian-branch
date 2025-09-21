@@ -144,7 +144,6 @@ export class MessageHandler {
                 break;
             case 'markUnsavedChanges':
                 // Track unsaved changes at panel level and update cached board if provided
-                // console.log(`[Save Debug] markUnsavedChanges called - hasUnsavedChanges: ${message.hasUnsavedChanges}, hasCachedBoard: ${!!message.cachedBoard}`);
                 this._markUnsavedChanges(message.hasUnsavedChanges, message.cachedBoard);
                 break;
             case 'saveUndoState':
@@ -300,10 +299,6 @@ export class MessageHandler {
                 );
                 break;
             case 'editColumnTitle':
-                console.log(`[MessageHandler Debug] editColumnTitle received:`, {
-                    columnId: message.columnId,
-                    title: message.title
-                });
 
                 // Check if this might be a column include file change
                 const currentBoard = this._getCurrentBoard();
@@ -473,7 +468,6 @@ export class MessageHandler {
             case 'updateTaskInBackend':
                 // DEPRECATED: This is now handled via markUnsavedChanges with cachedBoard
                 // The complete board state is sent, which is more reliable than individual field updates
-                console.log('[DEBUG] updateTaskInBackend call received but ignored - using markUnsavedChanges instead');
                 break;
 
             case 'saveClipboardImage':
@@ -716,7 +710,6 @@ export class MessageHandler {
             return;
         }
 
-        console.log(`[Save Debug] handleSaveBoardState called - board title: ${board.title}, columns: ${board.columns?.length}`);
 
         // NOTE: Do not save undo state here - individual operations already saved their undo states
         // before making changes. Saving here would create duplicate/grouped undo states.
@@ -1225,7 +1218,6 @@ export class MessageHandler {
         mediaFolderName: string
     ): Promise<void> {
         try {
-            console.log('[DEBUG] Saving image with paths:', {
                 mediaFolderPath,
                 imagePath,
                 imageFileName,
@@ -1235,7 +1227,6 @@ export class MessageHandler {
             // Ensure the media folder exists
             if (!fs.existsSync(mediaFolderPath)) {
                 fs.mkdirSync(mediaFolderPath, { recursive: true });
-                console.log('[DEBUG] Created media folder:', mediaFolderPath);
             }
 
             // Convert base64 to buffer
@@ -1243,7 +1234,6 @@ export class MessageHandler {
 
             // Write the image file
             fs.writeFileSync(imagePath, buffer);
-            console.log('[DEBUG] Image saved successfully to:', imagePath);
 
             // Notify the webview that the image was saved successfully
             const panel = this._getWebviewPanel();
@@ -1255,7 +1245,6 @@ export class MessageHandler {
                     relativePath: `./${mediaFolderName}/${imageFileName}`,
                     dropPosition: dropPosition
                 };
-                console.log('[DEBUG] Sending clipboardImageSaved message to webview:', message);
                 panel._panel.webview.postMessage(message);
             } else {
                 console.error('[DEBUG] Cannot send clipboardImageSaved message - no webview panel available');
@@ -1303,7 +1292,6 @@ export class MessageHandler {
                 return;
             }
 
-            console.log('[DEBUG] Got current file path:', currentFilePath);
 
             // Extract base filename without extension
             const pathParts = currentFilePath.split(/[\/\\]/);
@@ -1320,7 +1308,6 @@ export class MessageHandler {
             const mediaFolderPath = `${directory}/${mediaFolderName}`;
             const imagePath = `${mediaFolderPath}/${imageFileName}`;
 
-            console.log('[DEBUG] Image paths:', {
                 currentFilePath,
                 baseFileName,
                 mediaFolderName,
@@ -1332,7 +1319,6 @@ export class MessageHandler {
             // Ensure the media folder exists
             if (!fs.existsSync(mediaFolderPath)) {
                 fs.mkdirSync(mediaFolderPath, { recursive: true });
-                console.log('[DEBUG] Created media folder:', mediaFolderPath);
             }
 
             // Convert base64 to buffer (remove data URL prefix if present)
@@ -1341,7 +1327,6 @@ export class MessageHandler {
 
             // Write the image file
             fs.writeFileSync(imagePath, buffer);
-            console.log('[DEBUG] Image saved successfully to:', imagePath);
 
             // Notify the webview that the image was saved successfully
             const panel = this._getWebviewPanel();
@@ -1353,7 +1338,6 @@ export class MessageHandler {
                     relativePath: `./${mediaFolderName}/${imageFileName}`,
                     dropPosition: dropPosition
                 };
-                console.log('[DEBUG] Sending clipboardImageSaved message to webview:', message);
                 panel._panel.webview.postMessage(message);
             } else {
                 console.error('[DEBUG] Cannot send clipboardImageSaved message - no webview panel available');
