@@ -311,7 +311,9 @@ function ensureTagStyleExists(tagName) {
  * @returns {string|null} First tag or null
  */
 function extractFirstTag(text) {
-    if (!text) return null;
+    if (!text) {
+        return null;
+    }
 
     // Use boardRenderer.js compatible regex with exclusions
     const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
@@ -320,7 +322,9 @@ function extractFirstTag(text) {
         const raw = m[1];
         const baseMatch = raw.match(/^([a-zA-Z0-9_-]+)/);
         const base = (baseMatch ? baseMatch[1] : raw).toLowerCase();
-        if (base.startsWith('gather_')) continue; // do not use gather tags for styling
+        if (base.startsWith('gather_')) {
+            continue; // do not use gather tags for styling
+        }
         return base;
     }
     return null;
@@ -994,7 +998,7 @@ function renderSingleColumn(columnId, columnData) {
         const handlersToCleanup = Object.keys(window.tagHandlers).filter(key => {
             // Pattern: tag-chip-column-{columnId}-{tagName} or tag-chip-task-{taskId}-{tagName}
             return key.startsWith(`tag-chip-column-${columnId}-`) ||
-                   (key.startsWith(`tag-chip-task-`) && existingColumnElement.querySelector(`[data-task-id]`))
+                   (key.startsWith(`tag-chip-task-`) && existingColumnElement.querySelector(`[data-task-id]`));
         });
 
         // Also find task handlers by checking actual task IDs in the existing column
@@ -1040,7 +1044,9 @@ function renderSingleColumn(columnId, columnData) {
     if (window.collapsedColumns && window.collapsedColumns.has(columnId)) {
         newColumnElement.classList.add('collapsed');
         const toggle = newColumnElement.querySelector('.collapse-toggle');
-        if (toggle) toggle.classList.add('rotated');
+        if (toggle) {
+            toggle.classList.add('rotated');
+        }
     }
 
     // Update image sources for the new content
@@ -1080,7 +1086,9 @@ function renderSingleColumn(columnId, columnData) {
  * Performance: Debounced to prevent rapid re-renders
  */
 function renderBoard() {
-    
+    console.log('[RENDER BOARD DEBUG] renderBoard() called');
+    console.log('[RENDER BOARD DEBUG] Stack trace:', new Error().stack);
+
     // Apply tag styles first
     applyTagStyles();
     
@@ -1598,7 +1606,7 @@ function createColumnElement(column, columnIndex) {
 												<div class="donut-menu-divider"></div>
 												${generateTagMenuItems(column.id, 'column')}
 												<div class="donut-menu-divider"></div>
-												<button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
+												<button class="donut-menu-item danger" onclick="console.log('[DELETE BUTTON DEBUG] Delete button clicked for column:', '${column.id}'); deleteColumn('${column.id}')">Delete list</button>
 										</div>
 								</div>
 						</div>

@@ -2104,6 +2104,10 @@ window.addEventListener('message', event => {
     
     switch (message.type) {
         case 'updateBoard':
+            console.log('[UPDATE BOARD DEBUG] Received updateBoard message from VS Code');
+            console.log('[UPDATE BOARD DEBUG] Message contains board with', message.board?.columns?.length || 0, 'columns');
+            console.log('[UPDATE BOARD DEBUG] isFullRefresh:', message.isFullRefresh);
+            console.log('[UPDATE BOARD DEBUG] Stack trace:', new Error().stack);
             const previousBoard = currentBoard;
             
             // Clear card focus when board is updated
