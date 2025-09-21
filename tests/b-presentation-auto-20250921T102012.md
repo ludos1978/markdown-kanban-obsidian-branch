@@ -14,16 +14,6 @@ b Text bbb
 
 a Text
 
-#urgent
-
-tag
-
----
-
-####### '/Users/rspoerri/Desktop/_TEST/SNSF Data Visualiza...
-
-'/Users/rspoerri/Desktop/_TEST/SNSF Data Visualization.webloc'
-
 ---
 
 # asdf

@@ -2130,7 +2130,15 @@ window.addEventListener('message', event => {
 
             // Clean up any duplicate row tags
             cleanupRowTags();
-            
+
+            // Update version display if provided
+            if (message.version) {
+                const versionElement = document.getElementById('build-version');
+                if (versionElement) {
+                    versionElement.textContent = message.version;
+                }
+            }
+
             // First apply configuration (as fallback)
             if (message.layoutRows) {
                 applyLayoutRows(message.layoutRows);

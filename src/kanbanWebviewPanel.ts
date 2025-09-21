@@ -927,7 +927,11 @@ export class KanbanWebviewPanel {
         const showRowTags = await this._getShowRowTagsConfiguration();
         
         const maxRowHeight = await this._getMaxRowHeightConfiguration();
-            
+
+        // Get version from package.json
+        const packageJson = require('../package.json');
+        const version = packageJson.version || 'Unknown';
+
         setTimeout(() => {
             this._panel.webview.postMessage({
                 type: 'updateBoard',
@@ -946,7 +950,8 @@ export class KanbanWebviewPanel {
                 showRowTags: showRowTags,
                 maxRowHeight: maxRowHeight,
                 applyDefaultFolding: applyDefaultFolding,
-                isFullRefresh: isFullRefresh
+                isFullRefresh: isFullRefresh,
+                version: version
             });
         }, 10);
 
