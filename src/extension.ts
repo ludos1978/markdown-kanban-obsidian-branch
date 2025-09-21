@@ -52,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
 	if (vscode.window.registerWebviewPanelSerializer) {
 		vscode.window.registerWebviewPanelSerializer(KanbanWebviewPanel.viewType, {
 			async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any) {
-				KanbanWebviewPanel.revive(webviewPanel, context.extensionUri, context);
+				KanbanWebviewPanel.revive(webviewPanel, context.extensionUri, context, state);
 			}
 		});
 	}
