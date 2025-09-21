@@ -57,7 +57,7 @@ export class ConfigurationService {
     // Default configuration values
     private readonly defaults: ConfigurationDefaults = {
         enableBackups: true,
-        backupInterval: 300,
+        backupInterval: 15,
         backupLocation: '',
         openLinksInNewTab: true,
         whitespace: 'normal',

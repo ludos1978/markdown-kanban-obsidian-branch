@@ -730,8 +730,8 @@ function generateTagMenuItems(id, type, columnId = null) {
     const tagConfig = window.tagColors || {};
 
     // Debug: Check if tagColors is available
-    console.log('DEBUG: window.tagColors:', window.tagColors);
-    console.log('DEBUG: tagConfig keys:', Object.keys(tagConfig));
+    // console.log('DEBUG: window.tagColors:', window.tagColors);
+    // console.log('DEBUG: tagConfig keys:', Object.keys(tagConfig));
 
     const userAddedTags = getUserAddedTags();
     

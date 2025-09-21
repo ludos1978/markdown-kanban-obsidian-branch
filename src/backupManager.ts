@@ -60,6 +60,7 @@ export class BackupManager {
                 const intervalMs = intervalMinutes * 60 * 1000;
 
                 if (timeSinceLastBackup < intervalMs) {
+                    console.log(`❌ Backup skipped: ${Math.round(timeSinceLastBackup/1000)}s since last backup (min: ${intervalMinutes}min). Label: ${options.label || 'backup'}`);
                     return false;
                 }
             }
@@ -88,8 +89,8 @@ export class BackupManager {
 
             this._lastBackupTime = new Date();
             this._lastContentHash = contentHash;
-            
-            console.log(`Backup created: ${backupPath}`);
+
+            console.log(`✅ Backup created: ${backupPath} (Label: ${options.label || 'backup'}, Forced: ${options.forceCreate || false})`);
             
             // Clean up old backups
             await this.cleanupOldBackups(document);
@@ -182,7 +183,7 @@ export class BackupManager {
             // Set hidden attribute on Windows
             await this.setFileHidden(backupPath);
 
-            console.log(`Include file backup created: ${backupPath}`);
+            // console.log(`Include file backup created: ${backupPath}`);
             return backupPath;
 
         } catch (error) {
@@ -297,7 +298,7 @@ export class BackupManager {
                 for (const file of filesToDelete) {
                     try {
                         fs.unlinkSync(file.path);
-                        console.log(`Deleted old backup: ${file.name}`);
+                        // console.log(`Deleted old backup: ${file.name}`);
                     } catch (error) {
                         console.error(`Failed to delete backup ${file.name}:`, error);
                     }

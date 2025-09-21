@@ -335,6 +335,13 @@ export class KanbanWebviewPanel {
                         if (cachedBoard) {
                             this.trackIncludeFileUnsavedChanges(cachedBoard);
                         }
+
+                        // Attempt to create backup if minimum interval has passed
+                        const document = this._fileManager.getDocument();
+                        if (document) {
+                            this._backupManager.createBackup(document, { label: 'auto' })
+                                .catch(error => console.error('Cache update backup failed:', error));
+                        }
                     }
                     if (cachedBoard) {
                         // CRITICAL: Store the cached board data immediately for saving
@@ -1208,7 +1215,7 @@ export class KanbanWebviewPanel {
                 }
             }
             
-            // After successful save, create a backup
+            // After successful save, create a backup (respects minimum interval)
             await this._backupManager.createBackup(document);
             
             // Clear unsaved changes flag after successful save
@@ -1597,10 +1604,10 @@ export class KanbanWebviewPanel {
                     }
                 });
             } else {
-                // For other backup types (page hidden, etc.), use document content
+                // For other backup types (page hidden, etc.), use document content and respect timing
                 await this._backupManager.createBackup(document, {
                     label: label,
-                    forceCreate: true
+                    forceCreate: false  // Respect minimum interval timing for non-conflict backups
                 });
             }
 

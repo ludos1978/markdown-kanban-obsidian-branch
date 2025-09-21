@@ -590,7 +590,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .column-footer {
 	padding-top: 8px;
-	border-bottom: 0.5px solid var(--vscode-panel-border);
+	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
 	border-left: 0.5px solid var(--vscode-panel-border);
 	border-right: 0.5px solid var(--vscode-panel-border);
 	border-radius: 0px 0px 4px 4px;
@@ -684,6 +684,10 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .column-header:not(:has(.header-bars-container):has(.header-bar)) {
 	border-top: 0.5px solid var(--vscode-panel-border);
+}
+
+.column-footer:not(:has(.footer-bars-container):has(.footer-bar)) {
+	border-bottom: 0.5px solid var(--vscode-panel-border);
 }
 
 .kanban-full-height-column.collapsed .column-header {

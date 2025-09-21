@@ -4,20 +4,19 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [x] when undoing and saving and older state it messes up the undo / redo stack. 
 
 
 
 
 ## Closed Bugs
 - [x] use all unchecked parts of the @TODOs.md to fix problems i encountered. for each problem start a branch which you work on and cleanup after finishing working on it. then merge with main, mark the task as done and continue to the next unchecked task in todo.md.
-
 - [x] if i focus another view in vscode the kanban board looses all unsaved changes.
 - [x] if still tries to add headers/footers for tags with theses aspects within the task description. only if in the title of the task, should it add headers footers. othervise add these styles inline (a line with the headers/footers within the descripiton)
 - [x] when converting paths to media links for the drag & drop task source:
   - make sure windows paths are also discovered as urls!
 	- make sure to convert paths to %-encoding / url encoding. for example a space is %20, etc. use a library to do the conversion!
 	- dont add any ` " or anything else but the defined markdown link styles and the url-encoding!!!
-
 - [x] When dragging a column in a multi-row setup the lower, the lower row overlays the rows above. this is fine, if the columns in that are #stack'ed also are visible and moveable in this mode. it could make sense to hide all columns inner and set auto height mode.
 - [x] when converting paths to media assets that are converted to links:
   - make sure windows paths are also discovered as urls
@@ -33,9 +32,7 @@ kanban-plugin: board
 - [x] the auto and backup files must allways be created as hidden files (.filename). the conflict files might be visible. there is also an auto type which i did not specify, use backup 
 - [x] undo does not work anymore consistently. i could not undo edits in a file.
 - [x] find code duplicates. find parts that do something similar or the same. create a comprehensive list of all functions in all js und ts html and css an note what they are for (for functions larger then a few lines, split it int mutiple features). write the result into @FUNCTIONS.md .  try to create  unique naming system for features and write down the functions and line number within the function. later we are going to compare the results and fin duplicates.
-
 - [x] When folding all cards of the column: under some circumstances it doesnt fold the cards below the column. but rather folds a card that is in another column, when i first create a card in this column and then move it to another column. the column should just fold/unfold all cards below itself.
-
 - [x] Add an configuration option: It should define which tags are exported when copying as markdown (in the cards burger menus and the column burger menus). have the same options as when changing the displaying in the kaban board (all tags, standard tags, custom tags, @tags only, no tags). 
 - [x] add a #stack tag, that makes a column not be moved on a new line, but stay below the column previous to it. it can be saved to the markdown. also add a column option to toggle the #stack tag on and off for a column.- [x] pressing escape should no more undo the changes of a editing in a field, but should end editing. also tab should no more end editing. shift+enter is ending edi  also. so escape and shift+enter = end editing. dont undo changes if pressing escale. tab works as tab entry.- [x] it must be possible to enter layout and any other tags using the edit field manually, or if available using the interfaces provided. it should likely edit the contents by javascript in the frontend, and refresh without involving the backend at all, except for caching the modified data. when tags are hidden, they should be also hidden in the editor. so after editing they disappear. if something conflicting is added it must overwrite the conflicting tag (new span tags for example). also add a #nospan or #nostack for that to function properly. this has worked before, but doesnt work anymore. no tag (#tags) editing should happen in the backend. move all functionality to the frontend. layout changes should be handled using a text parsing, using the interface (#span{number} tags) should do text parsing and editing. hiding tags also hides them in the editor, in that case the interface should generally be used, but manual entry is allowed and supported.
 - [x] folding a column after a new column has been added might fold the wrong column. are unique id correctly added and everything setup correctly?

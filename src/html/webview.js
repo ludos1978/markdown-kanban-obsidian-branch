@@ -2121,6 +2121,14 @@ window.addEventListener('message', event => {
                 if (!window.hasUnsavedChanges) {
                     window.savedBoardState = JSON.parse(JSON.stringify(message.board));
                 }
+
+                // For undo/redo operations, update the saved state reference but preserve pending changes
+                // Pending changes represent ongoing user edits that should persist through undo operations
+                if (message.isUndo || message.isRedo) {
+                    window.savedBoardState = JSON.parse(JSON.stringify(message.board));
+                    // Note: We intentionally do NOT clear pending changes here, as they represent
+                    // valid user modifications that should persist through undo/redo operations
+                }
             }
             currentBoard = window.cachedBoard;
 

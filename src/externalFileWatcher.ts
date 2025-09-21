@@ -95,12 +95,12 @@ export class ExternalFileWatcher implements vscode.Disposable {
      * Register a file for watching
      */
     public registerFile(path: string, type: FileType, panel: KanbanWebviewPanel): void {
-        console.log(`[FileWatcher Debug] Registering file for watching:`, {
-            path: path,
-            type: type,
-            panelId: (panel as any).id || 'unknown',
-            alreadyWatched: this.watchedFiles.has(path)
-        });
+        // console.log(`[FileWatcher Debug] Registering file for watching:`, {
+        //     path: path,
+        //     type: type,
+        //     panelId: (panel as any).id || 'unknown',
+        //     alreadyWatched: this.watchedFiles.has(path)
+        // });
 
         // Check if this file is already being watched
         let watchedFile = this.watchedFiles.get(path);
@@ -118,13 +118,13 @@ export class ExternalFileWatcher implements vscode.Disposable {
             };
             this.watchedFiles.set(path, watchedFile);
 
-            console.log(`[FileWatcher Debug] Created new watcher for file: ${path}`);
+            // console.log(`[FileWatcher Debug] Created new watcher for file: ${path}`);
 
             // Create the actual file system watcher
             this.createWatcher(path, type);
         }
 
-        console.log(`[FileWatcher Debug] Total watched files: ${this.watchedFiles.size}`);
+        // console.log(`[FileWatcher Debug] Total watched files: ${this.watchedFiles.size}`);
     }
 
     /**
