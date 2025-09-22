@@ -69,7 +69,6 @@ export class ExportService {
             // Clear tracking maps for new export
             this.fileHashMap.clear();
             this.exportedFiles.clear();
-            console.log('✅ Tracking maps cleared');
 
             const sourcePath = sourceDocument.uri.fsPath;
             const sourceDir = path.dirname(sourcePath);
@@ -79,15 +78,12 @@ export class ExportService {
             if (!fs.existsSync(sourcePath)) {
                 throw new Error(`Source markdown file not found: ${sourcePath}`);
             }
-            console.log(`✅ Source file exists: ${sourcePath}`);
 
             // Ensure target folder exists
             try {
                 if (!fs.existsSync(options.targetFolder)) {
-                    console.log(`📁 Creating target folder: ${options.targetFolder}`);
                     fs.mkdirSync(options.targetFolder, { recursive: true });
                 }
-                console.log('✅ Target folder ready');
             } catch (error) {
                 throw new Error(`Failed to create target folder "${options.targetFolder}": ${error}`);
             }
@@ -97,7 +93,6 @@ export class ExportService {
                 const testFile = path.join(options.targetFolder, '.write-test');
                 fs.writeFileSync(testFile, 'test');
                 fs.unlinkSync(testFile);
-                console.log('✅ Write permissions confirmed');
             } catch (error) {
                 throw new Error(`No write permission for target folder "${options.targetFolder}": ${error}`);
             }
@@ -116,7 +111,6 @@ export class ExportService {
                 exportedContent = result.exportedContent;
                 notIncludedAssets = result.notIncludedAssets;
                 stats = result.stats;
-                console.log(`✅ Markdown processing complete: ${stats.includedCount} assets, ${stats.includeFiles} includes`);
             } catch (error) {
                 throw new Error(`Failed to process markdown file "${sourcePath}": ${error}`);
             }
@@ -124,9 +118,7 @@ export class ExportService {
             // Write the main markdown file to export folder
             const targetMarkdownPath = path.join(options.targetFolder, path.basename(sourcePath));
             try {
-                console.log(`💾 Writing main markdown to: ${targetMarkdownPath}`);
                 fs.writeFileSync(targetMarkdownPath, exportedContent, 'utf8');
-                console.log('✅ Main markdown file written');
             } catch (error) {
                 throw new Error(`Failed to write main markdown file to "${targetMarkdownPath}": ${error}`);
             }
@@ -134,9 +126,7 @@ export class ExportService {
             // Create _not_included.md if there are excluded assets
             if (notIncludedAssets.length > 0) {
                 try {
-                    console.log(`📋 Creating _not_included.md with ${notIncludedAssets.length} excluded assets`);
                     await this.createNotIncludedFile(notIncludedAssets, options.targetFolder);
-                    console.log('✅ _not_included.md created');
                 } catch (error) {
                     console.warn(`Failed to create _not_included.md: ${error}`);
                     // Don't fail the entire export for this
@@ -144,7 +134,6 @@ export class ExportService {
             }
 
             const successMessage = `Export completed successfully!\n${stats.includedCount} assets included, ${stats.excludedCount} assets excluded.\n${stats.includeFiles} included files processed.`;
-            console.log('🎉 Export completed successfully!');
 
             return {
                 success: true,
@@ -178,26 +167,14 @@ export class ExportService {
         notIncludedAssets: AssetInfo[];
         stats: { includedCount: number; excludedCount: number; includeFiles: number };
     }> {
-        console.log(`  📄 Processing: ${path.basename(markdownPath)}`);
-
-        try {
-            const content = fs.readFileSync(markdownPath, 'utf8');
-            console.log(`  ✅ File read successfully (${content.length} chars)`);
-        } catch (error) {
-            throw new Error(`Failed to read markdown file "${markdownPath}": ${error}`);
-        }
-
         const content = fs.readFileSync(markdownPath, 'utf8');
         const sourceDir = path.dirname(markdownPath);
         const mediaFolder = path.join(exportFolder, `${fileBasename}-Media`);
 
         // Find all assets in the markdown
-        console.log(`  🔍 Finding assets in markdown...`);
         const assets = this.findAssets(content, sourceDir);
-        console.log(`  ✅ Found ${assets.length} assets`);
 
         // Find and process included markdown files
-        console.log(`  📦 Processing included files...`);
         const { processedContent, includeStats } = await this.processIncludedFiles(
             content,
             sourceDir,
@@ -205,15 +182,11 @@ export class ExportService {
             options,
             processedIncludes
         );
-        console.log(`  ✅ Processed ${includeStats} included files`);
 
         // Filter assets based on options
-        console.log(`  🎯 Filtering assets based on options...`);
         const assetsToInclude = this.filterAssets(assets, options);
-        console.log(`  ✅ ${assetsToInclude.length}/${assets.length} assets will be included`);
 
         // Process assets and update content
-        console.log(`  ⚙️ Processing ${assetsToInclude.length} assets...`);
         const { modifiedContent, notIncludedAssets } = await this.processAssets(
             processedContent,
             assetsToInclude,
@@ -221,15 +194,12 @@ export class ExportService {
             mediaFolder,
             fileBasename
         );
-        console.log(`  ✅ Asset processing complete`);
 
         const stats = {
             includedCount: assetsToInclude.length,
             excludedCount: notIncludedAssets.length,
             includeFiles: includeStats
         };
-
-        console.log(`  🎉 Markdown file processing complete: ${stats.includedCount} included, ${stats.excludedCount} excluded, ${stats.includeFiles} includes`);
 
         return {
             exportedContent: modifiedContent,
@@ -339,7 +309,7 @@ export class ExportService {
                 } else {
                     const remaining = maxBytes - (bytesRead - chunk.length);
                     if (remaining > 0) {
-                        hash.update(chunk.slice(0, remaining));
+                        hash.update(Buffer.isBuffer(chunk) ? chunk.subarray(0, remaining) : chunk.slice(0, remaining));
                     }
                     // Resolve immediately when we've read enough data
                     stream.destroy();
@@ -353,13 +323,6 @@ export class ExportService {
             });
 
             stream.on('error', reject);
-
-            stream.on('close', () => {
-                // Fallback in case stream is destroyed but hasn't resolved yet
-                if (!hash.digest) {
-                    resolve(hash.digest('hex'));
-                }
-            });
         });
     }
 
@@ -383,13 +346,13 @@ export class ExportService {
 
         // Process all matches
         const patterns = [
-            { regex: imageRegex, isMedia: true },
-            { regex: linkRegex, isMedia: false },
-            { regex: htmlImgRegex, isMedia: true },
-            { regex: htmlMediaRegex, isMedia: true }
+            imageRegex,
+            linkRegex,
+            htmlImgRegex,
+            htmlMediaRegex
         ];
 
-        patterns.forEach(({ regex, isMedia }) => {
+        patterns.forEach((regex) => {
             let match;
             while ((match = regex.exec(content)) !== null) {
                 const rawPath = match[1].split(' ')[0].replace(/["']/g, ''); // Remove quotes and titles
@@ -478,66 +441,46 @@ export class ExportService {
         const notIncludedAssets: AssetInfo[] = [];
         const includedPaths = new Set(assetsToInclude.map(a => a.originalPath));
 
-        console.log(`    📁 Processing assets for: ${fileBasename}`);
-
         // Ensure media folder exists if we have assets to include
         if (assetsToInclude.length > 0 && !fs.existsSync(mediaFolder)) {
-            console.log(`    📁 Creating media folder: ${mediaFolder}`);
             fs.mkdirSync(mediaFolder, { recursive: true });
         }
 
         // Copy included assets and modify paths
-        let processedCount = 0;
         for (const asset of assetsToInclude) {
             try {
-                console.log(`    📄 Processing asset ${++processedCount}/${assetsToInclude.length}: ${path.basename(asset.originalPath)}`);
-
                 // Calculate MD5 for duplicate detection
-                console.log(`    🔍 Calculating MD5 for: ${asset.resolvedPath}`);
                 const md5 = await this.calculateMD5(asset.resolvedPath);
-                console.log(`    ✅ MD5 calculated: ${md5.substring(0, 8)}...`);
 
                 // Check if we already exported this exact file
                 if (this.exportedFiles.has(md5)) {
-                    console.log(`    ♻️ Reusing existing file (same MD5)`);
                     // Use existing exported file path
                     const existingPath = this.exportedFiles.get(md5)!;
                     // Calculate relative path from the markdown location (export folder root) to the existing asset
                     const markdownLocation = path.dirname(mediaFolder); // This is the export folder
 
-                    // Add null check for existingPath
                     if (!existingPath) {
-                        console.error(`    ❌ Existing path is undefined for MD5: ${md5}`);
                         throw new Error(`Existing path is undefined for MD5: ${md5}`);
                     }
 
                     const relativePath = path.relative(markdownLocation, existingPath).replace(/\\/g, '/');
                     modifiedContent = this.replaceAssetPath(modifiedContent, asset.originalPath, relativePath);
                     continue;
-                } else {
-                    console.log(`    📋 New file, processing...`);
                 }
 
                 // Generate unique filename if needed
-                console.log(`    📂 Generating filename for: ${asset.resolvedPath}`);
                 const fileName = path.basename(asset.resolvedPath);
                 const ext = path.extname(fileName);
                 const nameWithoutExt = path.basename(fileName, ext);
-                console.log(`    📄 File: ${fileName}, ext: ${ext}, name: ${nameWithoutExt}`);
 
                 let targetPath = path.join(mediaFolder, fileName);
                 let exportedFileName = fileName;
                 let index = 1;
-                console.log(`    🎯 Initial target path: ${targetPath}`);
 
                 // Check for filename conflicts
-                console.log(`    🔍 Checking for filename conflicts...`);
                 while (fs.existsSync(targetPath)) {
-                    console.log(`    ⚠️ File exists, checking MD5: ${targetPath}`);
                     const existingMd5 = await this.calculateMD5(targetPath);
-                    console.log(`    🔍 Existing MD5: ${existingMd5.substring(0, 8)}..., Current MD5: ${md5.substring(0, 8)}...`);
                     if (existingMd5 === md5) {
-                        console.log(`    ✅ Same file, reusing: ${targetPath}`);
                         // Same file, use it
                         break;
                     }
@@ -545,25 +488,17 @@ export class ExportService {
                     exportedFileName = `${nameWithoutExt}-${index}${ext}`;
                     targetPath = path.join(mediaFolder, exportedFileName);
                     index++;
-                    console.log(`    🔄 Trying alternative name: ${exportedFileName} (index: ${index})`);
                 }
 
                 // Copy the file if not already there
-                console.log(`    📁 Checking if file needs to be copied: ${targetPath}`);
                 if (!fs.existsSync(targetPath)) {
-                    console.log(`    📋 Copying file: ${asset.resolvedPath} → ${targetPath}`);
                     fs.copyFileSync(asset.resolvedPath, targetPath);
                     this.exportedFiles.set(md5, targetPath);
-                    console.log(`    ✅ File copied and MD5 registered`);
-                } else {
-                    console.log(`    ✅ File already exists, skipping copy`);
                 }
 
                 // Update path in content - use relative path from markdown to media folder
-                console.log(`    🔗 Updating content path: ${asset.originalPath} → ${exportedFileName}`);
                 const relativePath = path.join(`${fileBasename}-Media`, exportedFileName);
                 modifiedContent = this.replaceAssetPath(modifiedContent, asset.originalPath, relativePath);
-                console.log(`    ✅ Asset ${processedCount} completed successfully`);
 
             } catch (error) {
                 console.error(`Failed to copy asset ${asset.originalPath}:`, error);
@@ -571,16 +506,12 @@ export class ExportService {
             }
         }
 
-        console.log(`    ✅ Asset processing complete for ${fileBasename}`);
-
         // Collect assets that weren't included
         for (const asset of allAssets) {
             if (!includedPaths.has(asset.originalPath) && asset.type !== 'markdown') {
                 notIncludedAssets.push(asset);
             }
         }
-
-        console.log(`    📊 Final stats: ${processedCount} processed, ${notIncludedAssets.length} excluded`);
 
         return { modifiedContent, notIncludedAssets };
     }

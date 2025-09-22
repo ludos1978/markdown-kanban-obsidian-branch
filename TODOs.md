@@ -4,12 +4,12 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [x] when undoing and saving and older state it messes up the undo / redo stack. 
-
-
+- [ ] Make the export functionality available to single columns. It works the same as with the full file, except that it only exports the data from the column and exports the included files into a media folder. use the a sanitized version of the column title (no spaces and special characters) or Row{index} appended to the {filename-without-extension} within the  _Export folder as output.
 
 
 ## Closed Bugs
+
+- [x] when undoing and saving and older state it messes up the undo / redo stack. 
 - [x] use all unchecked parts of the @TODOs.md to fix problems i encountered. for each problem start a branch which you work on and cleanup after finishing working on it. then merge with main, mark the task as done and continue to the next unchecked task in todo.md.
 - [x] if i focus another view in vscode the kanban board looses all unsaved changes.
 - [x] if still tries to add headers/footers for tags with theses aspects within the task description. only if in the title of the task, should it add headers footers. othervise add these styles inline (a line with the headers/footers within the descripiton)
