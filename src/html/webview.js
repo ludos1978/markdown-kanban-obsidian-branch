@@ -2607,6 +2607,15 @@ window.addEventListener('message', event => {
                 }
             }
             break;
+        case 'exportDefaultFolder':
+            setExportDefaultFolder(message.folderPath);
+            break;
+        case 'exportFolderSelected':
+            setSelectedExportFolder(message.folderPath);
+            break;
+        case 'exportResult':
+            handleExportResult(message.result);
+            break;
     }
 });
 
@@ -3698,5 +3707,124 @@ function updateLayoutPresetsActiveState() {
     const textSpan = button?.querySelector('.layout-presets-text');
     if (textSpan && layoutPresets[currentPreset]) {
         textSpan.textContent = layoutPresets[currentPreset].label;
+    }
+}
+
+// Export & Pack functionality
+let exportDefaultFolder = '';
+
+/**
+ * Show the export dialog
+ */
+function showExportDialog() {
+    const modal = document.getElementById('export-modal');
+    if (!modal) return;
+
+    // Generate default export folder name
+    vscode.postMessage({
+        type: 'getExportDefaultFolder'
+    });
+
+    modal.style.display = 'block';
+}
+
+/**
+ * Close the export dialog
+ */
+function closeExportModal() {
+    const modal = document.getElementById('export-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+/**
+ * Set the default export folder
+ */
+function setExportDefaultFolder(folderPath) {
+    exportDefaultFolder = folderPath;
+    const folderInput = document.getElementById('export-folder');
+    if (folderInput) {
+        folderInput.value = folderPath;
+    }
+}
+
+/**
+ * Open folder selection dialog
+ */
+function selectExportFolder() {
+    vscode.postMessage({
+        type: 'selectExportFolder',
+        defaultPath: exportDefaultFolder
+    });
+}
+
+/**
+ * Set the selected export folder
+ */
+function setSelectedExportFolder(folderPath) {
+    exportDefaultFolder = folderPath;
+    const folderInput = document.getElementById('export-folder');
+    if (folderInput) {
+        folderInput.value = folderPath;
+    }
+}
+
+/**
+ * Execute the export operation
+ */
+function executeExport() {
+    const folderInput = document.getElementById('export-folder');
+    if (!folderInput || !folderInput.value.trim()) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'Please select an export folder'
+        });
+        return;
+    }
+
+    // Gather options from the form
+    const options = {
+        targetFolder: folderInput.value.trim(),
+        includeFiles: document.getElementById('include-files')?.checked || false,
+        includeImages: document.getElementById('include-images')?.checked || false,
+        includeVideos: document.getElementById('include-videos')?.checked || false,
+        includeOtherMedia: document.getElementById('include-other-media')?.checked || false,
+        includeDocuments: document.getElementById('include-documents')?.checked || false,
+        fileSizeLimitMB: parseInt(document.getElementById('file-size-limit')?.value) || 100
+    };
+
+    // Close modal
+    closeExportModal();
+
+    // Send export request
+    vscode.postMessage({
+        type: 'exportWithAssets',
+        options: options
+    });
+}
+
+/**
+ * Handle export result
+ */
+function handleExportResult(result) {
+    if (result.success) {
+        vscode.postMessage({
+            type: 'showInfo',
+            message: result.message
+        });
+
+        if (result.exportedPath) {
+            // Ask if user wants to open the export folder
+            vscode.postMessage({
+                type: 'askOpenExportFolder',
+                path: result.exportedPath
+            });
+        }
+    } else {
+        vscode.postMessage({
+            type: 'showError',
+            message: result.message
+        });
     }
 }

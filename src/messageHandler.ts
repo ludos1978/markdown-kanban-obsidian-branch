@@ -5,6 +5,7 @@ import { LinkHandler } from './linkHandler';
 import { KanbanBoard } from './markdownParser';
 import { ExternalFileWatcher } from './externalFileWatcher';
 import { configService } from './configurationService';
+import { ExportService } from './exportService';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -488,6 +489,30 @@ export class MessageHandler {
                     message.dropPosition,
                     message.md5Hash
                 );
+                break;
+
+            case 'getExportDefaultFolder':
+                await this.handleGetExportDefaultFolder();
+                break;
+
+            case 'selectExportFolder':
+                await this.handleSelectExportFolder(message.defaultPath);
+                break;
+
+            case 'exportWithAssets':
+                await this.handleExportWithAssets(message.options);
+                break;
+
+            case 'showError':
+                vscode.window.showErrorMessage(message.message);
+                break;
+
+            case 'showInfo':
+                vscode.window.showInformationMessage(message.message);
+                break;
+
+            case 'askOpenExportFolder':
+                await this.handleAskOpenExportFolder(message.path);
                 break;
 
             default:
@@ -1509,6 +1534,103 @@ export class MessageHandler {
 
         } catch (error) {
             console.error('[requestTaskIncludeFileName] Error handling input request:', error);
+        }
+    }
+
+    private async handleGetExportDefaultFolder(): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                console.error('No document available for export');
+                return;
+            }
+
+            const defaultFolder = ExportService.generateDefaultExportFolder(document.uri.fsPath);
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                panel._panel.webview.postMessage({
+                    type: 'exportDefaultFolder',
+                    folderPath: defaultFolder
+                });
+            }
+        } catch (error) {
+            console.error('Error getting export default folder:', error);
+        }
+    }
+
+    private async handleSelectExportFolder(defaultPath?: string): Promise<void> {
+        try {
+            const result = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Select Export Folder',
+                defaultUri: defaultPath ? vscode.Uri.file(defaultPath) : undefined
+            });
+
+            if (result && result[0]) {
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'exportFolderSelected',
+                        folderPath: result[0].fsPath
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error selecting export folder:', error);
+        }
+    }
+
+    private async handleExportWithAssets(options: any): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                vscode.window.showErrorMessage('No document available for export');
+                return;
+            }
+
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Exporting markdown with assets...',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 20, message: 'Analyzing assets...' });
+
+                const result = await ExportService.exportWithAssets(document, options);
+
+                progress.report({ increment: 80, message: 'Finalizing export...' });
+
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'exportResult',
+                        result: result
+                    });
+                }
+            });
+
+        } catch (error) {
+            console.error('Error exporting with assets:', error);
+            vscode.window.showErrorMessage(`Export failed: ${error}`);
+        }
+    }
+
+    private async handleAskOpenExportFolder(exportPath: string): Promise<void> {
+        try {
+            const folderPath = path.dirname(exportPath);
+            const result = await vscode.window.showInformationMessage(
+                'Export completed successfully!',
+                'Open Export Folder',
+                'Dismiss'
+            );
+
+            if (result === 'Open Export Folder') {
+                await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(folderPath), true);
+            }
+        } catch (error) {
+            console.error('Error handling export folder open request:', error);
         }
     }
 }

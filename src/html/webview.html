@@ -104,6 +104,9 @@
                         <button class="file-bar-menu-item" onclick="selectFile()" title="Select different file">
                             <span class="menu-icon">📁</span> Open File
                         </button>
+                        <button class="file-bar-menu-item" onclick="showExportDialog()" title="Export markdown with assets">
+                            <span class="menu-icon">📦</span> Export & Pack
+                        </button>
                         <div class="file-bar-menu-divider"></div>
                         <div class="file-bar-menu-item has-submenu">
                             <span class="menu-icon">↔</span> Column Width
@@ -248,6 +251,60 @@
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeInputModal()">Cancel</button>
                 <button type="button" class="btn btn-primary" id="input-ok-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export dialog -->
+    <div id="export-modal" class="modal">
+        <div class="modal-content export-modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Export & Pack</h3>
+                <button class="close-btn" onclick="closeExportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-field">
+                    <label for="export-folder">Export Folder:</label>
+                    <div class="export-folder-input">
+                        <input type="text" id="export-folder" class="form-input" placeholder="Select folder..." readonly />
+                        <button type="button" class="btn btn-secondary" onclick="selectExportFolder()">Browse</button>
+                    </div>
+                </div>
+
+                <div class="export-field">
+                    <label>Include Assets:</label>
+                    <div class="export-checkboxes">
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="include-files" checked>
+                            <span>Included Files</span>
+                        </label>
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="include-images" checked>
+                            <span>Images</span>
+                        </label>
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="include-videos" checked>
+                            <span>Videos</span>
+                        </label>
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="include-other-media" checked>
+                            <span>Other Media</span>
+                        </label>
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="include-documents" checked>
+                            <span>Documents</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="export-field">
+                    <label for="file-size-limit">File Size Limit (MB):</label>
+                    <input type="number" id="file-size-limit" class="form-input" value="100" min="1" max="1000" />
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="executeExport()">Export</button>
             </div>
         </div>
     </div>

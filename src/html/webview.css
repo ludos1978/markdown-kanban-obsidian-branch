@@ -1916,6 +1916,53 @@ button.file-bar-menu-item {
   background: var(--vscode-button-secondaryHoverBackground);
 }
 
+/* Export Modal Specific Styles */
+.export-modal-content {
+  max-width: 600px;
+}
+
+.export-field {
+  margin-bottom: 20px;
+}
+
+.export-field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--vscode-foreground);
+}
+
+.export-folder-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.export-folder-input input {
+  flex: 1;
+}
+
+.export-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.export-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.export-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
 /* Search Panel */
 .search-panel {
   position: fixed;
