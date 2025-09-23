@@ -725,8 +725,6 @@ export class KanbanWebviewPanel {
                     this._fileWatcher.updateIncludeFiles(this, allIncludePaths);
                 }
 
-                // Always send notification to update tracked files list
-                this._sendIncludeFileChangeNotification();
 
                 // ALWAYS re-check for changes after reload
                 // This will detect any changes between the preserved baseline and current state
@@ -741,8 +739,7 @@ export class KanbanWebviewPanel {
 
                 // Send notification again in case it was lost
                 if (this._includeFilesChanged) {
-                    this._sendIncludeFileChangeNotification();
-                }
+                        }
 
                 if (this._board) {
                     this._boardOperations.setOriginalTaskOrder(this._board);
@@ -952,7 +949,6 @@ export class KanbanWebviewPanel {
             }
 
             // Always send notification to update tracked files list
-            this._sendIncludeFileChangeNotification();
 
             // ALWAYS re-check for changes after reload
             // This will detect any changes between the preserved baseline and current state
@@ -966,7 +962,6 @@ export class KanbanWebviewPanel {
             }
 
             // Send notification after recheck to ensure UI is updated with current state
-            this._sendIncludeFileChangeNotification();
 
             // Clean up any duplicate row tags
             const wasModified = this._boardOperations.cleanupRowTags(this._board);
@@ -1059,6 +1054,19 @@ export class KanbanWebviewPanel {
                 version: version
             });
         }, 10);
+
+        // Send include file contents after board update
+        if (this._includeFileContents.size > 0) {
+            setTimeout(() => {
+                for (const [filePath, content] of this._includeFileContents) {
+                    this._panel.webview.postMessage({
+                        type: 'updateIncludeContent',
+                        filePath: filePath,
+                        content: content
+                    });
+                }
+            }, 20);
+        }
 
         // Create cache file for crash recovery (only for valid boards with actual content)
         if (board.valid && board.columns && board.columns.length > 0) {
@@ -1986,7 +1994,6 @@ export class KanbanWebviewPanel {
             for (const file of changedFiles) {
                 this._changedIncludeFiles.add(file);
             }
-            this._sendIncludeFileChangeNotification();
         }
     }
 
@@ -2015,70 +2022,7 @@ export class KanbanWebviewPanel {
     }
 
 
-    private _sendIncludeFileChangeNotification() {
 
-        if (this._panel && this._panel.webview) {
-            const changedFiles = Array.from(this._changedIncludeFiles);
-            const trackedFiles = [...this._includedFiles]; // All tracked include files
-            const message = {
-                type: 'includeFilesChanged',
-                hasChanges: this._includeFilesChanged,
-                changedFiles: changedFiles,
-                trackedFiles: trackedFiles
-            };
-            this._panel.webview.postMessage(message);
-        }
-    }
-
-    public async refreshIncludes() {
-        // Reset the change flag and clear changed files list
-        this._includeFilesChanged = false;
-        this._changedIncludeFiles.clear();
-
-        // Check if we have task includes or column includes that require full board re-parsing
-        const hasTaskIncludes = this._taskIncludeFiles && this._taskIncludeFiles.length > 0;
-        const hasColumnIncludes = this._columnIncludeFiles && this._columnIncludeFiles.length > 0;
-
-        if (hasTaskIncludes || hasColumnIncludes) {
-            // Full reload required for task/column includes since they need re-parsing
-            try {
-                await this.forceReloadFromFile();
-            } catch (error) {
-                console.error('[REFRESH INCLUDES] Error during full reload:', error);
-            }
-        } else {
-            // Lightweight refresh: just update include file cache and notify frontend
-            // This preserves any unsaved changes in the webview
-            try {
-                // Re-read all include file contents and UPDATE baselines to current
-                await this._refreshIncludeFileContents();
-
-                // Send processed include content to frontend (like column/task includes)
-                if (this._panel && this._panel.webview) {
-                    // Process and send each include file as structured content
-                    for (const [filePath, content] of this._includeFileContents) {
-                        // Process the content to HTML (like column/task processing)
-                        this._panel.webview.postMessage({
-                            type: 'updateIncludeContent',
-                            filePath: filePath,
-                            content: content
-                        });
-                    }
-
-                    // Send completion message
-                    this._panel.webview.postMessage({
-                        type: 'includesUpdated',
-                        message: 'All includes processed and updated'
-                    });
-                }
-            } catch (error) {
-                console.error('[REFRESH INCLUDES] Error refreshing includes:', error);
-            }
-        }
-
-        // Send notification to hide the button
-        this._sendIncludeFileChangeNotification();
-    }
 
     /**
      * Refresh include file contents without affecting the board
@@ -2110,7 +2054,6 @@ export class KanbanWebviewPanel {
 
 
         // Send notification after refresh to update button state
-        this._sendIncludeFileChangeNotification();
     }
 
     /**
@@ -2217,7 +2160,6 @@ export class KanbanWebviewPanel {
             if (this._changedIncludeFiles.size === 0) {
                 this._includeFilesChanged = false;
             }
-            this._sendIncludeFileChangeNotification();
 
             // Update known content to detect future external changes
             this._knownIncludeFileContents.set(absolutePath, presentationContent);
@@ -2432,7 +2374,6 @@ export class KanbanWebviewPanel {
             if (this._changedIncludeFiles.size === 0) {
                 this._includeFilesChanged = false;
             }
-            this._sendIncludeFileChangeNotification();
 
             // Update known content to detect future external changes
             this._knownIncludeFileContents.set(absolutePath, fileContent);
@@ -2818,16 +2759,8 @@ export class KanbanWebviewPanel {
 
             // Handle different types of file changes
             if (event.fileType === 'include') {
-                // Check if this is a column include file or inline include file
-                const isColumnInclude = await this.isColumnIncludeFile(event.path);
-
-                if (isColumnInclude) {
-                    // This is a column include file - handle conflict resolution
-                    await this.handleIncludeFileConflict(event.path, event.changeType);
-                } else {
-                    // This is an inline include file - send updated content and trigger visual indicators
-                    await this.handleInlineIncludeFileChange(event.path, event.changeType);
-                }
+                // All include types now use the same unified conflict resolution system
+                await this.handleIncludeFileConflict(event.path, event.changeType);
             } else if (event.fileType === 'main') {
                 // This is the main kanban file - handle external changes
                 const currentDocument = this._fileManager.getDocument();
@@ -2867,12 +2800,55 @@ export class KanbanWebviewPanel {
     }
 
     /**
+     * Check if a file path is used as a task include file
+     */
+    private async isTaskIncludeFile(filePath: string): Promise<boolean> {
+        if (!this._board) {
+            return false;
+        }
+
+        const currentDocument = this._fileManager.getDocument();
+        if (!currentDocument) {
+            return false;
+        }
+
+        const basePath = path.dirname(currentDocument.uri.fsPath);
+        const relativePath = path.relative(basePath, filePath);
+
+        // Check if any task uses this file as an include file
+        for (const column of this._board.columns) {
+            for (const task of column.tasks) {
+                if (task.includeMode && task.includeFiles?.includes(relativePath)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Handle changes to inline include files (!!!include(file)!!! statements)
      */
     private async handleInlineIncludeFileChange(filePath: string, changeType: string): Promise<void> {
         try {
+            // Don't process include file changes if we're currently updating from the panel
+            // This prevents internal saves from triggering unnecessary updates
+            if (this._isUpdatingFromPanel) {
+                return;
+            }
 
-            // Read the updated file content
+            // Convert absolute path to relative for frontend
+            const currentDocument = this._fileManager.getDocument();
+            if (!currentDocument) {
+                return;
+            }
+
+            const basePath = path.dirname(currentDocument.uri.fsPath);
+            const relativePath = path.relative(basePath, filePath);
+
+            // Check if this is truly an external change by comparing with our known content
+            const knownContent = this._includeFileContents.get(relativePath);
+
             let updatedContent: string | null = null;
             try {
                 if (fs.existsSync(filePath)) {
@@ -2882,25 +2858,59 @@ export class KanbanWebviewPanel {
                 console.error(`[InlineInclude] Error reading file:`, error);
             }
 
-            // Convert absolute path to relative for frontend
-            const currentDocument = this._fileManager.getDocument();
-            if (currentDocument) {
-                const basePath = path.dirname(currentDocument.uri.fsPath);
-                const relativePath = path.relative(basePath, filePath);
-
-                // Send updated content to frontend using existing system
-                this._panel?.webview.postMessage({
-                    type: 'includeFileContent',
-                    filePath: relativePath,
-                    content: updatedContent
-                });
-
-                // Use existing visual indicator system
-                this._includeFilesChanged = true;
-                this._changedIncludeFiles.add(relativePath);
-                this._sendIncludeFileChangeNotification();
-
+            if (knownContent !== undefined && knownContent === updatedContent) {
+                // No real change detected - this might be a duplicate event or false alarm
+                return;
             }
+
+            // Check for potential conflicts before updating
+            // Check if there are any unsaved changes that might conflict
+            const hasMainUnsavedChanges = this._hasUnsavedChanges;
+            const hasAnyIncludeUnsavedChanges = Array.from(this._includeFileUnsavedChanges.values()).some(changed => changed);
+
+            if (hasMainUnsavedChanges || hasAnyIncludeUnsavedChanges) {
+                // Potential conflict - use conflict resolution system
+                const fileName = path.basename(filePath);
+                const context: ConflictContext = {
+                    type: 'external_include',
+                    fileType: 'include',
+                    filePath: filePath,
+                    fileName: fileName,
+                    hasMainUnsavedChanges: hasMainUnsavedChanges,
+                    hasIncludeUnsavedChanges: hasAnyIncludeUnsavedChanges,
+                    hasExternalChanges: true,
+                    changedIncludeFiles: [filePath]
+                };
+
+                try {
+                    const resolution = await this._conflictResolver.resolveConflict(context);
+                    if (!resolution.shouldProceed) {
+                        return; // User chose not to update
+                    }
+                    // If user chose to proceed, continue with the update below
+                } catch (error) {
+                    console.error('[InlineInclude] Error in conflict resolution:', error);
+                    return; // Don't update on error
+                }
+            }
+
+            // Proceed with the update
+            this._panel?.webview.postMessage({
+                type: 'updateIncludeContent',
+                filePath: relativePath,
+                content: updatedContent
+            });
+
+            // Update our internal content cache
+            if (updatedContent !== null) {
+                this._includeFileContents.set(relativePath, updatedContent);
+            }
+
+            // Trigger automatic board update to reflect changes immediately
+            this._panel?.webview.postMessage({
+                type: 'includesUpdated',
+                message: 'Include file automatically updated'
+            });
 
         } catch (error) {
             console.error('[InlineInclude] Error handling inline include file change:', error);
@@ -2941,8 +2951,7 @@ export class KanbanWebviewPanel {
                             // Add to changed files tracking and trigger visual indicators
                             this._includeFilesChanged = true;
                             this._changedIncludeFiles.add(includeFile);
-                            this._sendIncludeFileChangeNotification();
-                        } else {
+                                        } else {
                             // No changes detected, clear unsaved flag if it was set
                             const wasChanged = this._includeFileUnsavedChanges.get(absolutePath);
                             if (wasChanged) {
@@ -2953,8 +2962,7 @@ export class KanbanWebviewPanel {
                                 if (this._changedIncludeFiles.size === 0) {
                                     this._includeFilesChanged = false;
                                 }
-                                this._sendIncludeFileChangeNotification();
-                            }
+                                                }
                         }
                     }
                 }
@@ -2987,8 +2995,7 @@ export class KanbanWebviewPanel {
                                 // Add to changed files tracking and trigger visual indicators
                                 this._includeFilesChanged = true;
                                 this._changedIncludeFiles.add(includeFile);
-                                this._sendIncludeFileChangeNotification();
-
+                    
                                 // Mark as changed but don't auto-save (user controls when to save)
                             } else {
                                 // No changes detected, clear unsaved flag if it was set
@@ -3001,8 +3008,7 @@ export class KanbanWebviewPanel {
                                     if (this._changedIncludeFiles.size === 0) {
                                         this._includeFilesChanged = false;
                                     }
-                                    this._sendIncludeFileChangeNotification();
-                                }
+                                                        }
                             }
                         }
                     }

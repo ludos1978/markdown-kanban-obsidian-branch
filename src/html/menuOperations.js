@@ -2818,19 +2818,6 @@ function manualRefresh() {
     }, 100);
 }
 
-// Refresh includes function
-function refreshIncludes() {
-    // Update button to show it's refreshing
-    const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
-    const iconSpan = refreshIncludesBtn?.querySelector('.refresh-includes-icon');
-    if (iconSpan) {
-        iconSpan.textContent = '🔄'; // Spinning/refresh icon
-    }
-
-    // Send message to backend to refresh includes
-    vscode.postMessage({ type: 'refreshIncludes' });
-    vscode.postMessage({ type: 'showMessage', text: 'Refreshing included files...' });
-}
 
 // Function to update refresh button state
 /**
@@ -3508,7 +3495,6 @@ window.submenuGenerator = window.menuManager; // Compatibility alias
 window.manualRefresh = manualRefresh;
 window.updateVisualTagState = updateVisualTagState;
 window.updateAllVisualTagElements = updateAllVisualTagElements;
-window.refreshIncludes = refreshIncludes;
 window.toggleTaskIncludeMode = toggleTaskIncludeMode;
 window.editTaskIncludeFile = editTaskIncludeFile;
 

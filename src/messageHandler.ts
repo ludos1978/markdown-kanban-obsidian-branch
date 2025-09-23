@@ -114,18 +114,6 @@ export class MessageHandler {
                 await this.handleRedo();
                 break;
 
-            // Include file refresh
-            case 'refreshIncludes':
-                const refreshId = `refresh_${Date.now()}`;
-                await this.startOperation(refreshId, 'refresh', 'Refreshing include files...');
-                try {
-                    await this.handleRefreshIncludes(refreshId);
-                    await this.endOperation(refreshId);
-                } catch (error) {
-                    await this.endOperation(refreshId);
-                    throw error;
-                }
-                break;
 
 
             // Runtime function tracking report
@@ -1192,33 +1180,6 @@ export class MessageHandler {
             .replace(/\$0/g, ''); // Final cursor position -> empty
     }
 
-    private async handleRefreshIncludes(operationId?: string): Promise<void> {
-        try {
-            if (operationId) {
-                await this.updateOperationProgress(operationId, 20, 'Analyzing include files...');
-            }
-
-            // Call refreshIncludes on the webview panel
-            const panel = this._getWebviewPanel();
-            if (panel && typeof panel.refreshIncludes === 'function') {
-                if (operationId) {
-                    await this.updateOperationProgress(operationId, 50, 'Reloading content...');
-                }
-
-                await panel.refreshIncludes();
-
-                if (operationId) {
-                    await this.updateOperationProgress(operationId, 100, 'Include files updated');
-                }
-            } else {
-                throw new Error('Webview panel not available');
-            }
-        } catch (error) {
-            console.error('[MESSAGE HANDLER] Error refreshing includes:', error);
-            vscode.window.showErrorMessage(`Failed to refresh includes: ${error}`);
-            throw error;
-        }
-    }
 
 
     private async handleRuntimeTrackingReport(report: any): Promise<void> {

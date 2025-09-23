@@ -135,7 +135,7 @@ class RuntimeTracker {
             'renderBoard', 'renderMarkdown', 'focusCard', 'unfocusCard',
             'openIncludeFile', 'toggleCardFontSize', 'setFontSize',
             'handleEmptyCardDragStart', 'handleClipboardDragStart',
-            'refreshIncludes', 'manualRefresh', 'performSort',
+            'manualRefresh', 'performSort',
             'toggleAllColumns', 'updateClipboardCardSource'
         ];
 
