@@ -427,38 +427,43 @@ export class KanbanWebviewPanel {
      * Update the unified include system with parsed file lists
      */
     private _updateUnifiedIncludeSystem(includedFiles: string[], columnIncludeFiles: string[], taskIncludeFiles: string[]): void {
-        console.log(`[Unified Include] Updating system with:`, {
-            regular: includedFiles,
-            column: columnIncludeFiles,
-            task: taskIncludeFiles
-        });
+
+        // Helper function to normalize include paths consistently
+        const normalizePath = (filePath: string): string => {
+            if (!path.isAbsolute(filePath) && !filePath.startsWith('.')) {
+                return './' + filePath;
+            }
+            return filePath;
+        };
 
         // Create or update entries for each file type
         includedFiles.forEach(relativePath => {
-            const includeFile = this.getOrCreateIncludeFile(relativePath, 'regular');
-            console.log(`[Unified Include] Created/updated regular include: ${relativePath} -> ${includeFile.absolutePath}`);
+            const normalizedPath = normalizePath(relativePath);
+            const includeFile = this.getOrCreateIncludeFile(normalizedPath, 'regular');
         });
 
         columnIncludeFiles.forEach(relativePath => {
-            const includeFile = this.getOrCreateIncludeFile(relativePath, 'column');
-            console.log(`[Unified Include] Created/updated column include: ${relativePath} -> ${includeFile.absolutePath}`);
+            const normalizedPath = normalizePath(relativePath);
+            const includeFile = this.getOrCreateIncludeFile(normalizedPath, 'column');
         });
 
         taskIncludeFiles.forEach(relativePath => {
-            const includeFile = this.getOrCreateIncludeFile(relativePath, 'task');
-            console.log(`[Unified Include] Created/updated task include: ${relativePath} -> ${includeFile.absolutePath}`);
+            const normalizedPath = normalizePath(relativePath);
+            const includeFile = this.getOrCreateIncludeFile(normalizedPath, 'task');
         });
 
         // Remove files that are no longer referenced
-        const allCurrentFiles = new Set([...includedFiles, ...columnIncludeFiles, ...taskIncludeFiles]);
+        const allCurrentFiles = new Set([
+            ...includedFiles.map(normalizePath),
+            ...columnIncludeFiles.map(normalizePath),
+            ...taskIncludeFiles.map(normalizePath)
+        ]);
         for (const [relativePath] of this._includeFiles) {
             if (!allCurrentFiles.has(relativePath)) {
-                console.log(`[Unified Include] Removing unused include: ${relativePath}`);
                 this._includeFiles.delete(relativePath);
             }
         }
 
-        console.log(`[Unified Include] Final unified system:`, Array.from(this._includeFiles.entries()));
     }
 
     /**
@@ -821,7 +826,6 @@ export class KanbanWebviewPanel {
 
                 // Register all include files with the file watcher
                 const allIncludePaths = this.getAllIncludeFilePaths();
-                console.log(`[File Watcher] Registering include files:`, allIncludePaths);
                 this._fileWatcher.updateIncludeFiles(this, allIncludePaths);
 
 
@@ -989,7 +993,6 @@ export class KanbanWebviewPanel {
 
             // Register all include files with the file watcher
             const allIncludePaths = this.getAllIncludeFilePaths();
-            console.log(`[File Watcher] Registering include files:`, allIncludePaths);
             this._fileWatcher.updateIncludeFiles(this, allIncludePaths);
 
             // Always send notification to update tracked files list
@@ -2361,18 +2364,10 @@ export class KanbanWebviewPanel {
             const includeFile = newIncludeFiles[0];
             const absolutePath = path.resolve(basePath, includeFile);
 
-            if (fs.existsSync(absolutePath)) {
-                const fileContent = fs.readFileSync(absolutePath, 'utf8');
+            // Use shared method to read and update content
+            const fileContent = await this.readAndUpdateIncludeContent(absolutePath, includeFile);
 
-                // Update unified system tracking
-                const unifiedIncludeFile = this._includeFiles.get(includeFile);
-                if (unifiedIncludeFile) {
-                    unifiedIncludeFile.content = fileContent;
-                    unifiedIncludeFile.baseline = fileContent;
-                    unifiedIncludeFile.hasUnsavedChanges = false;
-                    unifiedIncludeFile.lastModified = Date.now();
-                }
-
+            if (fileContent !== null) {
                 const newTasks = PresentationParser.parseMarkdownToTasks(fileContent);
 
                 // Update the column's tasks directly
@@ -2427,18 +2422,11 @@ export class KanbanWebviewPanel {
             const includeFile = newIncludeFiles[0];
             const absolutePath = path.resolve(basePath, includeFile);
 
-            if (fs.existsSync(absolutePath)) {
-                const fileContent = fs.readFileSync(absolutePath, 'utf8');
-                const lines = fileContent.split('\n');
+            // Use shared method to read and update content
+            const fileContent = await this.readAndUpdateIncludeContent(absolutePath, includeFile);
 
-                // Update unified system tracking
-                const unifiedIncludeFile = this._includeFiles.get(includeFile);
-                if (unifiedIncludeFile) {
-                    unifiedIncludeFile.content = fileContent;
-                    unifiedIncludeFile.baseline = fileContent;
-                    unifiedIncludeFile.hasUnsavedChanges = false;
-                    unifiedIncludeFile.lastModified = Date.now();
-                }
+            if (fileContent !== null) {
+                const lines = fileContent.split('\n');
 
                 // Parse first non-empty line as title, rest as description
                 let titleFound = false;
@@ -2564,8 +2552,8 @@ export class KanbanWebviewPanel {
         const basePath = path.dirname(currentDocument.uri.fsPath);
         let relativePath = path.relative(basePath, filePath);
 
-        // Normalize path format to match how includes are stored (with ./ prefix for same directory)
-        if (!relativePath.startsWith('.') && path.dirname(relativePath) === '.') {
+        // Normalize path format to match how includes are stored (with ./ prefix for relative paths)
+        if (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) {
             relativePath = './' + relativePath;
         }
 
@@ -2586,7 +2574,6 @@ export class KanbanWebviewPanel {
         let knownContent = includeFile.baseline;
         let currentFileContent = '';
 
-        console.log(`[Include Update] Processing ${includeFile.type} include: ${relativePath}, has baseline: ${!!knownContent}, has unsaved: ${hasUnsavedIncludeChanges}`);
 
         // Read current file content
         try {
@@ -2603,17 +2590,14 @@ export class KanbanWebviewPanel {
         // Check if the external file has actually changed using unified system
         const hasExternalChanges = this.hasExternalChanges(relativePath);
 
-        console.log(`[Include Update] External changes: ${hasExternalChanges}, unsaved changes: ${hasUnsavedIncludeChanges}`);
 
         if (!hasUnsavedIncludeChanges && !hasExternalChanges) {
             // No unsaved changes and no external changes - nothing to do
-            console.log(`[Include Update] No changes detected for ${fileName}, skipping update`);
             return;
         }
 
         if (!hasUnsavedIncludeChanges && hasExternalChanges) {
             // External changes but no internal changes - simple update
-            console.log(`[Include Update] External changes detected for ${fileName}, updating...`);
             await this.updateIncludeFile(filePath, includeFile.type === 'column', includeFile.type === 'task');
             return;
         }
@@ -2665,6 +2649,28 @@ export class KanbanWebviewPanel {
 
 
     /**
+     * Shared method to read include file content and update unified system
+     */
+    private async readAndUpdateIncludeContent(filePath: string, relativePath: string): Promise<string | null> {
+        let updatedContent: string | null = null;
+        try {
+            if (fs.existsSync(filePath)) {
+                updatedContent = fs.readFileSync(filePath, 'utf8');
+            }
+        } catch (error) {
+            console.error(`[readAndUpdateIncludeContent] Error reading file:`, error);
+            return null;
+        }
+
+        // Update the unified system content and baseline
+        if (updatedContent !== null) {
+            this.updateIncludeFileContent(relativePath, updatedContent, true);
+        }
+
+        return updatedContent;
+    }
+
+    /**
      * Unified method to update any type of include file
      */
     private async updateIncludeFile(filePath: string, isColumnInclude: boolean, isTaskInclude: boolean): Promise<void> {
@@ -2680,15 +2686,20 @@ export class KanbanWebviewPanel {
         const basePath = path.dirname(currentDocument.uri.fsPath);
         let relativePath = path.relative(basePath, filePath);
 
-        // Normalize path format to match how includes are stored (with ./ prefix for same directory)
-        if (!relativePath.startsWith('.') && path.dirname(relativePath) === '.') {
+        // Normalize path format to match how includes are stored (with ./ prefix for relative paths)
+        if (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) {
             relativePath = './' + relativePath;
         }
 
         if (isColumnInclude) {
             // Handle column includes using existing system
             for (const column of this._board.columns) {
-                if (column.includeMode && column.includeFiles?.includes(relativePath)) {
+                // Check both normalized and original paths since column.includeFiles might store the original format
+                const hasFile = column.includeMode && column.includeFiles?.some(file => {
+                    const normalizedFile = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
+                    return normalizedFile === relativePath || file === relativePath;
+                });
+                if (hasFile) {
                     await this.loadNewIncludeContent(column, [relativePath]);
                     break;
                 }
@@ -2697,7 +2708,12 @@ export class KanbanWebviewPanel {
             // Handle task includes - need to find and update the specific task
             for (const column of this._board.columns) {
                 for (const task of column.tasks) {
-                    if (task.includeMode && task.includeFiles?.includes(relativePath)) {
+                    // Check both normalized and original paths since task.includeFiles might store the original format
+                    const hasFile = task.includeMode && task.includeFiles?.some(file => {
+                        const normalizedFile = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
+                        return normalizedFile === relativePath || file === relativePath;
+                    });
+                    if (hasFile) {
                         await this.loadNewTaskIncludeContent(task, [relativePath]);
                         return; // Found and updated the task
                     }
@@ -2705,25 +2721,10 @@ export class KanbanWebviewPanel {
             }
         } else {
             // Handle regular includes using unified system
-            console.log(`[Include Update] Updating regular include: ${relativePath}`);
-            let updatedContent: string | null = null;
-            try {
-                if (fs.existsSync(filePath)) {
-                    updatedContent = fs.readFileSync(filePath, 'utf8');
-                    console.log(`[Include Update] Read ${updatedContent.length} characters from ${relativePath}`);
-                }
-            } catch (error) {
-                console.error(`[updateIncludeFile] Error reading file:`, error);
-            }
-
-            // Update the unified system content and baseline
-            if (updatedContent !== null) {
-                this.updateIncludeFileContent(relativePath, updatedContent, true);
-            }
+            const updatedContent = await this.readAndUpdateIncludeContent(filePath, relativePath);
 
             // Send updated content to frontend only if content was successfully read
             if (updatedContent !== null) {
-                console.log(`[Include Update] Sending updateIncludeContent message for ${relativePath}`);
                 this._panel?.webview.postMessage({
                     type: 'updateIncludeContent',
                     filePath: relativePath,
@@ -2732,8 +2733,6 @@ export class KanbanWebviewPanel {
 
                 // NOTE: Don't send includesUpdated message here as it causes redundant renders
                 // The frontend will re-render when it receives the updateIncludeContent message
-            } else {
-                console.error(`[Include Update] Failed to read content for ${relativePath}, skipping frontend update`);
             }
         }
     }

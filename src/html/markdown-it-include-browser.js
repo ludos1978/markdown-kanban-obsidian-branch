@@ -9,7 +9,7 @@
 })(this, (function() {
   "use strict";
 
-  const INCLUDE_RE = /!!!include\(([^)]+)\)!!!/gi;
+  const INCLUDE_RE = /!!!include\(([^)]+)\)!!!/;
 
   // Store for processed content from backend
   const processedIncludes = new Map();
@@ -27,11 +27,9 @@
       const start = state.pos;
       const max = state.posMax;
 
-      // Create a fresh regex instance to avoid state issues with global flag
-      const includeRe = new RegExp(options.includeRe.source, options.includeRe.flags);
-
-      // Look for include pattern
-      const match = includeRe.exec(state.src.slice(start));
+      // Look for include pattern using match() to avoid regex state issues
+      const srcSlice = state.src.slice(start);
+      const match = srcSlice.match(options.includeRe);
       if (!match || match.index !== 0) {
         return false;
       }
