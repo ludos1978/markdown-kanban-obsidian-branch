@@ -6,8 +6,8 @@ window.collapsedTasks = window.collapsedTasks || new Set();
 window.columnFoldStates = window.columnFoldStates || new Map(); // Track last manual fold state for each column
 window.globalColumnFoldState = window.globalColumnFoldState || 'fold-mixed'; // Track global column fold state
 
-let currentBoard = null;
-// Don't set window.currentBoard here as it will be set when board is loaded
+// Use global window.window.currentBoard instead of local variable
+// let window.currentBoard = null; // Removed to avoid conflicts
 let renderTimeout = null;
 
 // extractFirstTag function now in utils/tagUtils.js
@@ -360,12 +360,12 @@ function debouncedRenderBoard() {
  * Side effects: Updates collapsedColumns set and DOM elements
  */
 function applyDefaultFoldingState() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {return;}
+    if (!window.currentBoard || !window.currentBoard.columns || window.currentBoard.columns.length === 0) {return;}
     
     // Ensure folding state variables are initialized
     if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
-    currentBoard.columns.forEach(column => {
+    window.currentBoard.columns.forEach(column => {
         const hasNoTasks = !column.tasks || column.tasks.length === 0;
         const columnElement = document.querySelector(`[data-column-id="${column.id}"]`);
         const toggle = columnElement?.querySelector('.collapse-toggle');
@@ -394,12 +394,12 @@ function applyDefaultFoldingState() {
  * Side effects: Updates collapsedColumns set based on column content
  */
 function setDefaultFoldingState() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {return;}
+    if (!window.currentBoard || !window.currentBoard.columns || window.currentBoard.columns.length === 0) {return;}
     
     // Ensure folding state variables are initialized
     if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
-    currentBoard.columns.forEach(column => {
+    window.currentBoard.columns.forEach(column => {
         const hasNoTasks = !column.tasks || column.tasks.length === 0;
         
         if (hasNoTasks) {
@@ -422,13 +422,13 @@ function setDefaultFoldingState() {
  * @returns {'fold-expanded'|'fold-collapsed'|'fold-mixed'} Current global state
  */
 function getGlobalColumnFoldState() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
+    if (!window.currentBoard || !window.currentBoard.columns || window.currentBoard.columns.length === 0) {
         return 'fold-mixed';
     }
     
     // Count columns with tasks that are collapsed
-    const columnsWithTasks = currentBoard.columns.filter(column => column.tasks && column.tasks.length > 0);
-    const emptyColumns = currentBoard.columns.filter(column => !column.tasks || column.tasks.length === 0);
+    const columnsWithTasks = window.currentBoard.columns.filter(column => column.tasks && column.tasks.length > 0);
+    const emptyColumns = window.currentBoard.columns.filter(column => !column.tasks || column.tasks.length === 0);
     
     if (columnsWithTasks.length === 0) {
         // All columns are empty - consider them as all folded
@@ -457,14 +457,14 @@ function getGlobalColumnFoldState() {
  * Side effects: Updates collapsedColumns set, re-renders board
  */
 function toggleAllColumns() {
-    if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {return;}
+    if (!window.currentBoard || !window.currentBoard.columns || window.currentBoard.columns.length === 0) {return;}
     
     // Ensure state variables are initialized
     if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     
     const currentState = getGlobalColumnFoldState();
-    const collapsedCount = currentBoard.columns.filter(column => window.collapsedColumns.has(column.id)).length;
-    const totalColumns = currentBoard.columns.length;
+    const collapsedCount = window.currentBoard.columns.filter(column => window.collapsedColumns.has(column.id)).length;
+    const totalColumns = window.currentBoard.columns.length;
     
     // Determine action based on current state
     let shouldCollapse;
@@ -486,7 +486,7 @@ function toggleAllColumns() {
     // Apply the action to all columns
     if (shouldCollapse) {
         // When collapsing, collapse all columns
-        currentBoard.columns.forEach(column => {
+        window.currentBoard.columns.forEach(column => {
             const columnElement = document.querySelector(`[data-column-id="${column.id}"]`);
             const toggle = columnElement?.querySelector('.collapse-toggle');
             
@@ -557,7 +557,7 @@ function applyFoldingStates() {
     if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
     if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
     
-    if (!currentBoard || !currentBoard.columns) {
+    if (!window.currentBoard || !window.currentBoard.columns) {
         return;
     }
     
@@ -590,8 +590,8 @@ function applyFoldingStates() {
     });
     
     // Update fold all buttons for each column
-    if (currentBoard && currentBoard.columns) {
-        currentBoard.columns.forEach(column => {
+    if (window.currentBoard && window.currentBoard.columns) {
+        window.currentBoard.columns.forEach(column => {
             updateFoldAllButton(column.id);
         });
     }
@@ -650,10 +650,10 @@ function getFullTagContent(text) {
 function getAllTagsInUse() {
     const tagsInUse = new Set();
     
-    if (!currentBoard || !currentBoard.columns) {return tagsInUse;}
+    if (!window.currentBoard || !window.currentBoard.columns) {return tagsInUse;}
     
     // Collect tags from all columns and tasks
-    currentBoard.columns.forEach(column => {
+    window.currentBoard.columns.forEach(column => {
         // Get tags from column title
         const columnTags = getActiveTagsInTitle(column.title);
         columnTags.forEach(tag => tagsInUse.add(tag.toLowerCase()));
@@ -738,10 +738,10 @@ function generateTagMenuItems(id, type, columnId = null) {
     // Get current title to check which tags are active
     let currentTitle = '';
     if (type === 'column') {
-        const column = currentBoard?.columns?.find(c => c.id === id);
+        const column = window.currentBoard?.columns?.find(c => c.id === id);
         currentTitle = column?.title || '';
     } else if (type === 'task' && columnId) {
-        const column = currentBoard?.columns?.find(c => c.id === columnId);
+        const column = window.currentBoard?.columns?.find(c => c.id === columnId);
         const task = column?.tasks?.find(t => t.id === id);
         currentTitle = task?.title || '';
     }
@@ -829,10 +829,10 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
     // Get current title to check which tags are active
     let currentTitle = '';
     if (type === 'column') {
-        const column = currentBoard?.columns?.find(c => c.id === id);
+        const column = window.currentBoard?.columns?.find(c => c.id === id);
         currentTitle = column?.title || '';
     } else if (type === 'task' && columnId) {
-        const column = currentBoard?.columns?.find(c => c.id === columnId);
+        const column = window.currentBoard?.columns?.find(c => c.id === columnId);
         const task = column?.tasks?.find(t => t.id === id);
         currentTitle = task?.title || '';
     }
@@ -952,10 +952,10 @@ function generateFlatTagItems(tags, id, type, columnId = null) {
     // Get current title to check which tags are active
     let currentTitle = '';
     if (type === 'column') {
-        const column = currentBoard?.columns?.find(c => c.id === id);
+        const column = window.currentBoard?.columns?.find(c => c.id === id);
         currentTitle = column?.title || '';
     } else if (type === 'task' && columnId) {
-        const column = currentBoard?.columns?.find(c => c.id === columnId);
+        const column = window.currentBoard?.columns?.find(c => c.id === columnId);
         const task = column?.tasks?.find(t => t.id === id);
         currentTitle = task?.title || '';
     }
@@ -1108,12 +1108,12 @@ function renderBoard() {
         return;
     }
 
-    // Ensure currentBoard is synced with cachedBoard for operations like tag toggling
-    if (window.cachedBoard && window.cachedBoard !== currentBoard) {
-        currentBoard = window.cachedBoard;
+    // Ensure window.currentBoard is synced with cachedBoard for operations like tag toggling
+    if (window.cachedBoard && window.cachedBoard !== window.window.currentBoard) {
+        window.window.currentBoard = window.cachedBoard;
     }
 
-    if (!currentBoard) {
+    if (!window.window.currentBoard) {
         boardElement.innerHTML = `
             <div class="empty-board" style="
                 text-align: center;
@@ -1126,8 +1126,8 @@ function renderBoard() {
         return;
     }
 
-    if (!currentBoard.columns) {
-        currentBoard.columns = [];
+    if (!window.currentBoard.columns) {
+        window.currentBoard.columns = [];
     }
     
     // Save current scroll positions
@@ -1139,7 +1139,7 @@ function renderBoard() {
     boardElement.innerHTML = '';
 
     // Check if board is valid (has proper kanban header)
-    if (currentBoard.valid === false) {
+    if (window.currentBoard.valid === false) {
         // Show initialize button instead of columns
         const initializeContainer = document.createElement('div');
         initializeContainer.style.cssText = `
@@ -1167,7 +1167,7 @@ function renderBoard() {
     }
 
     // Detect number of rows from the board
-    const detectedRows = detectRowsFromBoard(currentBoard);
+    const detectedRows = detectRowsFromBoard(window.currentBoard);
     const numRows = Math.max(currentLayoutRows, detectedRows);
     
     // Apply multi-row class if needed
@@ -1190,7 +1190,7 @@ function renderBoard() {
             let currentStackContainer = null;
             let lastColumnElement = null;
 
-            currentBoard.columns.forEach((column, index) => {
+            window.currentBoard.columns.forEach((column, index) => {
                 const columnRow = getColumnRow(column.title);
                 if (columnRow === row) {
                     const columnElement = createColumnElement(column, index);
@@ -1240,7 +1240,7 @@ function renderBoard() {
         let currentStackContainer = null;
         let lastColumnElement = null;
 
-        currentBoard.columns.forEach((column, index) => {
+        window.currentBoard.columns.forEach((column, index) => {
             const columnElement = createColumnElement(column, index);
             const isStacked = /#stack\b/i.test(column.title);
 
@@ -1328,9 +1328,9 @@ function renderBoard() {
 }
 
 function getFoldAllButtonState(columnId) {
-    if (!currentBoard || !currentBoard.columns) {return 'fold-mixed';}
+    if (!window.currentBoard || !window.currentBoard.columns) {return 'fold-mixed';}
     
-    const column = currentBoard.columns.find(c => c.id === columnId);
+    const column = window.currentBoard.columns.find(c => c.id === columnId);
     if (!column || column.tasks.length === 0) {return 'fold-mixed';}
     
     const collapsedCount = column.tasks.filter(task => window.collapsedTasks.has(task.id)).length;
@@ -1348,7 +1348,7 @@ function getFoldAllButtonState(columnId) {
 }
 
 function toggleAllTasksInColumn(columnId) {
-    if (!currentBoard || !currentBoard.columns) {
+    if (!window.currentBoard || !window.currentBoard.columns) {
         return;
     }
 
@@ -1356,7 +1356,7 @@ function toggleAllTasksInColumn(columnId) {
     if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
     if (!window.columnFoldStates) {window.columnFoldStates = new Map();}
 
-    const column = currentBoard.columns.find(c => c.id === columnId);
+    const column = window.currentBoard.columns.find(c => c.id === columnId);
     if (!column) {
         return;
     }
@@ -2624,13 +2624,13 @@ function removeAllTags(id, type, columnId = null) {
     let element = null;
     
     if (type === 'column') {
-        const column = currentBoard?.columns?.find(c => c.id === id);
+        const column = window.currentBoard?.columns?.find(c => c.id === id);
         if (column) {
             currentTitle = column.title || '';
             element = column;
         }
     } else if (type === 'task' && columnId) {
-        const column = currentBoard?.columns?.find(c => c.id === columnId);
+        const column = window.currentBoard?.columns?.find(c => c.id === columnId);
         const task = column?.tasks?.find(t => t.id === id);
         if (task) {
             currentTitle = task.title || '';
@@ -2698,7 +2698,7 @@ window.removeAllTags = removeAllTags;
 
 // Function to update task count display for a column
 function updateColumnTaskCount(columnId) {
-    const column = currentBoard?.columns?.find(c => c.id === columnId);
+    const column = window.currentBoard?.columns?.find(c => c.id === columnId);
     if (!column) {
         return;
     }

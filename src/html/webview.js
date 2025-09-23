@@ -1757,7 +1757,7 @@ function updateDocumentUri(newUri) {
         const hadSavedState = restoreFoldingState();
         
         // If no saved state exists and board is ready, apply defaults for new document
-        if (!hadSavedState && currentBoard && currentBoard.columns) {
+        if (!hadSavedState && window.currentBoard && window.currentBoard.columns) {
             applyDefaultFoldingToNewDocument();
         }
     }
@@ -1959,7 +1959,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Request initial board data and file info
     setTimeout(() => {
-        if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
+        if (!window.currentBoard || !window.currentBoard.columns || window.currentBoard.columns.length === 0) {
             vscode.postMessage({ type: 'requestBoardUpdate' });
         }
         if (!currentFileInfo) {
@@ -2100,7 +2100,7 @@ window.addEventListener('message', event => {
     
     switch (message.type) {
         case 'updateBoard':
-            const previousBoard = currentBoard;
+            const previousBoard = window.currentBoard;
             
             // Clear card focus when board is updated
             focusCard(null);

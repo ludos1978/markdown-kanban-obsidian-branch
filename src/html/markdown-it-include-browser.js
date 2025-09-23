@@ -111,6 +111,14 @@
   function updateIncludeContent(filePath, content) {
     // Store the processed content from backend
     processedIncludes.set(filePath, content);
+
+    // Trigger board re-render to show updated include content
+    if (typeof window.renderBoard === 'function') {
+      window.renderBoard();
+    }
+
+    // NOTE: Don't send requestBoardUpdate here as it causes infinite loops
+    // The backend already sent us the updated content, just re-render it
   }
 
   // Helper function for HTML escaping - now using global ValidationUtils.escapeHtml

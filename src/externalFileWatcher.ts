@@ -80,7 +80,6 @@ export class ExternalFileWatcher implements vscode.Disposable {
             if (watchedFile) {
                 // Fire the change event immediately on save
                 this.handleFileChange(documentPath, 'modified');
-            } else {
             }
         });
 
