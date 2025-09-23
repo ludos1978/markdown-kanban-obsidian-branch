@@ -2481,21 +2481,15 @@ window.addEventListener('message', event => {
                 refreshIncludesBtn.title = tooltip;
             }
             break;
-        case 'clearIncludeCache':
-            // Clear the include file cache to force fresh processing
-            if (typeof window.clearIncludeFileCache === 'function') {
-                window.clearIncludeFileCache();
+        case 'updateIncludeContent':
+            // Handle processed include content from backend
+            if (typeof window.updateIncludeContent === 'function') {
+                window.updateIncludeContent(message.filePath, message.content);
             }
             break;
 
-        case 'includeFileContent':
-            // Handle include file content response from backend
-            if (typeof window.updateIncludeFileCache === 'function') {
-                window.updateIncludeFileCache(message.filePath, message.content);
-            }
-            break;
-        case 'refreshIncludesOnly':
-            // Lightweight include refresh - just re-render markdown without board changes
+        case 'includesUpdated':
+            // All includes have been processed and updated - trigger re-render
             if (typeof window.renderBoard === 'function') {
                 window.renderBoard();
             }

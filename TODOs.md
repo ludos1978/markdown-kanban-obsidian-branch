@@ -6,7 +6,6 @@ kanban-plugin: board
 
 - [ ] add an option to the export as in which style to export. it can be eigher kanbanstyle (does not modify the style) or it can be presentation style (which uses the same method as when copying the columns and cards as markdown.
 - [ ] if a broken file link search has a url encoding (it contains a %) try decoding using url encoding before searching for it. only if it's a valid decoding search for it.
-- [ ] verify that 
 
 ## Closed Bugs
 - [x] Make the export functionality available to single columns. It works the same as with the full file, except that it only exports the data from the column and exports the included files into a media folder. use the a sanitized version of the column title (no spaces and special characters) or Row{index} appended to the {filename-without-extension} within the  _Export folder as output.

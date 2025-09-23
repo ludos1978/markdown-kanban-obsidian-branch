@@ -1,5 +1,5 @@
-// Browser-compatible markdown-it-include plugin
-// Processes !!!include(filepath)!!! statements by requesting file content from VS Code
+// Backend-driven include system
+// Replaces !!!include(filepath)!!! with pre-processed content from backend
 
 (function(global, factory) {
   typeof exports === "object" && typeof module !== "undefined" ? module.exports = factory() :
@@ -11,9 +11,8 @@
 
   const INCLUDE_RE = /!!!include\(([^)]+)\)!!!/gi;
 
-  // Cache for file contents to avoid repeated requests
-  const fileCache = new Map();
-  const pendingRequests = new Set();
+  // Store for processed content from backend
+  const processedIncludes = new Map();
 
   function markdownItInclude(md, options = {}) {
     const defaultOptions = {
@@ -41,16 +40,16 @@
 
       const filePath = match[1].trim();
 
-      // Try to get file content
-      let content = getFileContent(filePath);
-      if (content === null) {
-        // File not cached yet - show placeholder and request content
+      // Get processed content from backend store
+      const content = processedIncludes.get(filePath);
+      if (content === undefined) {
+        // Content not available yet - show placeholder
         const token = state.push('include_placeholder', 'span', 0);
         token.content = filePath;
         token.attrSet('class', 'include-placeholder');
         token.attrSet('title', `Loading include file: ${filePath}`);
       } else {
-        // Successfully got content - render it inline as markdown
+        // Content available - render it
         const token = state.push('include_content', 'span', 0);
         token.content = content;
         token.attrSet('class', 'included-content-inline');
@@ -108,43 +107,10 @@
     };
   }
 
-  // Function to get file content (communicates with VS Code extension)
-  function getFileContent(filePath) {
-    // Check cache first
-    if (fileCache.has(filePath)) {
-      return fileCache.get(filePath);
-    }
-
-    // If not already requesting, request it
-    if (!pendingRequests.has(filePath) && typeof vscode !== 'undefined') {
-      pendingRequests.add(filePath);
-
-      try {
-        // Request file content from VS Code
-        vscode.postMessage({
-          type: 'requestIncludeFile',
-          filePath: filePath
-        });
-      } catch (error) {
-        console.error('Error requesting include file:', error);
-        pendingRequests.delete(filePath);
-      }
-    }
-
-    // Return null to indicate content is not available yet
-    return null;
-  }
-
-  // Function to update cache when file content is received
-  function updateFileCache(filePath, content) {
-    // Remove from pending requests
-    pendingRequests.delete(filePath);
-
-    // Update cache
-    fileCache.set(filePath, content);
-
-    // Don't trigger immediate re-render here - let the batch refresh handle it
-    // This prevents multiple re-renders during bulk updates
+  // Function to update processed include content from backend
+  function updateIncludeContent(filePath, content) {
+    // Store the processed content from backend
+    processedIncludes.set(filePath, content);
   }
 
   // Helper function for HTML escaping - now using global ValidationUtils.escapeHtml
@@ -152,16 +118,15 @@
     return window.escapeHtml ? window.escapeHtml(text) : text;
   }
 
-  // Function to clear the entire include file cache
-  function clearIncludeFileCache() {
-    fileCache.clear();
-    pendingRequests.clear();
+  // Function to clear all processed include content
+  function clearIncludeContent() {
+    processedIncludes.clear();
   }
 
-  // Expose cache functions globally
+  // Expose content functions globally
   if (typeof window !== 'undefined') {
-    window.updateIncludeFileCache = updateFileCache;
-    window.clearIncludeFileCache = clearIncludeFileCache;
+    window.updateIncludeContent = updateIncludeContent;
+    window.clearIncludeContent = clearIncludeContent;
   }
 
   return markdownItInclude;

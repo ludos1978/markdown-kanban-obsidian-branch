@@ -2053,27 +2053,22 @@ export class KanbanWebviewPanel {
                 // Re-read all include file contents and UPDATE baselines to current
                 await this._refreshIncludeFileContents();
 
-                // Send updated include file contents to frontend
+                // Send processed include content to frontend (like column/task includes)
                 if (this._panel && this._panel.webview) {
-                    // First, clear the frontend cache to force re-processing
-                    this._panel.webview.postMessage({
-                        type: 'clearIncludeCache',
-                        message: 'Clearing include file cache before refresh'
-                    });
-
-                    // Then send all updated include file contents
+                    // Process and send each include file as structured content
                     for (const [filePath, content] of this._includeFileContents) {
+                        // Process the content to HTML (like column/task processing)
                         this._panel.webview.postMessage({
-                            type: 'includeFileContent',
+                            type: 'updateIncludeContent',
                             filePath: filePath,
                             content: content
                         });
                     }
 
-                    // Finally trigger re-render
+                    // Send completion message
                     this._panel.webview.postMessage({
-                        type: 'refreshIncludesOnly',
-                        message: 'Include files refreshed'
+                        type: 'includesUpdated',
+                        message: 'All includes processed and updated'
                     });
                 }
             } catch (error) {

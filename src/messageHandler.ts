@@ -127,10 +127,6 @@ export class MessageHandler {
                 }
                 break;
 
-            // Include file content request for frontend processing
-            case 'requestIncludeFile':
-                await this.handleRequestIncludeFile(message.filePath);
-                break;
 
             // Runtime function tracking report
             case 'runtimeTrackingReport':
@@ -1224,68 +1220,6 @@ export class MessageHandler {
         }
     }
 
-    private async handleRequestIncludeFile(filePath: string): Promise<void> {
-
-        try {
-            const panel = this._getWebviewPanel();
-            if (!panel || !panel._panel) {
-                console.error('[MESSAGE HANDLER] No webview panel available');
-                return;
-            }
-
-            // Resolve the file path relative to the current document
-            const document = this._fileManager.getDocument();
-            if (!document) {
-                console.error('[MESSAGE HANDLER] No current document available');
-                return;
-            }
-
-            const basePath = path.dirname(document.uri.fsPath);
-            const absolutePath = path.resolve(basePath, filePath);
-
-
-            // Read the file content
-            let content: string;
-            try {
-                if (!fs.existsSync(absolutePath)) {
-                    console.warn('[MESSAGE HANDLER] Include file not found:', absolutePath);
-                    // Send null content to indicate file not found
-                    await panel._panel.webview.postMessage({
-                        type: 'includeFileContent',
-                        filePath: filePath,
-                        content: null,
-                        error: `File not found: ${filePath}`
-                    });
-                    return;
-                }
-
-                content = fs.readFileSync(absolutePath, 'utf8');
-
-                // Register the include file with the file watcher
-                const watcher = ExternalFileWatcher.getInstance();
-                watcher.registerFile(absolutePath, 'include', panel);
-
-                // Send the content back to the frontend
-                await panel._panel.webview.postMessage({
-                    type: 'includeFileContent',
-                    filePath: filePath,
-                    content: content
-                });
-
-            } catch (fileError) {
-                console.error('[MESSAGE HANDLER] Error reading include file:', fileError);
-                await panel._panel.webview.postMessage({
-                    type: 'includeFileContent',
-                    filePath: filePath,
-                    content: null,
-                    error: `Error reading file: ${fileError}`
-                });
-            }
-
-        } catch (error) {
-            console.error('[MESSAGE HANDLER] Error handling include file request:', error);
-        }
-    }
 
     private async handleRuntimeTrackingReport(report: any): Promise<void> {
 
