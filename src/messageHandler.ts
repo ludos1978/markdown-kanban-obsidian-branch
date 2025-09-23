@@ -344,11 +344,11 @@ export class MessageHandler {
                 }
                 break;
             case 'editTaskTitle':
-                console.log(`[MessageHandler Debug] editTaskTitle received:`, {
-                    taskId: message.taskId,
-                    columnId: message.columnId,
-                    title: message.title
-                });
+                // console.log(`[MessageHandler Debug] editTaskTitle received:`, {
+                //     taskId: message.taskId,
+                //     columnId: message.columnId,
+                //     title: message.title
+                // });
 
                 // Check if this might be a task include file change
                 const currentBoardForTask = this._getCurrentBoard();
@@ -356,19 +356,19 @@ export class MessageHandler {
                 const task = targetColumn?.tasks.find(t => t.id === message.taskId);
                 const oldTaskIncludeFiles = task?.includeFiles ? [...task.includeFiles] : [];
 
-                console.log(`[MessageHandler Debug] Task before edit:`, {
-                    taskId: message.taskId,
-                    columnId: message.columnId,
-                    currentTitle: task?.title,
-                    includeMode: task?.includeMode,
-                    oldIncludeFiles: oldTaskIncludeFiles
-                });
+                // console.log(`[MessageHandler Debug] Task before edit:`, {
+                //     taskId: message.taskId,
+                //     columnId: message.columnId,
+                //     currentTitle: task?.title,
+                //     includeMode: task?.includeMode,
+                //     oldIncludeFiles: oldTaskIncludeFiles
+                // });
 
                 // Check if the new title contains task include syntax
                 const hasTaskIncludeMatches = message.title.match(/!!!taskinclude\(([^)]+)\)!!!/g);
 
                 if (hasTaskIncludeMatches) {
-                    console.log(`[MessageHandler] Task include syntax detected`);
+                    // console.log(`[MessageHandler] Task include syntax detected`);
 
                     // Check if this task currently has unsaved changes
                     if (task && task.includeMode && task.includeFiles && task.includeFiles.length > 0) {
@@ -376,21 +376,22 @@ export class MessageHandler {
                         const hasUnsavedChanges = await panel.checkTaskIncludeUnsavedChanges(task);
 
                         if (hasUnsavedChanges) {
-                            // Prompt user to save before switching
-                            const saveChoice = await vscode.window.showWarningMessage(
-                                `The included file "${task.includeFiles[0]}" has unsaved changes. Do you want to save before switching to a new file?`,
-                                { modal: true },
-                                'Save and Switch',
-                                'Discard and Switch',
-                                'Cancel'
-                            );
+                            let saveChoice: string | undefined;
+
+                            // Keep asking until user makes a definitive choice (not Cancel/Escape)
+                            do {
+                                saveChoice = await vscode.window.showWarningMessage(
+                                    `The included file "${task.includeFiles[0]}" has unsaved changes. Do you want to save before switching to a new file?`,
+                                    { modal: true },
+                                    'Save and Switch',
+                                    'Discard and Switch',
+                                    'Cancel'
+                                );
+                            } while (saveChoice === 'Cancel' || !saveChoice);
 
                             if (saveChoice === 'Save and Switch') {
                                 // Save current changes first
                                 await panel.saveTaskIncludeChanges(task);
-                            } else if (saveChoice === 'Cancel') {
-                                // User cancelled, don't switch
-                                return;
                             }
                             // If 'Discard and Switch', just continue without saving
                         }
@@ -425,7 +426,8 @@ export class MessageHandler {
                         // Use the existing method that works
                         const panel = this._getWebviewPanel();
                         await panel.loadNewTaskIncludeContent(updatedTask, newIncludeFiles);
-                    } else {
+                    }
+										else {
                         console.log(`[MessageHandler] Could not find updated task or no include files`);
                     }
                 } else {
@@ -466,10 +468,10 @@ export class MessageHandler {
             case 'requestTaskIncludeFileName':
                 await this.handleRequestTaskIncludeFileName(message.taskId, message.columnId);
                 break;
-            case 'updateTaskInBackend':
+            // case 'updateTaskInBackend':
                 // DEPRECATED: This is now handled via markUnsavedChanges with cachedBoard
                 // The complete board state is sent, which is more reliable than individual field updates
-                break;
+                // break;
 
             case 'saveClipboardImage':
                 await this.handleSaveClipboardImage(
@@ -520,7 +522,7 @@ export class MessageHandler {
                 break;
 
             default:
-                console.warn('Unknown message type:', message.type);
+                console.error('handleMessage : Unknown message type:', message.type);
                 break;
         }
     }

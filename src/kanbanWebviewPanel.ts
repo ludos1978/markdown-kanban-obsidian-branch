@@ -635,13 +635,20 @@ export class KanbanWebviewPanel {
         this._panel.onDidChangeViewState(
             e => {
                 if (e.webviewPanel.visible) {
-                    // Panel became visible - send file info and ensure board
+                    // Panel became visible - send file info
                     this._fileManager.sendFileInfo();
 
-                    // Always ensure board content is sent when view becomes visible
+                    // Only ensure board content is sent in specific cases to avoid unnecessary re-renders
                     // This fixes empty view issues after debug restart or workspace restore
+                    // but avoids re-rendering when the view just temporarily lost focus (e.g., showing messages)
                     if (this._fileManager.getDocument()) {
-                        this._ensureBoardAndSendUpdate();
+                        // Only refresh if:
+                        // 1. Board hasn't been initialized yet, OR
+                        // 2. Board is null/undefined (needs initialization)
+                        // Don't refresh just because the panel regained visibility after showing a message
+                        if (!this._board || !this._isInitialized) {
+                            this._ensureBoardAndSendUpdate();
+                        }
                     }
                 }
                 // Note: Unsaved changes are now handled via page visibility events in webview.js

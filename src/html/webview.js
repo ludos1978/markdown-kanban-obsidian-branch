@@ -3798,7 +3798,8 @@ function executeExport() {
         includeVideos: document.getElementById('include-videos')?.checked || false,
         includeOtherMedia: document.getElementById('include-other-media')?.checked || false,
         includeDocuments: document.getElementById('include-documents')?.checked || false,
-        fileSizeLimitMB: parseInt(document.getElementById('file-size-limit')?.value) || 100
+        fileSizeLimitMB: parseInt(document.getElementById('file-size-limit')?.value) || 100,
+        tagVisibility: document.getElementById('export-tag-visibility')?.value || 'all'
     };
 
     // Close modal
@@ -3868,7 +3869,7 @@ window.exportColumn = function exportColumn(columnId) {
     selectedColumnTitle = column.title || `Column ${columnIndex + 1}`;
 
     showColumnExportDialog(columnIndex, column.title);
-}
+};
 
 function showColumnExportDialog(columnIndex, columnTitle) {
     selectedColumnIndex = columnIndex;
@@ -3934,7 +3935,8 @@ function executeColumnExport() {
         includeVideos: document.getElementById('column-include-videos').checked,
         includeOtherMedia: document.getElementById('column-include-other-media').checked,
         includeDocuments: document.getElementById('column-include-documents').checked,
-        fileSizeLimitMB: parseInt(document.getElementById('column-file-size-limit').value) || 100
+        fileSizeLimitMB: parseInt(document.getElementById('column-file-size-limit').value) || 100,
+        tagVisibility: document.getElementById('column-export-tag-visibility')?.value || 'all'
     };
 
     vscode.postMessage({

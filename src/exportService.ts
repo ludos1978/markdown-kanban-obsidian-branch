@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
+import { TagUtils, TagVisibility } from './utils/tagUtils';
 
 export interface ExportOptions {
     targetFolder: string;
@@ -11,6 +12,7 @@ export interface ExportOptions {
     includeOtherMedia: boolean;
     includeDocuments: boolean;
     fileSizeLimitMB: number;
+    tagVisibility?: TagVisibility;
 }
 
 export interface ColumnExportOptions extends ExportOptions {
@@ -48,6 +50,17 @@ export class ExportService {
     // Track MD5 hashes to detect duplicates
     private static fileHashMap = new Map<string, string>();
     private static exportedFiles = new Map<string, string>(); // MD5 -> exported path
+
+    /**
+     * Apply tag filtering to content based on export options
+     * DRY method to avoid duplication
+     */
+    private static applyTagFiltering(content: string, options: ExportOptions): string {
+        if (options.tagVisibility && options.tagVisibility !== 'all') {
+            return TagUtils.processMarkdownContent(content, options.tagVisibility);
+        }
+        return content;
+    }
 
     /**
      * Export markdown file with selected assets
@@ -116,6 +129,8 @@ export class ExportService {
                 exportedContent = result.exportedContent;
                 notIncludedAssets = result.notIncludedAssets;
                 stats = result.stats;
+
+                // Tag filtering is now applied within processMarkdownFile/processMarkdownContent
             } catch (error) {
                 throw new Error(`Failed to process markdown file "${sourcePath}": ${error}`);
             }
@@ -227,6 +242,8 @@ export class ExportService {
                 exportedContent = result.exportedContent;
                 notIncludedAssets = result.notIncludedAssets;
                 stats = result.stats;
+
+                // Tag filtering is now applied within processMarkdownFile/processMarkdownContent
             } catch (error) {
                 throw new Error(`Failed to process column content: ${error}`);
             }
@@ -316,8 +333,12 @@ export class ExportService {
             includeFiles: includeStats
         };
 
+        // Apply tag filtering to the content if specified
+        // This ensures all markdown files (main and included) get tag filtering
+        const filteredContent = this.applyTagFiltering(modifiedContent, options);
+
         return {
-            exportedContent: modifiedContent,
+            exportedContent: filteredContent,
             notIncludedAssets,
             stats
         };
@@ -778,8 +799,12 @@ export class ExportService {
             includeFiles: includeStats
         };
 
+        // Apply tag filtering to the content if specified
+        // This ensures all markdown files (main and included) get tag filtering
+        const filteredContent = this.applyTagFiltering(modifiedContent, options);
+
         return {
-            exportedContent: modifiedContent,
+            exportedContent: filteredContent,
             notIncludedAssets,
             stats
         };
