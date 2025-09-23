@@ -1575,6 +1575,7 @@ function createColumnElement(column, columnIndex) {
 												<button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
 												<div class="donut-menu-divider"></div>
 												<button class="donut-menu-item" onclick="copyColumnAsMarkdown('${column.id}')">Copy as markdown</button>
+												<button class="donut-menu-item" onclick="exportColumn('${column.id}')">Export column</button>
 												<div class="donut-menu-divider"></div>
 												<button class="donut-menu-item" onclick="moveColumnLeft('${column.id}')">Move list left</button>
 												<button class="donut-menu-item" onclick="moveColumnRight('${column.id}')">Move list right</button>

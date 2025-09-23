@@ -309,6 +309,64 @@
         </div>
     </div>
 
+    <!-- Column Export dialog -->
+    <div id="column-export-modal" class="modal">
+        <div class="modal-content export-modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Export Column</h3>
+                <button class="close-btn" onclick="closeColumnExportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-field">
+                    <label for="column-export-folder">Export Folder:</label>
+                    <div class="export-folder-input">
+                        <input type="text" id="column-export-folder" class="form-input" placeholder="Select folder..." readonly />
+                        <button type="button" class="btn btn-secondary" onclick="selectColumnExportFolder()">Browse</button>
+                    </div>
+                </div>
+                <div class="export-field">
+                    <label>Column:</label>
+                    <div class="export-info">
+                        <span id="column-export-info">No column selected</span>
+                    </div>
+                </div>
+                <div class="export-field">
+                    <label>Include Assets:</label>
+                    <div class="export-checkboxes">
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="column-include-files" checked>
+                            <span>Included Files</span>
+                        </label>
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="column-include-images" checked>
+                            <span>Images</span>
+                        </label>
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="column-include-videos" checked>
+                            <span>Videos</span>
+                        </label>
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="column-include-other-media" checked>
+                            <span>Other Media</span>
+                        </label>
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="column-include-documents" checked>
+                            <span>Documents</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="export-field">
+                    <label for="column-file-size-limit">File Size Limit (MB):</label>
+                    <input type="number" id="column-file-size-limit" class="form-input" value="100" min="1" max="1000" />
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeColumnExportModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="executeColumnExport()">Export Column</button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript modules in dependency order -->
     <!-- Initialize vscode API first -->
     <script>

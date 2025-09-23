@@ -2609,12 +2609,17 @@ window.addEventListener('message', event => {
             break;
         case 'exportDefaultFolder':
             setExportDefaultFolder(message.folderPath);
+            setColumnExportDefaultFolder(message.folderPath);
             break;
         case 'exportFolderSelected':
             setSelectedExportFolder(message.folderPath);
+            setSelectedColumnExportFolder(message.folderPath);
             break;
         case 'exportResult':
             handleExportResult(message.result);
+            break;
+        case 'columnExportResult':
+            handleColumnExportResult(message.result);
             break;
     }
 });
@@ -3718,7 +3723,9 @@ let exportDefaultFolder = '';
  */
 function showExportDialog() {
     const modal = document.getElementById('export-modal');
-    if (!modal) return;
+    if (!modal) {
+        return;
+    }
 
     // Generate default export folder name
     vscode.postMessage({
@@ -3828,3 +3835,135 @@ function handleExportResult(result) {
         });
     }
 }
+
+// Column Export Functions
+let selectedColumnIndex = -1;
+let selectedColumnTitle = '';
+let selectedColumnId = '';
+
+window.exportColumn = function exportColumn(columnId) {
+    // Find the column in the current board
+    if (!window.currentBoard || !window.currentBoard.columns) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'No board data available'
+        });
+        return;
+    }
+
+    const columnIndex = window.currentBoard.columns.findIndex(c => c.id === columnId);
+    const column = window.currentBoard.columns[columnIndex];
+
+    if (!column) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'Column not found'
+        });
+        return;
+    }
+
+    // Store the column info and show the export dialog
+    selectedColumnId = columnId;
+    selectedColumnIndex = columnIndex;
+    selectedColumnTitle = column.title || `Column ${columnIndex + 1}`;
+
+    showColumnExportDialog(columnIndex, column.title);
+}
+
+function showColumnExportDialog(columnIndex, columnTitle) {
+    selectedColumnIndex = columnIndex;
+    selectedColumnTitle = columnTitle || `Column ${columnIndex + 1}`;
+
+    // Update the column info display
+    document.getElementById('column-export-info').textContent = selectedColumnTitle;
+
+    // Request default folder from backend
+    vscode.postMessage({ type: 'getExportDefaultFolder' });
+
+    // Show the modal
+    const modal = document.getElementById('column-export-modal');
+    modal.style.display = 'block';
+}
+
+function closeColumnExportModal() {
+    const modal = document.getElementById('column-export-modal');
+    modal.style.display = 'none';
+    selectedColumnIndex = -1;
+    selectedColumnTitle = '';
+}
+
+function selectColumnExportFolder() {
+    vscode.postMessage({ type: 'selectExportFolder' });
+}
+
+function setSelectedColumnExportFolder(folderPath) {
+    document.getElementById('column-export-folder').value = folderPath;
+}
+
+function setColumnExportDefaultFolder(folderPath) {
+    const input = document.getElementById('column-export-folder');
+    if (!input.value) {
+        input.value = folderPath;
+    }
+}
+
+function executeColumnExport() {
+    if (selectedColumnIndex === -1) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'No column selected for export'
+        });
+        return;
+    }
+
+    const folderPath = document.getElementById('column-export-folder').value;
+    if (!folderPath) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'Please select an export folder'
+        });
+        return;
+    }
+
+    const options = {
+        targetFolder: folderPath,
+        columnIndex: selectedColumnIndex,
+        columnTitle: selectedColumnTitle,
+        includeFiles: document.getElementById('column-include-files').checked,
+        includeImages: document.getElementById('column-include-images').checked,
+        includeVideos: document.getElementById('column-include-videos').checked,
+        includeOtherMedia: document.getElementById('column-include-other-media').checked,
+        includeDocuments: document.getElementById('column-include-documents').checked,
+        fileSizeLimitMB: parseInt(document.getElementById('column-file-size-limit').value) || 100
+    };
+
+    vscode.postMessage({
+        type: 'exportColumn',
+        options: options
+    });
+
+    closeColumnExportModal();
+}
+
+function handleColumnExportResult(result) {
+    if (result.success) {
+        vscode.postMessage({
+            type: 'showInfo',
+            message: result.message
+        });
+
+        if (result.exportedPath) {
+            // Ask if user wants to open the export folder
+            vscode.postMessage({
+                type: 'askOpenExportFolder',
+                path: result.exportedPath
+            });
+        }
+    } else {
+        vscode.postMessage({
+            type: 'showError',
+            message: result.message
+        });
+    }
+}
+

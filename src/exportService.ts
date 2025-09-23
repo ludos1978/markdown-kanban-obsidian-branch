@@ -13,6 +13,11 @@ export interface ExportOptions {
     fileSizeLimitMB: number;
 }
 
+export interface ColumnExportOptions extends ExportOptions {
+    columnIndex: number;
+    columnTitle?: string;
+}
+
 export interface AssetInfo {
     originalPath: string;
     resolvedPath: string;
@@ -145,6 +150,116 @@ export class ExportService {
             const errorMessage = `Export failed: ${error instanceof Error ? error.message : String(error)}`;
             console.error('❌ Export failed:', error);
             console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
+
+            return {
+                success: false,
+                message: errorMessage
+            };
+        }
+    }
+
+    /**
+     * Export a single column from a kanban board
+     */
+    public static async exportColumn(
+        sourceDocument: vscode.TextDocument,
+        options: ColumnExportOptions
+    ): Promise<{ success: boolean; message: string; exportedPath?: string }> {
+        try {
+            // Clear tracking maps for new export
+            this.fileHashMap.clear();
+            this.exportedFiles.clear();
+
+            const sourcePath = sourceDocument.uri.fsPath;
+            const sourceBasename = path.basename(sourcePath, '.md');
+
+            // Validate source file exists
+            if (!fs.existsSync(sourcePath)) {
+                throw new Error(`Source markdown file not found: ${sourcePath}`);
+            }
+
+            // Read the full markdown content
+            const fullContent = fs.readFileSync(sourcePath, 'utf8');
+
+            // Extract column content
+            const columnContent = this.extractColumnContent(fullContent, options.columnIndex);
+            if (!columnContent) {
+                throw new Error(`Column ${options.columnIndex} not found or empty`);
+            }
+
+            // Generate sanitized column name
+            const sanitizedColumnName = this.sanitizeColumnName(options.columnTitle, options.columnIndex);
+            const columnFileName = `${sourceBasename}-${sanitizedColumnName}`;
+
+            // Ensure target folder exists
+            try {
+                if (!fs.existsSync(options.targetFolder)) {
+                    fs.mkdirSync(options.targetFolder, { recursive: true });
+                }
+            } catch (error) {
+                throw new Error(`Failed to create target folder "${options.targetFolder}": ${error}`);
+            }
+
+            // Verify write permissions
+            try {
+                const testFile = path.join(options.targetFolder, '.write-test');
+                fs.writeFileSync(testFile, 'test');
+                fs.unlinkSync(testFile);
+            } catch (error) {
+                throw new Error(`No write permission for target folder "${options.targetFolder}": ${error}`);
+            }
+
+            // Process the column content and its assets
+            const sourceDir = path.dirname(sourcePath);
+            let exportedContent: string;
+            let notIncludedAssets: AssetInfo[];
+            let stats: { includedCount: number; excludedCount: number; includeFiles: number };
+
+            try {
+                const result = await this.processMarkdownContent(
+                    columnContent,
+                    sourceDir,
+                    columnFileName,
+                    options.targetFolder,
+                    options,
+                    new Set<string>()
+                );
+                exportedContent = result.exportedContent;
+                notIncludedAssets = result.notIncludedAssets;
+                stats = result.stats;
+            } catch (error) {
+                throw new Error(`Failed to process column content: ${error}`);
+            }
+
+            // Write the column markdown file to export folder
+            const targetMarkdownPath = path.join(options.targetFolder, `${columnFileName}.md`);
+            try {
+                fs.writeFileSync(targetMarkdownPath, exportedContent, 'utf8');
+            } catch (error) {
+                throw new Error(`Failed to write column markdown file to "${targetMarkdownPath}": ${error}`);
+            }
+
+            // Create _not_included.md if there are excluded assets
+            if (notIncludedAssets.length > 0) {
+                try {
+                    await this.createNotIncludedFile(notIncludedAssets, options.targetFolder);
+                } catch (error) {
+                    console.warn(`Failed to create _not_included.md: ${error}`);
+                    // Don't fail the entire export for this
+                }
+            }
+
+            const successMessage = `Column export completed successfully!\n${stats.includedCount} assets included, ${stats.excludedCount} assets excluded.\n${stats.includeFiles} included files processed.`;
+
+            return {
+                success: true,
+                message: successMessage,
+                exportedPath: targetMarkdownPath
+            };
+
+        } catch (error) {
+            const errorMessage = `Column export failed: ${error instanceof Error ? error.message : String(error)}`;
+            console.error('❌ Column export failed:', error);
 
             return {
                 success: false,
@@ -614,5 +729,131 @@ export class ExportService {
             .substring(0, 13);     // YYYYMMDD-HHmm
 
         return path.join(sourceDir, `_Export-${timestamp}`);
+    }
+
+    /**
+     * Process markdown content directly (for column export)
+     */
+    private static async processMarkdownContent(
+        content: string,
+        sourceDir: string,
+        fileBasename: string,
+        exportFolder: string,
+        options: ExportOptions,
+        processedIncludes: Set<string>
+    ): Promise<{
+        exportedContent: string;
+        notIncludedAssets: AssetInfo[];
+        stats: { includedCount: number; excludedCount: number; includeFiles: number };
+    }> {
+        const mediaFolder = path.join(exportFolder, `${fileBasename}-Media`);
+
+        // Find all assets in the markdown
+        const assets = this.findAssets(content, sourceDir);
+
+        // Find and process included markdown files
+        const { processedContent, includeStats } = await this.processIncludedFiles(
+            content,
+            sourceDir,
+            exportFolder,
+            options,
+            processedIncludes
+        );
+
+        // Filter assets based on options
+        const assetsToInclude = this.filterAssets(assets, options);
+
+        // Process assets and update content
+        const { modifiedContent, notIncludedAssets } = await this.processAssets(
+            processedContent,
+            assetsToInclude,
+            assets,
+            mediaFolder,
+            fileBasename
+        );
+
+        const stats = {
+            includedCount: assetsToInclude.length,
+            excludedCount: notIncludedAssets.length,
+            includeFiles: includeStats
+        };
+
+        return {
+            exportedContent: modifiedContent,
+            notIncludedAssets,
+            stats
+        };
+    }
+
+    /**
+     * Extract content from a specific column
+     */
+    private static extractColumnContent(markdownContent: string, columnIndex: number): string | null {
+        // Kanban columns are defined by ## headers
+        // First, check if this is a kanban board
+        const isKanban = markdownContent.includes('kanban-plugin: board');
+
+        if (!isKanban) {
+            return null;
+        }
+
+        // Split content by lines and find all column headers
+        const lines = markdownContent.split('\n');
+        const columns: { startIndex: number; endIndex: number; content: string[] }[] = [];
+        let currentColumn: { startIndex: number; endIndex: number; content: string[] } | null = null;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Check if this is a column header (starts with ##)
+            if (line.startsWith('## ')) {
+                // Save previous column if exists
+                if (currentColumn) {
+                    currentColumn.endIndex = i - 1;
+                    columns.push(currentColumn);
+                }
+
+                // Start new column
+                currentColumn = {
+                    startIndex: i,
+                    endIndex: lines.length - 1,
+                    content: [line]
+                };
+            } else if (currentColumn) {
+                // Add content to current column
+                currentColumn.content.push(line);
+            }
+        }
+
+        // Don't forget the last column
+        if (currentColumn) {
+            columns.push(currentColumn);
+        }
+
+        // Check if the requested column index exists
+        if (columnIndex >= columns.length) {
+            console.error(`Column index ${columnIndex} out of range. Found ${columns.length} columns.`);
+            return null;
+        }
+
+        // Return the content of the requested column
+        const selectedColumn = columns[columnIndex];
+        return selectedColumn.content.join('\n');
+    }
+
+    /**
+     * Sanitize column name for use in filename
+     */
+    private static sanitizeColumnName(columnTitle: string | undefined, columnIndex: number): string {
+        if (columnTitle) {
+            // Remove special characters and spaces, replace with underscores
+            return columnTitle
+                .replace(/[^a-zA-Z0-9]/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_|_$/g, '')
+                .toLowerCase();
+        } else {
+            return `Row${columnIndex}`;
+        }
     }
 }

@@ -503,6 +503,10 @@ export class MessageHandler {
                 await this.handleExportWithAssets(message.options);
                 break;
 
+            case 'exportColumn':
+                await this.handleExportColumn(message.options);
+                break;
+
             case 'showError':
                 vscode.window.showErrorMessage(message.message);
                 break;
@@ -1614,6 +1618,41 @@ export class MessageHandler {
         } catch (error) {
             console.error('Error exporting with assets:', error);
             vscode.window.showErrorMessage(`Export failed: ${error}`);
+        }
+    }
+
+    private async handleExportColumn(options: any): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                vscode.window.showErrorMessage('No document available for export');
+                return;
+            }
+
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Exporting column...',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 20, message: 'Analyzing column content...' });
+
+                const result = await ExportService.exportColumn(document, options);
+
+                progress.report({ increment: 80, message: 'Finalizing export...' });
+
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'columnExportResult',
+                        result: result
+                    });
+                }
+            });
+
+        } catch (error) {
+            console.error('Error exporting column:', error);
+            vscode.window.showErrorMessage(`Column export failed: ${error}`);
         }
     }
 
