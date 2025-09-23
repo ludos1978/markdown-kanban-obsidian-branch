@@ -53,7 +53,7 @@ kanban-plugin: board
 - [ ] ![green](../green.png)
   ![green](../green.png)
 
-## ## H2 #todo #row2
+## ## H2 #todo 
 - [ ] # Lorem Imspum #yellow
   Lorem ipsum dolor sit amet,
 - [ ] Lorem Imspum #green
@@ -110,7 +110,7 @@ kanban-plugin: board
   #### 4
 - [ ] ui #ui
 
-## row 3 #row2
+## row 3 
 - [ ] a
 - [ ] a
 - [ ] Lorem Imspum #green

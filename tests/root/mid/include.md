@@ -1,6 +1,6 @@
 # heading 1
 
-include in ./root/mid/low/
+include in ./root/mid/
 
 ---
 

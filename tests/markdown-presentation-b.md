@@ -28,6 +28,18 @@ tag xxx
 
 ---
 
+####### image.png
+
+![image](/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/image.png)
+
+---
+
+####### green.png
+
+![green](/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/folder%20with%20space/green.png)
+
+---
+
 # asdf
 
 text

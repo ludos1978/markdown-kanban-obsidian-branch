@@ -8,6 +8,8 @@ included content aa
 * st
 * st2
 
+![](root/image.png)
+
 ==ui==
 
 # H1
