@@ -304,43 +304,66 @@ export class MessageHandler {
                 // Check if this might be a column include file change
                 const currentBoard = this._getCurrentBoard();
                 const column = currentBoard?.columns.find(col => col.id === message.columnId);
-                const oldIncludeFiles = column?.includeFiles ? [...column.includeFiles] : [];
 
-                console.log(`[MessageHandler Debug] Column before edit:`, {
-                    columnId: message.columnId,
-                    currentTitle: column?.title,
-                    includeMode: column?.includeMode,
-                    oldIncludeFiles: oldIncludeFiles,
-                    currentTasks: column?.tasks?.length || 0
-                });
+                // Check if the new title contains column include syntax
+                const hasColumnIncludeMatches = message.title.match(/!!!columninclude\(([^)]+)\)!!!/g);
 
-                await this.performBoardActionSilent(() =>
-                    this._boardOperations.editColumnTitle(currentBoard!, message.columnId, message.title)
-                );
+                if (hasColumnIncludeMatches) {
+                    // Check if this column currently has unsaved changes
+                    if (column && column.includeMode && column.includeFiles && column.includeFiles.length > 0) {
+                        const panel = this._getWebviewPanel();
+                        const hasUnsavedChanges = await panel.checkColumnIncludeUnsavedChanges(column);
 
-                console.log(`[MessageHandler Debug] Column after edit:`, {
-                    columnId: message.columnId,
-                    newTitle: column?.title,
-                    includeMode: column?.includeMode,
-                    newIncludeFiles: column?.includeFiles,
-                    currentTasks: column?.tasks?.length || 0
-                });
+                        if (hasUnsavedChanges) {
+                            let saveChoice: string | undefined;
 
-                // If include files changed, load new content immediately
-                const newIncludeFiles = column?.includeFiles || [];
-                const includeFilesChanged = JSON.stringify(oldIncludeFiles) !== JSON.stringify(newIncludeFiles);
+                            // Keep asking until user makes a definitive choice (not Cancel/Escape)
+                            do {
+                                saveChoice = await vscode.window.showWarningMessage(
+                                    `The included file "${column.includeFiles[0]}" has unsaved changes. Do you want to save before switching to a new file?`,
+                                    { modal: true },
+                                    'Save and Switch',
+                                    'Discard and Switch',
+                                    'Cancel'
+                                );
+                            } while (saveChoice === 'Cancel' || !saveChoice);
 
-                console.log(`[MessageHandler Debug] Include files changed: ${includeFilesChanged}`, {
-                    oldIncludeFiles: oldIncludeFiles,
-                    newIncludeFiles: newIncludeFiles
-                });
+                            if (saveChoice === 'Save and Switch') {
+                                // Save current changes first
+                                await panel.saveColumnIncludeChanges(column);
+                            }
+                            // If 'Discard and Switch', just continue without saving
+                        }
+                    }
 
-                if (includeFilesChanged && column && newIncludeFiles.length > 0) {
-                    console.log(`[MessageHandler] Include files changed, loading new content from: ${newIncludeFiles.join(', ')}`);
+                    // Update the column title first
+                    await this.performBoardActionSilent(() =>
+                        this._boardOperations.editColumnTitle(currentBoard!, message.columnId, message.title)
+                    );
 
-                    // Use the webview panel to load the new content
-                    const panel = this._getWebviewPanel();
-                    await panel.loadNewIncludeContent(column, newIncludeFiles);
+                    // Extract the include files from the new title
+                    const newIncludeFiles: string[] = [];
+                    hasColumnIncludeMatches.forEach((match: string) => {
+                        const filePath = match.replace(/!!!columninclude\(([^)]+)\)!!!/, '$1').trim();
+                        newIncludeFiles.push(filePath);
+                    });
+
+                    // Get the updated column and load new content
+                    const updatedBoard = this._getCurrentBoard();
+                    const updatedColumn = updatedBoard?.columns.find(col => col.id === message.columnId);
+
+                    if (updatedColumn && newIncludeFiles.length > 0) {
+                        // Use the webview panel to load the new content
+                        const panel = this._getWebviewPanel();
+                        await panel.loadNewIncludeContent(updatedColumn, newIncludeFiles);
+                    } else if (newIncludeFiles.length > 0) {
+                        console.error(`[MessageHandler Error] Could not find updated column ${message.columnId} after title edit`);
+                    }
+                } else {
+                    // Regular title edit without include syntax
+                    await this.performBoardActionSilent(() =>
+                        this._boardOperations.editColumnTitle(currentBoard!, message.columnId, message.title)
+                    );
                 }
                 break;
             case 'editTaskTitle':
@@ -354,7 +377,6 @@ export class MessageHandler {
                 const currentBoardForTask = this._getCurrentBoard();
                 const targetColumn = currentBoardForTask?.columns.find(col => col.id === message.columnId);
                 const task = targetColumn?.tasks.find(t => t.id === message.taskId);
-                const oldTaskIncludeFiles = task?.includeFiles ? [...task.includeFiles] : [];
 
                 // console.log(`[MessageHandler Debug] Task before edit:`, {
                 //     taskId: message.taskId,
@@ -397,14 +419,10 @@ export class MessageHandler {
                         }
                     }
 
-                    console.log(`[MessageHandler] Proceeding with include file switch, triggering board re-parse`);
-
                     // Update the task title first
                     await this.performBoardActionSilent(() =>
                         this._boardOperations.editTask(currentBoardForTask!, message.taskId, message.columnId, { title: message.title })
                     );
-
-                    console.log(`[MessageHandler] Task title updated, extracting include files from new title`);
 
                     // Extract the include files from the new title
                     const newIncludeFiles: string[] = [];
@@ -413,22 +431,17 @@ export class MessageHandler {
                         newIncludeFiles.push(filePath);
                     });
 
-                    console.log(`[MessageHandler] Found include files:`, newIncludeFiles);
-
                     // Get the updated task and load new content
                     const updatedBoard = this._getCurrentBoard();
                     const updatedColumn = updatedBoard?.columns.find(col => col.id === message.columnId);
                     const updatedTask = updatedColumn?.tasks.find(t => t.id === message.taskId);
 
                     if (updatedTask && newIncludeFiles.length > 0) {
-                        console.log(`[MessageHandler] Loading new content for task ${message.taskId}`);
-
                         // Use the existing method that works
                         const panel = this._getWebviewPanel();
                         await panel.loadNewTaskIncludeContent(updatedTask, newIncludeFiles);
-                    }
-										else {
-                        console.log(`[MessageHandler] Could not find updated task or no include files`);
+                    } else if (newIncludeFiles.length > 0) {
+                        console.error(`[MessageHandler Error] Could not find updated task ${message.taskId} in column ${message.columnId} after title edit`);
                     }
                 } else {
                     // Regular title edit without include syntax
