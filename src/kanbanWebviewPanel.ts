@@ -207,19 +207,15 @@ export class KanbanWebviewPanel {
                 }
 
                 documentUri = mostRecentUri;
-                console.log('[DEBUG] Using most recent panel state, found document:', documentUri);
             }
         }
 
-        console.log('[DEBUG] Revival attempting to restore document:', documentUri);
-        console.log('[DEBUG] State parameter:', state);
 
         if (documentUri) {
             try {
                 vscode.workspace.openTextDocument(vscode.Uri.parse(documentUri))
                     .then(async document => {
                         try {
-                            console.log('[DEBUG] Successfully restored document:', document.uri.toString());
                             await kanbanPanel.loadMarkdownFile(document);
                         } catch (error) {
                             console.warn('Failed to load document on panel revival:', error);
@@ -233,7 +229,6 @@ export class KanbanWebviewPanel {
                 kanbanPanel.tryAutoLoadActiveMarkdown();
             }
         } else {
-            console.log('[DEBUG] No document URI found in state, using fallback');
             // No state available, try to auto-load active markdown document
             kanbanPanel.tryAutoLoadActiveMarkdown();
         }
@@ -253,18 +248,15 @@ export class KanbanWebviewPanel {
     // Panel state management methods
     public setPanelState(state: any): void {
         KanbanWebviewPanel.panelStates.set(this._panelId, state);
-        console.log('[DEBUG] Stored panel state for:', this._panelId, state);
     }
 
     public getPanelState(): any {
         const state = KanbanWebviewPanel.panelStates.get(this._panelId);
-        console.log('[DEBUG] Retrieved panel state for:', this._panelId, state);
         return state;
     }
 
     public clearPanelState(): void {
         KanbanWebviewPanel.panelStates.delete(this._panelId);
-        console.log('[DEBUG] Cleared panel state for:', this._panelId);
     }
 
     public getPanelId(): string {
@@ -1538,7 +1530,6 @@ export class KanbanWebviewPanel {
             // TEMP DISABLED: Don't auto-load random markdown files
             // This was causing wrong files to be loaded on revival
             // this.loadMarkdownFile(openMarkdownDocs[0]);
-            console.log('[DEBUG] Found', openMarkdownDocs.length, 'open markdown docs, but not auto-loading to prevent wrong file selection');
             return;
         }
 
@@ -2322,7 +2313,6 @@ export class KanbanWebviewPanel {
                     task.displayTitle = includeTitle || 'Untitled'; // Display title from file
                     task.description = includeDescription; // Description from file
 
-                    console.log(`[ReprocessTaskIncludes] Updated task ${task.id} with content from ${includeFiles.join(', ')}`);
 
                     // Send targeted update to frontend for this specific task
                     this._panel.webview.postMessage({
@@ -2338,7 +2328,6 @@ export class KanbanWebviewPanel {
             }
         }
 
-        console.log(`[ReprocessTaskIncludes] Completed processing ${tasksProcessed} tasks`);
         // Send targeted update to frontend instead of full board refresh
         // This mimics how column includes work - only update the affected elements
     }
@@ -2380,7 +2369,6 @@ export class KanbanWebviewPanel {
 
             // Check if the file exists - if not, create it
             if (!fs.existsSync(absolutePath)) {
-                console.log(`[Task Include] Creating new file: ${absolutePath}`);
                 // Ensure directory exists
                 const dir = path.dirname(absolutePath);
                 if (!fs.existsSync(dir)) {
@@ -2408,7 +2396,6 @@ export class KanbanWebviewPanel {
 
             // Don't write if the content would be empty
             if (!fileContent || fileContent.trim() === '') {
-                console.log(`[Task Include] Skipping save of empty content to ${includeFile}`);
                 return false;
             }
 
@@ -2420,7 +2407,6 @@ export class KanbanWebviewPanel {
 
             // Don't write if the content is identical
             if (currentFileContent.trim() === fileContent.trim()) {
-                console.log(`[Task Include] Content unchanged, skipping save to ${includeFile}`);
                 return false;
             }
 
@@ -2449,7 +2435,6 @@ export class KanbanWebviewPanel {
             // Update known content to detect future external changes
             this._knownIncludeFileContents.set(absolutePath, fileContent);
 
-            console.log(`[Task Include] Saved changes to ${includeFile}`);
             return true;
 
         } catch (error) {
@@ -2463,7 +2448,6 @@ export class KanbanWebviewPanel {
      * Load new content into a column when its include files change
      */
     public async loadNewIncludeContent(column: KanbanColumn, newIncludeFiles: string[]): Promise<void> {
-        console.log(`[LoadNewInclude] Loading new content for column ${column.id}`);
 
         try {
             const currentDocument = this._fileManager.getDocument();
@@ -2489,7 +2473,6 @@ export class KanbanWebviewPanel {
                 // Update the column's tasks directly
                 column.tasks = newTasks;
 
-                console.log(`[LoadNewInclude] Loaded ${newTasks.length} tasks from ${includeFile}`);
 
                 // Send targeted update message to frontend instead of full refresh
                 this._panel.webview.postMessage({
@@ -2526,7 +2509,6 @@ export class KanbanWebviewPanel {
     }
 
     public async loadNewTaskIncludeContent(task: KanbanTask, newIncludeFiles: string[]): Promise<void> {
-        console.log(`[LoadNewTaskInclude] Loading new content for task ${task.id}`);
 
         try {
             const currentDocument = this._fileManager.getDocument();
@@ -2571,7 +2553,6 @@ export class KanbanWebviewPanel {
                 task.displayTitle = newTitle || 'Untitled'; // Title from file
                 task.description = descriptionLines.join('\n').trim(); // Description from file
 
-                console.log(`[LoadNewTaskInclude] Loaded content from ${includeFile} into task ${task.id}`);
 
                 // Send targeted update message to frontend instead of full refresh
                 this._panel.webview.postMessage({
@@ -2812,7 +2793,6 @@ export class KanbanWebviewPanel {
         const basePath = path.dirname(currentDocument.uri.fsPath);
         const relativePath = path.relative(basePath, filePath);
 
-        console.log(`[SaveIncludeChanges] Saving kanban changes to ${relativePath}`);
 
         // Find the column that uses this include file and save its changes
         for (const column of this._board.columns) {
@@ -2828,7 +2808,6 @@ export class KanbanWebviewPanel {
      */
     private async handleExternalFileChange(event: import('./externalFileWatcher').FileChangeEvent): Promise<void> {
         try {
-            console.log(`[ExternalFileChange] File ${event.changeType}: ${event.path} (${event.fileType})`);
 
             // Check if this panel is affected by the change
             if (!event.panels.includes(this)) {
@@ -2851,7 +2830,6 @@ export class KanbanWebviewPanel {
                 // This is the main kanban file - handle external changes
                 const currentDocument = this._fileManager.getDocument();
                 if (currentDocument) {
-                    console.log(`[ExternalFileChange] Main file changed: ${event.path}`);
                     await this.notifyExternalChanges(currentDocument);
                 }
             }
@@ -2891,7 +2869,6 @@ export class KanbanWebviewPanel {
      */
     private async handleInlineIncludeFileChange(filePath: string, changeType: string): Promise<void> {
         try {
-            console.log(`[InlineInclude] External change detected in ${filePath} (${changeType})`);
 
             // Read the updated file content
             let updatedContent: string | null = null;
@@ -2921,7 +2898,6 @@ export class KanbanWebviewPanel {
                 this._changedIncludeFiles.add(relativePath);
                 this._sendIncludeFileChangeNotification();
 
-                console.log(`[InlineInclude] Updated cache and visual indicators for ${relativePath}`);
             }
 
         } catch (error) {
@@ -3012,7 +2988,6 @@ export class KanbanWebviewPanel {
                                 this._sendIncludeFileChangeNotification();
 
                                 // Mark as changed but don't auto-save (user controls when to save)
-                                console.log(`[TrackChanges] Task include changes detected in ${includeFile}`);
                             } else {
                                 // No changes detected, clear unsaved flag if it was set
                                 const wasChanged = this._includeFileUnsavedChanges.get(absolutePath);

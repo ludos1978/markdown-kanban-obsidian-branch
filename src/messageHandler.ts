@@ -203,7 +203,6 @@ export class MessageHandler {
                     if (task && task.includeMode) {
                         const panel = this._getWebviewPanel();
                         await panel.saveTaskIncludeChanges(task);
-                        console.log(`[MessageHandler] Saved task include changes for task ${message.taskId}`);
                     }
                 }
                 break;
@@ -814,9 +813,7 @@ export class MessageHandler {
             const webviewPanel = this._getWebviewPanel();
             if (webviewPanel.backupManager && webviewPanel.backupManager.shouldCreatePageHiddenBackup()) {
                 await webviewPanel.backupManager.createBackup(document, { label: 'backup' });
-                console.log(`Created periodic backup for "${fileName}" (page hidden, 5+ min unsaved)`);
             } else {
-                console.log(`Skipped backup for "${fileName}" (page hidden, <5 min since unsaved changes)`);
             }
 
             // Reset the close prompt flag in webview
@@ -897,12 +894,10 @@ export class MessageHandler {
                     binding.command === 'editor.action.insertSnippet' &&
                     binding.args?.name) {
 
-                    console.log(`Found snippet "${binding.args.name}" for shortcut ${shortcut}`);
                     return binding.args.name;
                 }
             }
 
-            console.log(`No snippet keybinding found for shortcut: ${shortcut}`);
             return null;
 
         } catch (error) {
@@ -938,7 +933,6 @@ export class MessageHandler {
                 }
             }
 
-            console.log(`Loaded ${keybindings.length} keybindings from VS Code configuration`);
             return keybindings;
 
         } catch (error) {
@@ -997,7 +991,6 @@ export class MessageHandler {
             // Find the specific snippet
             const snippet = allSnippets[snippetName];
             if (!snippet) {
-                console.log(`Snippet "${snippetName}" not found in markdown snippets`);
                 return '';
             }
 
@@ -1008,7 +1001,6 @@ export class MessageHandler {
             } else if (typeof snippet.body === 'string') {
                 body = snippet.body;
             } else {
-                console.log(`Invalid snippet body format for "${snippetName}"`);
                 return '';
             }
 
@@ -1043,7 +1035,6 @@ export class MessageHandler {
             const extensionSnippets = await this.loadExtensionSnippets();
             Object.assign(allSnippets, extensionSnippets);
 
-            console.log(`Loaded ${Object.keys(allSnippets).length} markdown snippets`);
             return allSnippets;
 
         } catch (error) {
@@ -1240,12 +1231,6 @@ export class MessageHandler {
 
             // Log summary
             if (report.summary) {
-                console.log(`[MESSAGE HANDLER] Session summary:`, {
-                    duration: Math.round(report.metadata.duration / 1000) + 's',
-                    totalCalls: report.summary.totalCalls,
-                    uniqueFunctions: report.summary.uniqueFunctions,
-                    mostCalled: report.summary.mostCalled?.[0]?.name
-                });
             }
 
         } catch (error) {
@@ -1403,7 +1388,6 @@ export class MessageHandler {
 
             // If this is an immediate update (like column include changes), trigger a save and reload
             if (message.immediate) {
-                console.log('[updateBoard] Immediate update requested - triggering save and reload');
 
                 // Save the changes to markdown
                 await this._onSaveToMarkdown();

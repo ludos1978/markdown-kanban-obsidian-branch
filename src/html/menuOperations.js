@@ -1944,7 +1944,6 @@ function addColumn(rowNumber) {
  * Side effects: Updates pending changes, triggers visual updates
  */
 function toggleColumnTag(columnId, tagName, event) {
-    console.log('DEBUG: toggleColumnTag called', { columnId, tagName, event });
 
     // Enhanced duplicate prevention with stronger key and longer timeout
     const key = `column-${columnId}-${tagName}`;
@@ -1954,7 +1953,6 @@ function toggleColumnTag(columnId, tagName, event) {
     }
 
     if (window._lastTagExecution[key] && now - window._lastTagExecution[key] < 500) {
-        console.log('DEBUG: toggleColumnTag blocked by duplicate prevention');
         return;
     }
     window._lastTagExecution[key] = now;
@@ -1973,7 +1971,6 @@ function toggleColumnTag(columnId, tagName, event) {
         column = window.cachedBoard.columns.find(c => c.id === columnId);
         if (column) {
             boardToUse = window.cachedBoard;
-            console.log('DEBUG: Using cachedBoard');
         }
     }
 
@@ -1982,43 +1979,33 @@ function toggleColumnTag(columnId, tagName, event) {
         column = window.currentBoard.columns.find(c => c.id === columnId);
         if (column) {
             boardToUse = window.currentBoard;
-            console.log('DEBUG: Using currentBoard');
         }
     }
 
     if (!column) {
-        console.log('DEBUG: Column not found in any board', columnId);
         if (window.currentBoard?.columns) {
-            console.log('DEBUG: currentBoard column IDs:', window.currentBoard.columns.map(c => c.id));
         }
         if (window.cachedBoard?.columns) {
-            console.log('DEBUG: cachedBoard column IDs:', window.cachedBoard.columns.map(c => c.id));
         }
         return;
     }
 
-    console.log('DEBUG: Found column', column);
 
     // Also check DOM element
     const domElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (!domElement) {
-        console.log('DEBUG: DOM element not found for column', columnId);
         return;
     }
 
-    console.log('DEBUG: Found DOM element for column');
     
     const tagWithHash = `#${tagName}`;
     let title = column.title || '';
     const wasActive = new RegExp(`#${tagName}\\b`, 'gi').test(title);
 
-    console.log('DEBUG: Current title:', title);
-    console.log('DEBUG: Tag was active:', wasActive);
 
     if (wasActive) {
         const beforeRemoval = title;
         title = title.replace(new RegExp(`#${tagName}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
-        console.log('DEBUG: Removed tag, new title:', title);
     } else {
         const rowMatch = title.match(/(#row\d+)$/i);
         if (rowMatch) {
@@ -2027,20 +2014,17 @@ function toggleColumnTag(columnId, tagName, event) {
         } else {
             title = `${title} ${tagWithHash}`.trim();
         }
-        console.log('DEBUG: Added tag, new title:', title);
     }
     
     // Update the board data - make sure both boards are updated
     const oldTitle = column.title;
     column.title = title;
-    console.log('DEBUG: Updated column.title from', oldTitle, 'to', title);
 
     // Ensure both currentBoard and cachedBoard are updated if they exist and are different
     if (window.currentBoard && window.currentBoard !== boardToUse) {
         const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
         if (currentColumn) {
             currentColumn.title = title;
-            console.log('DEBUG: Updated currentBoard column title');
         }
     }
 
@@ -2048,7 +2032,6 @@ function toggleColumnTag(columnId, tagName, event) {
         const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (cachedColumn) {
             cachedColumn.title = title;
-            console.log('DEBUG: Updated cachedBoard column title');
         }
     }
 
@@ -2057,11 +2040,9 @@ function toggleColumnTag(columnId, tagName, event) {
         window.pendingColumnChanges = new Map();
     }
     window.pendingColumnChanges.set(columnId, { columnId, title });
-    console.log('DEBUG: Added to pendingColumnChanges');
 
     // Mark as unsaved since we made a change
     markUnsavedChanges();
-    console.log('DEBUG: Marked as unsaved');
     
     // Update DOM immediately using unique ID
     updateColumnDisplayImmediate(columnId, title, !wasActive, tagName);
@@ -2190,10 +2171,8 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
 
     if (wasActive) {
         title = title.replace(new RegExp(`#${tagName}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
-        console.log('DEBUG: Removed tag, new title:', title);
     } else {
         title = `${title} ${tagWithHash}`.trim();
-        console.log('DEBUG: Added tag, new title:', title);
     }
 
     // Update the task in the found board

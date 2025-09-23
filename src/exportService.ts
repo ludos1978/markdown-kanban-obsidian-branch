@@ -70,10 +70,6 @@ export class ExportService {
         options: ExportOptions
     ): Promise<{ success: boolean; message: string; exportedPath?: string }> {
         try {
-            console.log('🚀 Starting export process...');
-            console.log(`Source file: ${sourceDocument.uri.fsPath}`);
-            console.log(`Target folder: ${options.targetFolder}`);
-            console.log(`Options:`, options);
 
             // Validate inputs
             if (!sourceDocument || !sourceDocument.uri) {
@@ -116,7 +112,6 @@ export class ExportService {
             }
 
             // Process main markdown file
-            console.log('📝 Processing main markdown file...');
             let exportedContent, notIncludedAssets, stats;
             try {
                 const result = await this.processMarkdownFile(

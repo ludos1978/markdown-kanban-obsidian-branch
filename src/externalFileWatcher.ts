@@ -70,21 +70,17 @@ export class ExternalFileWatcher implements vscode.Disposable {
     private setupDocumentSaveListener(): void {
         this.documentSaveListener = vscode.workspace.onDidSaveTextDocument((document) => {
             if (!this.fileListenerEnabled) {
-                console.log(`[FileWatcher Debug] Document save ignored - listener disabled: ${document.uri.fsPath}`);
                 return;
             }
 
             const documentPath = document.uri.fsPath;
-            console.log(`[FileWatcher Debug] Document saved: ${documentPath}`);
 
             // Check if this document is in our watched files
             const watchedFile = this.watchedFiles.get(documentPath);
             if (watchedFile) {
-                console.log(`[ExternalFileWatcher] Document saved (immediate): ${documentPath} - type: ${watchedFile.type}, panels: ${watchedFile.panels.size}`);
                 // Fire the change event immediately on save
                 this.handleFileChange(documentPath, 'modified');
             } else {
-                console.log(`[FileWatcher Debug] Document not in watched files. Watched files:`, Array.from(this.watchedFiles.keys()));
             }
         });
 
@@ -108,7 +104,6 @@ export class ExternalFileWatcher implements vscode.Disposable {
         if (watchedFile) {
             // File already watched, just add this panel to the set
             watchedFile.panels.add(panel);
-            console.log(`[FileWatcher Debug] Added panel to existing watcher. Total panels: ${watchedFile.panels.size}`);
         } else {
             // New file to watch
             watchedFile = {
@@ -172,7 +167,6 @@ export class ExternalFileWatcher implements vscode.Disposable {
      * This will unregister old includes and register new ones
      */
     public updateIncludeFiles(panel: KanbanWebviewPanel, newIncludeFiles: string[]): void {
-        console.log(`[FileWatcher Debug] updateIncludeFiles called with ${newIncludeFiles.length} files:`, newIncludeFiles);
         // Find current include files for this panel
         const currentIncludes: string[] = [];
 
@@ -263,7 +257,6 @@ export class ExternalFileWatcher implements vscode.Disposable {
         const panelsToNotify = affectedPanels.filter(panel => {
             const isUpdating = (panel as any)._isUpdatingFromPanel;
             if (isUpdating) {
-                console.log(`[ExternalFileWatcher] Skipping panel notification for ${path} - panel is updating`);
             }
             return !isUpdating;
         });
@@ -278,7 +271,6 @@ export class ExternalFileWatcher implements vscode.Disposable {
             panels: panelsToNotify
         };
 
-        console.log(`[ExternalFileWatcher] File ${changeType}: ${path} (${watchedFile.type}), notifying ${panelsToNotify.length} panel(s)`);
 
         this._onFileChanged.fire(event);
     }

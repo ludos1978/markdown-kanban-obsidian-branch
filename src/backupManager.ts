@@ -60,7 +60,6 @@ export class BackupManager {
                 const intervalMs = intervalMinutes * 60 * 1000;
 
                 if (timeSinceLastBackup < intervalMs) {
-                    console.log(`❌ Backup skipped: ${Math.round(timeSinceLastBackup/1000)}s since last backup (min: ${intervalMinutes}min). Label: ${options.label || 'backup'}`);
                     return false;
                 }
             }
@@ -173,7 +172,6 @@ export class BackupManager {
             try {
                 backupContent = fs.readFileSync(filePath, 'utf8');
             } catch (error) {
-                console.log(`No existing file to backup at ${filePath}`);
                 return null; // No existing file to backup
             }
 
@@ -293,7 +291,6 @@ export class BackupManager {
             // Delete old backups if we exceed the maximum
             if (backupFiles.length > maxBackups) {
                 const filesToDelete = backupFiles.slice(maxBackups);
-                console.log(`Cleaning up ${filesToDelete.length} old backups (keeping ${maxBackups} newest)`);
 
                 for (const file of filesToDelete) {
                     try {

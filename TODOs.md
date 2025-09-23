@@ -4,11 +4,12 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] add an option to the export as in which style to export. it cnbe eigher kanbnstyle (does not modify testyle) rpresentation style (which uses tesame method swhen copying the columns and carsas markdown
-- [ ] Make the export functionality available to single columns. It works the same as with the full file, except that it only exports the data from the column and exports the included files into a media folder. use the a sanitized version of the column title (no spaces and special characters) or Row{index} appended to the {filename-without-extension} within the  _Export folder as output.
+- [ ] add an option to the export as in which style to export. it can be eigher kanbanstyle (does not modify the style) or it can be presentation style (which uses the same method as when copying the columns and cards as markdown.
+- [ ] if a broken file link search has a url encoding (it contains a %) try decoding using url encoding before searching for it. only if it's a valid decoding search for it.
+- [ ] verify that 
 
 ## Closed Bugs
-
+- [x] Make the export functionality available to single columns. It works the same as with the full file, except that it only exports the data from the column and exports the included files into a media folder. use the a sanitized version of the column title (no spaces and special characters) or Row{index} appended to the {filename-without-extension} within the  _Export folder as output.
 - [x] when undoing and saving and older state it messes up the undo / redo stack. 
 - [x] use all unchecked parts of the @TODOs.md to fix problems i encountered. for each problem start a branch which you work on and cleanup after finishing working on it. then merge with main, mark the task as done and continue to the next unchecked task in todo.md.
 - [x] if i focus another view in vscode the kanban board looses all unsaved changes.

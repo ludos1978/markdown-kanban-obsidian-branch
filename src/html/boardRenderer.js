@@ -902,26 +902,21 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         // Store the handler in a global object
         if (!window.tagHandlers) {window.tagHandlers = {};}
         window.tagHandlers[buttonId] = function(event) {
-            console.log('DEBUG: Tag button clicked', { buttonId, type, id, tagName });
             event.stopPropagation();
             event.preventDefault();
             if (type === 'column') {
-                console.log('DEBUG: Calling column tag handler');
                 if (typeof handleColumnTagClick === 'function') {
                     handleColumnTagClick(id, tagName, event);
                 } else if (typeof window.handleColumnTagClick === 'function') {
                     window.handleColumnTagClick(id, tagName, event);
                 } else {
-                    console.log('DEBUG: No column tag handler found');
                 }
             } else {
-                console.log('DEBUG: Calling task tag handler');
                 if (typeof handleTaskTagClick === 'function') {
                     handleTaskTagClick(id, columnId, tagName, event);
                 } else if (typeof window.handleTaskTagClick === 'function') {
                     window.handleTaskTagClick(id, columnId, tagName, event);
                 } else {
-                    console.log('DEBUG: No task tag handler found');
                 }
             }
             return false;

@@ -47,7 +47,6 @@ export class MarkdownKanbanParser {
           const includeFile = match[1].trim();
           if (!includedFiles.includes(includeFile)) {
               includedFiles.push(includeFile);
-              console.log(`[Parser] Found include file: ${includeFile}`);
           }
       }
 
@@ -58,7 +57,6 @@ export class MarkdownKanbanParser {
           const includeFile = match[1].trim();
           if (!columnIncludeFiles.includes(includeFile)) {
               columnIncludeFiles.push(includeFile);
-              console.log(`[Parser] Found column include file: ${includeFile}`);
           }
       }
 
@@ -69,7 +67,6 @@ export class MarkdownKanbanParser {
           const includeFile = match[1].trim();
           if (!taskIncludeFiles.includes(includeFile)) {
               taskIncludeFiles.push(includeFile);
-              console.log(`[Parser] Found task include file: ${includeFile}`);
           }
       }
       const board: KanbanBoard = {
@@ -170,7 +167,6 @@ export class MarkdownKanbanParser {
                   const fileContent = fs.readFileSync(resolvedPath, 'utf8');
                   const slideTasks = PresentationParser.parseMarkdownToTasks(fileContent);
                   includeTasks.push(...slideTasks);
-                  console.log(`[Parser] Processed column include: ${filePath} (${slideTasks.length} slides)`);
                 } else {
                   console.warn(`[Parser] Column include file not found: ${resolvedPath}`);
                 }
@@ -322,7 +318,6 @@ export class MarkdownKanbanParser {
                 // Join remaining lines as description
                 includeDescription = descriptionLines.join('\n').trim();
 
-                console.log(`[Parser] Processed task include: ${filePath}`);
               } else {
                 console.warn(`[Parser] Task include file not found: ${resolvedPath}`);
               }
