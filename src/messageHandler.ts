@@ -32,6 +32,7 @@ export class MessageHandler {
     private _saveWithBackup: () => Promise<void>;
     private _markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => void;
     private _previousBoardForFocus?: KanbanBoard;
+    private _activeOperations = new Map<string, { type: string, startTime: number }>();
 
     constructor(
         fileManager: FileManager,
@@ -65,6 +66,43 @@ export class MessageHandler {
         this._markUnsavedChanges = callbacks.markUnsavedChanges;
     }
 
+    private async startOperation(operationId: string, type: string, description: string) {
+        this._activeOperations.set(operationId, { type, startTime: Date.now() });
+
+        // Send to frontend
+        const panel = this._getWebviewPanel();
+        panel.webview.postMessage({
+            type: 'operationStarted',
+            operationId,
+            operationType: type,
+            description
+        });
+    }
+
+    private async updateOperationProgress(operationId: string, progress: number, message?: string) {
+        const panel = this._getWebviewPanel();
+        panel.webview.postMessage({
+            type: 'operationProgress',
+            operationId,
+            progress,
+            message
+        });
+    }
+
+    private async endOperation(operationId: string) {
+        const operation = this._activeOperations.get(operationId);
+        if (operation) {
+            this._activeOperations.delete(operationId);
+
+            // Send to frontend
+            const panel = this._getWebviewPanel();
+            panel.webview.postMessage({
+                type: 'operationCompleted',
+                operationId
+            });
+        }
+    }
+
     public async handleMessage(message: any): Promise<void> {
 
         switch (message.type) {
@@ -78,7 +116,15 @@ export class MessageHandler {
 
             // Include file refresh
             case 'refreshIncludes':
-                await this.handleRefreshIncludes();
+                const refreshId = `refresh_${Date.now()}`;
+                await this.startOperation(refreshId, 'refresh', 'Refreshing include files...');
+                try {
+                    await this.handleRefreshIncludes(refreshId);
+                    await this.endOperation(refreshId);
+                } catch (error) {
+                    await this.endOperation(refreshId);
+                    throw error;
+                }
                 break;
 
             // Include file content request for frontend processing
@@ -514,11 +560,27 @@ export class MessageHandler {
                 break;
 
             case 'exportWithAssets':
-                await this.handleExportWithAssets(message.options);
+                const exportId = `export_${Date.now()}`;
+                await this.startOperation(exportId, 'export', 'Exporting kanban with assets...');
+                try {
+                    await this.handleExportWithAssets(message.options, exportId);
+                    await this.endOperation(exportId);
+                } catch (error) {
+                    await this.endOperation(exportId);
+                    throw error;
+                }
                 break;
 
             case 'exportColumn':
-                await this.handleExportColumn(message.options);
+                const columnExportId = `export_column_${Date.now()}`;
+                await this.startOperation(columnExportId, 'export', 'Exporting column...');
+                try {
+                    await this.handleExportColumn(message.options, columnExportId);
+                    await this.endOperation(columnExportId);
+                } catch (error) {
+                    await this.endOperation(columnExportId);
+                    throw error;
+                }
                 break;
 
             case 'showError':
@@ -1134,17 +1196,31 @@ export class MessageHandler {
             .replace(/\$0/g, ''); // Final cursor position -> empty
     }
 
-    private async handleRefreshIncludes(): Promise<void> {
+    private async handleRefreshIncludes(operationId?: string): Promise<void> {
         try {
+            if (operationId) {
+                await this.updateOperationProgress(operationId, 20, 'Analyzing include files...');
+            }
+
             // Call refreshIncludes on the webview panel
             const panel = this._getWebviewPanel();
             if (panel && typeof panel.refreshIncludes === 'function') {
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 50, 'Reloading content...');
+                }
+
                 await panel.refreshIncludes();
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 100, 'Include files updated');
+                }
             } else {
+                throw new Error('Webview panel not available');
             }
         } catch (error) {
             console.error('[MESSAGE HANDLER] Error refreshing includes:', error);
             vscode.window.showErrorMessage(`Failed to refresh includes: ${error}`);
+            throw error;
         }
     }
 
@@ -1585,7 +1661,7 @@ export class MessageHandler {
         }
     }
 
-    private async handleExportWithAssets(options: any): Promise<void> {
+    private async handleExportWithAssets(options: any, operationId?: string): Promise<void> {
         try {
             const document = this._fileManager.getDocument();
             if (!document) {
@@ -1599,10 +1675,21 @@ export class MessageHandler {
                 title: 'Exporting markdown with assets...',
                 cancellable: false
             }, async (progress) => {
+                // Update both VS Code progress and our custom indicator
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 10, 'Analyzing assets...');
+                }
                 progress.report({ increment: 20, message: 'Analyzing assets...' });
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 30, 'Processing files...');
+                }
 
                 const result = await ExportService.exportWithAssets(document, options);
 
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 90, 'Finalizing export...');
+                }
                 progress.report({ increment: 80, message: 'Finalizing export...' });
 
                 const panel = this._getWebviewPanel();
@@ -1612,6 +1699,10 @@ export class MessageHandler {
                         result: result
                     });
                 }
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 100);
+                }
             });
 
         } catch (error) {
@@ -1620,7 +1711,7 @@ export class MessageHandler {
         }
     }
 
-    private async handleExportColumn(options: any): Promise<void> {
+    private async handleExportColumn(options: any, operationId?: string): Promise<void> {
         try {
             const document = this._fileManager.getDocument();
             if (!document) {
@@ -1634,10 +1725,16 @@ export class MessageHandler {
                 title: 'Exporting column...',
                 cancellable: false
             }, async (progress) => {
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 20, 'Analyzing column content...');
+                }
                 progress.report({ increment: 20, message: 'Analyzing column content...' });
 
                 const result = await ExportService.exportColumn(document, options);
 
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 90, 'Finalizing export...');
+                }
                 progress.report({ increment: 80, message: 'Finalizing export...' });
 
                 const panel = this._getWebviewPanel();
@@ -1646,6 +1743,10 @@ export class MessageHandler {
                         type: 'columnExportResult',
                         result: result
                     });
+                }
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 100);
                 }
             });
 

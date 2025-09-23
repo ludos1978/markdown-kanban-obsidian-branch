@@ -143,13 +143,8 @@
     // Update cache
     fileCache.set(filePath, content);
 
-    // Trigger re-render of affected content
-    if (typeof window !== 'undefined' && window.renderBoard) {
-      // Re-render the board to show updated includes
-      setTimeout(() => {
-        window.renderBoard();
-      }, 0);
-    }
+    // Don't trigger immediate re-render here - let the batch refresh handle it
+    // This prevents multiple re-renders during bulk updates
   }
 
   // Helper function for HTML escaping - now using global ValidationUtils.escapeHtml
@@ -157,9 +152,16 @@
     return window.escapeHtml ? window.escapeHtml(text) : text;
   }
 
-  // Expose cache update function globally
+  // Function to clear the entire include file cache
+  function clearIncludeFileCache() {
+    fileCache.clear();
+    pendingRequests.clear();
+  }
+
+  // Expose cache functions globally
   if (typeof window !== 'undefined') {
     window.updateIncludeFileCache = updateFileCache;
+    window.clearIncludeFileCache = clearIncludeFileCache;
   }
 
   return markdownItInclude;

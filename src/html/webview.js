@@ -2481,6 +2481,13 @@ window.addEventListener('message', event => {
                 refreshIncludesBtn.title = tooltip;
             }
             break;
+        case 'clearIncludeCache':
+            // Clear the include file cache to force fresh processing
+            if (typeof window.clearIncludeFileCache === 'function') {
+                window.clearIncludeFileCache();
+            }
+            break;
+
         case 'includeFileContent':
             // Handle include file content response from backend
             if (typeof window.updateIncludeFileCache === 'function') {
@@ -2620,6 +2627,33 @@ window.addEventListener('message', event => {
             break;
         case 'columnExportResult':
             handleColumnExportResult(message.result);
+            break;
+
+        // Activity indicator messages
+        case 'operationStarted':
+            if (window.activityManager) {
+                window.activityManager.startOperation(
+                    message.operationId,
+                    message.operationType,
+                    message.description
+                );
+            }
+            break;
+
+        case 'operationProgress':
+            if (window.activityManager) {
+                window.activityManager.updateProgress(
+                    message.operationId,
+                    message.progress,
+                    message.message
+                );
+            }
+            break;
+
+        case 'operationCompleted':
+            if (window.activityManager) {
+                window.activityManager.endOperation(message.operationId);
+            }
             break;
     }
 });

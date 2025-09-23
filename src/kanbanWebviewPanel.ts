@@ -2055,6 +2055,13 @@ export class KanbanWebviewPanel {
 
                 // Send updated include file contents to frontend
                 if (this._panel && this._panel.webview) {
+                    // First, clear the frontend cache to force re-processing
+                    this._panel.webview.postMessage({
+                        type: 'clearIncludeCache',
+                        message: 'Clearing include file cache before refresh'
+                    });
+
+                    // Then send all updated include file contents
                     for (const [filePath, content] of this._includeFileContents) {
                         this._panel.webview.postMessage({
                             type: 'includeFileContent',
@@ -2063,7 +2070,7 @@ export class KanbanWebviewPanel {
                         });
                     }
 
-                    // Then trigger re-render
+                    // Finally trigger re-render
                     this._panel.webview.postMessage({
                         type: 'refreshIncludesOnly',
                         message: 'Include files refreshed'
