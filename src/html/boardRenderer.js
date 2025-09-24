@@ -16,21 +16,6 @@ let renderTimeout = null;
 // Import colorUtils at the top of the file (will be included via HTML)
 // The colorUtils module provides: hexToRgb, rgbToHex, withAlpha, etc.
 
-/**
- * Legacy wrapper for backward compatibility - delegates to colorUtils
- * @deprecated Use colorUtils.withAlpha() instead
- */
-function hexToRgba(hex, alpha) {
-    return colorUtils.withAlpha(hex, alpha);
-}
-
-/**
- * Legacy wrapper for backward compatibility - delegates to colorUtils
- * @deprecated Use colorUtils.hexToRgb() instead
- */
-function hexToRgb(hex) {
-    return colorUtils.hexToRgb(hex);
-}
 
 /**
  * Legacy wrapper for backward compatibility - delegates to colorUtils

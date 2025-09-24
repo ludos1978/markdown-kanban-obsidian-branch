@@ -71,22 +71,26 @@ export class MessageHandler {
 
         // Send to frontend
         const panel = this._getWebviewPanel();
-        panel.webview.postMessage({
-            type: 'operationStarted',
-            operationId,
-            operationType: type,
-            description
-        });
+        if (panel && panel.webview) {
+            panel.webview.postMessage({
+                type: 'operationStarted',
+                operationId,
+                operationType: type,
+                description
+            });
+        }
     }
 
     private async updateOperationProgress(operationId: string, progress: number, message?: string) {
         const panel = this._getWebviewPanel();
-        panel.webview.postMessage({
-            type: 'operationProgress',
-            operationId,
-            progress,
-            message
-        });
+        if (panel && panel.webview) {
+            panel.webview.postMessage({
+                type: 'operationProgress',
+                operationId,
+                progress,
+                message
+            });
+        }
     }
 
     private async endOperation(operationId: string) {
@@ -96,10 +100,12 @@ export class MessageHandler {
 
             // Send to frontend
             const panel = this._getWebviewPanel();
-            panel.webview.postMessage({
-                type: 'operationCompleted',
-                operationId
-            });
+            if (panel && panel.webview) {
+                panel.webview.postMessage({
+                    type: 'operationCompleted',
+                    operationId
+                });
+            }
         }
     }
 

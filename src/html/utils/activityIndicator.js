@@ -195,10 +195,6 @@ class ActivityIndicatorManager {
         }
     }
 
-    // Get count of active operations
-    getActiveCount() {
-        return this.activeOperations.size;
-    }
 }
 
 // Add required CSS animations
