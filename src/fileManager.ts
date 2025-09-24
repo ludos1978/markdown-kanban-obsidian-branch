@@ -249,28 +249,37 @@ export class FileManager {
      */
     public async resolveFilePath(href: string): Promise<FileResolutionResult | null> {
         const attemptedPaths: string[] = [];
-        
-        const isAbsolute = path.isAbsolute(href) || 
-                        href.match(/^[a-zA-Z]:/) || 
-                        href.startsWith('/') ||     
-                        href.startsWith('\\');     
+
+        // Decode URL-encoded paths (e.g., %20 -> space)
+        let decodedHref = href;
+        try {
+            decodedHref = decodeURIComponent(href);
+        } catch (error) {
+            // If decoding fails, use the original href
+            decodedHref = href;
+        }
+
+        const isAbsolute = path.isAbsolute(decodedHref) ||
+                        decodedHref.match(/^[a-zA-Z]:/) ||
+                        decodedHref.startsWith('/') ||
+                        decodedHref.startsWith('\\');
 
         if (isAbsolute) {
-            attemptedPaths.push(href);
+            attemptedPaths.push(decodedHref);
             try {
-                const exists = fs.existsSync(href);
-                return { 
-                    resolvedPath: href, 
-                    exists, 
+                const exists = fs.existsSync(decodedHref);
+                return {
+                    resolvedPath: decodedHref,
+                    exists,
                     isAbsolute: true,
-                    attemptedPaths 
+                    attemptedPaths
                 };
             } catch (error) {
-                return { 
-                    resolvedPath: href, 
-                    exists: false, 
+                return {
+                    resolvedPath: decodedHref,
+                    exists: false,
                     isAbsolute: true,
-                    attemptedPaths 
+                    attemptedPaths
                 };
             }
         }
@@ -283,10 +292,10 @@ export class FileManager {
         if (workspaceFolders && workspaceFolders.length > 0) {
             for (const folder of workspaceFolders) {
                 const folderName = path.basename(folder.uri.fsPath);
-                if (href.startsWith(folderName + '/') || href.startsWith(folderName + '\\')) {
+                if (decodedHref.startsWith(folderName + '/') || decodedHref.startsWith(folderName + '\\')) {
                     // This is a workspace-relative path
                     isWorkspaceRelative = true;
-                    const relativePath = href.substring(folderName.length + 1);
+                    const relativePath = decodedHref.substring(folderName.length + 1);
                     const candidate = path.resolve(folder.uri.fsPath, relativePath);
                     candidates.push(candidate);
                     attemptedPaths.push(candidate);
@@ -300,7 +309,7 @@ export class FileManager {
             // First: Check relative to current document directory (only if we have a document)
             if (this._document) {
                 const currentDir = path.dirname(this._document.uri.fsPath);
-                const candidate = path.resolve(currentDir, href);
+                const candidate = path.resolve(currentDir, decodedHref);
                 candidates.push(candidate);
                 attemptedPaths.push(candidate);
             }
@@ -308,7 +317,7 @@ export class FileManager {
             // Second: Check in all workspace folders
             if (workspaceFolders) {
                 for (const folder of workspaceFolders) {
-                    const candidate = path.resolve(folder.uri.fsPath, href);
+                    const candidate = path.resolve(folder.uri.fsPath, decodedHref);
                     candidates.push(candidate);
                     attemptedPaths.push(candidate);
                 }

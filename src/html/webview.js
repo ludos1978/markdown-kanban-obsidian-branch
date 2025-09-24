@@ -2657,7 +2657,7 @@ if (typeof MutationObserver !== 'undefined') {
             }
         });
     });
-    
+
     // Start observing when DOM is ready
     if (document.body) {
         themeObserver.observe(document.body, {

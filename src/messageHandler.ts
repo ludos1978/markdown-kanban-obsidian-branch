@@ -510,10 +510,6 @@ export class MessageHandler {
             case 'requestTaskIncludeFileName':
                 await this.handleRequestTaskIncludeFileName(message.taskId, message.columnId);
                 break;
-            // case 'updateTaskInBackend':
-                // DEPRECATED: This is now handled via markUnsavedChanges with cachedBoard
-                // The complete board state is sent, which is more reliable than individual field updates
-                // break;
 
             case 'saveClipboardImage':
                 await this.handleSaveClipboardImage(
@@ -771,27 +767,6 @@ export class MessageHandler {
         }
     }
 
-    private updateTaskInBackend(taskId: string, columnId: string, field: string, value: string) {
-        const board = this._getCurrentBoard();
-        if (!board) {
-            console.warn('No board available to update task');
-            return;
-        }
-        
-        // Find and update the task
-        for (const column of board.columns) {
-            if (column.id === columnId) {
-                const task = column.tasks.find((t: any) => t.id === taskId);
-                if (task) {
-                    (task as any)[field] = value;
-                    // Update the board reference to ensure it's saved
-                    this._setBoard(board);
-                    return;
-                }
-            }
-        }
-        console.warn(`Task ${taskId} not found in column ${columnId}`);
-    }
 
     private async handleSaveBoardState(board: any) {
         if (!board) {

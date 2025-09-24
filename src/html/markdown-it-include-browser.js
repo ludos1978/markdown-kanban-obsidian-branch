@@ -110,13 +110,14 @@
     // Store the processed content from backend
     processedIncludes.set(filePath, content);
 
-    // Trigger board re-render to show updated include content
-    if (typeof window.renderBoard === 'function') {
-      window.renderBoard();
+    // Instead of requesting a full board update (which causes infinite loops),
+    // just trigger a local re-render if we have current board data
+    if (typeof window !== 'undefined' && window.currentBoard && typeof window.renderBoard === 'function') {
+      // Use setTimeout to avoid synchronous re-render during current render
+      setTimeout(() => {
+        window.renderBoard();
+      }, 10);
     }
-
-    // NOTE: Don't send requestBoardUpdate here as it causes infinite loops
-    // The backend already sent us the updated content, just re-render it
   }
 
   // Helper function for HTML escaping - now using global ValidationUtils.escapeHtml

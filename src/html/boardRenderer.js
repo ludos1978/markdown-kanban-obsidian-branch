@@ -48,27 +48,27 @@ function interpolateColor(color1, color2, factor) {
  * Side effects: Modifies document.head with style element
  */
 function applyTagStyles() {
-    
+
     // Remove existing dynamic styles
     const existingStyles = document.getElementById('dynamic-tag-styles');
     if (existingStyles) {
         existingStyles.remove();
     }
-    
+
     // Generate new styles
     const styles = generateTagStyles();
-    
+
     if (styles) {
         // Create and inject style element
         const styleElement = document.createElement('style');
         styleElement.id = 'dynamic-tag-styles';
         styleElement.textContent = styles;
         document.head.appendChild(styleElement);
-        
+
         // Debug: Check what columns have tags
         document.querySelectorAll('.kanban-full-height-column[data-column-tag]').forEach(col => {
         });
-    } 
+    }
 }
 
 /**
@@ -346,7 +346,7 @@ function debouncedRenderBoard() {
     if (renderTimeout) {
         clearTimeout(renderTimeout);
     }
-    
+
     renderTimeout = setTimeout(() => {
         renderBoard();
         renderTimeout = null;
@@ -1109,11 +1109,11 @@ function renderBoard() {
     }
 
     // Ensure window.currentBoard is synced with cachedBoard for operations like tag toggling
-    if (window.cachedBoard && window.cachedBoard !== window.window.currentBoard) {
-        window.window.currentBoard = window.cachedBoard;
+    if (window.cachedBoard && window.cachedBoard !== window.currentBoard) {
+        window.currentBoard = window.cachedBoard;
     }
 
-    if (!window.window.currentBoard) {
+    if (!window.currentBoard) {
         boardElement.innerHTML = `
             <div class="empty-board" style="
                 text-align: center;
@@ -1773,7 +1773,7 @@ function createTaskElement(task, columnId, taskIndex) {
                 <div class="task-description-display markdown-content"
                         data-task-id="${task.id}"
                         data-column-id="${columnId}"
-                        onclick="handleDescriptionClick(event, this)">${renderedDescription}</div>
+                        onclick="handleDescriptionClick(event, this, '${task.id}', '${columnId}')">${renderedDescription}</div>
                 <textarea class="task-description-edit" 
                             data-task-id="${task.id}" 
                             data-column-id="${columnId}"
@@ -1971,32 +1971,46 @@ function handleColumnTitleClick(event, columnId) {
 }
 
 function handleTaskTitleClick(event, element, taskId, columnId) {
+
     if (event.altKey) {
         // Alt+click: open link/image
         if (handleLinkOrImageOpen(event, event.target)) {return;}
         return; // Don't edit if Alt is pressed
     }
-    
+
     // Default: always edit
     event.preventDefault();
     event.stopPropagation();
-    editTitle(element, taskId, columnId);
+
+    console.log('About to call editTitle');
+    if (typeof editTitle === 'function') {
+        editTitle(element, taskId, columnId);
+    } else {
+        console.error('editTitle is not a function:', typeof editTitle);
+    }
 }
 
 function handleDescriptionClick(event, element, taskId, columnId) {
+
     if (event.altKey) {
         // Alt+click: open link/image
         if (handleLinkOrImageOpen(event, event.target)) {return;}
         return; // Don't edit if Alt is pressed
     }
-    
+
     // Default: always edit
     event.preventDefault();
     event.stopPropagation();
-    if (taskId && columnId) {
-        editDescription(element, taskId, columnId);
+
+    console.log('About to call editDescription');
+    if (typeof editDescription === 'function') {
+        if (taskId && columnId) {
+            editDescription(element, taskId, columnId);
+        } else {
+            editDescription(element);
+        }
     } else {
-        editDescription(element);
+        console.error('editDescription is not a function:', typeof editDescription);
     }
 }
 
