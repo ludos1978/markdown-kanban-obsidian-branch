@@ -30,7 +30,9 @@
       "Read(///**)",
       "Bash(npm run:*)",
       "Bash(git branch:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(timeout 30 npm run analyze-cleanup:*)",
+      "Bash(gtimeout:*)"
     ],
     "deny": [],
     "ask": []

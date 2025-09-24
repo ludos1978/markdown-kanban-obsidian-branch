@@ -90,31 +90,6 @@ class ValidationUtils {
         return /^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(hex);
     }
 
-    /**
-     * Validate email format (basic validation)
-     * @param {string} email - Email to validate
-     * @returns {boolean} True if valid email format
-     */
-    static isValidEmail(email) {
-        if (!email) return false;
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-
-    /**
-     * Validate URL format
-     * @param {string} url - URL to validate
-     * @returns {boolean} True if valid URL format
-     */
-    static isValidUrl(url) {
-        if (!url) return false;
-        try {
-            new URL(url);
-            return true;
-        } catch {
-            return false;
-        }
-    }
 
     /**
      * Sanitize filename by removing invalid characters

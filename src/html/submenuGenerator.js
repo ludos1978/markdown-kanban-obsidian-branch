@@ -7,56 +7,6 @@ class SubmenuGenerator {
         this.activeSubmenu = null;
     }
 
-    // Generate tag submenu on demand
-    generateTagSubmenu(tags, id, type, columnId = null) {
-        const groupedTags = this.groupTagsByType(tags);
-        let menuHtml = '';
-
-        // Generate grouped tags
-        for (const [groupKey, groupTags] of Object.entries(groupedTags)) {
-            if (groupTags.length > 0) {
-                const groupLabel = groupKey.charAt(0).toUpperCase() + groupKey.slice(1);
-                menuHtml += `
-                    <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="${groupKey}">
-                        ${groupLabel}
-                    </div>
-                `;
-            }
-        }
-
-        // Add user-added tags if any exist
-        const userAddedTags = tags.filter(tag => !tag.configured);
-        if (userAddedTags.length > 0) {
-            menuHtml += `
-                <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="custom">
-                    Custom Tags
-                </div>
-            `;
-        }
-
-        return menuHtml;
-    }
-
-    // Generate move submenu on demand
-    generateMoveSubmenu(taskId, columnId) {
-        return `
-            <div class="donut-menu-item has-submenu" data-submenu-type="move">
-                Move
-            </div>
-            <div class="donut-menu-item has-submenu" data-submenu-type="move-to-list" data-task-id="${taskId}" data-column-id="${columnId}">
-                Move to list
-            </div>
-        `;
-    }
-
-    // Generate sort submenu on demand  
-    generateSortSubmenu(columnId) {
-        return `
-            <div class="donut-menu-item has-submenu" data-submenu-type="sort" data-column-id="${columnId}">
-                Sort by
-            </div>
-        `;
-    }
 
     // Create submenu content dynamically when hovered
     createSubmenuContent(menuItem, id, type, columnId = null) {

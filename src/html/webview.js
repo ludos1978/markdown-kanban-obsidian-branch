@@ -1372,26 +1372,6 @@ function setTagVisibility(setting) {
 // Export tag visibility functionality
 let currentExportTagVisibility = 'allexcludinglayout'; // Default setting
 
-function setExportTagVisibility(setting) {
-    // Store the export tag visibility setting
-    currentExportTagVisibility = setting;
-    window.currentExportTagVisibility = setting;
-
-    // Store preference
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'exportTagVisibility',
-        value: setting
-    });
-
-    // Update menu indicators
-    updateAllMenuIndicators();
-
-    // Close menu
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
-}
 
 // Helper function to filter tags from text based on export tag visibility setting
 function filterTagsForExport(text) {

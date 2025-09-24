@@ -989,40 +989,6 @@ function calculateInsertionIndex(column, clientY) {
     return -1;
 }
 
-// Helper function to restore original column position
-function restoreColumnPosition() {
-
-    if (dragState.draggedColumn && dragState.originalColumnIndex >= 0) {
-        const board = document.getElementById('kanban-board');
-        const columns = Array.from(board.querySelectorAll('.kanban-full-height-column'));
-        
-        // Remove from current position
-        if (dragState.draggedColumn.parentNode === board) {
-            board.removeChild(dragState.draggedColumn);
-        }
-        
-        // Insert back to original position
-        if (dragState.originalColumnNextSibling) {
-            board.insertBefore(dragState.draggedColumn, dragState.originalColumnNextSibling);
-        } else if (dragState.originalColumnIndex >= columns.length) {
-            // Was last item
-            const addColumnBtn = board.querySelector('.add-column-btn');
-            if (addColumnBtn) {
-                board.insertBefore(dragState.draggedColumn, addColumnBtn);
-            } else {
-                board.appendChild(dragState.draggedColumn);
-            }
-        } else {
-            // Insert at index
-            const targetColumn = columns[dragState.originalColumnIndex];
-            if (targetColumn && targetColumn !== dragState.draggedColumn) {
-                board.insertBefore(dragState.draggedColumn, targetColumn);
-            }
-        }
-        
-        dragState.draggedColumn.classList.remove('drag-source-hidden');
-    }
-}
 
 // Helper function to restore original task position
 function restoreTaskPosition() {

@@ -243,19 +243,6 @@ export class KanbanWebviewPanel {
         return Array.from(KanbanWebviewPanel.panels.values());
     }
 
-    // Panel state management methods
-    public setPanelState(state: any): void {
-        KanbanWebviewPanel.panelStates.set(this._panelId, state);
-    }
-
-    public getPanelState(): any {
-        const state = KanbanWebviewPanel.panelStates.get(this._panelId);
-        return state;
-    }
-
-    public clearPanelState(): void {
-        KanbanWebviewPanel.panelStates.delete(this._panelId);
-    }
 
     public getPanelId(): string {
         return this._panelId;
@@ -872,7 +859,7 @@ export class KanbanWebviewPanel {
         this._lastDocumentUri = document.uri.toString();
 
         // Store panel state for serialization in VSCode context
-        this.setPanelState({
+        KanbanWebviewPanel.panelStates.set(this._panelId, {
             documentUri: document.uri.toString(),
             panelId: this._panelId
         });
@@ -1614,7 +1601,7 @@ export class KanbanWebviewPanel {
         }
 
         // Clear panel state
-        this.clearPanelState();
+        KanbanWebviewPanel.panelStates.delete(this._panelId);
 
         // Stop backup timer
         this._backupManager.dispose();

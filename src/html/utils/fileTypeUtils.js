@@ -133,72 +133,7 @@ class FileTypeUtils {
         return this.FILE_EXTENSIONS.text.includes(extension);
     }
 
-    /**
-     * Get the MIME type for a file based on its extension
-     * @param {string} fileName - File name or path
-     * @returns {string} MIME type or 'application/octet-stream' for unknown types
-     */
-    getMimeType(fileName) {
-        if (!fileName || typeof fileName !== 'string') {
-            return 'application/octet-stream';
-        }
 
-        const extension = this._getFileExtension(fileName);
-
-        // Image MIME types
-        const imageMimes = {
-            'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
-            'gif': 'image/gif', 'bmp': 'image/bmp', 'svg': 'image/svg+xml',
-            'webp': 'image/webp', 'ico': 'image/x-icon', 'tiff': 'image/tiff',
-            'tif': 'image/tiff', 'avif': 'image/avif', 'heic': 'image/heic',
-            'heif': 'image/heif'
-        };
-
-        // Video MIME types
-        const videoMimes = {
-            'mp4': 'video/mp4', 'mov': 'video/quicktime', 'avi': 'video/x-msvideo',
-            'mkv': 'video/x-matroska', 'm4v': 'video/x-m4v', 'mpg': 'video/mpeg',
-            'mpeg': 'video/mpeg', 'ogv': 'video/ogg', 'webm': 'video/webm',
-            'wmv': 'video/x-ms-wmv', 'flv': 'video/x-flv', '3gp': 'video/3gpp'
-        };
-
-        // Audio MIME types
-        const audioMimes = {
-            'mp3': 'audio/mpeg', 'm4a': 'audio/x-m4a', 'wav': 'audio/wav',
-            'ogg': 'audio/ogg', 'flac': 'audio/flac', 'aac': 'audio/aac',
-            'oga': 'audio/ogg', 'wma': 'audio/x-ms-wma', 'opus': 'audio/opus',
-            'aiff': 'audio/x-aiff', 'au': 'audio/basic'
-        };
-
-        // Text MIME types
-        const textMimes = {
-            'txt': 'text/plain', 'md': 'text/markdown', 'markdown': 'text/markdown',
-            'json': 'application/json', 'xml': 'application/xml',
-            'yaml': 'application/x-yaml', 'yml': 'application/x-yaml',
-            'csv': 'text/csv', 'html': 'text/html', 'css': 'text/css',
-            'js': 'application/javascript', 'ts': 'application/typescript'
-        };
-
-        return imageMimes[extension] ||
-               videoMimes[extension] ||
-               audioMimes[extension] ||
-               textMimes[extension] ||
-               'application/octet-stream';
-    }
-
-    /**
-     * Get the category of a file based on its type
-     * @param {string} fileName - File name or path
-     * @returns {string} Category: 'image', 'video', 'audio', 'text', 'markdown', 'unknown'
-     */
-    getFileCategory(fileName) {
-        if (this.isImageFile(fileName)) { return 'image'; }
-        if (this.isVideoFile(fileName)) { return 'video'; }
-        if (this.isAudioFile(fileName)) { return 'audio'; }
-        if (this.isMarkdownFile(fileName)) { return 'markdown'; }
-        if (this.isTextFile(fileName)) { return 'text'; }
-        return 'unknown';
-    }
 
     /**
      * Extract file extension from filename (private helper)

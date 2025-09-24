@@ -51,14 +51,6 @@ class ColorUtils {
         return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
     }
 
-    /**
-     * Convert RGB object to hex
-     * @param {Object} rgb - RGB object {r, g, b}
-     * @returns {string} Hex color string
-     */
-    rgbObjectToHex(rgb) {
-        return this.rgbToHex(rgb.r, rgb.g, rgb.b);
-    }
 
     /**
      * Validate hex color format
@@ -129,19 +121,6 @@ class ColorUtils {
         return this.rgbToHex(r, g, b);
     }
 
-    /**
-     * Get contrasting text color (black or white) for background
-     * @param {string} backgroundColor - Background color
-     * @returns {string} '#000000' or '#FFFFFF'
-     */
-    getContrastTextColor(backgroundColor) {
-        const rgb = this.parseToRgb(backgroundColor);
-        if (!rgb) return '#000000';
-
-        // Calculate luminance
-        const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
-        return luminance > 0.5 ? '#000000' : '#FFFFFF';
-    }
 
     /**
      * Generate color with transparency
