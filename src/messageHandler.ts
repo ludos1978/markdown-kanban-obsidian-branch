@@ -143,6 +143,16 @@ export class MessageHandler {
                 await this.handleConfirmDisableIncludeMode(message);
                 break;
 
+            // Include file content request for frontend processing
+            case 'requestIncludeFile':
+                await this.handleRequestIncludeFile(message.filePath);
+                break;
+
+            // Register inline include for conflict resolution
+            case 'registerInlineInclude':
+                await this.handleRegisterInlineInclude(message.filePath, message.content);
+                break;
+
             // Request include file name for enabling include mode
             case 'requestIncludeFileName':
                 await this.handleRequestIncludeFileName(message);
@@ -579,6 +589,14 @@ export class MessageHandler {
 
             case 'askOpenExportFolder':
                 await this.handleAskOpenExportFolder(message.path);
+                break;
+
+            case 'getTrackedFilesDebugInfo':
+                await this.handleGetTrackedFilesDebugInfo();
+                break;
+
+            case 'clearTrackedFilesCache':
+                await this.handleClearTrackedFilesCache();
                 break;
 
             default:
@@ -1382,6 +1400,104 @@ export class MessageHandler {
         }
     }
 
+    private async handleRequestIncludeFile(filePath: string): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel || !panel._panel) {
+                console.error('[MESSAGE HANDLER] No webview panel available');
+                return;
+            }
+
+            // Resolve the file path relative to the current document
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                console.error('[MESSAGE HANDLER] No current document available');
+                return;
+            }
+
+            const basePath = path.dirname(document.uri.fsPath);
+            const absolutePath = path.resolve(basePath, filePath);
+
+
+            // Read the file content
+            let content: string;
+            try {
+                if (!fs.existsSync(absolutePath)) {
+                    console.warn('[MESSAGE HANDLER] Include file not found:', absolutePath);
+                    // Send null content to indicate file not found
+                    await panel._panel.webview.postMessage({
+                        type: 'includeFileContent',
+                        filePath: filePath,
+                        content: null,
+                        error: `File not found: ${filePath}`
+                    });
+                    return;
+                }
+
+                content = fs.readFileSync(absolutePath, 'utf8');
+
+                // Register the include file with the file watcher
+                const watcher = ExternalFileWatcher.getInstance();
+                watcher.registerFile(absolutePath, 'include', panel);
+
+                // Send the content back to the frontend
+                await panel._panel.webview.postMessage({
+                    type: 'includeFileContent',
+                    filePath: filePath,
+                    content: content
+                });
+
+            } catch (fileError) {
+                console.error('[MESSAGE HANDLER] Error reading include file:', fileError);
+                await panel._panel.webview.postMessage({
+                    type: 'includeFileContent',
+                    filePath: filePath,
+                    content: null,
+                    error: `Error reading file: ${filePath}`
+                });
+            }
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error handling include file request:', error);
+        }
+    }
+
+    private async handleRegisterInlineInclude(filePath: string, content: string): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel || !panel.ensureIncludeFileRegistered) {
+                return;
+            }
+
+            // Normalize path format
+            let relativePath = filePath;
+            if (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) {
+                relativePath = './' + relativePath;
+            }
+
+            // Register the inline include in the unified system
+            panel.ensureIncludeFileRegistered(relativePath, 'regular');
+
+            // Update the content and baseline
+            const includeFile = panel._includeFiles?.get(relativePath);
+            if (includeFile && content) {
+                includeFile.content = content;
+                includeFile.baseline = content;
+                includeFile.hasUnsavedChanges = false;
+                includeFile.lastModified = Date.now();
+
+                // Set absolute path for file watching
+                const currentDocument = this._fileManager.getDocument();
+                if (currentDocument) {
+                    const basePath = path.dirname(currentDocument.uri.fsPath);
+                    includeFile.absolutePath = path.resolve(basePath, filePath);
+                }
+            }
+
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error registering inline include:', error);
+        }
+    }
+
     private async handleRequestIncludeFileName(message: any): Promise<void> {
         try {
             const fileName = await vscode.window.showInputBox({
@@ -1646,6 +1762,163 @@ export class MessageHandler {
             }
         } catch (error) {
             console.error('Error handling export folder open request:', error);
+        }
+    }
+
+    /**
+     * Handle request for tracked files debug information
+     */
+    private async handleGetTrackedFilesDebugInfo(): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            // Collect debug information from various sources
+            const debugData = await this.collectTrackedFilesDebugInfo();
+
+            // Send debug data to frontend
+            panel._panel.webview.postMessage({
+                type: 'trackedFilesDebugInfo',
+                data: debugData
+            });
+
+        } catch (error) {
+            console.error('[MessageHandler] Error getting tracked files debug info:', error);
+        }
+    }
+
+    /**
+     * Handle request to clear tracked files cache
+     */
+    private async handleClearTrackedFilesCache(): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            // Clear various caches
+            await this.clearAllTrackedFileCaches();
+
+            // Confirm cache clear
+            panel._panel.webview.postMessage({
+                type: 'debugCacheCleared'
+            });
+
+            console.log('[MessageHandler] Tracked files cache cleared');
+
+        } catch (error) {
+            console.error('[MessageHandler] Error clearing tracked files cache:', error);
+        }
+    }
+
+    /**
+     * Collect comprehensive debug information about tracked files
+     */
+    private async collectTrackedFilesDebugInfo(): Promise<any> {
+        const panel = this._getWebviewPanel();
+        const document = this._fileManager.getDocument();
+
+        // Main file info
+        const mainFileInfo = {
+            path: document?.uri.fsPath || 'Unknown',
+            lastModified: document ? new Date(document.version).toISOString() : 'Unknown',
+            exists: document ? true : false,
+            watcherActive: true // Assume active for now
+        };
+
+        // External file watchers
+        const externalWatchers: any[] = [];
+        try {
+            // Get external file watcher instance
+            const ExternalFileWatcher = require('./externalFileWatcher').ExternalFileWatcher;
+            const watcher = ExternalFileWatcher.getInstance();
+
+            // This would need access to the internal state of ExternalFileWatcher
+            // For now, we'll return placeholder data
+        } catch (error) {
+            console.warn('[Debug] Could not access ExternalFileWatcher:', error);
+        }
+
+        // Include files from panel
+        const includeFiles: any[] = [];
+        if (panel) {
+            try {
+                // Access include files from panel
+                const includeFileMap = (panel as any)._includeFiles;
+                if (includeFileMap) {
+                    for (const [path, fileData] of includeFileMap) {
+                        includeFiles.push({
+                            path: path,
+                            type: fileData.type || 'include',
+                            exists: fileData.exists !== false,
+                            lastModified: fileData.lastModified || 'Unknown',
+                            size: fileData.size || 'Unknown',
+                            hasUnsavedChanges: fileData.hasUnsavedChanges || false
+                        });
+                    }
+                }
+            } catch (error) {
+                console.warn('[Debug] Could not access panel include files:', error);
+            }
+        }
+
+        // Conflict management status
+        const conflictManager = {
+            healthy: true, // Placeholder
+            trackedFiles: 1 + includeFiles.length,
+            pendingConflicts: 0,
+            watcherFailures: 0
+        };
+
+        // System health
+        const systemHealth = {
+            overall: includeFiles.length > 0 ? 'good' : 'warn',
+            extensionState: 'active',
+            memoryUsage: 'normal',
+            lastError: null
+        };
+
+        return {
+            mainFile: mainFileInfo.path,
+            mainFileLastModified: mainFileInfo.lastModified,
+            fileWatcherActive: mainFileInfo.watcherActive,
+            externalWatchers: externalWatchers,
+            includeFiles: includeFiles,
+            conflictManager: conflictManager,
+            systemHealth: systemHealth,
+            hasUnsavedChanges: panel ? (panel as any)._hasUnsavedChanges || false : false,
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    /**
+     * Clear all tracked file caches
+     */
+    private async clearAllTrackedFileCaches(): Promise<void> {
+        const panel = this._getWebviewPanel();
+
+        if (panel) {
+            // Clear include file caches
+            try {
+                const includeFileMap = (panel as any)._includeFiles;
+                if (includeFileMap) {
+                    includeFileMap.clear();
+                }
+
+                // Clear cached board state if needed
+                (panel as any)._cachedBoardFromWebview = null;
+
+                // Trigger a fresh load
+                const document = this._fileManager.getDocument();
+                if (document) {
+                    await panel.loadMarkdownFile(document, false);
+                }
+            } catch (error) {
+                console.warn('[Debug] Error clearing panel caches:', error);
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
-// Backend-driven include system
-// Replaces !!!include(filepath)!!! with pre-processed content from backend
+// Browser-compatible markdown-it-include plugin
+// Processes !!!include(filepath)!!! statements by requesting file content from VS Code
 
 (function(global, factory) {
   typeof exports === "object" && typeof module !== "undefined" ? module.exports = factory() :
@@ -11,8 +11,9 @@
 
   const INCLUDE_RE = /!!!include\(([^)]+)\)!!!/;
 
-  // Store for processed content from backend
-  const processedIncludes = new Map();
+  // Cache for file contents to avoid repeated requests
+  const fileCache = new Map();
+  const pendingRequests = new Set();
 
   function markdownItInclude(md, options = {}) {
     const defaultOptions = {
@@ -34,20 +35,21 @@
         return false;
       }
 
+
       if (silent) {return true;}
 
       const filePath = match[1].trim();
 
-      // Get processed content from backend store
-      const content = processedIncludes.get(filePath);
-      if (content === undefined) {
-        // Content not available yet - show placeholder
+      // Try to get file content
+      let content = getFileContent(filePath);
+      if (content === null) {
+        // File not cached yet - show placeholder and request content
         const token = state.push('include_placeholder', 'span', 0);
         token.content = filePath;
         token.attrSet('class', 'include-placeholder');
         token.attrSet('title', `Loading include file: ${filePath}`);
       } else {
-        // Content available - render it
+        // Successfully got content - render it inline as markdown
         const token = state.push('include_content', 'span', 0);
         token.content = content;
         token.attrSet('class', 'included-content-inline');
@@ -105,18 +107,60 @@
     };
   }
 
-  // Function to update processed include content from backend
-  function updateIncludeContent(filePath, content) {
-    // Store the processed content from backend
-    processedIncludes.set(filePath, content);
+  // Function to get file content (communicates with VS Code extension)
+  function getFileContent(filePath) {
+    // Check cache first
+    if (fileCache.has(filePath)) {
+      return fileCache.get(filePath);
+    }
 
-    // Instead of requesting a full board update (which causes infinite loops),
-    // just trigger a local re-render if we have current board data
-    if (typeof window !== 'undefined' && window.currentBoard && typeof window.renderBoard === 'function') {
-      // Use setTimeout to avoid synchronous re-render during current render
+    // If not already requesting, request it
+    if (!pendingRequests.has(filePath) && typeof vscode !== 'undefined') {
+      pendingRequests.add(filePath);
+
+      try {
+        // Request file content from VS Code
+        vscode.postMessage({
+          type: 'requestIncludeFile',
+          filePath: filePath
+        });
+      } catch (error) {
+        console.error('Error requesting include file:', error);
+        pendingRequests.delete(filePath);
+      }
+    }
+
+    // Return null to indicate content is not available yet
+    return null;
+  }
+
+  // Function to update cache when file content is received
+  function updateFileCache(filePath, content) {
+    // Remove from pending requests
+    pendingRequests.delete(filePath);
+
+    // Update cache
+    fileCache.set(filePath, content);
+
+    // Register this inline include in the backend's unified system for conflict resolution
+    if (typeof vscode !== 'undefined') {
+      try {
+        vscode.postMessage({
+          type: 'registerInlineInclude',
+          filePath: filePath,
+          content: content
+        });
+      } catch (error) {
+        console.error('Error registering inline include:', error);
+      }
+    }
+
+    // Trigger re-render of affected content
+    if (typeof window !== 'undefined' && window.renderBoard) {
+      // Re-render the board to show updated includes
       setTimeout(() => {
         window.renderBoard();
-      }, 10);
+      }, 0);
     }
   }
 
@@ -125,15 +169,9 @@
     return window.escapeHtml ? window.escapeHtml(text) : text;
   }
 
-  // Function to clear all processed include content
-  function clearIncludeContent() {
-    processedIncludes.clear();
-  }
-
-  // Expose content functions globally
+  // Expose cache update function globally
   if (typeof window !== 'undefined') {
-    window.updateIncludeContent = updateIncludeContent;
-    window.clearIncludeContent = clearIncludeContent;
+    window.updateIncludeFileCache = updateFileCache;
   }
 
   return markdownItInclude;

@@ -551,9 +551,11 @@ export class KanbanWebviewPanel {
      */
     private _setupDocumentCloseListener() {
         // Listen for document close events
-        const documentCloseListener = vscode.workspace.onDidCloseTextDocument(document => {
+        const documentCloseListener = vscode.workspace.onDidCloseTextDocument(async (document) => {
             const currentDocument = this._fileManager.getDocument();
             if (currentDocument && currentDocument.uri.toString() === document.uri.toString()) {
+                // Check for unsaved changes before allowing the document to close
+                await this._handlePanelClose();
                 // Update the file info to show no file loaded
                 this._fileManager.sendFileInfo();
             }
@@ -1437,6 +1439,7 @@ export class KanbanWebviewPanel {
             'utils/dragStateManager.js',
             'utils/validationUtils.js',
             'utils/modalUtils.js',
+            'utils/activityIndicator.js',
             'runtime-tracker.js',
             'markdownRenderer.js',
             'taskEditor.js',
@@ -1444,6 +1447,7 @@ export class KanbanWebviewPanel {
             'dragDrop.js',
             'menuOperations.js',
             'search.js',
+            'debugOverlay.js',
             'webview.js',
             'markdown-it-media-browser.js',
             'markdown-it-multicolumn-browser.js',
@@ -2241,6 +2245,14 @@ export class KanbanWebviewPanel {
         return unifiedIncludeFile?.hasUnsavedChanges === true;
     }
 
+    /**
+     * Check if a specific include file has unsaved changes
+     */
+    public hasUnsavedIncludeFileChanges(relativePath: string): boolean {
+        const unifiedIncludeFile = this._includeFiles.get(relativePath);
+        return unifiedIncludeFile?.hasUnsavedChanges === true;
+    }
+
     public async saveTaskIncludeChanges(task: KanbanTask): Promise<boolean> {
         if (!task.includeMode || !task.includeFiles || task.includeFiles.length === 0) {
             return false;
@@ -2812,9 +2824,16 @@ export class KanbanWebviewPanel {
 
             // Handle different types of file changes
             if (event.fileType === 'include') {
-                console.log(`[External File Change] Handling include file change: ${event.path}`);
-                // All include types now use the same unified conflict resolution system
-                await this.handleIncludeFileConflict(event.path, event.changeType);
+                // Check if this is a column include file or inline include file
+                const isColumnInclude = await this.isColumnIncludeFile(event.path);
+
+                if (isColumnInclude) {
+                    // This is a column include file - handle conflict resolution
+                    await this.handleIncludeFileConflict(event.path, event.changeType);
+                } else {
+                    // This is an inline include file - use conflict resolution
+                    await this.handleInlineIncludeFileChange(event.path, event.changeType);
+                }
             } else if (event.fileType === 'main') {
                 console.log(`[External File Change] Handling main file change: ${event.path}`);
                 // This is the main kanban file - handle external changes
@@ -2833,16 +2852,166 @@ export class KanbanWebviewPanel {
      * Check if a file path is used as a column include file
      */
     private async isColumnIncludeFile(filePath: string): Promise<boolean> {
+        if (!this._board) {
+            return false;
+        }
+
         const currentDocument = this._fileManager.getDocument();
         if (!currentDocument) {
             return false;
         }
 
         const basePath = path.dirname(currentDocument.uri.fsPath);
-        const relativePath = path.relative(basePath, filePath);
+        let relativePath = path.relative(basePath, filePath);
 
-        const includeFile = this._includeFiles.get(relativePath);
-        return includeFile?.type === 'column' || false;
+        // Normalize path format to match how includes are stored (with ./ prefix for relative paths)
+        if (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) {
+            relativePath = './' + relativePath;
+        }
+
+        // Check if any column uses this file as an include file
+        for (const column of this._board.columns) {
+            if (column.includeMode && column.includeFiles?.includes(relativePath)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Handle changes to inline include files (!!!include(file)!!! statements)
+     */
+    private async handleInlineIncludeFileChange(filePath: string, changeType: string): Promise<void> {
+        try {
+            const currentDocument = this._fileManager.getDocument();
+            if (!currentDocument) {
+                return;
+            }
+
+            const basePath = path.dirname(currentDocument.uri.fsPath);
+            let relativePath = path.relative(basePath, filePath);
+
+            // Normalize path format to match how includes are stored (with ./ prefix for relative paths)
+            if (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) {
+                relativePath = './' + relativePath;
+            }
+
+            // Ensure the inline include file is registered in the unified system
+            this.ensureIncludeFileRegistered(relativePath, 'regular');
+
+            // Use the unified conflict resolution system like column includes
+            const fileName = path.basename(filePath);
+            const hasUnsavedIncludeChanges = this.hasUnsavedIncludeFileChanges(relativePath);
+
+            const context: ConflictContext = {
+                type: 'external_include',
+                fileType: 'include',
+                filePath: filePath,
+                fileName: fileName,
+                hasMainUnsavedChanges: this._hasUnsavedChanges,
+                hasIncludeUnsavedChanges: hasUnsavedIncludeChanges,
+                hasExternalChanges: true,
+                changedIncludeFiles: [relativePath],
+                isClosing: false
+            };
+
+            const resolver = ConflictResolver.getInstance();
+            const resolution = await resolver.resolveConflict(context);
+
+            // Handle the resolution appropriately
+            if (resolution.shouldReload && !resolution.shouldCreateBackup) {
+                // Discard local changes and reload from external file
+                const includeFile = this._includeFiles.get(relativePath);
+                if (includeFile) {
+                    includeFile.hasUnsavedChanges = false;
+                }
+                await this.updateInlineIncludeFile(filePath, relativePath);
+            } else if (resolution.shouldCreateBackup && resolution.shouldReload) {
+                // Create backup and reload
+                if (this.hasUnsavedIncludeFileChanges(relativePath)) {
+                    // Create backup of local changes before reloading
+                    await this.saveIncludeFileAsBackup(filePath);
+                }
+                const includeFile = this._includeFiles.get(relativePath);
+                if (includeFile) {
+                    includeFile.hasUnsavedChanges = false;
+                }
+                await this.updateInlineIncludeFile(filePath, relativePath);
+            } else if (resolution.shouldSave && !resolution.shouldReload) {
+                // Save local changes and overwrite external changes
+                await this.saveMainKanbanChanges();
+            } else if (resolution.shouldIgnore) {
+                // Ignore the external changes
+                // No action needed
+            }
+
+        } catch (error) {
+            console.error('[InlineInclude] Error handling inline include file change:', error);
+        }
+    }
+
+    /**
+     * Ensure an include file is registered in the unified system for conflict resolution
+     */
+    public ensureIncludeFileRegistered(relativePath: string, type: 'regular' | 'column' | 'task'): void {
+        if (!this._includeFiles.has(relativePath)) {
+            // Register the inline include file in the unified system
+            const includeFile: IncludeFile = {
+                absolutePath: '',
+                relativePath: relativePath,
+                type: type,
+                content: '',
+                baseline: '',
+                hasUnsavedChanges: false,
+                lastModified: Date.now()
+            };
+            this._includeFiles.set(relativePath, includeFile);
+        }
+    }
+
+    /**
+     * Save main kanban changes (used when user chooses to overwrite external include changes)
+     */
+    private async saveMainKanbanChanges(): Promise<void> {
+        try {
+            await this.saveToMarkdown();
+        } catch (error) {
+            console.error('[InlineInclude] Error saving main kanban changes:', error);
+            vscode.window.showErrorMessage(`Error saving kanban changes: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Update an inline include file by reading content and sending to frontend
+     */
+    private async updateInlineIncludeFile(absolutePath: string, relativePath: string): Promise<void> {
+        try {
+            let updatedContent: string | null = null;
+            if (fs.existsSync(absolutePath)) {
+                updatedContent = fs.readFileSync(absolutePath, 'utf8');
+            }
+
+            // Update the unified system
+            const includeFile = this._includeFiles.get(relativePath);
+            if (includeFile && updatedContent !== null) {
+                includeFile.content = updatedContent;
+                includeFile.baseline = updatedContent;
+                includeFile.hasUnsavedChanges = false;
+                includeFile.lastModified = Date.now();
+            }
+
+            // Send updated content to frontend
+            if (this._panel) {
+                this._panel.webview.postMessage({
+                    type: 'includeFileContent',
+                    filePath: relativePath,
+                    content: updatedContent
+                });
+            }
+
+        } catch (error) {
+            console.error('[InlineInclude] Error updating inline include file:', error);
+        }
     }
 
     /**

@@ -2422,6 +2422,13 @@ window.addEventListener('message', event => {
             // Store focus targets to be processed after rendering completes
             window.pendingFocusTargets = message.focusTargets;
             break;
+        case 'includeFileContent':
+            // Handle include file content response from backend
+            if (typeof window.updateIncludeFileCache === 'function') {
+                window.updateIncludeFileCache(message.filePath, message.content);
+            }
+            break;
+
         case 'updateIncludeContent':
             // Handle processed include content from backend
             if (typeof window.updateIncludeContent === 'function') {
@@ -2589,6 +2596,18 @@ window.addEventListener('message', event => {
             if (window.activityManager) {
                 window.activityManager.endOperation(message.operationId);
             }
+            break;
+
+        case 'trackedFilesDebugInfo':
+            // Handle debug info response from backend
+            if (typeof window.updateTrackedFilesData === 'function') {
+                window.updateTrackedFilesData(message.data);
+            }
+            break;
+
+        case 'debugCacheCleared':
+            // Handle debug cache clear confirmation
+            console.log('[Debug] Cache cleared by backend');
             break;
     }
 });

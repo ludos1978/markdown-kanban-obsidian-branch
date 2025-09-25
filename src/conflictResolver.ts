@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
-export type ConflictType = 'panel_close' | 'external_main' | 'external_include' | 'presave_check';
+export type ConflictType = 'panel_close' | 'external_main' | 'external_include' | 'presave_check' | 'watcher_failure' | 'permission_denied' | 'file_missing' | 'circular_dependency' | 'batch_conflict' | 'network_timeout' | 'crash_recovery';
 export type FileType = 'main' | 'include';
 
 export interface ConflictContext {
@@ -23,6 +23,7 @@ export interface ConflictResolution {
     shouldSave: boolean;
     shouldReload: boolean;
     shouldIgnore: boolean;
+    customAction?: string;
 }
 
 /**
@@ -34,7 +35,7 @@ export class ConflictResolver {
     private activeDialogs = new Set<string>();
     private pendingResolutions = new Map<string, Promise<ConflictResolution>>();
 
-    private constructor() {}
+    protected constructor() {}
 
     public static getInstance(): ConflictResolver {
         if (!ConflictResolver.instance) {

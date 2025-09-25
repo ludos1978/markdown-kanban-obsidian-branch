@@ -68,7 +68,7 @@
                     <span class="sort-text">Sort</span>
                 </button>
 
-                <button id="refresh-btn" class="refresh-btn" onclick="manualRefresh()" title="Refresh from source markdown">
+                <button id="refresh-btn" class="refresh-btn" onclick="manualRefresh()" onmouseenter="if(window.scheduleDebugOverlayShow) window.scheduleDebugOverlayShow()" onmouseleave="if(window.cancelDebugOverlayShow) window.cancelDebugOverlayShow(); if(window.hideDebugOverlayDelayed) window.hideDebugOverlayDelayed()" title="Refresh from source markdown&#13;&#10;Hover to see debug info">
                     <span class="refresh-icon">↻</span>
                     <span class="refresh-text">Refresh</span>
                 </button>
@@ -413,6 +413,7 @@
     <script src="dragDrop.js"></script>
     <script src="menuOperations.js"></script>
     <script src="search.js"></script>
+    <script src="debugOverlay.js"></script>
     <script src="webview.js"></script>
     <div id="path-context-menu" class="context-menu" style="display: none;">
         <div class="context-menu-item" onclick="copyFullPath()">Copy Full OS Path</div>

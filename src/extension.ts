@@ -316,4 +316,8 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
 	// Clean up context
 	vscode.commands.executeCommand('setContext', 'markdownKanbanActive', false);
+
+	// Note: VS Code will automatically dispose all webview panels and their disposables
+	// when the extension deactivates, which will trigger the unsaved changes handling
+	// in each panel's _handlePanelClose() method via the onDidDispose event.
 }

@@ -623,7 +623,7 @@ class TaskEditor {
                     if (!window.pendingColumnChanges) {
                         window.pendingColumnChanges = new Map();
                     }
-                    window.pendingColumnChanges.set(columnId, { columnId, title: cleanValue });
+                    window.pendingColumnChanges.set(columnId, { columnId, title: newTitle });
                     
                     // Update refresh button state
                     const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
