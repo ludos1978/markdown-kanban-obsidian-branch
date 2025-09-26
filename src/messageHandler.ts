@@ -405,7 +405,7 @@ export class MessageHandler {
                     if (updatedColumn && newIncludeFiles.length > 0) {
                         // Use the webview panel to load the new content
                         const panel = this._getWebviewPanel();
-                        await panel.loadNewIncludeContent(updatedColumn, newIncludeFiles);
+                        await panel.updateIncludeContentUnified(updatedColumn, newIncludeFiles, 'column_title_edit');
                     } else if (newIncludeFiles.length > 0) {
                         console.error(`[MessageHandler Error] Could not find updated column ${message.columnId} after title edit`);
                     }
