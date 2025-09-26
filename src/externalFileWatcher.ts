@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { KanbanWebviewPanel } from './kanbanWebviewPanel';
+import { getFileStateManager } from './fileStateManager';
 
 export type FileChangeType = 'modified' | 'deleted' | 'created';
 export type FileType = 'main' | 'include' | 'dependency';
@@ -240,6 +241,14 @@ export class ExternalFileWatcher implements vscode.Disposable {
     private async handleFileChange(path: string, changeType: FileChangeType): Promise<void> {
         const watchedFile = this.watchedFiles.get(path);
         if (!watchedFile) {return;}
+
+        // Update FileStateManager with backend changes
+        const fileStateManager = getFileStateManager();
+
+        if (changeType === 'modified') {
+            // Mark file system change in the unified state manager
+            fileStateManager.markFileSystemChange(path);
+        }
 
         // Convert Set to Array for the event
         const affectedPanels = Array.from(watchedFile.panels);

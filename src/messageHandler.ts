@@ -6,6 +6,7 @@ import { KanbanBoard } from './markdownParser';
 import { ExternalFileWatcher } from './externalFileWatcher';
 import { configService } from './configurationService';
 import { ExportService } from './exportService';
+import { getFileStateManager } from './fileStateManager';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -2086,52 +2087,53 @@ export class MessageHandler {
         documentVersion: number;
         lastDocumentVersion: number;
     } {
-        const panel = this._getWebviewPanel();
         const document = this._fileManager.getDocument();
+        if (!document) {
+            return {
+                hasInternalChanges: false,
+                hasExternalChanges: false,
+                isUnsavedInEditor: false,
+                documentVersion: 0,
+                lastDocumentVersion: -1
+            };
+        }
 
-        // ENHANCED DEBUG: Log detailed document state
-        console.log('[DEBUG getUnifiedFileState] Document analysis:', {
-            documentExists: !!document,
-            documentPath: document ? document.uri.fsPath : 'NO DOCUMENT',
-            documentIsDirty: document ? document.isDirty : 'N/A',
-            documentVersion: document ? document.version : 'N/A',
-            documentLineCount: document ? document.lineCount : 'N/A',
-            panelHasUnsavedChanges: panel ? (panel as any)._hasUnsavedChanges : 'NO PANEL',
-            panelHasExternalChanges: panel ? (panel as any)._hasExternalUnsavedChanges : 'NO PANEL'
-        });
+        const fileStateManager = getFileStateManager();
+        const mainFileState = fileStateManager.getFileState(document.uri.fsPath);
 
-        const documentVersion = document ? document.version : 0;
-        const lastDocumentVersion = panel ? (panel as any)._lastDocumentVersion || -1 : -1;
+        if (!mainFileState) {
+            // Fallback to legacy method if state not yet initialized
+            const panel = this._getWebviewPanel();
+            const documentVersion = document.version;
+            const lastDocumentVersion = panel ? (panel as any)._lastDocumentVersion || -1 : -1;
 
-        const fileState = {
-            // Kanban changes: Check both the panel's unsaved flag AND version comparison
-            hasInternalChanges: panel ? (panel as any)._hasUnsavedChanges || false :
-                                (documentVersion !== lastDocumentVersion && lastDocumentVersion !== -1),
+            return {
+                hasInternalChanges: panel ? (panel as any)._hasUnsavedChanges || false : false,
+                hasExternalChanges: panel ? (panel as any)._hasExternalUnsavedChanges || false : false,
+                isUnsavedInEditor: document.isDirty,
+                documentVersion,
+                lastDocumentVersion
+            };
+        }
 
-            // External file changes: file modified by external programs
-            hasExternalChanges: panel ? (panel as any)._hasExternalUnsavedChanges || false : false,
-
-            // VS Code editor unsaved state: document has unsaved changes in editor
-            isUnsavedInEditor: document ? document.isDirty : false,
-
-            documentVersion,
-            lastDocumentVersion
+        return {
+            hasInternalChanges: mainFileState.needsSave,
+            hasExternalChanges: mainFileState.needsReload,
+            isUnsavedInEditor: mainFileState.backend.isDirtyInEditor,
+            documentVersion: mainFileState.backend.documentVersion,
+            lastDocumentVersion: mainFileState.backend.documentVersion - 1 // Approximation
         };
-
-        console.log('[DEBUG getUnifiedFileState] Final state:', fileState);
-        return fileState;
     }
 
     private async collectTrackedFilesDebugInfo(): Promise<any> {
-        const panel = this._getWebviewPanel();
         const document = this._fileManager.getDocument();
+        const fileStateManager = getFileStateManager();
 
         // Get unified file state that all systems should use
         const fileState = this.getUnifiedFileState();
 
         // Debug logging to see what we're actually getting
         console.log(`[Debug] Tracking data collection:
-            panel exists: ${!!panel}
             hasInternalChanges: ${fileState.hasInternalChanges}
             hasExternalChanges: ${fileState.hasExternalChanges}
             isUnsavedInEditor: ${fileState.isUnsavedInEditor}
@@ -2139,17 +2141,20 @@ export class MessageHandler {
             lastDocumentVersion: ${fileState.lastDocumentVersion}
         `);
 
+        const mainFilePath = document?.uri.fsPath || 'Unknown';
+        const mainFileState = fileStateManager.getFileState(mainFilePath);
+
         const mainFileInfo = {
-            path: document?.uri.fsPath || 'Unknown',
-            lastModified: document ? new Date(document.version).toISOString() : 'Unknown',
-            exists: document ? true : false,
+            path: mainFilePath,
+            lastModified: mainFileState?.backend.lastModified?.toISOString() || 'Unknown',
+            exists: mainFileState?.backend.exists ?? (document ? true : false),
             watcherActive: true, // Assume active for now
             hasInternalChanges: fileState.hasInternalChanges,
             hasExternalChanges: fileState.hasExternalChanges,
             documentVersion: fileState.documentVersion,
             lastDocumentVersion: fileState.lastDocumentVersion,
             isUnsavedInEditor: fileState.isUnsavedInEditor,
-            baseline: panel ? (panel as any)._lastKnownFileContent || '' : ''
+            baseline: mainFileState?.frontend.baseline || ''
         };
 
         console.log('[DEBUG collectTrackedFilesDebugInfo] Main file info being sent to frontend:', mainFileInfo);
@@ -2177,49 +2182,45 @@ export class MessageHandler {
             console.warn('[Debug] Could not access ExternalFileWatcher:', error);
         }
 
-        // Include files from panel
+        // Include files from FileStateManager
         const includeFiles: any[] = [];
-        if (panel) {
-            try {
-                // Access include files from panel with modification states
-                const includeFileMap = (panel as any)._includeFiles;
-                console.log(`[Debug] Include files map exists: ${!!includeFileMap}, size: ${includeFileMap?.size || 0}`);
+        const allStates = fileStateManager.getAllStates();
 
-                if (includeFileMap) {
-                    for (const [path, fileData] of includeFileMap) {
-                        // Check for external changes - use the explicit flag we now set
-                        const hasExternalChanges = fileData.hasExternalChanges || false;
+        console.log(`[Debug] FileStateManager has ${allStates.size} tracked files`);
 
-                        console.log(`[Debug] Include file ${path}:
-                            hasUnsavedChanges: ${fileData.hasUnsavedChanges || false}
-                            hasExternalChanges: ${hasExternalChanges}
-                            isUnsavedInEditor: ${fileData.isUnsavedInEditor || false}
-                            contentLength: ${fileData.content?.length || 0}
-                            baselineLength: ${fileData.baseline?.length || 0}
-                            externalContentLength: ${fileData.externalContent?.length || 0}
-                        `);
-
-                        includeFiles.push({
-                            path: path,
-                            type: fileData.type || 'include',
-                            exists: fileData.exists !== false,
-                            lastModified: fileData.lastModified || 'Unknown',
-                            size: fileData.size || 'Unknown',
-                            hasInternalChanges: fileData.hasUnsavedChanges || false,
-                            hasExternalChanges: hasExternalChanges,
-                            isUnsavedInEditor: fileData.isUnsavedInEditor || false,
-                            baseline: fileData.baseline || '',
-                            content: fileData.content || '',
-                            externalContent: fileData.externalContent || '',
-                            contentLength: fileData.content ? fileData.content.length : 0,
-                            baselineLength: fileData.baseline ? fileData.baseline.length : 0,
-                            externalContentLength: fileData.externalContent ? fileData.externalContent.length : 0
-                        });
-                    }
-                }
-            } catch (error) {
-                console.warn('[Debug] Could not access panel include files:', error);
+        for (const [filePath, fileStateData] of allStates) {
+            // Skip main file - we handle it separately
+            if (filePath === mainFilePath) {
+                continue;
             }
+
+            console.log(`[Debug] Include file ${filePath}:
+                fileType: ${fileStateData.fileType}
+                needsSave: ${fileStateData.needsSave}
+                needsReload: ${fileStateData.needsReload}
+                hasConflict: ${fileStateData.hasConflict}
+                isDirtyInEditor: ${fileStateData.backend.isDirtyInEditor}
+                hasFileSystemChanges: ${fileStateData.backend.hasFileSystemChanges}
+                contentLength: ${fileStateData.frontend.content?.length || 0}
+                baselineLength: ${fileStateData.frontend.baseline?.length || 0}
+            `);
+
+            includeFiles.push({
+                path: fileStateData.relativePath,
+                type: fileStateData.fileType,
+                exists: fileStateData.backend.exists,
+                lastModified: fileStateData.backend.lastModified?.toISOString() || 'Unknown',
+                size: 'Unknown', // Size not tracked in FileStateManager yet
+                hasInternalChanges: fileStateData.needsSave,
+                hasExternalChanges: fileStateData.needsReload,
+                isUnsavedInEditor: fileStateData.backend.isDirtyInEditor,
+                baseline: fileStateData.frontend.baseline,
+                content: fileStateData.frontend.content,
+                externalContent: '', // Not tracked separately anymore
+                contentLength: fileStateData.frontend.content.length,
+                baselineLength: fileStateData.frontend.baseline.length,
+                externalContentLength: 0
+            });
         }
 
         // Conflict management status
@@ -2249,7 +2250,7 @@ export class MessageHandler {
             includeFiles: includeFiles,
             conflictManager: conflictManager,
             systemHealth: systemHealth,
-            hasUnsavedChanges: panel ? (panel as any)._hasUnsavedChanges || false : false,
+            hasUnsavedChanges: this._getWebviewPanel() ? (this._getWebviewPanel() as any)._hasUnsavedChanges || false : false,
             timestamp: new Date().toISOString(),
             watcherDetails: mainFileInfo, // FIX: Send main file info instead of external watcher info
             externalWatcherDebugInfo: watcherDebugInfo // Keep external watcher info separate
