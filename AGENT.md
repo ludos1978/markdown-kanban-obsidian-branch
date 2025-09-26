@@ -805,6 +805,12 @@ The markdown-kanban extension implements exactly **three** include systems. Thes
   3. Replaces the include statement with actual file content
   4. Re-renders the markdown with included content
 
+**Save Behavior**:
+Regular includes are **read-only** during Kanban editing:
+1. **Main File**: Task descriptions with includes are saved normally
+2. **Included File**: Content is not modified - remains static
+3. **One-way Sync**: Changes only flow from included file to Kanban display
+
 **Use Cases**:
 - Include common text snippets in task descriptions
 - Include documentation or notes inline
@@ -838,10 +844,20 @@ column = {
 }
 ```
 
+**Save Behavior**: ✅ **FULLY IMPLEMENTED**
+When you modify tasks in a column include and save (Cmd+S):
+1. **Include Files Saved First**: `saveAllColumnIncludeChanges()` runs before main file save
+2. **Content Conversion**: Current tasks converted to presentation format via `PresentationParser.tasksToPresentation()`
+3. **File Backup**: Automatic backup created before overwriting included file
+4. **Validation**: Smart logic prevents accidental overwrites from file path changes
+5. **Main File**: Saves with include syntax intact (`## !!!columninclude(file.md)!!! Title`)
+6. **Bidirectional Sync**: ✅ Changes flow both ways between Kanban UI and included file
+
 **Use Cases**:
 - Import presentation slides as kanban tasks
 - Dynamic column content from external files
 - Collaborative workflows where column content comes from separate files
+- **Edit presentations through Kanban interface** - changes saved back to presentation file
 
 ---
 
@@ -872,10 +888,19 @@ task = {
 }
 ```
 
+**Save Behavior**: ✅ **FULLY IMPLEMENTED**
+When you modify a task include and save (Cmd+S):
+1. **Include Files Saved First**: `saveAllTaskIncludeChanges()` runs before main file save
+2. **Content Conversion**: Task title and description combined and saved to included file
+3. **File Backup**: Automatic backup created before overwriting included file
+4. **Main File**: Saves with include syntax intact (`- [ ] !!!taskinclude(file.md)!!!`)
+5. **Bidirectional Sync**: ✅ Changes flow both ways between Kanban UI and included file
+
 **Use Cases**:
 - Link tasks to detailed specification files
 - Dynamic task content from external documentation
 - Keep kanban lightweight while linking to comprehensive details
+- **Edit specifications through Kanban interface** - changes saved back to spec file
 
 ---
 

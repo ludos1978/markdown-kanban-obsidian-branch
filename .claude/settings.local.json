@@ -32,7 +32,9 @@
       "Bash(git branch:*)",
       "Bash(awk:*)",
       "Bash(timeout 30 npm run analyze-cleanup:*)",
-      "Bash(gtimeout:*)"
+      "Bash(gtimeout:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

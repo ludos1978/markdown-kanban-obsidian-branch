@@ -8,8 +8,8 @@ import { configService } from './configurationService';
 import { ExportService } from './exportService';
 import { getFileStateManager } from './fileStateManager';
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as os from 'os';
 
 interface FocusTarget {
@@ -173,6 +173,10 @@ export class MessageHandler {
                 break;
             case 'openExternalLink':
                 await this._linkHandler.handleExternalLink(message.href);
+                break;
+
+            case 'openFile':
+                await this.handleOpenFile(message.filePath);
                 break;
 
             // Drag and drop operations
@@ -805,6 +809,37 @@ export class MessageHandler {
         }
     }
 
+    /**
+     * Handle opening a file in VS Code
+     */
+    private async handleOpenFile(filePath: string): Promise<void> {
+        try {
+            console.log(`[DEBUG MessageHandler] Opening file: ${filePath}`);
+
+            // Resolve the file path to absolute if it's relative
+            let absolutePath = filePath;
+            if (!path.isAbsolute(filePath)) {
+                // Get the current document's directory as base
+                const document = this._fileManager.getDocument();
+                if (document) {
+                    const currentDir = path.dirname(document.uri.fsPath);
+                    absolutePath = path.resolve(currentDir, filePath);
+                } else {
+                    console.error('[MessageHandler] Cannot resolve relative path - no current document');
+                    return;
+                }
+            }
+
+            // Create a VS Code URI and open the file
+            const fileUri = vscode.Uri.file(absolutePath);
+            await vscode.commands.executeCommand('vscode.open', fileUri);
+
+            console.log(`[DEBUG MessageHandler] Successfully opened file: ${absolutePath}`);
+
+        } catch (error) {
+            console.error(`[MessageHandler] Error opening file ${filePath}:`, error);
+        }
+    }
 
     private async handleSaveBoardState(board: any) {
         if (!board) {

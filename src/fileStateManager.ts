@@ -15,7 +15,7 @@ export interface FileState {
     path: string;
     relativePath: string;
     isMainFile: boolean;
-    fileType: 'main' | 'include-column' | 'include-task';
+    fileType: 'main' | 'include-regular' | 'include-column' | 'include-task';
 
     // Backend states (file system & VS Code editor)
     backend: {
@@ -62,7 +62,7 @@ export class FileStateManager {
         path: string,
         relativePath: string,
         isMainFile: boolean,
-        fileType: 'main' | 'include-column' | 'include-task'
+        fileType: 'main' | 'include-regular' | 'include-column' | 'include-task'
     ): FileState {
         let state = this.fileStates.get(path);
 

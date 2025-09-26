@@ -521,7 +521,12 @@ function createIncludeFilesSection() {
                     <div class="include-item">
                         <div class="include-header">
                             <span class="include-file" title="${file.path}">${file.path.split('/').pop()}</span>
-                            <span class="include-type ${file.type}">${file.type}</span>
+                            <span class="include-type ${file.type}">${
+                                file.type === 'regular' || file.type === 'include-regular' ? 'REGULAR' :
+                                file.type === 'column' || file.type === 'include-column' ? 'COLUMN' :
+                                file.type === 'task' || file.type === 'include-task' ? 'TASK' :
+                                file.type
+                            }</span>
                             <span class="include-status ${file.exists ? 'exists' : 'missing'}">
                                 ${file.exists ? '📄' : '❌'}
                             </span>
@@ -617,29 +622,68 @@ function createSystemHealthSection() {
 }
 
 /**
- * Convert absolute path to relative path based on workspace or main file directory
+ * Get short label for include type (for path line)
  */
-function getRelativePath(fullPath, isMainFile = false) {
-    if (!fullPath || fullPath === 'Unknown') {
-        return 'Unknown';
+function getIncludeTypeShortLabel(fileType) {
+    console.log('[DebugOverlay] getIncludeTypeShortLabel called with fileType:', fileType);
+    let result;
+    switch (fileType) {
+        case 'include-regular':
+        case 'regular':
+            result = 'include';
+            break;
+        case 'include-column':
+        case 'column':
+            result = 'colinc';
+            break;
+        case 'include-task':
+        case 'task':
+            result = 'taskinc';
+            break;
+        default:
+            result = 'include'; // default fallback
+            break;
     }
+    console.log('[DebugOverlay] getIncludeTypeShortLabel returning:', result, 'for type:', fileType);
+    return result;
+}
 
-    if (isMainFile) {
-        return '.';
+/**
+ * Get user-friendly label for include type
+ */
+function getIncludeTypeLabel(fileType) {
+    switch (fileType) {
+        case 'include-regular':
+        case 'regular':
+            return 'inline';
+        case 'include-column':
+        case 'column':
+            return 'column';
+        case 'include-task':
+        case 'task':
+            return 'task';
+        default:
+            return 'inline'; // default fallback
     }
+}
 
-    // Try to get relative path based on main file directory
-    const mainFile = trackedFilesData.mainFile;
-    if (mainFile && mainFile !== 'Unknown') {
-        const mainFileDir = mainFile.substring(0, mainFile.lastIndexOf('/'));
-        if (fullPath.startsWith(mainFileDir)) {
-            const relativePath = fullPath.substring(mainFileDir.length + 1);
-            return relativePath || '.';
-        }
+/**
+ * Get description for include type
+ */
+function getIncludeTypeDescription(fileType) {
+    switch (fileType) {
+        case 'include-regular':
+        case 'regular':
+            return 'Regular include (!!!include()) - read-only content insertion';
+        case 'include-column':
+        case 'column':
+            return 'Column include (!!!columninclude()) - bidirectional sync for column tasks';
+        case 'include-task':
+        case 'task':
+            return 'Task include (!!!taskinclude()) - bidirectional sync for individual tasks';
+        default:
+            return 'Regular include (!!!include()) - read-only content insertion';
     }
-
-    // Fallback: show just the filename if we can't determine relative path
-    return fullPath.split('/').pop() || fullPath;
 }
 
 /**
@@ -664,7 +708,7 @@ function createAllFilesArray() {
 
     const mainFileData = {
         path: mainFile,
-        relativePath: getRelativePath(mainFile, true),
+        relativePath: mainFile ? mainFile.split('/').pop() : 'Unknown', // Just filename for main file
         name: mainFile ? mainFile.split('/').pop() : 'Unknown',
         type: 'main',
         isMainFile: true,
@@ -689,12 +733,14 @@ function createAllFilesArray() {
             hasInternalChanges: file.hasInternalChanges,
             hasExternalChanges: file.hasExternalChanges,
             isUnsavedInEditor: file.isUnsavedInEditor,
-            exists: file.exists
+            exists: file.exists,
+            type: file.type,
+            fileType: file.fileType
         });
 
         allFiles.push({
             path: file.path,
-            relativePath: getRelativePath(file.path, false),
+            relativePath: file.path, // Use the path from backend directly (it's already relative for includes)
             name: file.path.split('/').pop(),
             type: file.type || 'include',
             isMainFile: false,
@@ -773,11 +819,19 @@ function createFileStatesList(allFiles) {
                         const hasAnyChanges = file.hasInternalChanges || hasExternalChanges;
                         const mainFileClass = file.isMainFile ? 'main-file' : '';
 
+                        // Debug log for each file being rendered
+                        console.log('[DebugOverlay] Rendering file:', file.name, {
+                            type: file.type,
+                            isMainFile: file.isMainFile,
+                            willShowLabel: !file.isMainFile
+                        });
+
                         return `
                             <tr class="file-row ${mainFileClass}">
                                 <td class="col-file">
-                                    <div class="file-path" title="${file.path}">
-                                        ${file.relativePath}
+                                    <div class="file-directory-path" title="${file.path}">
+                                        ${file.relativePath.includes('/') ? file.relativePath.substring(0, file.relativePath.lastIndexOf('/')) : '.'}
+                                        ${!file.isMainFile ? `<span class="include-type-label ${file.type || 'include'}">[${getIncludeTypeShortLabel(file.type)}]</span>` : ''}
                                     </div>
                                     <div class="file-name-clickable" onclick="openFile('${file.path}')" title="Click to open file">
                                         ${file.isMainFile ? '📄' : '📎'} ${file.name}
@@ -809,19 +863,38 @@ function createFileStatesList(allFiles) {
             </table>
 
             <div class="icon-legend">
-                <div class="legend-title">Icon Legend:</div>
-                <div class="legend-items">
-                    <div class="legend-item">
-                        <span class="legend-icon">🟢</span>
-                        <span class="legend-text">Clean / No changes</span>
+                <div class="legend-section">
+                    <div class="legend-title">Status Icons:</div>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <span class="legend-icon">🟢</span>
+                            <span class="legend-text">Clean / No changes</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-icon">🟡</span>
+                            <span class="legend-text">Internal changes (needs saving)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-icon">🔄</span>
+                            <span class="legend-text">External changes (needs reloading)</span>
+                        </div>
                     </div>
-                    <div class="legend-item">
-                        <span class="legend-icon">🟡</span>
-                        <span class="legend-text">Internal changes (needs saving)</span>
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-icon">🔄</span>
-                        <span class="legend-text">External changes (needs reloading)</span>
+                </div>
+                <div class="legend-section">
+                    <div class="legend-title">Include Types:</div>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <span class="include-type-label regular legend-badge">[INCLUDE]</span>
+                            <span class="legend-text">!!!include() - read-only</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="include-type-label column legend-badge">[COLINC]</span>
+                            <span class="legend-text">!!!columninclude() - bidirectional</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="include-type-label task legend-badge">[TASKINC]</span>
+                            <span class="legend-text">!!!taskinclude() - bidirectional</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -893,7 +966,7 @@ function reloadImages() {
     });
 
     console.log(`[Debug] Reloaded ${images.length} images and ${videos.length} videos`);
-    showToast(`Reloaded ${images.length + videos.length} media elements`, 'success');
+    console.log(`[Debug] Reloaded ${images.length + videos.length} media elements`);
 }
 
 /**
@@ -1306,6 +1379,24 @@ function getDebugOverlayStyles() {
             color: white;
         }
 
+        /* Specific include type styles */
+        .include-type-label.include-regular, .include-type-label.regular {
+            background: #4CAF50 !important;
+            color: white !important;
+        }
+        .include-type-label.include-column, .include-type-label.column {
+            background: #2196F3 !important;
+            color: white !important;
+        }
+        .include-type-label.include-task, .include-type-label.task {
+            background: #FF9800 !important;
+            color: white !important;
+        }
+        .include-type-label {
+            background: #666 !important;
+            color: white !important;
+        }
+
         .watcher-status.active { color: var(--vscode-gitDecoration-addedResourceForeground); }
         .watcher-status.inactive { color: var(--vscode-gitDecoration-deletedResourceForeground); }
 
@@ -1380,6 +1471,50 @@ function getDebugOverlayStyles() {
             text-overflow: ellipsis;
             white-space: nowrap;
             max-width: 100%;
+        }
+
+        .file-directory-path {
+            font-size: 9px;
+            color: var(--vscode-descriptionForeground);
+            font-family: var(--vscode-editor-font-family);
+            margin-bottom: 3px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+            opacity: 0.8;
+            font-style: italic;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .include-type-label {
+            padding: 2px 4px !important;
+            border-radius: 3px !important;
+            font-size: 8px !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            flex-shrink: 0 !important;
+            margin-left: 6px !important;
+            display: inline-block !important;
+            background: #666 !important;
+            color: white !important;
+            z-index: 9999 !important;
+            vertical-align: middle !important;
+        }
+
+        .include-type-badge {
+            font-size: 8px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-top: 2px;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            min-width: 40px;
         }
 
         .file-name-clickable {
@@ -1489,6 +1624,20 @@ function getDebugOverlayStyles() {
 
         .legend-icon {
             font-size: 12px;
+        }
+
+        .legend-section {
+            margin-bottom: 8px;
+        }
+
+        .legend-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .legend-badge {
+            min-width: 35px;
+            padding: 1px 3px;
+            font-size: 7px;
         }
 
         .file-states-list {

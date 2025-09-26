@@ -65,7 +65,7 @@
 			"type": "npm",
 			"script": "compile",
 			"group": "build",
-			"problemMatcher": ["$tsc", "$eslint-stylish"],
+			"problemMatcher": ["$tsc"],
 			"presentation": {
 				"reveal": "silent",
 				"panel": "dedicated",
