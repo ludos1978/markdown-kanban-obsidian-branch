@@ -2609,6 +2609,48 @@ window.addEventListener('message', event => {
             // Handle debug cache clear confirmation
             console.log('[Debug] Cache cleared by backend');
             break;
+
+        case 'allIncludedFilesReloaded':
+            // Handle reload confirmation
+            console.log(`[Debug] Reloaded ${message.reloadCount} included files`);
+            if (message.reloadCount > 0) {
+                showToast(`Reloaded ${message.reloadCount} included files`, 'success');
+            } else {
+                showToast('No included files found to reload', 'info');
+            }
+            break;
+
+        case 'individualFileSaved':
+            // Handle individual file save confirmation
+            const fileName = message.filePath.split('/').pop();
+            if (message.success) {
+                console.log(`[Debug] Successfully saved ${fileName}`);
+                showToast(`Saved ${fileName}`, 'success');
+                // Refresh the debug overlay to show updated states
+                if (typeof window.refreshDebugOverlay === 'function') {
+                    setTimeout(() => window.refreshDebugOverlay(), 500);
+                }
+            } else {
+                console.error(`[Debug] Failed to save ${fileName}: ${message.error}`);
+                showToast(`Failed to save ${fileName}: ${message.error}`, 'error');
+            }
+            break;
+
+        case 'individualFileReloaded':
+            // Handle individual file reload confirmation
+            const reloadedFileName = message.filePath.split('/').pop();
+            if (message.success) {
+                console.log(`[Debug] Successfully reloaded ${reloadedFileName}`);
+                showToast(`Reloaded ${reloadedFileName}`, 'success');
+                // Refresh the debug overlay to show updated states
+                if (typeof window.refreshDebugOverlay === 'function') {
+                    setTimeout(() => window.refreshDebugOverlay(), 500);
+                }
+            } else {
+                console.error(`[Debug] Failed to reload ${reloadedFileName}: ${message.error}`);
+                showToast(`Failed to reload ${reloadedFileName}: ${message.error}`, 'error');
+            }
+            break;
     }
 });
 

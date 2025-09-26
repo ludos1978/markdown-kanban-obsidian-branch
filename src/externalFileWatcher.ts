@@ -267,6 +267,56 @@ export class ExternalFileWatcher implements vscode.Disposable {
     }
 
     /**
+     * Get debug information about watched files and watchers
+     */
+    public getDebugInfo(): any {
+        const watcherInfo: any[] = [];
+        const fileInfo: any[] = [];
+
+        // Get watcher information
+        for (const [path, watcher] of this.watchers.entries()) {
+            watcherInfo.push({
+                path: path,
+                active: !!watcher,
+                type: 'FileSystemWatcher'
+            });
+        }
+
+        // Get watched file information
+        for (const [path, watchedFile] of this.watchedFiles.entries()) {
+            fileInfo.push({
+                path: path,
+                type: watchedFile.type,
+                panelCount: watchedFile.panels.size,
+                hasWatcher: this.watchers.has(path)
+            });
+        }
+
+        return {
+            listenerEnabled: this.fileListenerEnabled,
+            totalWatchers: this.watchers.size,
+            totalWatchedFiles: this.watchedFiles.size,
+            watchers: watcherInfo,
+            files: fileInfo,
+            documentSaveListenerActive: !!this.documentSaveListener
+        };
+    }
+
+    /**
+     * Get count of active watchers
+     */
+    public getWatcherCount(): number {
+        return this.watchers.size;
+    }
+
+    /**
+     * Get count of watched files
+     */
+    public getWatchedFileCount(): number {
+        return this.watchedFiles.size;
+    }
+
+    /**
      * Dispose all watchers and clean up
      */
     public dispose(): void {

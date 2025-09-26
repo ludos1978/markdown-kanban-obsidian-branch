@@ -592,11 +592,24 @@ export class MessageHandler {
                 break;
 
             case 'getTrackedFilesDebugInfo':
+                console.log('[DEBUG MessageHandler] Received getTrackedFilesDebugInfo request');
                 await this.handleGetTrackedFilesDebugInfo();
                 break;
 
             case 'clearTrackedFilesCache':
                 await this.handleClearTrackedFilesCache();
+                break;
+
+            case 'reloadAllIncludedFiles':
+                await this.handleReloadAllIncludedFiles();
+                break;
+
+            case 'saveIndividualFile':
+                await this.handleSaveIndividualFile(message.filePath, message.isMainFile);
+                break;
+
+            case 'reloadIndividualFile':
+                await this.handleReloadIndividualFile(message.filePath, message.isMainFile);
                 break;
 
             default:
@@ -725,8 +738,8 @@ export class MessageHandler {
         
         if (columnsToUnfold.size > 0) {
             const webviewPanel = this._getWebviewPanel();
-            if (webviewPanel && webviewPanel.webview) {
-                webviewPanel.webview.postMessage({
+            if (webviewPanel && webviewPanel._panel && webviewPanel._panel.webview) {
+                webviewPanel._panel.webview.postMessage({
                     type: 'unfoldColumnsBeforeUpdate',
                     columnIds: Array.from(columnsToUnfold)
                 });
@@ -739,9 +752,9 @@ export class MessageHandler {
 
     private sendFocusTargets(focusTargets: FocusTarget[]) {
         const webviewPanel = this._getWebviewPanel();
-        if (webviewPanel && webviewPanel.webview) {
+        if (webviewPanel && webviewPanel._panel && webviewPanel._panel.webview) {
             // Send focus message immediately - webview will wait for rendering to complete
-            webviewPanel.webview.postMessage({
+            webviewPanel._panel.webview.postMessage({
                 type: 'focusAfterUndoRedo',
                 focusTargets: focusTargets
             });
@@ -856,22 +869,28 @@ export class MessageHandler {
             // Only create backup if 5+ minutes have passed since unsaved changes
             // This uses the BackupManager to check timing and creates a regular backup
             const webviewPanel = this._getWebviewPanel();
-            if (webviewPanel.backupManager && webviewPanel.backupManager.shouldCreatePageHiddenBackup()) {
+            if (webviewPanel?.backupManager && webviewPanel.backupManager.shouldCreatePageHiddenBackup()) {
                 await webviewPanel.backupManager.createBackup(document, { label: 'backup' });
             } else {
             }
 
-            // Reset the close prompt flag in webview
-            this._getWebviewPanel().webview.postMessage({
-                type: 'resetClosePromptFlag'
-            });
+            // Reset the close prompt flag in webview (with null check)
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel && panel._panel.webview) {
+                panel._panel.webview.postMessage({
+                    type: 'resetClosePromptFlag'
+                });
+            }
 
         } catch (error) {
             console.error('Error handling page hidden backup:', error);
-            // Reset flag even if there was an error
-            this._getWebviewPanel().webview.postMessage({
-                type: 'resetClosePromptFlag'
-            });
+            // Reset flag even if there was an error (with null check)
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel && panel._panel.webview) {
+                panel._panel.webview.postMessage({
+                    type: 'resetClosePromptFlag'
+                });
+            }
         }
     }
 
@@ -1779,6 +1798,7 @@ export class MessageHandler {
             const debugData = await this.collectTrackedFilesDebugInfo();
 
             // Send debug data to frontend
+            console.log('[DEBUG MessageHandler] Sending debug data to frontend:', debugData);
             panel._panel.webview.postMessage({
                 type: 'trackedFilesDebugInfo',
                 data: debugData
@@ -1815,29 +1835,344 @@ export class MessageHandler {
     }
 
     /**
+     * Handle request to reload all included files (images, videos, includes)
+     */
+    private async handleReloadAllIncludedFiles(): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            let reloadCount = 0;
+
+            // Reload all include files by refreshing their content from disk
+            const includeFileMap = (panel as any)._includeFiles;
+            if (includeFileMap) {
+                for (const [relativePath, fileData] of includeFileMap) {
+                    try {
+                        // Read fresh content from disk
+                        const freshContent = await (panel as any)._readFileContent(relativePath);
+                        if (freshContent !== null) {
+                            // Update content and reset baseline to fresh content
+                            (panel as any).updateIncludeFileContent(relativePath, freshContent, true);
+                            reloadCount++;
+                        }
+                    } catch (error) {
+                        console.warn(`[MessageHandler] Failed to reload include file ${relativePath}:`, error);
+                    }
+                }
+            }
+
+            // Trigger a full webview refresh to reload all media and includes
+            const document = this._fileManager.getDocument();
+            if (document) {
+                await panel.loadMarkdownFile(document);
+            }
+
+            // Send confirmation message
+            panel._panel.webview.postMessage({
+                type: 'allIncludedFilesReloaded',
+                reloadCount: reloadCount
+            });
+
+            console.log(`[MessageHandler] Reloaded ${reloadCount} included files and refreshed webview`);
+
+        } catch (error) {
+            console.error('[MessageHandler] Error reloading all included files:', error);
+        }
+    }
+
+    /**
+     * Handle request to save an individual file
+     */
+    private async handleSaveIndividualFile(filePath: string, isMainFile: boolean): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            if (isMainFile) {
+                // Save the main kanban file by triggering the existing save mechanism
+                await panel.saveToMarkdown();
+                console.log('[MessageHandler] Saved main kanban file');
+
+                panel._panel.webview.postMessage({
+                    type: 'individualFileSaved',
+                    filePath: filePath,
+                    isMainFile: true,
+                    success: true
+                });
+            } else {
+                // For include files, save the current content to disk
+                const includeFileMap = (panel as any)._includeFiles;
+                const includeFile = includeFileMap?.get(filePath);
+
+                if (includeFile && includeFile.content) {
+                    // Write the current content to disk
+                    await (panel as any)._writeFileContent(filePath, includeFile.content);
+
+                    // Update baseline to match saved content
+                    includeFile.baseline = includeFile.content;
+                    includeFile.hasUnsavedChanges = false;
+                    includeFile.lastModified = Date.now();
+
+                    console.log(`[MessageHandler] Saved include file: ${filePath}`);
+
+                    panel._panel.webview.postMessage({
+                        type: 'individualFileSaved',
+                        filePath: filePath,
+                        isMainFile: false,
+                        success: true
+                    });
+                } else {
+                    console.warn(`[MessageHandler] Include file not found or has no content: ${filePath}`);
+
+                    panel._panel.webview.postMessage({
+                        type: 'individualFileSaved',
+                        filePath: filePath,
+                        isMainFile: false,
+                        success: false,
+                        error: 'File not found or has no content'
+                    });
+                }
+            }
+
+        } catch (error) {
+            console.error(`[MessageHandler] Error saving individual file ${filePath}:`, error);
+
+            const panel = this._getWebviewPanel();
+            if (panel) {
+                panel._panel.webview.postMessage({
+                    type: 'individualFileSaved',
+                    filePath: filePath,
+                    isMainFile: isMainFile,
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
+        }
+    }
+
+    /**
+     * Handle request to reload an individual file from saved state
+     */
+    private async handleReloadIndividualFile(filePath: string, isMainFile: boolean): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            if (isMainFile) {
+                // Reload the main file by refreshing from the document
+                const document = this._fileManager.getDocument();
+                if (document) {
+                    await panel.loadMarkdownFile(document);
+                }
+                console.log('[MessageHandler] Reloaded main kanban file');
+
+                panel._panel.webview.postMessage({
+                    type: 'individualFileReloaded',
+                    filePath: filePath,
+                    isMainFile: true,
+                    success: true
+                });
+            } else {
+                // For include files, reload content from disk
+                const includeFileMap = (panel as any)._includeFiles;
+                const includeFile = includeFileMap?.get(filePath);
+
+                console.log(`[MessageHandler] Attempting to reload include file:
+                    filePath: ${filePath}
+                    includeFileMap exists: ${!!includeFileMap}
+                    includeFileMap size: ${includeFileMap?.size || 0}
+                    includeFile found: ${!!includeFile}
+                    Available keys: ${includeFileMap ? Array.from(includeFileMap.keys()).join(', ') : 'none'}
+                `);
+
+                if (includeFile) {
+                    try {
+                        // Read fresh content from disk
+                        const freshContent = await (panel as any)._readFileContent(filePath);
+
+                        if (freshContent !== null) {
+                            // Update content and reset baseline
+                            includeFile.content = freshContent;
+                            includeFile.baseline = freshContent;
+                            includeFile.hasUnsavedChanges = false;
+                            includeFile.hasExternalChanges = false; // Clear external changes flag
+                            includeFile.isUnsavedInEditor = false; // Clear editor unsaved flag
+                            includeFile.externalContent = undefined; // Clear external content
+                            includeFile.lastModified = Date.now();
+
+                            console.log(`[MessageHandler] Reloaded include file: ${filePath}`);
+
+                            // Trigger webview refresh to show updated content
+                            const document = this._fileManager.getDocument();
+                            if (document) {
+                                await panel.loadMarkdownFile(document);
+                            }
+
+                            panel._panel.webview.postMessage({
+                                type: 'individualFileReloaded',
+                                filePath: filePath,
+                                isMainFile: false,
+                                success: true
+                            });
+                        } else {
+                            console.warn(`[MessageHandler] Could not read include file: ${filePath}`);
+
+                            panel._panel.webview.postMessage({
+                                type: 'individualFileReloaded',
+                                filePath: filePath,
+                                isMainFile: false,
+                                success: false,
+                                error: 'Could not read file from disk'
+                            });
+                        }
+                    } catch (readError) {
+                        console.error(`[MessageHandler] Error reading include file ${filePath}:`, readError);
+
+                        panel._panel.webview.postMessage({
+                            type: 'individualFileReloaded',
+                            filePath: filePath,
+                            isMainFile: false,
+                            success: false,
+                            error: readError instanceof Error ? readError.message : String(readError)
+                        });
+                    }
+                } else {
+                    console.warn(`[MessageHandler] Include file not tracked: ${filePath}`);
+
+                    panel._panel.webview.postMessage({
+                        type: 'individualFileReloaded',
+                        filePath: filePath,
+                        isMainFile: false,
+                        success: false,
+                        error: 'File not tracked'
+                    });
+                }
+            }
+
+        } catch (error) {
+            console.error(`[MessageHandler] Error reloading individual file ${filePath}:`, error);
+
+            const panel = this._getWebviewPanel();
+            if (panel) {
+                panel._panel.webview.postMessage({
+                    type: 'individualFileReloaded',
+                    filePath: filePath,
+                    isMainFile: isMainFile,
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
+        }
+    }
+
+    /**
      * Collect comprehensive debug information about tracked files
      */
+    /**
+     * Get unified file state data that all systems should use for consistency
+     * THIS METHOD MUST BE USED BY ALL SYSTEMS - FILE STATE WINDOW, POPUPS, CONFLICT RESOLUTION
+     */
+    public getUnifiedFileState(): {
+        hasInternalChanges: boolean;
+        hasExternalChanges: boolean;
+        isUnsavedInEditor: boolean;
+        documentVersion: number;
+        lastDocumentVersion: number;
+    } {
+        const panel = this._getWebviewPanel();
+        const document = this._fileManager.getDocument();
+
+        // ENHANCED DEBUG: Log detailed document state
+        console.log('[DEBUG getUnifiedFileState] Document analysis:', {
+            documentExists: !!document,
+            documentPath: document ? document.uri.fsPath : 'NO DOCUMENT',
+            documentIsDirty: document ? document.isDirty : 'N/A',
+            documentVersion: document ? document.version : 'N/A',
+            documentLineCount: document ? document.lineCount : 'N/A',
+            panelHasUnsavedChanges: panel ? (panel as any)._hasUnsavedChanges : 'NO PANEL',
+            panelHasExternalChanges: panel ? (panel as any)._hasExternalUnsavedChanges : 'NO PANEL'
+        });
+
+        const documentVersion = document ? document.version : 0;
+        const lastDocumentVersion = panel ? (panel as any)._lastDocumentVersion || -1 : -1;
+
+        const fileState = {
+            // Kanban changes: Check both the panel's unsaved flag AND version comparison
+            hasInternalChanges: panel ? (panel as any)._hasUnsavedChanges || false :
+                                (documentVersion !== lastDocumentVersion && lastDocumentVersion !== -1),
+
+            // External file changes: file modified by external programs
+            hasExternalChanges: panel ? (panel as any)._hasExternalUnsavedChanges || false : false,
+
+            // VS Code editor unsaved state: document has unsaved changes in editor
+            isUnsavedInEditor: document ? document.isDirty : false,
+
+            documentVersion,
+            lastDocumentVersion
+        };
+
+        console.log('[DEBUG getUnifiedFileState] Final state:', fileState);
+        return fileState;
+    }
+
     private async collectTrackedFilesDebugInfo(): Promise<any> {
         const panel = this._getWebviewPanel();
         const document = this._fileManager.getDocument();
 
-        // Main file info
+        // Get unified file state that all systems should use
+        const fileState = this.getUnifiedFileState();
+
+        // Debug logging to see what we're actually getting
+        console.log(`[Debug] Tracking data collection:
+            panel exists: ${!!panel}
+            hasInternalChanges: ${fileState.hasInternalChanges}
+            hasExternalChanges: ${fileState.hasExternalChanges}
+            isUnsavedInEditor: ${fileState.isUnsavedInEditor}
+            documentVersion: ${fileState.documentVersion}
+            lastDocumentVersion: ${fileState.lastDocumentVersion}
+        `);
+
         const mainFileInfo = {
             path: document?.uri.fsPath || 'Unknown',
             lastModified: document ? new Date(document.version).toISOString() : 'Unknown',
             exists: document ? true : false,
-            watcherActive: true // Assume active for now
+            watcherActive: true, // Assume active for now
+            hasInternalChanges: fileState.hasInternalChanges,
+            hasExternalChanges: fileState.hasExternalChanges,
+            documentVersion: fileState.documentVersion,
+            lastDocumentVersion: fileState.lastDocumentVersion,
+            isUnsavedInEditor: fileState.isUnsavedInEditor,
+            baseline: panel ? (panel as any)._lastKnownFileContent || '' : ''
         };
+
+        console.log('[DEBUG collectTrackedFilesDebugInfo] Main file info being sent to frontend:', mainFileInfo);
 
         // External file watchers
         const externalWatchers: any[] = [];
+        let watcherDebugInfo: any = {};
         try {
             // Get external file watcher instance
-            const ExternalFileWatcher = require('./externalFileWatcher').ExternalFileWatcher;
+            const { ExternalFileWatcher } = require('./externalFileWatcher');
             const watcher = ExternalFileWatcher.getInstance();
 
-            // This would need access to the internal state of ExternalFileWatcher
-            // For now, we'll return placeholder data
+            // Get debug information from watcher
+            watcherDebugInfo = watcher.getDebugInfo();
+
+            // Transform watcher info for display
+            watcherDebugInfo.watchers.forEach((watcherInfo: any) => {
+                externalWatchers.push({
+                    path: watcherInfo.path,
+                    active: watcherInfo.active,
+                    type: watcherInfo.type
+                });
+            });
         } catch (error) {
             console.warn('[Debug] Could not access ExternalFileWatcher:', error);
         }
@@ -1846,17 +2181,39 @@ export class MessageHandler {
         const includeFiles: any[] = [];
         if (panel) {
             try {
-                // Access include files from panel
+                // Access include files from panel with modification states
                 const includeFileMap = (panel as any)._includeFiles;
+                console.log(`[Debug] Include files map exists: ${!!includeFileMap}, size: ${includeFileMap?.size || 0}`);
+
                 if (includeFileMap) {
                     for (const [path, fileData] of includeFileMap) {
+                        // Check for external changes - use the explicit flag we now set
+                        const hasExternalChanges = fileData.hasExternalChanges || false;
+
+                        console.log(`[Debug] Include file ${path}:
+                            hasUnsavedChanges: ${fileData.hasUnsavedChanges || false}
+                            hasExternalChanges: ${hasExternalChanges}
+                            isUnsavedInEditor: ${fileData.isUnsavedInEditor || false}
+                            contentLength: ${fileData.content?.length || 0}
+                            baselineLength: ${fileData.baseline?.length || 0}
+                            externalContentLength: ${fileData.externalContent?.length || 0}
+                        `);
+
                         includeFiles.push({
                             path: path,
                             type: fileData.type || 'include',
                             exists: fileData.exists !== false,
                             lastModified: fileData.lastModified || 'Unknown',
                             size: fileData.size || 'Unknown',
-                            hasUnsavedChanges: fileData.hasUnsavedChanges || false
+                            hasInternalChanges: fileData.hasUnsavedChanges || false,
+                            hasExternalChanges: hasExternalChanges,
+                            isUnsavedInEditor: fileData.isUnsavedInEditor || false,
+                            baseline: fileData.baseline || '',
+                            content: fileData.content || '',
+                            externalContent: fileData.externalContent || '',
+                            contentLength: fileData.content ? fileData.content.length : 0,
+                            baselineLength: fileData.baseline ? fileData.baseline.length : 0,
+                            externalContentLength: fileData.externalContent ? fileData.externalContent.length : 0
                         });
                     }
                 }
@@ -1867,15 +2224,18 @@ export class MessageHandler {
 
         // Conflict management status
         const conflictManager = {
-            healthy: true, // Placeholder
-            trackedFiles: 1 + includeFiles.length,
+            healthy: watcherDebugInfo.listenerEnabled || false,
+            trackedFiles: watcherDebugInfo.totalWatchedFiles || (1 + includeFiles.length),
+            activeWatchers: watcherDebugInfo.totalWatchers || 0,
             pendingConflicts: 0,
-            watcherFailures: 0
+            watcherFailures: 0,
+            listenerEnabled: watcherDebugInfo.listenerEnabled || false,
+            documentSaveListenerActive: watcherDebugInfo.documentSaveListenerActive || false
         };
 
         // System health
         const systemHealth = {
-            overall: includeFiles.length > 0 ? 'good' : 'warn',
+            overall: (watcherDebugInfo.totalWatchers > 0 && includeFiles.length > 0) ? 'good' : 'warn',
             extensionState: 'active',
             memoryUsage: 'normal',
             lastError: null
@@ -1890,7 +2250,9 @@ export class MessageHandler {
             conflictManager: conflictManager,
             systemHealth: systemHealth,
             hasUnsavedChanges: panel ? (panel as any)._hasUnsavedChanges || false : false,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            watcherDetails: mainFileInfo, // FIX: Send main file info instead of external watcher info
+            externalWatcherDebugInfo: watcherDebugInfo // Keep external watcher info separate
         };
     }
 

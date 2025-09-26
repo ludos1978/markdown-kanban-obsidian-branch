@@ -6,7 +6,9 @@
 let debugOverlayVisible = false;
 let debugOverlayElement = null;
 let trackedFilesData = {};
+let lastTrackedFilesDataHash = null;
 let refreshCount = 0;
+let debugOverlaySticky = false; // New: sticky/pin state
 
 // Hover behavior state
 let hoverShowTimer = null;
@@ -50,15 +52,10 @@ function showDebugOverlay() {
 
     debugOverlayVisible = true;
 
-    // Auto-refresh overlay every 2 seconds
-    autoRefreshTimer = setInterval(() => {
-        if (debugOverlayVisible) {
-            refreshDebugOverlay();
-        } else {
-            clearInterval(autoRefreshTimer);
-            autoRefreshTimer = null;
-        }
-    }, 2000);
+    // Request initial data
+    if (window.vscode) {
+        window.vscode.postMessage({ type: 'getTrackedFilesDebugInfo' });
+    }
 
     // Handle mouse interactions with the overlay
     debugOverlayElement.addEventListener('mouseenter', () => {
@@ -70,8 +67,10 @@ function showDebugOverlay() {
     });
 
     debugOverlayElement.addEventListener('mouseleave', () => {
-        // Hide overlay when mouse leaves
-        hideDebugOverlayDelayed();
+        // Only hide overlay when mouse leaves if not sticky
+        if (!debugOverlaySticky) {
+            hideDebugOverlayDelayed();
+        }
     });
 
     // Close on click outside
@@ -86,17 +85,24 @@ function showDebugOverlay() {
             hideDebugOverlay();
         }
     });
+
+    debugOverlayVisible = true;
+
+    // Start auto-refresh when overlay is visible
+    startAutoRefresh();
+
+    console.log('[DebugOverlay] Debug overlay displayed');
 }
 
 /**
  * Hide and remove the debug overlay
  */
 function hideDebugOverlay() {
-    // Clear auto-refresh timer when hiding
-    if (autoRefreshTimer) {
-        clearInterval(autoRefreshTimer);
-        autoRefreshTimer = null;
-    }
+    // When explicitly closed, clear sticky state too
+    debugOverlaySticky = false;
+
+    // Stop auto-refresh
+    stopAutoRefresh();
 
     if (debugOverlayElement) {
         debugOverlayElement.remove();
@@ -143,6 +149,11 @@ function cancelDebugOverlayShow() {
  * Hide debug overlay with delay
  */
 function hideDebugOverlayDelayed() {
+    // Don't hide if sticky mode is enabled
+    if (debugOverlaySticky) {
+        return;
+    }
+
     // Don't hide if mouse is over the overlay itself
     if (hoverHideTimer) {
         clearTimeout(hoverHideTimer);
@@ -158,18 +169,81 @@ function hideDebugOverlayDelayed() {
  * Update the debug overlay with fresh data
  */
 function refreshDebugOverlay() {
+    console.log('[DEBUG refreshDebugOverlay] Called - overlay visible:', debugOverlayVisible, 'element exists:', !!debugOverlayElement);
+
     if (!debugOverlayVisible || !debugOverlayElement) {
+        console.log('[DEBUG refreshDebugOverlay] Skipping - overlay not ready');
         return;
     }
 
     refreshCount++;
+
+    // Only request new data if we don't have recent data
     if (window.vscode) {
+        console.log('[DEBUG refreshDebugOverlay] Sending getTrackedFilesDebugInfo message to backend');
         window.vscode.postMessage({ type: 'getTrackedFilesDebugInfo' });
+    } else {
+        console.log('[DEBUG refreshDebugOverlay] ERROR: window.vscode not available!');
     }
 
-    const content = debugOverlayElement.querySelector('.debug-content');
-    if (content) {
-        content.innerHTML = createDebugContent();
+    // Don't rebuild DOM here - let updateTrackedFilesData handle it
+}
+
+/**
+ * Toggle sticky/pin state of debug overlay
+ */
+function toggleDebugOverlaySticky() {
+    debugOverlaySticky = !debugOverlaySticky;
+
+    // Update the pin button appearance
+    const pinButton = debugOverlayElement?.querySelector('.debug-pin-btn');
+    if (pinButton) {
+        pinButton.textContent = debugOverlaySticky ? '📌 Pinned' : '📌 Pin';
+        pinButton.style.background = debugOverlaySticky ?
+            'var(--vscode-gitDecoration-addedResourceForeground)' :
+            'var(--vscode-button-background)';
+        pinButton.style.color = debugOverlaySticky ? 'white' : 'var(--vscode-button-foreground)';
+    }
+
+    console.log(`[DebugOverlay] Sticky mode ${debugOverlaySticky ? 'enabled' : 'disabled'}`);
+}
+
+/**
+ * Start auto-refresh timer for sticky mode
+ */
+function startAutoRefresh() {
+    // Clear existing timer
+    stopAutoRefresh();
+
+    // Start new auto-refresh timer (refresh every 5 seconds, less frequent)
+    autoRefreshTimer = setInterval(() => {
+        if (debugOverlayVisible && (debugOverlaySticky || document.querySelector('#debug-overlay:hover'))) {
+            refreshDebugOverlay();
+        }
+    }, 5000);
+
+    console.log('[DebugOverlay] Auto-refresh started');
+}
+
+/**
+ * Stop auto-refresh timer
+ */
+function stopAutoRefresh() {
+    if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+        console.log('[DebugOverlay] Auto-refresh stopped');
+    }
+}
+
+/**
+ * Create a simple hash of the data to detect changes
+ */
+function createDataHash(data) {
+    try {
+        return JSON.stringify(data).replace(/\s/g, '');
+    } catch (error) {
+        return Math.random().toString();
     }
 }
 
@@ -177,13 +251,67 @@ function refreshDebugOverlay() {
  * Update tracked files data from backend
  */
 function updateTrackedFilesData(data) {
-    trackedFilesData = data;
-    if (debugOverlayVisible && debugOverlayElement) {
-        const content = debugOverlayElement.querySelector('.debug-content');
-        if (content) {
-            content.innerHTML = createDebugContent();
-        }
+    console.log('[DEBUG updateTrackedFilesData] Received data from backend:', data);
+
+    // ENHANCED DEBUG: Show main file state specifically
+    if (data && data.watcherDetails) {
+        console.log('[DEBUG updateTrackedFilesData] Main file state received:', {
+            hasInternalChanges: data.watcherDetails.hasInternalChanges,
+            hasExternalChanges: data.watcherDetails.hasExternalChanges,
+            isUnsavedInEditor: data.watcherDetails.isUnsavedInEditor,
+            documentVersion: data.watcherDetails.documentVersion,
+            lastDocumentVersion: data.watcherDetails.lastDocumentVersion
+        });
     }
+
+    const newDataHash = createDataHash(data);
+
+    // Only update if data actually changed
+    if (newDataHash === lastTrackedFilesDataHash) {
+        console.log('[DebugOverlay] Data unchanged, skipping DOM update');
+        return;
+    }
+
+    lastTrackedFilesDataHash = newDataHash;
+    trackedFilesData = data;
+
+    if (debugOverlayVisible && debugOverlayElement) {
+        // Only update the content, preserve scroll position
+        updateFileStatesContent();
+        console.log('[DebugOverlay] DOM updated with new data');
+    }
+}
+
+/**
+ * Update only the content without rebuilding the entire DOM
+ */
+function updateFileStatesContent() {
+    if (!debugOverlayElement) {
+        return;
+    }
+
+    // Batch DOM updates to reduce reflow
+    requestAnimationFrame(() => {
+        const allFiles = createAllFilesArray();
+
+        // Update summary stats (includes timestamp now)
+        const summaryElement = debugOverlayElement.querySelector('.file-states-summary');
+        if (summaryElement) {
+            const newSummaryHTML = createFileStatesSummary(allFiles);
+            if (summaryElement.innerHTML !== newSummaryHTML) {
+                summaryElement.innerHTML = newSummaryHTML;
+            }
+        }
+
+        // Update file list (only if content changed)
+        const listElement = debugOverlayElement.querySelector('.file-states-list');
+        if (listElement) {
+            const newListHTML = createFileStatesList(allFiles);
+            if (listElement.innerHTML !== newListHTML) {
+                listElement.innerHTML = newListHTML;
+            }
+        }
+    });
 }
 
 /**
@@ -193,13 +321,16 @@ function createDebugOverlayContent() {
     return `
         <div class="debug-panel">
             <div class="debug-header">
-                <h3>🔍 File Tracking Debug Info</h3>
+                <h3>📁 File States Overview</h3>
                 <div class="debug-controls">
-                    <button onclick="refreshDebugOverlay()" class="debug-btn">
-                        🔄 Refresh (${refreshCount})
+                    <button onclick="toggleDebugOverlaySticky()" class="debug-btn debug-pin-btn">
+                        📌 Pin
                     </button>
-                    <button onclick="clearDebugCache()" class="debug-btn">
-                        🗑️ Clear Cache
+                    <button onclick="refreshDebugOverlay()" class="debug-btn">
+                        🔄 Refresh
+                    </button>
+                    <button onclick="reloadAllIncludedFiles()" class="debug-btn">
+                        🔄 Reload All
                     </button>
                     <button onclick="hideDebugOverlay()" class="debug-close">
                         ✕
@@ -207,7 +338,7 @@ function createDebugOverlayContent() {
                 </div>
             </div>
             <div class="debug-content">
-                ${createDebugContent()}
+                ${createFileStatesContent()}
             </div>
         </div>
     `;
@@ -216,30 +347,17 @@ function createDebugOverlayContent() {
 /**
  * Create the main debug content
  */
-function createDebugContent() {
-    const now = new Date().toLocaleTimeString();
+function createFileStatesContent() {
+    const allFiles = createAllFilesArray();
 
     return `
-        <div class="debug-section">
-            <div class="debug-timestamp">Last updated: ${now}</div>
-
-            <div class="debug-stats">
-                <div class="stat-item">
-                    <span class="stat-label">Refresh Count:</span>
-                    <span class="stat-value">${refreshCount}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Overlay Updates:</span>
-                    <span class="stat-value">${Math.floor(Date.now() / 1000) % 1000}</span>
-                </div>
+        <div class="file-states-section">
+            <div class="file-states-summary">
+                ${createFileStatesSummary(allFiles)}
             </div>
-
-            ${createFileWatcherSection()}
-            ${createExternalFileWatcherSection()}
-            ${createConflictManagerSection()}
-            ${createIncludeFilesSection()}
-            ${createPendingChangesSection()}
-            ${createSystemHealthSection()}
+            <div class="file-states-list">
+                ${createFileStatesList(allFiles)}
+            </div>
         </div>
     `;
 }
@@ -250,6 +368,9 @@ function createDebugContent() {
 function createFileWatcherSection() {
     const mainFile = trackedFilesData.mainFile || 'Unknown';
     const watcherActive = trackedFilesData.fileWatcherActive !== false;
+    const mainFileInfo = trackedFilesData.watcherDetails || {};
+    const hasInternalChanges = mainFileInfo.hasInternalChanges || false;
+    const hasExternalChanges = mainFileInfo.hasExternalChanges || false;
 
     return `
         <div class="debug-group">
@@ -264,6 +385,24 @@ function createFileWatcherSection() {
                 <span class="debug-label">Watcher:</span>
                 <span class="debug-value ${watcherActive ? 'status-good' : 'status-bad'}">
                     ${watcherActive ? '✅ Active' : '❌ Inactive'}
+                </span>
+            </div>
+            <div class="debug-item">
+                <span class="debug-label">Internal Changes:</span>
+                <span class="debug-value ${hasInternalChanges ? 'status-warn' : 'status-good'}">
+                    ${hasInternalChanges ? '🟡 Modified' : '🟢 Saved'}
+                </span>
+            </div>
+            <div class="debug-item">
+                <span class="debug-label">External Changes:</span>
+                <span class="debug-value ${hasExternalChanges ? 'status-warn' : 'status-good'}">
+                    ${hasExternalChanges ? '🔄 Externally Modified' : '🟢 In Sync'}
+                </span>
+            </div>
+            <div class="debug-item">
+                <span class="debug-label">Document Version:</span>
+                <span class="debug-value">
+                    ${mainFileInfo.documentVersion || 0} (Last: ${mainFileInfo.lastDocumentVersion || -1})
                 </span>
             </div>
             <div class="debug-item">
@@ -350,6 +489,8 @@ function createConflictManagerSection() {
  */
 function createIncludeFilesSection() {
     const includeFiles = trackedFilesData.includeFiles || [];
+    const internalChangesCount = includeFiles.filter(f => f.hasInternalChanges).length;
+    const externalChangesCount = includeFiles.filter(f => f.hasExternalChanges).length;
 
     return `
         <div class="debug-group">
@@ -357,6 +498,23 @@ function createIncludeFilesSection() {
             <div class="debug-item">
                 <span class="debug-label">Total Includes:</span>
                 <span class="debug-value">${includeFiles.length}</span>
+            </div>
+            <div class="debug-item">
+                <span class="debug-label">Internal:</span>
+                <span class="debug-value ${internalChangesCount > 0 ? 'status-warn' : 'status-good'}">
+                    ${internalChangesCount > 0 ? `🟡 ${internalChangesCount} Modified` : '🟢 All Saved'}
+                </span>
+            </div>
+            <div class="debug-item">
+                <span class="debug-label">External:</span>
+                <span class="debug-value ${externalChangesCount > 0 ? 'status-warn' : 'status-good'}">
+                    ${externalChangesCount > 0 ? `🔄 ${externalChangesCount} Externally Modified` : '🟢 All In Sync'}
+                </span>
+            </div>
+            <div class="debug-controls" style="margin: 8px 0;">
+                <button onclick="reloadAllIncludedFiles()" class="debug-btn" style="width: 100%;">
+                    🔄 Reload All Included Files (Images, Videos, Includes)
+                </button>
             </div>
             <div class="include-list">
                 ${includeFiles.map(file => `
@@ -370,9 +528,15 @@ function createIncludeFilesSection() {
                         </div>
                         <div class="include-details">
                             <span class="detail-item">Modified: ${file.lastModified || 'Unknown'}</span>
-                            <span class="detail-item">Size: ${file.size || 'Unknown'}</span>
-                            <span class="detail-item ${file.hasUnsavedChanges ? 'unsaved' : 'saved'}">
-                                ${file.hasUnsavedChanges ? '🟡 Unsaved' : '🟢 Saved'}
+                            <span class="detail-item">
+                                Content: ${file.contentLength || 0} chars
+                                ${file.baselineLength > 0 ? `(Baseline: ${file.baselineLength})` : ''}
+                            </span>
+                            <span class="detail-item ${file.hasInternalChanges ? 'status-warn' : 'status-good'}">
+                                Internal: ${file.hasInternalChanges ? '🟡 Modified' : '🟢 Saved'}
+                            </span>
+                            <span class="detail-item ${file.hasExternalChanges ? 'status-warn' : 'status-good'}">
+                                External: ${file.hasExternalChanges ? '🔄 Changed' : '🟢 In Sync'}
                             </span>
                         </div>
                     </div>
@@ -453,6 +617,286 @@ function createSystemHealthSection() {
 }
 
 /**
+ * Convert absolute path to relative path based on workspace or main file directory
+ */
+function getRelativePath(fullPath, isMainFile = false) {
+    if (!fullPath || fullPath === 'Unknown') {
+        return 'Unknown';
+    }
+
+    if (isMainFile) {
+        return '.';
+    }
+
+    // Try to get relative path based on main file directory
+    const mainFile = trackedFilesData.mainFile;
+    if (mainFile && mainFile !== 'Unknown') {
+        const mainFileDir = mainFile.substring(0, mainFile.lastIndexOf('/'));
+        if (fullPath.startsWith(mainFileDir)) {
+            const relativePath = fullPath.substring(mainFileDir.length + 1);
+            return relativePath || '.';
+        }
+    }
+
+    // Fallback: show just the filename if we can't determine relative path
+    return fullPath.split('/').pop() || fullPath;
+}
+
+/**
+ * Create array of all files (main + included) with their states
+ */
+function createAllFilesArray() {
+    const allFiles = [];
+
+    // Add main file
+    const mainFile = trackedFilesData.mainFile || 'Unknown';
+    const mainFileInfo = trackedFilesData.watcherDetails || {};
+
+    // Debug logging to see what data we're getting
+    console.log('[DEBUG createAllFilesArray] Main file processing:', {
+        mainFile: mainFile,
+        mainFileInfo: mainFileInfo,
+        hasInternalChanges: mainFileInfo.hasInternalChanges,
+        hasExternalChanges: mainFileInfo.hasExternalChanges,
+        isUnsavedInEditor: mainFileInfo.isUnsavedInEditor,
+        rawIsUnsavedInEditor: mainFileInfo.isUnsavedInEditor
+    });
+
+    const mainFileData = {
+        path: mainFile,
+        relativePath: getRelativePath(mainFile, true),
+        name: mainFile ? mainFile.split('/').pop() : 'Unknown',
+        type: 'main',
+        isMainFile: true,
+        exists: true,
+        hasInternalChanges: mainFileInfo.hasInternalChanges || false,
+        hasExternalChanges: mainFileInfo.hasExternalChanges || false,
+        documentVersion: mainFileInfo.documentVersion || 0,
+        lastDocumentVersion: mainFileInfo.lastDocumentVersion || -1,
+        isUnsavedInEditor: mainFileInfo.isUnsavedInEditor || false,
+        lastModified: trackedFilesData.mainFileLastModified || 'Unknown'
+    };
+
+    console.log('[DEBUG createAllFilesArray] Final main file data:', mainFileData);
+    allFiles.push(mainFileData);
+
+    // Add include files
+    const includeFiles = trackedFilesData.includeFiles || [];
+    console.log('[DebugOverlay] Include files received:', includeFiles.length, includeFiles);
+
+    includeFiles.forEach(file => {
+        console.log('[DebugOverlay] Processing include file:', file.path, {
+            hasInternalChanges: file.hasInternalChanges,
+            hasExternalChanges: file.hasExternalChanges,
+            isUnsavedInEditor: file.isUnsavedInEditor,
+            exists: file.exists
+        });
+
+        allFiles.push({
+            path: file.path,
+            relativePath: getRelativePath(file.path, false),
+            name: file.path.split('/').pop(),
+            type: file.type || 'include',
+            isMainFile: false,
+            exists: file.exists !== false,
+            hasInternalChanges: file.hasInternalChanges || false,
+            hasExternalChanges: file.hasExternalChanges || false,
+            isUnsavedInEditor: file.isUnsavedInEditor || false,
+            contentLength: file.contentLength || 0,
+            baselineLength: file.baselineLength || 0,
+            lastModified: file.lastModified || 'Unknown'
+        });
+    });
+
+    return allFiles;
+}
+
+/**
+ * Create summary of file states
+ */
+function createFileStatesSummary(allFiles) {
+    const totalFiles = allFiles.length;
+    const internalChanges = allFiles.filter(f => f.hasInternalChanges).length;
+    const externalChanges = allFiles.filter(f => f.hasExternalChanges).length;
+    const bothChanges = allFiles.filter(f => f.hasInternalChanges && f.hasExternalChanges).length;
+    const cleanFiles = allFiles.filter(f => !f.hasInternalChanges && !f.hasExternalChanges).length;
+    const now = new Date().toLocaleTimeString();
+
+    return `
+        <div class="file-states-stats">
+            <div class="stat-group">
+                <div class="stat-item">
+                    <span class="stat-label">Total Files:</span>
+                    <span class="stat-value">${totalFiles}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Clean:</span>
+                    <span class="stat-value ${cleanFiles > 0 ? 'status-good' : 'status-unknown'}">${cleanFiles}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Internal Changes:</span>
+                    <span class="stat-value ${internalChanges > 0 ? 'status-warn' : 'status-good'}">${internalChanges}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">External Changes:</span>
+                    <span class="stat-value ${externalChanges > 0 ? 'status-warn' : 'status-good'}">${externalChanges}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Both:</span>
+                    <span class="stat-value ${bothChanges > 0 ? 'status-bad' : 'status-good'}">${bothChanges}</span>
+                </div>
+            </div>
+            <div class="debug-timestamp">Updated: ${now}</div>
+        </div>
+    `;
+}
+
+/**
+ * Create list of all files with their states and action buttons
+ */
+function createFileStatesList(allFiles) {
+    return `
+        <div class="files-table-container">
+            <table class="files-table">
+                <thead>
+                    <tr>
+                        <th class="col-file">File</th>
+                        <th class="col-internal">Internal</th>
+                        <th class="col-external">External</th>
+                        <th class="col-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${allFiles.map(file => {
+                        // Combine editor unsaved state + external changes into one "external" indicator
+                        const hasExternalChanges = file.hasExternalChanges || file.isUnsavedInEditor;
+                        const hasAnyChanges = file.hasInternalChanges || hasExternalChanges;
+                        const mainFileClass = file.isMainFile ? 'main-file' : '';
+
+                        return `
+                            <tr class="file-row ${mainFileClass}">
+                                <td class="col-file">
+                                    <div class="file-path" title="${file.path}">
+                                        ${file.relativePath}
+                                    </div>
+                                    <div class="file-name-clickable" onclick="openFile('${file.path}')" title="Click to open file">
+                                        ${file.isMainFile ? '📄' : '📎'} ${file.name}
+                                    </div>
+                                </td>
+                                <td class="col-internal">
+                                    <span class="status-icon" title="Internal changes (Kanban interface modifications)">
+                                        ${file.hasInternalChanges ? '🟡' : '🟢'}
+                                    </span>
+                                </td>
+                                <td class="col-external">
+                                    <span class="status-icon" title="External changes (modified outside Kanban interface)">
+                                        ${hasExternalChanges ? '🔄' : '🟢'}
+                                    </span>
+                                </td>
+                                <td class="col-actions">
+                                    <div class="action-buttons">
+                                        ${file.hasInternalChanges ?
+                                            `<button onclick="saveIndividualFile('${file.path}', ${file.isMainFile})" class="action-btn save-btn" title="Save">💾</button>` : ''}
+                                        ${hasAnyChanges ?
+                                            `<button onclick="reloadIndividualFile('${file.path}', ${file.isMainFile})" class="action-btn reload-btn" title="Reload">🔄</button>` : ''}
+                                        <button onclick="reloadImages()" class="action-btn reload-images-btn" title="Reload images">🖼️</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+
+            <div class="icon-legend">
+                <div class="legend-title">Icon Legend:</div>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <span class="legend-icon">🟢</span>
+                        <span class="legend-text">Clean / No changes</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">🟡</span>
+                        <span class="legend-text">Internal changes (needs saving)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-icon">🔄</span>
+                        <span class="legend-text">External changes (needs reloading)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Save an individual file
+ */
+function saveIndividualFile(filePath, isMainFile) {
+    if (window.vscode) {
+        window.vscode.postMessage({
+            type: 'saveIndividualFile',
+            filePath: filePath,
+            isMainFile: isMainFile
+        });
+    }
+}
+
+/**
+ * Reload an individual file from saved state
+ */
+function reloadIndividualFile(filePath, isMainFile) {
+    if (window.vscode) {
+        window.vscode.postMessage({
+            type: 'reloadIndividualFile',
+            filePath: filePath,
+            isMainFile: isMainFile
+        });
+    }
+}
+
+/**
+ * Open a file in VS Code
+ */
+function openFile(filePath) {
+    if (window.vscode) {
+        window.vscode.postMessage({
+            type: 'openFile',
+            filePath: filePath
+        });
+    }
+}
+
+
+/**
+ * Reload images and media content
+ */
+function reloadImages() {
+    // Force reload all images by appending timestamp query parameter
+    const images = document.querySelectorAll('img');
+    images.forEach(img => {
+        if (img.src) {
+            const url = new URL(img.src, window.location.href);
+            url.searchParams.set('_reload', Date.now().toString());
+            img.src = url.toString();
+        }
+    });
+
+    // Also reload any other media elements
+    const videos = document.querySelectorAll('video');
+    videos.forEach(video => {
+        if (video.src) {
+            const url = new URL(video.src, window.location.href);
+            url.searchParams.set('_reload', Date.now().toString());
+            video.load();
+        }
+    });
+
+    console.log(`[Debug] Reloaded ${images.length} images and ${videos.length} videos`);
+    showToast(`Reloaded ${images.length + videos.length} media elements`, 'success');
+}
+
+/**
  * Clear debug cache and request fresh data
  */
 function clearDebugCache() {
@@ -462,6 +906,19 @@ function clearDebugCache() {
         window.vscode.postMessage({ type: 'clearTrackedFilesCache' });
     }
     refreshDebugOverlay();
+}
+
+/**
+ * Reload all included files (images, videos, includes)
+ */
+function reloadAllIncludedFiles() {
+    if (window.vscode) {
+        window.vscode.postMessage({ type: 'reloadAllIncludedFiles' });
+        // Refresh the debug overlay after a short delay to show updated data
+        setTimeout(() => {
+            refreshDebugOverlay();
+        }, 500);
+    }
 }
 
 /**
@@ -491,8 +948,9 @@ function getDebugOverlayStyles() {
             border: 1px solid var(--vscode-panel-border);
             border-radius: 8px;
             max-width: 500px;
-            max-height: 70vh;
-            width: 450px;
+            max-height: 85vh;
+            width: 500px;
+            // min-height: 400px;
             display: flex;
             flex-direction: column;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -515,7 +973,7 @@ function getDebugOverlayStyles() {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 20px;
+            padding: var(--whitespace-div2);
             border-bottom: 1px solid var(--vscode-panel-border);
             background: var(--vscode-titleBar-activeBackground);
         }
@@ -527,12 +985,12 @@ function getDebugOverlayStyles() {
 
         .debug-controls {
             display: flex;
-            gap: 8px;
+            gap: 4px;
             align-items: center;
         }
 
         .debug-btn, .debug-close {
-            padding: 6px 12px;
+            padding: var(--vscode-whitespace-div2);
             background: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
             border: none;
@@ -552,16 +1010,16 @@ function getDebugOverlayStyles() {
         }
 
         .debug-content {
-            padding: 16px 20px;
+            padding: var(--vscode-whitespace);
             overflow-y: auto;
             flex: 1;
         }
 
         .debug-timestamp {
-            text-align: right;
             color: var(--vscode-descriptionForeground);
-            font-size: 11px;
-            margin-bottom: 16px;
+            font-size: 10px;
+            white-space: nowrap;
+            opacity: 0.8;
         }
 
         .debug-stats {
@@ -642,6 +1100,157 @@ function getDebugOverlayStyles() {
             white-space: nowrap;
         }
 
+        /* File States Overview Styles */
+        .file-states-section {
+            padding: 8px;
+        }
+
+        .file-states-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 6px;
+            padding: 4px;
+            background: var(--vscode-editor-inactiveSelectionBackground);
+            border-radius: 4px;
+        }
+
+        .stat-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .file-states-list {
+            max-height: 300px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .file-item {
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 4px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: var(--vscode-editor-background);
+        }
+
+        .file-item.status-good {
+            border-color: var(--vscode-gitDecoration-addedResourceForeground);
+        }
+
+        .file-item.status-warn {
+            border-color: var(--vscode-gitDecoration-modifiedResourceForeground);
+        }
+
+        .file-item.status-bad {
+            border-color: var(--vscode-gitDecoration-deletedResourceForeground);
+        }
+
+        .file-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-name {
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .file-type {
+            background: var(--vscode-badge-background);
+            color: var(--vscode-badge-foreground);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .file-missing {
+            color: var(--vscode-gitDecoration-deletedResourceForeground);
+            font-size: 11px;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .action-btn {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .action-btn:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
+        .debug-btn {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-weight: 500;
+            margin-left: 4px;
+        }
+
+        .debug-btn:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
+        .save-btn {
+            background: var(--vscode-gitDecoration-addedResourceForeground);
+            color: white;
+        }
+
+        .reload-btn {
+            background: var(--vscode-gitDecoration-modifiedResourceForeground);
+            color: white;
+        }
+
+        .file-states {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            font-size: 11px;
+        }
+
+        .state-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 0;
+        }
+
+        .state-label {
+            color: var(--vscode-descriptionForeground);
+            margin-right: 8px;
+        }
+
+        .state-value {
+            font-weight: 500;
+            text-align: right;
+        }
+
         .watcher-list, .include-list {
             padding: 8px;
         }
@@ -702,6 +1311,191 @@ function getDebugOverlayStyles() {
 
         .detail-item.unsaved { color: var(--vscode-gitDecoration-modifiedResourceForeground); }
         .detail-item.saved { color: var(--vscode-gitDecoration-addedResourceForeground); }
+
+        /* Table layout styles */
+        .files-table-container {
+            padding: var(--vscode-whitespace);
+            background: var(--vscode-editor-background);
+            border-radius: 4px;
+        }
+
+        .files-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .files-table thead {
+            border-bottom: 2px solid var(--vscode-panel-border);
+        }
+
+        .files-table th {
+            padding: var(--vscode-whitespace);
+            text-align: left;
+            font-weight: 600;
+            color: var(--vscode-foreground);
+            background: var(--vscode-list-inactiveSelectionBackground);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .files-table tbody tr {
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+
+        .files-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .files-table tbody tr.main-file {
+            background: rgba(135, 206, 235, 0.05);
+        }
+
+        .files-table td {
+            padding: var(--vscode-whitespace);
+            vertical-align: middle;
+        }
+
+        .col-file {
+            width: 60%;
+            min-width: 200px;
+        }
+
+        .col-internal, .col-external {
+            width: 15%;
+            text-align: center;
+        }
+
+        .col-actions {
+            width: 25%;
+            text-align: center;
+        }
+
+        .file-path {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            font-family: var(--vscode-editor-font-family);
+            margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+
+        .file-name-clickable {
+            display: inline-block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 500;
+            color: var(--vscode-textLink-foreground);
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-color: transparent;
+            transition: text-decoration-color 0.2s ease;
+        }
+
+        .file-name-clickable:hover {
+            text-decoration-color: var(--vscode-textLink-foreground);
+            color: var(--vscode-textLink-activeForeground);
+        }
+
+        .status-icon {
+            font-size: 14px;
+            cursor: help;
+        }
+
+        .status-icon.na {
+            color: var(--vscode-descriptionForeground);
+            opacity: 0.5;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 4px;
+            justify-content: left;
+            align-items: center;
+        }
+
+        .action-btn {
+            background: var(--vscode-button-background);
+            border: 1px solid var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            padding: 4px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 24px;
+            transition: opacity 0.15s ease;
+        }
+
+        .action-btn:hover {
+            opacity: 0.8;
+        }
+
+        .save-btn {
+            background: transparent;
+            border: none;
+            color: var(--vscode-gitDecoration-addedResourceForeground);
+        }
+
+        .reload-btn {
+            background: transparent;
+            border: none;
+            color: var(--vscode-gitDecoration-modifiedResourceForeground);
+        }
+
+        .reload-images-btn {
+            background: transparent;
+            border: none;
+            color: var(--vscode-foreground);
+            opacity: 0.7;
+        }
+
+        /* Icon Legend styles */
+        .icon-legend {
+            // margin-top: 12px;
+            padding-top: 4px;
+            border-top: 1px solid var(--vscode-panel-border);
+        }
+
+        .legend-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+        }
+
+        .legend-icon {
+            font-size: 12px;
+        }
+
+        .file-states-list {
+            max-height: 600px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
     `;
 }
 
@@ -744,6 +1538,7 @@ function initializeDebugOverlay() {
     window.scheduleDebugOverlayShow = scheduleDebugOverlayShow;
     window.cancelDebugOverlayShow = cancelDebugOverlayShow;
     window.hideDebugOverlayDelayed = hideDebugOverlayDelayed;
+    window.openFile = openFile;
 
     // Store original manual refresh function
     if (typeof window.manualRefresh === 'function') {
@@ -767,6 +1562,17 @@ function initializeDebugOverlay() {
         showDebugOverlay: typeof window.showDebugOverlay,
         hideDebugOverlay: typeof window.hideDebugOverlay,
         vscode: typeof window.vscode
+    });
+
+    // Listen for document state changes from backend to auto-refresh overlay
+    window.addEventListener('message', (event) => {
+        const message = event.data;
+        if (message && message.type === 'documentStateChanged') {
+            console.log('[DEBUG documentStateChanged] Document state changed:', message, 'overlay visible:', debugOverlayVisible);
+            if (debugOverlayVisible) {
+                refreshDebugOverlay();
+            }
+        }
     });
 }
 

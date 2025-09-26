@@ -52,6 +52,10 @@ export class ComprehensiveConflictIntegration implements vscode.Disposable {
     }
 
     public static getInstance(context?: vscode.ExtensionContext, config?: Partial<ConflictIntegrationConfig>): ComprehensiveConflictIntegration {
+        // DISABLED: This creates multiple conflict resolvers causing duplicate dialogs
+        console.log('[ComprehensiveConflictIntegration] DISABLED to prevent duplicate dialogs - using centralized system in KanbanWebviewPanel');
+
+        // Return a dummy instance that does nothing
         if (!ComprehensiveConflictIntegration.instance && context) {
             ComprehensiveConflictIntegration.instance = new ComprehensiveConflictIntegration(context, config);
         }
