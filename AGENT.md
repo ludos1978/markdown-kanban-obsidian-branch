@@ -782,3 +782,174 @@ All settings from the file-info-burger menu can be configured in presets:
 - **Integration**: Seamless application of multiple settings with single click
 - **State Management**: Current preset tracked and restored on file reopen
 - **Fallback**: Built-in presets available if user hasn't configured custom ones
+
+---
+
+## 📋 **Include Systems Specification**
+
+### **CRITICAL**: Three Distinct Include Systems - No Other Implementations Allowed
+
+The markdown-kanban extension implements exactly **three** include systems. These are the ONLY supported include mechanisms:
+
+### 1. **Regular Includes (`!!!include(file.md)!!!`)**
+**Purpose**: Static content inclusion within task descriptions or anywhere in markdown
+**Syntax**: `!!!include(relative/path/to/file.md)!!!`
+**Processing**: Frontend (browser) via `markdown-it-include-browser.js`
+
+**How it Works**:
+- Processed during **markdown rendering** in the webview
+- Uses `markdown-it` plugin that runs in the browser
+- When `!!!include(file.md)!!!` is encountered, it:
+  1. Requests file content from VS Code backend via `postMessage`
+  2. Caches the content in browser memory
+  3. Replaces the include statement with actual file content
+  4. Re-renders the markdown with included content
+
+**Use Cases**:
+- Include common text snippets in task descriptions
+- Include documentation or notes inline
+- Static content that doesn't change structure of kanban
+
+---
+
+### 2. **Column Includes (`!!!columninclude(file.md)!!!`)**
+**Purpose**: Generate entire column content (tasks) from external files
+**Syntax**: `## !!!columninclude(presentation.md)!!! Column Title`
+**Processing**: Backend during board parsing via `MarkdownKanbanParser`
+
+**How it Works**:
+- Processed during **board parsing** on the backend
+- In `markdownParser.ts`, when a column title contains `!!!columninclude(...)!!!`:
+  1. Reads the external file from disk
+  2. Uses `PresentationParser.parseMarkdownToTasks()` to convert file content to tasks
+  3. Populates the column with these generated tasks
+  4. Sets `column.includeMode = true` and `column.includeFiles = [filePath]`
+  5. Stores both original title (with syntax) and display title (cleaned)
+
+**Data Structure**:
+```typescript
+column = {
+  id: "col_123",
+  title: "!!!columninclude(presentation.md)!!! My Presentation", // Original with syntax
+  displayTitle: "My Presentation", // Cleaned for display
+  includeMode: true,
+  includeFiles: ["presentation.md"],
+  tasks: [...] // Generated from file content
+}
+```
+
+**Use Cases**:
+- Import presentation slides as kanban tasks
+- Dynamic column content from external files
+- Collaborative workflows where column content comes from separate files
+
+---
+
+### 3. **Task Includes (`!!!taskinclude(file.md)!!!`)**
+**Purpose**: Generate individual task content from external files
+**Syntax**: `- [ ] !!!taskinclude(task-details.md)!!!`
+**Processing**: Backend during board parsing via `MarkdownKanbanParser`
+
+**How it Works**:
+- Processed during **board parsing** on the backend
+- In `markdownParser.ts`, when a task title contains `!!!taskinclude(...)!!!`:
+  1. Reads the external file from disk
+  2. Extracts title (first line) and description (remaining content)
+  3. Updates task properties with file content
+  4. Sets `task.includeMode = true` and `task.includeFiles = [filePath]`
+  5. Stores both original title (with syntax) and display title (from file)
+
+**Data Structure**:
+```typescript
+task = {
+  id: "task_456",
+  title: "!!!taskinclude(feature-spec.md)!!!", // Original with syntax
+  displayTitle: "New User Feature", // From file first line
+  description: "Full feature description...", // From file content
+  includeMode: true,
+  includeFiles: ["feature-spec.md"],
+  originalTitle: "!!!taskinclude(feature-spec.md)!!!" // Preserved for saving
+}
+```
+
+**Use Cases**:
+- Link tasks to detailed specification files
+- Dynamic task content from external documentation
+- Keep kanban lightweight while linking to comprehensive details
+
+---
+
+## 🔄 **Key Differences Summary**
+
+| Feature | Regular Includes | Column Includes | Task Includes |
+|---------|-----------------|-----------------|---------------|
+| **Processing** | Frontend (browser) | Backend (parsing) | Backend (parsing) |
+| **Timing** | Markdown rendering | Board load/save | Board load/save |
+| **Scope** | Inline content | Entire column | Individual task |
+| **Caching** | Browser memory | File system tracking | File system tracking |
+| **Change Detection** | Via file watchers | Via FileStateManager | Via FileStateManager |
+| **Content Type** | Raw markdown text | Tasks array | Task title + description |
+| **Structure Impact** | None (text replacement) | Creates column structure | Updates task properties |
+
+## 🏗️ **Architecture Integration**
+
+**Regular Includes**:
+- Handled by frontend `markdown-it-include-browser.js`
+- Requests content via `requestIncludeFile` message
+- No backend state tracking needed
+
+**Column/Task Includes**:
+- Parsed by backend `MarkdownKanbanParser`
+- Tracked in `FileStateManager` as `include-column` and `include-task` types
+- Changes detected via file watchers and document listeners
+- Content synchronized between file system and kanban state
+
+## 🚫 **STRICT IMPLEMENTATION RULE**
+
+**NO OTHER INCLUDE MECHANISMS SHALL BE IMPLEMENTED**
+
+These three systems provide complete coverage for all include use cases:
+- Static content inclusion (regular includes)
+- Dynamic column generation (column includes)
+- Dynamic task content (task includes)
+
+Any requests to implement additional include systems should be rejected and redirected to use one of these existing three mechanisms.
+
+---
+
+## 📊 **FileStateManager Architecture**
+
+### **Unified State Management**
+
+The FileStateManager provides a single source of truth for all file states with clear separation:
+
+**Backend State** (File System & VS Code):
+- `backend.exists`: File exists on disk
+- `backend.lastModified`: Last modification timestamp
+- `backend.isDirtyInEditor`: VS Code has unsaved changes
+- `backend.documentVersion`: VS Code document version
+- `backend.hasFileSystemChanges`: File changed externally
+
+**Frontend State** (Kanban UI):
+- `frontend.hasUnsavedChanges`: Kanban has modifications
+- `frontend.content`: Current content in Kanban
+- `frontend.baseline`: Last known saved content
+
+**Computed State**:
+- `needsReload`: Backend changes need loading into frontend
+- `needsSave`: Frontend changes need saving to backend
+- `hasConflict`: Both backend and frontend have changes
+
+### **Integration Points**
+
+1. **MessageHandler**: Provides unified file state data
+2. **KanbanWebviewPanel**: Updates states via markUnsavedChanges callback
+3. **ExternalFileWatcher**: Reports backend changes
+4. **Document Listeners**: Track editor changes
+
+### **File Types**
+- `main`: Main kanban markdown file
+- `include-column`: Files used by columninclude
+- `include-task`: Files used by taskinclude
+
+This architecture ensures no overlapping state storage while preserving all functionality.
