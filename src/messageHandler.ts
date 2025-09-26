@@ -246,16 +246,8 @@ export class MessageHandler {
                     this._boardOperations.editTask(this._getCurrentBoard()!, message.taskId, message.columnId, message.taskData)
                 );
 
-                // If this is a task with include mode, save changes to the included file immediately
-                const boardForTask = this._getCurrentBoard();
-                if (boardForTask) {
-                    const column = boardForTask.columns.find(col => col.id === message.columnId);
-                    const task = column?.tasks.find(t => t.id === message.taskId);
-                    if (task && task.includeMode) {
-                        const panel = this._getWebviewPanel();
-                        await panel.saveTaskIncludeChanges(task);
-                    }
-                }
+                // Note: Task include changes are now only saved when the main kanban file is saved,
+                // not automatically on every edit. This prevents unwanted overwrites of external files.
                 break;
             case 'moveTask':
                 await this.performBoardAction(() => 
