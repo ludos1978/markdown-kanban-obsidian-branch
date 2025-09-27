@@ -17,9 +17,11 @@ class RuntimeTracker {
             trackGlobalFunctions: true,
             trackWindowFunctions: true,
             trackEventHandlers: true,
-            maxContexts: 10, // Max number of call contexts to store per function
-            reportInterval: 30000, // 30 seconds
-            autoSave: true
+            maxContexts: 3, // Reduced from 10 to save memory
+            maxStackTraces: 1, // Reduced from 3 to save memory
+            reportInterval: 60000, // Increased to 60 seconds to reduce saves
+            autoSave: true,
+            maxFunctions: 50 // Limit total functions tracked
         };
 
         // Initialize tracking if enabled
@@ -30,11 +32,17 @@ class RuntimeTracker {
      * Initialize the runtime tracker
      */
     init() {
+        // RUNTIME TRACKER CONTROL: Set to false to disable completely
+        const RUNTIME_TRACKER_ENABLED = false;
+
+        if (!RUNTIME_TRACKER_ENABLED) {
+            this.enabled = false;
+            return;
+        }
 
         // Check if tracking is enabled (can be controlled by localStorage or config)
         const trackingEnabled = localStorage.getItem('codeTrackingEnabled') === 'true' ||
                                window.DEBUG_MODE === true;
-
 
         if (trackingEnabled) {
             this.start();
@@ -226,6 +234,11 @@ class RuntimeTracker {
      * Record a function call
      */
     recordFunctionCall(funcName, context, details) {
+        // Limit total number of functions tracked to prevent memory issues
+        if (!this.functionCalls.has(funcName) && this.functionCalls.size >= this.config.maxFunctions) {
+            return; // Skip new functions if we've hit the limit
+        }
+
         if (!this.functionCalls.has(funcName)) {
             this.functionCalls.set(funcName, {
                 count: 0,
@@ -252,7 +265,7 @@ class RuntimeTracker {
         }
 
         // Store stack traces for debugging (limited)
-        if (record.stackTraces.length < 3) {
+        if (record.stackTraces.length < this.config.maxStackTraces) {
             record.stackTraces.push(details.stackTrace);
         }
     }
@@ -350,14 +363,37 @@ class RuntimeTracker {
     saveReport() {
         if (!this.enabled) {return;}
 
+        // Clean up old reports first to free space
+        this.cleanupOldReports();
+
         const report = this.generateReport();
 
-        // Save to localStorage
+        // Save to localStorage with size check
         const storageKey = `runtimeReport_${this.sessionId}`;
         try {
-            localStorage.setItem(storageKey, JSON.stringify(report));
+            const reportJson = JSON.stringify(report);
+
+            // Check if report is too large (limit to 100KB)
+            if (reportJson.length > 100000) {
+                console.warn('Runtime report too large, creating summary version');
+                const summaryReport = this.generateSummaryReport();
+                localStorage.setItem(storageKey, JSON.stringify(summaryReport));
+            } else {
+                localStorage.setItem(storageKey, reportJson);
+            }
         } catch (e) {
             console.warn('Failed to save runtime report to localStorage:', e);
+            // Try to save a minimal summary instead
+            try {
+                const minimalReport = {
+                    metadata: report.metadata,
+                    summary: report.summary
+                };
+                localStorage.setItem(storageKey, JSON.stringify(minimalReport));
+            } catch (e2) {
+                console.warn('Failed to save even minimal runtime report:', e2);
+                this.disable(); // Disable tracking to prevent repeated failures
+            }
         }
 
         // Send to backend if available
@@ -368,6 +404,68 @@ class RuntimeTracker {
             });
         }
 
+    }
+
+    /**
+     * Generate a summary version of the report (smaller)
+     */
+    generateSummaryReport() {
+        const now = Date.now();
+        const sessionDuration = this.startTime ? now - this.startTime : 0;
+
+        return {
+            metadata: {
+                sessionId: this.sessionId,
+                startTime: this.startTime,
+                endTime: now,
+                duration: sessionDuration,
+                enabled: this.enabled,
+                totalFunctions: this.functionCalls.size,
+                isSummary: true
+            },
+            summary: {
+                totalCalls: Array.from(this.functionCalls.values()).reduce((sum, record) => sum + record.count, 0),
+                uniqueFunctions: this.functionCalls.size,
+                mostCalled: this.getMostCalledFunctions(5),
+                leastCalled: this.getLeastCalledFunctions(5),
+                recentlyCalled: this.getRecentlyCalledFunctions(5)
+            }
+            // No detailed function data to save space
+        };
+    }
+
+    /**
+     * Clean up old runtime reports from localStorage
+     */
+    cleanupOldReports() {
+        try {
+            const keys = Object.keys(localStorage);
+            const reportKeys = keys.filter(key => key.startsWith('runtimeReport_'));
+
+            // Keep only the 3 most recent reports
+            if (reportKeys.length > 3) {
+                reportKeys.sort(); // Sort by timestamp in key
+                const keysToDelete = reportKeys.slice(0, reportKeys.length - 3);
+
+                keysToDelete.forEach(key => {
+                    try {
+                        localStorage.removeItem(key);
+                    } catch (e) {
+                        // Ignore individual deletion failures
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('Failed to cleanup old runtime reports:', e);
+        }
+    }
+
+    /**
+     * Disable tracking and clean up
+     */
+    disable() {
+        localStorage.setItem('codeTrackingEnabled', 'false');
+        this.stop();
     }
 
     /**

@@ -314,10 +314,8 @@ export class KanbanWebviewPanel {
                 getWebviewPanel: () => this,
                 saveWithBackup: this._createUnifiedBackup.bind(this),
                 markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => {
-                    console.log(`[MARK-UNSAVED-DEBUG] markUnsavedChanges called: hasChanges=${hasChanges}, cachedBoard=${!!cachedBoard}`);
                     const document = this._fileManager.getDocument();
                     if (!document) {
-                        console.log(`[MARK-UNSAVED-DEBUG] No document, returning`);
                         return;
                     }
 
@@ -332,10 +330,8 @@ export class KanbanWebviewPanel {
                     );
 
                     if (hasChanges && cachedBoard) {
-                        console.log(`[MARK-UNSAVED-DEBUG] Calling trackIncludeFileUnsavedChanges...`);
                         // First, track changes in include files
                         const onlyIncludeChanges = this.trackIncludeFileUnsavedChanges(cachedBoard);
-                        console.log(`[MARK-UNSAVED-DEBUG] trackIncludeFileUnsavedChanges returned: ${onlyIncludeChanges}`);
 
                         // Mark frontend changes based on whether main file or only includes changed
                         if (!onlyIncludeChanges) {
@@ -355,20 +351,16 @@ export class KanbanWebviewPanel {
                                 .catch(error => console.error('Cache update backup failed:', error));
                         }
                     } else {
-                        console.log(`[MARK-UNSAVED-DEBUG] Else branch: hasChanges=${hasChanges}, cachedBoard=${!!cachedBoard} - trackIncludeFileUnsavedChanges NOT called`);
 
                         // Check if any include files have unsaved changes before potentially resetting the flag
                         const hasIncludeFileChanges = Array.from(this._includeFiles.values()).some(file => file.hasUnsavedChanges);
-                        console.log(`[MARK-UNSAVED-DEBUG] Checking existing include changes: ${hasIncludeFileChanges}`);
 
                         fileStateManager.markFrontendChange(document.uri.fsPath, hasChanges);
 
                         // Only update _hasUnsavedChanges if we're not losing include file changes
                         if (hasChanges || !hasIncludeFileChanges) {
                             this._hasUnsavedChanges = hasChanges;
-                            console.log(`[MARK-UNSAVED-DEBUG] Setting _hasUnsavedChanges=${hasChanges} (no conflict with include changes)`);
                         } else {
-                            console.log(`[MARK-UNSAVED-DEBUG] Preserving _hasUnsavedChanges=true due to existing include file changes`);
                             this._hasUnsavedChanges = true;
                         }
                     }
@@ -401,11 +393,8 @@ export class KanbanWebviewPanel {
      * Get or create an include file entry in the unified system
      */
     private getOrCreateIncludeFile(relativePath: string, type: 'regular' | 'column' | 'task'): IncludeFile {
-        console.log(`[getOrCreateIncludeFile] Looking for ${relativePath} in map with ${this._includeFiles.size} entries`);
-        console.log(`[getOrCreateIncludeFile] Map keys:`, Array.from(this._includeFiles.keys()));
         let includeFile = this._includeFiles.get(relativePath);
         if (!includeFile) {
-            console.log(`[getOrCreateIncludeFile] Creating NEW include file for ${relativePath}`);
             const currentDocument = this._fileManager.getDocument();
             const basePath = currentDocument ? path.dirname(currentDocument.uri.fsPath) : '';
             const absolutePath = path.resolve(basePath, relativePath);
@@ -415,7 +404,6 @@ export class KanbanWebviewPanel {
             const existingState = fileStateManager.getFileState(absolutePath);
             const preservedUnsavedFlag = existingState?.frontend?.hasUnsavedChanges || false;
 
-            console.log(`[getOrCreateIncludeFile] Preserving hasUnsavedChanges=${preservedUnsavedFlag} for ${relativePath}`);
 
             // Load actual file content for proper baseline
             let fileContent = '';
@@ -478,10 +466,8 @@ export class KanbanWebviewPanel {
                 if (!preserveUnsavedFlag) {
                     includeFile.hasUnsavedChanges = false;
                     if (previousUnsaved) {
-                        console.log(`[RESETTING UNSAVED] Reset hasUnsavedChanges from true to false for ${relativePath} in updateIncludeFileContent`);
                     }
                 } else {
-                    console.log(`[PRESERVING UNSAVED] Keeping hasUnsavedChanges=${previousUnsaved} for ${relativePath} during external load`);
                 }
             }
 
@@ -704,7 +690,6 @@ export class KanbanWebviewPanel {
                 if (doc.uri.fsPath === includeFile.absolutePath) {
                     includeFile.isUnsavedInEditor = doc.isDirty;
                     if (doc.isDirty) {
-                        console.log(`[KanbanWebviewPanel] Include file ${relativePath} has unsaved changes in editor`);
                     }
                     break;
                 }
@@ -1967,14 +1952,12 @@ export class KanbanWebviewPanel {
 
         // If there's already an active dialog, wait for it to complete first
         if (this._activeConflictDialog) {
-            console.log('[ConflictDialog] Another dialog is active, waiting...');
             await this._activeConflictDialog;
         }
 
         // Throttle dialog frequency to prevent spam
         const timeSinceLastDialog = now - this._lastDialogTimestamp;
         if (timeSinceLastDialog < this._MIN_DIALOG_INTERVAL) {
-            console.log(`[ConflictDialog] Throttling dialog, ${this._MIN_DIALOG_INTERVAL - timeSinceLastDialog}ms remaining`);
             return null; // Skip this dialog
         }
 
@@ -2112,7 +2095,6 @@ export class KanbanWebviewPanel {
 
                     // Mark the included file as having unsaved changes in the editor (legacy compatibility)
                     includeFile.isUnsavedInEditor = event.document.isDirty;
-                    console.log(`[KanbanWebviewPanel] Included file ${relativePath} isDirty: ${event.document.isDirty}`);
 
                     // Notify debug overlay to update
                     this._panel.webview.postMessage({
@@ -2136,7 +2118,6 @@ export class KanbanWebviewPanel {
                 // Document was saved, update our version tracking to match (legacy compatibility)
                 this._lastDocumentVersion = document.version;
                 this._hasExternalUnsavedChanges = false;
-                console.log(`[KanbanWebviewPanel] Document saved, updated version tracking to ${document.version}`);
             }
 
             // Check if this is an included file
@@ -2147,7 +2128,6 @@ export class KanbanWebviewPanel {
 
                     // Clear unsaved state for the included file (legacy compatibility)
                     includeFile.isUnsavedInEditor = false;
-                    console.log(`[KanbanWebviewPanel] Included file ${relativePath} saved`);
 
                     // Mark that this include file has external changes that need reloading (legacy compatibility)
                     includeFile.hasExternalChanges = true;
@@ -2989,16 +2969,12 @@ export class KanbanWebviewPanel {
             // Get or create the include file entry
             const unifiedIncludeFile = this.getOrCreateIncludeFile(normalizedPath, 'task');
 
-            console.log(`[TASK-CONFLICT-CHECK] Checking for conflicts on task include: ${normalizedPath}`);
-            console.log(`[TASK-CONFLICT-CHECK] hasUnsavedChanges: ${unifiedIncludeFile?.hasUnsavedChanges}`);
 
             // Check if there are unsaved changes that would be overwritten
             if (unifiedIncludeFile?.hasUnsavedChanges === true) {
-                console.log(`[TASK-CONFLICT-DETECTED] Task include ${normalizedPath} has unsaved changes - showing conflict dialog`);
                 // Show conflict dialog just like column includes
                 await this.handleIncludeFileConflict(absolutePath, normalizedPath);
             } else {
-                console.log(`[TASK-NO-CONFLICT] No conflicts for task include ${normalizedPath} - proceeding with update`);
                 // No conflicts, proceed with direct update
                 await this.loadNewTaskIncludeContent(task, [relativePath]);
             }
@@ -3061,7 +3037,6 @@ export class KanbanWebviewPanel {
      */
     private async handleIncludeFileConflict(filePath: string, changeType: string): Promise<void> {
         const fileName = path.basename(filePath);
-        console.log(`[CONFLICT-DEBUG] handleIncludeFileConflict called for ${fileName}`);
 
         // Get the relative path for unified system lookup
         const currentDocument = this._fileManager.getDocument();
@@ -3080,10 +3055,8 @@ export class KanbanWebviewPanel {
         // Get the include file from unified system
         const includeFile = this._includeFiles.get(relativePath);
         if (!includeFile) {
-            console.log(`[CONFLICT-DEBUG] No include file found for ${relativePath}, returning early`);
             return;
         }
-        console.log(`[CONFLICT-DEBUG] Include file found, proceeding with conflict detection`);
 
         // Don't process include file changes if we're currently updating from the panel
         // But only for column/task includes which can be edited internally
@@ -3094,15 +3067,12 @@ export class KanbanWebviewPanel {
 
         // Capture the unsaved changes flag BEFORE any file operations
         let hasUnsavedIncludeChanges = includeFile.hasUnsavedChanges;
-        console.log(`[PRE-CONFLICT] ${path.basename(filePath)} - hasUnsavedChanges BEFORE external load: ${hasUnsavedIncludeChanges}`);
 
         if (hasUnsavedIncludeChanges) {
-            console.log(`[CONFLICT-EXPECTED] ${path.basename(filePath)} - Has unsaved changes, should show conflict dialog if external changes detected`);
         }
 
         // Check if the external file has actually changed BEFORE loading it (for automatic reload decision)
         const hasExternalChangesBeforeLoad = this.hasExternalChanges(relativePath);
-        console.log(`[CONFLICT-DEBUG] hasExternalChanges BEFORE load: ${hasExternalChangesBeforeLoad} for ${relativePath}`);
 
         // If no unsaved changes but there are external changes, safely update internal content
         if (!hasUnsavedIncludeChanges && hasExternalChangesBeforeLoad) {
@@ -3133,14 +3103,11 @@ export class KanbanWebviewPanel {
 
         // Read the potentially preserved hasUnsavedChanges flag after content loading
         const finalUnsavedState = includeFile.hasUnsavedChanges;
-        console.log(`[POST-CONFLICT] ${path.basename(filePath)} - hasUnsavedChanges AFTER external load: ${finalUnsavedState}`);
 
         // Debug the state values
-        console.log(`[CONFLICT-STATE] ${path.basename(filePath)} - hasUnsavedIncludeChanges: ${hasUnsavedIncludeChanges}, hasExternalChanges: ${hasExternalChanges}`);
 
         // Only log actual conflicts where user intervention is needed
         if (hasUnsavedIncludeChanges && hasExternalChanges) {
-            console.log(`[CONFLICT] ${path.basename(filePath)} - Both internal changes AND external changes detected - showing conflict dialog`);
         }
 
 
@@ -3317,23 +3284,21 @@ export class KanbanWebviewPanel {
         const basePath = path.dirname(currentDocument.uri.fsPath);
         const relativePath = path.relative(basePath, filePath);
 
-        // Normalize path to match the format stored in includeFiles (with ./ prefix)
+        // Normalize path to match the format stored in includeFiles
+        // Column includes store without ./ prefix, task includes store with ./ prefix
         const normalizedRelativePath = relativePath.startsWith('./') ? relativePath : './' + relativePath;
+        const normalizedRelativePathWithoutPrefix = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
 
         for (const column of this._board.columns) {
-            // Check column includes
-            if (column.includeMode && column.includeFiles?.includes(normalizedRelativePath)) {
-                console.log(`[saveIncludeFileAsBackup] Found column include match for ${normalizedRelativePath}`);
+            // Check column includes (they store without ./ prefix)
+            if (column.includeMode && column.includeFiles?.includes(normalizedRelativePathWithoutPrefix)) {
                 const presentationContent = PresentationParser.tasksToPresentation(column.tasks);
-                console.log(`[saveIncludeFileAsBackup] Column presentation content length: ${presentationContent.length}`);
 
                 // Use BackupManager for consistent backup creation
                 const backupPath = await this._backupManager.createFileBackup(filePath, presentationContent, {
                     label: 'conflict',
                     forceCreate: true
                 });
-
-                console.log(`[saveIncludeFileAsBackup] Column backup result: ${backupPath}`);
 
                 if (backupPath) {
                     vscode.window.showInformationMessage(
@@ -3401,12 +3366,33 @@ export class KanbanWebviewPanel {
         const basePath = path.dirname(currentDocument.uri.fsPath);
         const relativePath = path.relative(basePath, filePath);
 
+        // Normalize paths for comparison (task includes use ./ prefix, column includes don't)
+        const normalizedRelativePath = relativePath.startsWith('./') ? relativePath : './' + relativePath;
+        const normalizedRelativePathWithoutPrefix = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
 
-        // Find the column that uses this include file and save its changes
+        // First check column includes (they store without ./ prefix)
         for (const column of this._board.columns) {
-            if (column.includeMode && column.includeFiles?.includes(relativePath)) {
+            if (column.includeMode && column.includeFiles?.includes(normalizedRelativePathWithoutPrefix)) {
                 await this.saveColumnIncludeChanges(column);
-                break;
+                return; // Found and saved column include
+            }
+        }
+
+        // Then check task includes (they also store without ./ prefix, same as columns)
+        for (const column of this._board.columns) {
+            for (const task of column.tasks) {
+                if (task.includeMode && task.includeFiles?.includes(normalizedRelativePathWithoutPrefix)) {
+                    // Save task include content
+                    await this.saveTaskIncludeChanges(task);
+
+                    // Also clear the unsaved changes flag in unified system
+                    const includeFile = this._includeFiles.get(normalizedRelativePath);
+                    if (includeFile) {
+                        includeFile.hasUnsavedChanges = false;
+                    }
+
+                    return; // Found and saved task include
+                }
             }
         }
     }
@@ -3416,17 +3402,9 @@ export class KanbanWebviewPanel {
      */
     private async handleExternalFileChange(event: import('./externalFileWatcher').FileChangeEvent): Promise<void> {
         try {
-            console.log(`[External File Change] Received event:`, {
-                path: event.path,
-                changeType: event.changeType,
-                fileType: event.fileType,
-                affectedPanels: event.panels.length,
-                isThisPanel: event.panels.includes(this)
-            });
 
             // Check if this panel is affected by the change
             if (!event.panels.includes(this)) {
-                console.log(`[External File Change] Panel not affected by change`);
                 return;
             }
 
@@ -3438,15 +3416,12 @@ export class KanbanWebviewPanel {
 
                 if (isColumnInclude || isTaskInclude) {
                     // This is a column or task include file - handle conflict resolution
-                    console.log(`[External File Change] Calling handleIncludeFileConflict for ${isColumnInclude ? 'column' : 'task'} include`);
                     await this.handleIncludeFileConflict(event.path, event.changeType);
                 } else {
                     // This is an inline include file - use conflict resolution
-                    console.log(`[External File Change] Calling handleInlineIncludeFileChange for inline include`);
                     await this.handleInlineIncludeFileChange(event.path, event.changeType);
                 }
             } else if (event.fileType === 'main') {
-                console.log(`[External File Change] Handling main file change: ${event.path}`);
                 // This is the main kanban file - handle external changes
                 const currentDocument = this._fileManager.getDocument();
                 if (currentDocument) {
@@ -3578,7 +3553,6 @@ export class KanbanWebviewPanel {
             // This allows the file states overview to show the conflict
             const includeFile = this._includeFiles.get(relativePath);
             if (includeFile) {
-                console.log(`[External File Change] Marking ${relativePath} as having external changes`);
 
                 // Read the new external content
                 try {
@@ -3590,13 +3564,7 @@ export class KanbanWebviewPanel {
                         includeFile.externalContent = newExternalContent;
                         includeFile.hasExternalChanges = true;
 
-                        console.log(`[External File Change] ${relativePath} content differs:
-                            Current length: ${includeFile.content?.length || 0}
-                            External length: ${newExternalContent?.length || 0}
-                            Marked as having external changes: true
-                        `);
                     } else {
-                        console.log(`[External File Change] ${relativePath} content is identical, no external changes to mark`);
                     }
                 } catch (readError) {
                     console.warn(`[External File Change] Could not read external content for ${filePath}:`, readError);

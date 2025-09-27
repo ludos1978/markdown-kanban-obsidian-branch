@@ -589,7 +589,6 @@ export class MessageHandler {
                 break;
 
             case 'getTrackedFilesDebugInfo':
-                console.log('[DEBUG MessageHandler] Received getTrackedFilesDebugInfo request');
                 await this.handleGetTrackedFilesDebugInfo();
                 break;
 
@@ -806,7 +805,6 @@ export class MessageHandler {
      */
     private async handleOpenFile(filePath: string): Promise<void> {
         try {
-            console.log(`[DEBUG MessageHandler] Opening file: ${filePath}`);
 
             // Resolve the file path to absolute if it's relative
             let absolutePath = filePath;
@@ -826,7 +824,6 @@ export class MessageHandler {
             const fileUri = vscode.Uri.file(absolutePath);
             await vscode.commands.executeCommand('vscode.open', fileUri);
 
-            console.log(`[DEBUG MessageHandler] Successfully opened file: ${absolutePath}`);
 
         } catch (error) {
             console.error(`[MessageHandler] Error opening file ${filePath}:`, error);
@@ -1827,7 +1824,6 @@ export class MessageHandler {
             const debugData = await this.collectTrackedFilesDebugInfo();
 
             // Send debug data to frontend
-            console.log('[DEBUG MessageHandler] Sending debug data to frontend:', debugData);
             panel._panel.webview.postMessage({
                 type: 'trackedFilesDebugInfo',
                 data: debugData
@@ -1856,7 +1852,6 @@ export class MessageHandler {
                 type: 'debugCacheCleared'
             });
 
-            console.log('[MessageHandler] Tracked files cache cleared');
 
         } catch (error) {
             console.error('[MessageHandler] Error clearing tracked files cache:', error);
@@ -1905,7 +1900,6 @@ export class MessageHandler {
                 reloadCount: reloadCount
             });
 
-            console.log(`[MessageHandler] Reloaded ${reloadCount} included files and refreshed webview`);
 
         } catch (error) {
             console.error('[MessageHandler] Error reloading all included files:', error);
@@ -1925,7 +1919,6 @@ export class MessageHandler {
             if (isMainFile) {
                 // Save the main kanban file by triggering the existing save mechanism
                 await panel.saveToMarkdown();
-                console.log('[MessageHandler] Saved main kanban file');
 
                 panel._panel.webview.postMessage({
                     type: 'individualFileSaved',

@@ -11,7 +11,7 @@ Each functions is described as:
 
 Never try to add an alternative implementation. Dont try to add failsaves or backup solutions, we need the general execution to be perfect.
 
-if you add logs, make sure they are at keypoints of relevant data modifications. only trigger them when data is modified, keep logs that are triggered by events minimal.
+if you add logs, make sure they are at keypoints of relevant data modifications. only add logs to code instances when data is modified, keep logs that are triggered by events minimal. minimize the number of logs in the code. check front and backend and remove any unneeded logs except errors and warnings, or logs related to the current task.
 
 General rules:
 - use relative paths, relative to the main kanban file for all data storage, except for included files, they use relative paths to theyr own location.
@@ -25,5 +25,6 @@ General rules:
 - use files to store informations that you can use in this working session. store them in ./tmp/ dont add them to the repository, dont add changes of files in the ./tests to the reposority
 - allways check for compile errors
 - allways check for log messages that could be removed or made to show up less often.
-- allways use a tag to add to log files such s [kanban.functionname]
+- allways use a tag to add to log files such s [kanban.functionname.topic-debug-label]
 - the default for save/reload actions is to not save and not reload. pressing escape should show the dialogue again.
+- allways think, for every time we try to recolve an unfixed problem think even harder.

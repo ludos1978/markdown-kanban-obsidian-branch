@@ -4,6 +4,20 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] bug that closes the kanban: "runtime-tracker.js:360 Failed to save runtime report to localStorage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'runtimeReport_session_1758956943015_6drhykryu' exceeded the quota.
+    at RuntimeTracker.saveReport (runtime-tracker.js:358:26)
+    at runtime-tracker.js:84:22"
+
+- [ ] conflict tracking behaviour:
+if the external file is modified (in vscode) without saving and then the internal file is modified and saved. we rely on the standard overwrite / difference of vscode.
+if the external file is modified and saved and the kanban has no saved or unsaved changes and is not in edit mode. the kanban can reload the modified data immediately.
+if the external file is modified and saved (a file modification is detected) and the kanban has saved or unsaved changes or is in edit mode:
+- the conflict manager must ask the user wether he wants to (default) ignore the external changes (nothing happens, remember we still have unsaved changes in the kanban)
+- overwrite the external file with the kanban contents (the kanban is then in an unedited state)
+- save the kanban as a backup file and reload the kanban from the external changes (original kanban is stored in a backup file, the external changes of the markdown are loaded into the kanban)
+- discard the changes in the kanban and reload from the external edit.
+
+
 - [ ] add an option to the export as in which style to export. it can be eigher kanbanstyle (does not modify the style) or it can be presentation style (which uses the same method as when copying the columns and cards as markdown.
 - [x] OBSOLETE, WRONG ASSUMPTION. 1. Clicking on the task description to edit it: 2. Changing the text from !!!include(./markdown-include-2.md)!!! to something like   !!!include(. markdown-include-1.md)!!! 3. stop editing the field. - should result in an modfied included content. but does not. Instead it shows Loading: newfilename.md forever. i think the backend is missing an editTaskDescription that handles the contents similar to the editTaskTitle which checks for includes and handles it there. or where does that happen?
 - ok, i did an error. the !!!include()!!! must be run in the frontend only, as it's genearted with the markdown-ti. i undid all changes. try to get it running again with in this style.

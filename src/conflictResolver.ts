@@ -162,7 +162,7 @@ export class ConflictResolver {
                     shouldProceed: true,
                     shouldCreateBackup: false,
                     shouldSave: false,
-                    shouldReload: false,
+                    shouldReload: true,
                     shouldIgnore: false
                 };
             default:

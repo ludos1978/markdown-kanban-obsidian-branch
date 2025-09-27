@@ -2493,19 +2493,11 @@ window.addEventListener('message', event => {
             break;
         case 'updateColumnContent':
             // Handle targeted column content update for include file changes
-            console.log('[Frontend] Received updateColumnContent message:', message);
 
             // Update the column in cached board
             if (window.cachedBoard && window.cachedBoard.columns) {
                 const column = window.cachedBoard.columns.find(c => c.id === message.columnId);
-                console.log('[Frontend] Found column for update:', column ? column.id : 'not found');
                 if (column) {
-                    console.log('[Frontend] Updating column with:', {
-                        oldTasks: column.tasks.length,
-                        newTasks: message.tasks ? message.tasks.length : 0,
-                        oldIncludeFiles: column.includeFiles,
-                        newIncludeFiles: message.includeFiles
-                    });
 
                     // Update tasks and column metadata
                     column.tasks = message.tasks || [];
@@ -2514,14 +2506,11 @@ window.addEventListener('message', event => {
                     column.includeMode = message.includeMode;
                     column.includeFiles = message.includeFiles;
 
-                    console.log('[Frontend] About to re-render column, renderSingleColumn available:', typeof renderSingleColumn === 'function');
 
                     // Re-render just this column
                     if (typeof renderSingleColumn === 'function') {
-                        console.log('[Frontend] Calling renderSingleColumn for column:', message.columnId);
                         renderSingleColumn(message.columnId, column);
                     } else {
-                        console.log('[Frontend] Fallback to renderBoard');
                         if (typeof window.renderBoard === 'function') {
                             window.renderBoard();
                         }
@@ -2621,16 +2610,12 @@ window.addEventListener('message', event => {
 
         case 'debugCacheCleared':
             // Handle debug cache clear confirmation
-            console.log('[Debug] Cache cleared by backend');
             break;
 
         case 'allIncludedFilesReloaded':
             // Handle reload confirmation
-            console.log(`[Debug] Reloaded ${message.reloadCount} included files`);
             if (message.reloadCount > 0) {
-                console.log(`[Debug] Reloaded ${message.reloadCount} included files`);
-            } else {
-                console.log('[Debug] No included files found to reload');
+                } else {
             }
             break;
 
@@ -2638,8 +2623,6 @@ window.addEventListener('message', event => {
             // Handle individual file save confirmation
             const fileName = message.filePath.split('/').pop();
             if (message.success) {
-                console.log(`[Debug] Successfully saved ${fileName}`);
-                console.log(`[Debug] Saved ${fileName}`);
                 // Refresh the debug overlay to show updated states
                 if (typeof window.refreshDebugOverlay === 'function') {
                     setTimeout(() => window.refreshDebugOverlay(), 500);
@@ -2654,8 +2637,6 @@ window.addEventListener('message', event => {
             // Handle individual file reload confirmation
             const reloadedFileName = message.filePath.split('/').pop();
             if (message.success) {
-                console.log(`[Debug] Successfully reloaded ${reloadedFileName}`);
-                console.log(`[Debug] Reloaded ${reloadedFileName}`);
                 // Refresh the debug overlay to show updated states
                 if (typeof window.refreshDebugOverlay === 'function') {
                     setTimeout(() => window.refreshDebugOverlay(), 500);
