@@ -4,18 +4,21 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] i dont see any reason, but after some time the kanban just closes. maybe this has something to do with it? """console.ts:137 [Extension Host] deleteChain called from files/closed (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:175:30205))"""
+
 - [ ] bug that closes the kanban: "runtime-tracker.js:360 Failed to save runtime report to localStorage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'runtimeReport_session_1758956943015_6drhykryu' exceeded the quota.
     at RuntimeTracker.saveReport (runtime-tracker.js:358:26)
     at runtime-tracker.js:84:22"
 
 - [ ] conflict tracking behaviour:
-if the external file is modified (in vscode) without saving and then the internal file is modified and saved. we rely on the standard overwrite / difference of vscode.
-if the external file is modified and saved and the kanban has no saved or unsaved changes and is not in edit mode. the kanban can reload the modified data immediately.
-if the external file is modified and saved (a file modification is detected) and the kanban has saved or unsaved changes or is in edit mode:
-- the conflict manager must ask the user wether he wants to (default) ignore the external changes (nothing happens, remember we still have unsaved changes in the kanban)
-- overwrite the external file with the kanban contents (the kanban is then in an unedited state)
-- save the kanban as a backup file and reload the kanban from the external changes (original kanban is stored in a backup file, the external changes of the markdown are loaded into the kanban)
-- discard the changes in the kanban and reload from the external edit.
+- if the external file is modified and saved (a file modification is detected) and the kanban has saved or unsaved changes or is in edit mode:
+	- the conflict manager must ask the user wether he wants to (default) ignore the external changes (nothing happens, remember we still have unsaved changes in the kanban)
+	- overwrite the external file with the kanban contents (the kanban is then in an unedited state)
+	- save the kanban as a backup file and reload the kanban from the external changes (original kanban is stored in a backup file, the external changes of the markdown are loaded into the kanban)
+	- discard the changes in the kanban and reload from the external edit.
+- if the external file is modified and saved and the kanban has no saved or unsaved changes and is not in edit mode. the kanban can reload the modified data immediately.
+- if the kanban is modified and saved and the external file has unsaved changes and is later saved. we rely on the default change detection of vscode.
+do this for the kanban and each column and task included files individually. the include files should automatically update on a modification externally, they cannot be modified internally.
 
 
 - [ ] add an option to the export as in which style to export. it can be eigher kanbanstyle (does not modify the style) or it can be presentation style (which uses the same method as when copying the columns and cards as markdown.
