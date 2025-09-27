@@ -69,6 +69,7 @@ export class KanbanWebviewPanel {
     private _includeFiles: Map<string, IncludeFile> = new Map(); // relativePath -> IncludeFile
     private _includeFilesChanged: boolean = false;
     private _changedIncludeFiles: Set<string> = new Set();
+    private _recentlyReloadedFiles: Set<string> = new Set(); // Track files that were just reloaded from external
     private _fileWatcher: ExternalFileWatcher;
     private _conflictResolver: ConflictResolver;
 
@@ -2992,7 +2993,22 @@ export class KanbanWebviewPanel {
         }
 
         const includeColumns = this._board.columns.filter(col => col.includeMode);
-        const savePromises = includeColumns.map(col => this.saveColumnIncludeChanges(col));
+
+        // Filter out columns whose include files were recently reloaded from external
+        const columnsToSave = includeColumns.filter(col => {
+            if (!col.includeFiles || col.includeFiles.length === 0) {
+                return true; // No include files to check
+            }
+
+            // Check if any of the column's include files were recently reloaded
+            return !col.includeFiles.some(file => {
+                const normalizedFile = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
+                const isRecentlyReloaded = this._recentlyReloadedFiles.has(normalizedFile) || this._recentlyReloadedFiles.has(file);
+                return isRecentlyReloaded;
+            });
+        });
+
+        const savePromises = columnsToSave.map(col => this.saveColumnIncludeChanges(col));
 
         try {
             await Promise.all(savePromises);
@@ -3014,7 +3030,16 @@ export class KanbanWebviewPanel {
         for (const column of this._board.columns) {
             for (const task of column.tasks) {
                 if (task.includeMode) {
-                    includeTasks.push(task);
+                    // Check if any of the task's include files were recently reloaded
+                    const shouldSkip = task.includeFiles?.some(file => {
+                        const normalizedFile = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
+                        const isRecentlyReloaded = this._recentlyReloadedFiles.has(normalizedFile) || this._recentlyReloadedFiles.has(file);
+                        return isRecentlyReloaded;
+                    });
+
+                    if (!shouldSkip) {
+                        includeTasks.push(task);
+                    }
                 }
             }
         }
@@ -3074,80 +3099,79 @@ export class KanbanWebviewPanel {
         // Check if the external file has actually changed BEFORE loading it (for automatic reload decision)
         const hasExternalChangesBeforeLoad = this.hasExternalChanges(relativePath);
 
-        // If no unsaved changes but there are external changes, safely update internal content
+        // CASE 1: No unsaved changes + external changes = Auto-reload immediately (no dialog)
+        // This is the normal case for include files since they "cannot be modified internally"
         if (!hasUnsavedIncludeChanges && hasExternalChangesBeforeLoad) {
-            console.log(`[SAFE-UPDATE] ${path.basename(filePath)} - External changes detected, safely updating internal content (no data loss)`);
-            console.log(`[SAFE-UPDATE] Conditions: hasUnsavedIncludeChanges=${hasUnsavedIncludeChanges}, hasExternalChangesBeforeLoad=${hasExternalChangesBeforeLoad}`);
-
-            // Safe update: only update internal content to match external file since there are no unsaved internal changes
-            // For task includes, we need to update the task content in the UI
-            if (includeFile.type === 'task') {
-                console.log(`[SAFE-UPDATE] Updating task include content for ${relativePath}`);
-                await this.updateIncludeFile(filePath, false, true, true);
-            } else {
-                // For column includes, use the normal update path
-                await this.updateIncludeFile(filePath, includeFile.type === 'column', false, true);
-            }
+            // Safe auto-reload: update internal content to match external file
+            await this.updateIncludeFile(filePath, includeFile.type === 'column', includeFile.type === 'task', true);
             return;
         }
 
-        // Load the external content using the unified method (which preserves hasUnsavedChanges)
+        // CASE 2: Has unsaved changes - need to show conflict dialog
+        // Load the external content to check if there's actually a conflict
         const updatedContent = await this.readAndUpdateIncludeContent(filePath, relativePath);
         if (updatedContent === null) {
-            console.log(`[handleIncludeFileConflict] Could not read external content for ${filePath}`);
             return;
         }
 
-        // Check external changes again AFTER loading (this will be false if content was synced)
+        // Check external changes again AFTER loading
         const hasExternalChanges = this.hasExternalChanges(relativePath);
 
-        // Read the potentially preserved hasUnsavedChanges flag after content loading
-        const finalUnsavedState = includeFile.hasUnsavedChanges;
-
-        // Debug the state values
-
-        // Only log actual conflicts where user intervention is needed
-        if (hasUnsavedIncludeChanges && hasExternalChanges) {
-        }
-
-
+        // CASE 3: No conflict - nothing to do
         if (!hasUnsavedIncludeChanges && !hasExternalChanges) {
-            // No unsaved changes and no external changes - nothing to do
             return;
         }
 
-        // Use the unified conflict resolver
+        // CASE 4: Show conflict dialog with proper options per specification
         const context: ConflictContext = {
             type: 'external_include',
             fileType: 'include',
             filePath: filePath,
             fileName: fileName,
-            hasMainUnsavedChanges: false, // Not relevant for include file conflicts
+            hasMainUnsavedChanges: false,
             hasIncludeUnsavedChanges: hasUnsavedIncludeChanges,
             hasExternalChanges: hasExternalChanges,
-            changedIncludeFiles: [filePath]
+            changedIncludeFiles: [relativePath]
         };
 
         try {
-            const resolution = await this.showConflictDialog(context);
-
-            if (!resolution) {
-                // Dialog was throttled/skipped
-                return;
-            }
+            const resolution = await this._conflictResolver.resolveConflict(context);
 
             if (resolution.shouldReload && !resolution.shouldCreateBackup) {
                 // Discard local changes and reload from external file
                 includeFile.hasUnsavedChanges = false;
                 await this.updateIncludeFile(filePath, includeFile.type === 'column', includeFile.type === 'task', true);
 
+                // Mark this file as recently reloaded to prevent immediate re-saving
+                const basePath = path.dirname(this._fileManager.getDocument()!.uri.fsPath);
+                const relativePath = path.relative(basePath, filePath);
+                const normalizedPath = (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) ? './' + relativePath : relativePath;
+                this._recentlyReloadedFiles.add(normalizedPath);
+
+                // Clear the flag after a short delay to allow normal saving later
+                setTimeout(() => {
+                    this._recentlyReloadedFiles.delete(normalizedPath);
+                }, 2000); // 2 second delay
+
             } else if (resolution.shouldCreateBackup && resolution.shouldReload) {
                 // Save current changes as backup, then reload external
                 if (includeFile.type === 'column' || includeFile.type === 'task') {
                     await this.saveIncludeFileAsBackup(filePath);
                 }
+
                 includeFile.hasUnsavedChanges = false;
                 await this.updateIncludeFile(filePath, includeFile.type === 'column', includeFile.type === 'task', true);
+
+                // Mark this file as recently reloaded to prevent immediate re-saving
+                const basePath = path.dirname(this._fileManager.getDocument()!.uri.fsPath);
+                const relativePath = path.relative(basePath, filePath);
+                const normalizedPath = (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) ? './' + relativePath : relativePath;
+                this._recentlyReloadedFiles.add(normalizedPath);
+
+                // Clear the flag after a short delay to allow normal saving later
+                setTimeout(() => {
+                    this._recentlyReloadedFiles.delete(normalizedPath);
+                }, 2000); // 2 second delay
 
             } else if (resolution.shouldSave && !resolution.shouldReload) {
                 // Save current kanban changes, overwriting external
@@ -3364,34 +3388,71 @@ export class KanbanWebviewPanel {
         }
 
         const basePath = path.dirname(currentDocument.uri.fsPath);
-        const relativePath = path.relative(basePath, filePath);
+        let relativePath: string;
 
-        // Normalize paths for comparison (task includes use ./ prefix, column includes don't)
+        // Handle both absolute and relative paths
+        if (path.isAbsolute(filePath)) {
+            relativePath = path.relative(basePath, filePath);
+        } else {
+            relativePath = filePath;
+        }
+
+        // Normalize paths for comparison - need to handle both storage formats
         const normalizedRelativePath = relativePath.startsWith('./') ? relativePath : './' + relativePath;
         const normalizedRelativePathWithoutPrefix = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
 
-        // First check column includes (they store without ./ prefix)
+        // Check column includes - they can be stored in multiple formats
         for (const column of this._board.columns) {
-            if (column.includeMode && column.includeFiles?.includes(normalizedRelativePathWithoutPrefix)) {
-                await this.saveColumnIncludeChanges(column);
-                return; // Found and saved column include
+            if (column.includeMode && column.includeFiles) {
+                // Check if any of the stored paths match our target file
+                const hasMatch = column.includeFiles.some(storedPath => {
+                    // Compare all possible path formats
+                    const normalizedStored = storedPath.startsWith('./') ? storedPath : './' + storedPath;
+                    const storedWithoutPrefix = storedPath.startsWith('./') ? storedPath.substring(2) : storedPath;
+
+                    return storedPath === relativePath ||
+                           storedPath === normalizedRelativePath ||
+                           storedPath === normalizedRelativePathWithoutPrefix ||
+                           normalizedStored === normalizedRelativePath ||
+                           storedWithoutPrefix === normalizedRelativePathWithoutPrefix;
+                });
+
+                if (hasMatch) {
+                    await this.saveColumnIncludeChanges(column);
+                    return; // Found and saved column include
+                }
             }
         }
 
-        // Then check task includes (they also store without ./ prefix, same as columns)
+        // Check task includes - they can also be stored in multiple formats
         for (const column of this._board.columns) {
             for (const task of column.tasks) {
-                if (task.includeMode && task.includeFiles?.includes(normalizedRelativePathWithoutPrefix)) {
-                    // Save task include content
-                    await this.saveTaskIncludeChanges(task);
+                if (task.includeMode && task.includeFiles) {
+                    // Check if any of the stored paths match our target file
+                    const hasMatch = task.includeFiles.some(storedPath => {
+                        // Compare all possible path formats
+                        const normalizedStored = storedPath.startsWith('./') ? storedPath : './' + storedPath;
+                        const storedWithoutPrefix = storedPath.startsWith('./') ? storedPath.substring(2) : storedPath;
 
-                    // Also clear the unsaved changes flag in unified system
-                    const includeFile = this._includeFiles.get(normalizedRelativePath);
-                    if (includeFile) {
-                        includeFile.hasUnsavedChanges = false;
+                        return storedPath === relativePath ||
+                               storedPath === normalizedRelativePath ||
+                               storedPath === normalizedRelativePathWithoutPrefix ||
+                               normalizedStored === normalizedRelativePath ||
+                               storedWithoutPrefix === normalizedRelativePathWithoutPrefix;
+                    });
+
+                    if (hasMatch) {
+                        // Save task include content
+                        await this.saveTaskIncludeChanges(task);
+
+                        // Also clear the unsaved changes flag in unified system
+                        const includeFile = this._includeFiles.get(normalizedRelativePath);
+                        if (includeFile) {
+                            includeFile.hasUnsavedChanges = false;
+                        }
+
+                        return; // Found and saved task include
                     }
-
-                    return; // Found and saved task include
                 }
             }
         }

@@ -34,7 +34,8 @@
       "Bash(timeout 30 npm run analyze-cleanup:*)",
       "Bash(gtimeout:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx jest:*)"
     ],
     "deny": [],
     "ask": []

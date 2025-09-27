@@ -153,6 +153,11 @@ global.performance = {
     now: jest.fn(() => Date.now())
 };
 
+// Mock TextEncoder/TextDecoder for Node.js compatibility
+const { TextEncoder, TextDecoder } = require('util');
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
 // Suppress specific warnings in tests
 const originalError = console.error;
 beforeEach(() => {
