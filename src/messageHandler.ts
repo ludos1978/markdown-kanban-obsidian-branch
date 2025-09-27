@@ -884,7 +884,8 @@ export class MessageHandler {
         if (success) {
             // Use cache-first architecture: mark as unsaved but don't send board update
             // The frontend already has the correct state from immediate updates
-            this._markUnsavedChanges(true);
+            // CRITICAL: Pass the current board so that trackIncludeFileUnsavedChanges is called
+            this._markUnsavedChanges(true, this._getCurrentBoard());
         }
     }
 

@@ -143,10 +143,9 @@ export class BackupManager {
                 return null;
             }
 
-            const contentHash = this.hashContent(content);
-
-            // For include files, we'll create a backup if content changes or force is requested
+            // For conflict backups, always create regardless of content comparison
             if (!options.forceCreate) {
+                const contentHash = this.hashContent(content);
                 // Read existing file to compare content
                 try {
                     const existingContent = fs.readFileSync(filePath, 'utf8');
@@ -158,6 +157,7 @@ export class BackupManager {
                     // File might not exist yet, proceed with backup
                 }
             }
+            // If forceCreate is true, skip all content comparison and always create backup
 
             const backupPath = this.generateFileBackupPath(filePath, options.label || 'backup');
 
@@ -167,21 +167,13 @@ export class BackupManager {
                 fs.mkdirSync(backupDir, { recursive: true });
             }
 
-            // Read current file content for backup (before overwriting)
-            let backupContent = '';
-            try {
-                backupContent = fs.readFileSync(filePath, 'utf8');
-            } catch (error) {
-                return null; // No existing file to backup
-            }
-
-            // Write backup file with current content
-            fs.writeFileSync(backupPath, backupContent, 'utf8');
+            // Use the provided content (internal kanban changes) for backup
+            // This is what we want to preserve before reloading from external file
+            fs.writeFileSync(backupPath, content, 'utf8');
 
             // Set hidden attribute on Windows
             await this.setFileHidden(backupPath);
 
-            // console.log(`Include file backup created: ${backupPath}`);
             return backupPath;
 
         } catch (error) {
