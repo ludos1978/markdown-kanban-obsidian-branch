@@ -10,7 +10,7 @@ kanban-plugin: board
     at RuntimeTracker.saveReport (runtime-tracker.js:358:26)
     at runtime-tracker.js:84:22"
 
-- [ ] conflict tracking behaviour:
+- [x] conflict tracking behaviour:
 - if the external file is modified and saved (a file modification is detected) and the kanban has saved or unsaved changes or is in edit mode:
 	- the conflict manager must ask the user wether he wants to (default) ignore the external changes (nothing happens, remember we still have unsaved changes in the kanban)
 	- overwrite the external file with the kanban contents (the kanban is then in an unedited state)

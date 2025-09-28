@@ -64,6 +64,7 @@ export class KanbanWebviewPanel {
     private _filesToRemoveAfterSave: string[] = [];  // Files to remove after unsaved changes are handled
     private _unsavedFilesToPrompt: string[] = [];  // Files with unsaved changes that need user prompt
     private _panelId: string;  // Unique identifier for this panel
+    private _trackedDocumentUri: string | undefined;  // Track the document URI for panel map management
 
     // Unified include file tracking system - single source of truth
     private _includeFiles: Map<string, IncludeFile> = new Map(); // relativePath -> IncludeFile
@@ -169,7 +170,10 @@ export class KanbanWebviewPanel {
 
         // Store the panel in the map and load document
         if (document) {
-            KanbanWebviewPanel.panels.set(document.uri.toString(), kanbanPanel);
+            const docUri = document.uri.toString();
+            kanbanPanel._trackedDocumentUri = docUri;  // Track the URI for cleanup
+            KanbanWebviewPanel.panels.set(docUri, kanbanPanel);
+            console.log(`[KANBAN_CLOSE_DEBUG] createOrShow - Set tracked URI: ${docUri}`);
             // Load immediately - webview will request data when ready
             kanbanPanel.loadMarkdownFile(document);
         }
@@ -265,6 +269,8 @@ export class KanbanWebviewPanel {
         this._extensionUri = extensionUri;
         this._panelId = `panel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; // Generate unique ID
         this._context = context;
+
+        console.log(`[KANBAN_CLOSE_DEBUG] KanbanWebviewPanel created with ID: ${this._panelId}`);
 
         // Initialize components
         this._fileManager = new FileManager(this._panel.webview, extensionUri);
@@ -781,14 +787,23 @@ export class KanbanWebviewPanel {
         // Listen for document close events
         const documentCloseListener = vscode.workspace.onDidCloseTextDocument(async (document) => {
             const currentDocument = this._fileManager.getDocument();
+
+            console.log(`[KANBAN_CLOSE_DEBUG] Document closed: ${document.uri.fsPath}`);
+            console.log(`[KANBAN_CLOSE_DEBUG] Current kanban document: ${currentDocument ? currentDocument.uri.fsPath : 'none'}`);
+
             if (currentDocument && currentDocument.uri.toString() === document.uri.toString()) {
-                // Check for unsaved changes before allowing the document to close
-                await this._handlePanelClose();
-                // Update the file info to show no file loaded
+                console.log(`[KANBAN_CLOSE_DEBUG] Main kanban document was closed - but keeping panel open`);
+                console.log(`[KANBAN_CLOSE_DEBUG] About to call clearDocument() and sendFileInfo()`);
+                // DO NOT close the panel when the document is closed!
+                // The kanban should stay open and functional
+                // Clear document reference but keep file path for display
+                this._fileManager.clearDocument();
                 this._fileManager.sendFileInfo();
+            } else {
+                console.log(`[KANBAN_CLOSE_DEBUG] Unrelated document closed - ignoring`);
             }
         });
-        
+
         this._disposables.push(documentCloseListener);
     }
 
@@ -965,12 +980,15 @@ export class KanbanWebviewPanel {
     private _setupEventListeners() {
         // Handle panel disposal - check for unsaved changes first
         this._panel.onDidDispose(async () => {
+            console.log(`[KANBAN_CLOSE_DEBUG] VS Code triggered panel onDidDispose event`);
+            console.trace(`[KANBAN_CLOSE_DEBUG] onDidDispose call stack`);
             await this._handlePanelClose();
         }, null, this._disposables);
 
         // View state change handler
         this._panel.onDidChangeViewState(
             e => {
+                console.log(`[KANBAN_CLOSE_DEBUG] Panel view state changed - visible: ${e.webviewPanel.visible}, active: ${e.webviewPanel.active}`);
                 if (e.webviewPanel.visible) {
                     // Panel became visible - send file info
                     this._fileManager.sendFileInfo();
@@ -1147,15 +1165,21 @@ export class KanbanWebviewPanel {
         // If document changed or this is the first document, update panel tracking
         if (documentChanged || isFirstDocumentLoad) {
             // Remove this panel from old document tracking
-            const oldDocUri = previousDocument?.uri.toString();
+            const oldDocUri = this._trackedDocumentUri || previousDocument?.uri.toString();
             if (oldDocUri && KanbanWebviewPanel.panels.get(oldDocUri) === this) {
+                console.log(`[KANBAN_CLOSE_DEBUG] Removing old panel tracking for: ${oldDocUri}`);
                 KanbanWebviewPanel.panels.delete(oldDocUri);
-                // Unregister the old main file from the watcher
-                this._fileWatcher.unregisterFile(previousDocument!.uri.fsPath, this);
+                // Unregister the old main file from the watcher if we have a previous document
+                if (previousDocument) {
+                    this._fileWatcher.unregisterFile(previousDocument.uri.fsPath, this);
+                }
             }
 
             // Add to new document tracking
-            KanbanWebviewPanel.panels.set(document.uri.toString(), this);
+            const newDocUri = document.uri.toString();
+            this._trackedDocumentUri = newDocUri;  // Remember this URI for cleanup
+            KanbanWebviewPanel.panels.set(newDocUri, this);
+            console.log(`[KANBAN_CLOSE_DEBUG] Added panel tracking for: ${newDocUri}`);
 
             // Update panel title
             const fileName = path.basename(document.fileName);
@@ -1546,12 +1570,9 @@ export class KanbanWebviewPanel {
             vscode.window.showWarningMessage(
                 `Cannot initialize: "${path.basename(document.fileName)}" has been closed. Please reopen the file.`,
                 'Open File'
-            ).then(selection => {
+            ).then(async selection => {
                 if (selection === 'Open File') {
-                    vscode.workspace.openTextDocument(document.uri).then(reopenedDoc => {
-                        this.loadMarkdownFile(reopenedDoc);
-                        vscode.window.showTextDocument(reopenedDoc);
-                    });
+                    await this.openFileWithReuseCheck(document.uri.fsPath);
                 }
             });
             return;
@@ -1816,6 +1837,8 @@ export class KanbanWebviewPanel {
     }
 
     public async dispose() {
+        console.log(`[KANBAN_CLOSE_DEBUG] dispose() called - cleaning up kanban panel`);
+        console.trace(`[KANBAN_CLOSE_DEBUG] dispose() call stack`);
 
         // Clear unsaved changes flag and prevent closing flags
         this._hasUnsavedChanges = false;
@@ -1830,10 +1853,18 @@ export class KanbanWebviewPanel {
         // Unregister from external file watcher
         this._fileWatcher.unregisterPanel(this);
 
-        // Remove from panels map
-        const documentUri = this._fileManager.getDocument()?.uri.toString();
-        if (documentUri && KanbanWebviewPanel.panels.get(documentUri) === this) {
-            KanbanWebviewPanel.panels.delete(documentUri);
+        // Remove from panels map using the tracked URI (which persists even after document is closed)
+        if (this._trackedDocumentUri && KanbanWebviewPanel.panels.get(this._trackedDocumentUri) === this) {
+            console.log(`[KANBAN_CLOSE_DEBUG] Removing panel from map using tracked URI: ${this._trackedDocumentUri}`);
+            KanbanWebviewPanel.panels.delete(this._trackedDocumentUri);
+        }
+
+        // Also check all entries as a fallback in case tracking failed
+        for (const [uri, panel] of KanbanWebviewPanel.panels.entries()) {
+            if (panel === this) {
+                console.log(`[KANBAN_CLOSE_DEBUG] Found and removing panel from map with URI (fallback): ${uri}`);
+                KanbanWebviewPanel.panels.delete(uri);
+            }
         }
 
         // Clear panel state
@@ -1871,12 +1902,9 @@ export class KanbanWebviewPanel {
                 vscode.window.showInformationMessage(
                     `Internal kanban changes backed up as: ${backupFileName}`,
                     'Open backup file'
-                ).then((choice) => {
+                ).then(async (choice) => {
                     if (choice === 'Open backup file') {
-                        const backupUri = vscode.Uri.file(backupPath);
-                        vscode.workspace.openTextDocument(backupUri).then(backupDocument => {
-                            vscode.window.showTextDocument(backupDocument);
-                        });
+                        await this.openFileWithReuseCheck(backupPath);
                     }
                 });
             } else {
@@ -2143,14 +2171,12 @@ export class KanbanWebviewPanel {
                     });
 
                     // Trigger external change handling which will offer to reload
-                    console.log(`[onDidSaveTextDocument] Creating change event for ${relativePath}`);
                     const changeEvent: import('./externalFileWatcher').FileChangeEvent = {
                         path: includeFile.absolutePath,
                         changeType: 'modified',
                         fileType: 'include',
                         panels: [this]
                     };
-                    console.log(`[onDidSaveTextDocument] Calling handleExternalFileChange for saved file`);
                     this.handleExternalFileChange(changeEvent);
                     break;
                 }
@@ -2743,11 +2769,9 @@ export class KanbanWebviewPanel {
         newIncludeFiles: string[],
         source: 'external_file_change' | 'column_title_edit' | 'manual_refresh' | 'conflict_resolution'
     ): Promise<void> {
-        console.log(`[UNIFIED] Include content update requested from: ${source}`);
 
         // For external file changes, we MUST go through conflict detection
         if (source === 'external_file_change') {
-            console.log(`[UNIFIED] External file change detected - this should go through handleIncludeFileConflict, not direct update!`);
             throw new Error('External file changes must go through handleIncludeFileConflict for proper conflict detection');
         }
 
@@ -2760,7 +2784,6 @@ export class KanbanWebviewPanel {
      * INTERNAL METHOD - should only be called from updateIncludeContentUnified
      */
     private async loadNewIncludeContent(column: KanbanColumn, newIncludeFiles: string[]): Promise<void> {
-        console.log(`[TRACE] loadNewIncludeContent called from:`, new Error().stack?.split('\n')[2]?.trim());
 
         try {
             const currentDocument = this._fileManager.getDocument();
@@ -2774,18 +2797,14 @@ export class KanbanWebviewPanel {
             // For now, handle single file includes
             const includeFile = newIncludeFiles[0];
             const absolutePath = path.resolve(basePath, includeFile);
-            console.log(`[loadNewIncludeContent] Resolved absolute path: ${absolutePath}`);
-            console.log(`[loadNewIncludeContent] File exists: ${fs.existsSync(absolutePath)}`);
 
             // Ensure the new include file is registered in the unified system
-            console.log(`[loadNewIncludeContent] Registering new include file: ${includeFile}`);
             this.getOrCreateIncludeFile(includeFile, 'column');
 
             // Use shared method to read and update content
             const fileContent = await this.readAndUpdateIncludeContent(absolutePath, includeFile);
 
             if (fileContent !== null) {
-                console.log(`[loadNewIncludeContent] File content length: ${fileContent.length}`);
 
                 // Smart detection: check if content is presentation format or regular markdown tasks
                 const hasSlideMarkers = fileContent.includes('---');
@@ -2794,21 +2813,17 @@ export class KanbanWebviewPanel {
                 let newTasks: KanbanTask[];
                 if (hasSlideMarkers && !hasTaskMarkers) {
                     // Use presentation parser for slide-based content
-                    console.log(`[loadNewIncludeContent] Detected presentation format, using PresentationParser`);
                     newTasks = PresentationParser.parseMarkdownToTasks(fileContent);
                 } else if (hasTaskMarkers) {
                     // Use existing markdown parser for task-based content
-                    console.log(`[loadNewIncludeContent] Detected task format, using MarkdownKanbanParser`);
                     const tempParseResult = MarkdownKanbanParser.parseMarkdown(fileContent);
                     // Extract all tasks from all columns in the parsed board
                     newTasks = tempParseResult.board.columns.flatMap(col => col.tasks);
                 } else {
                     // Default to presentation parser
-                    console.log(`[loadNewIncludeContent] No specific format detected, using PresentationParser as fallback`);
                     newTasks = PresentationParser.parseMarkdownToTasks(fileContent);
                 }
 
-                console.log(`[loadNewIncludeContent] Parsed ${newTasks.length} tasks from content`);
 
                 // Update the column's tasks directly
                 column.tasks = newTasks;
@@ -2823,17 +2838,13 @@ export class KanbanWebviewPanel {
                     includeMode: column.includeMode,
                     includeFiles: column.includeFiles
                 };
-                console.log(`[loadNewIncludeContent] Sending updateColumnContent message:`, updateMessage);
 
                 // Send targeted update message to frontend instead of full refresh
                 this._panel.webview.postMessage(updateMessage);
 
                 // Update file watcher to monitor the new include file
-                console.log(`[loadNewIncludeContent] Updating file watcher for new include file: ${includeFile}`);
                 const allIncludePaths = this.getAllIncludeFilePaths();
-                console.log(`[loadNewIncludeContent] All include paths to watch:`, allIncludePaths);
                 this._fileWatcher.updateIncludeFiles(this, allIncludePaths);
-                console.log(`[loadNewIncludeContent] File watcher updated successfully`);
 
             } else {
                 console.warn(`[LoadNewInclude] Include file not found: ${absolutePath}`);
@@ -2853,7 +2864,6 @@ export class KanbanWebviewPanel {
                 });
 
                 // Still update file watcher even for missing files (in case they get created later)
-                console.log(`[loadNewIncludeContent] Updating file watcher for missing include file: ${includeFile}`);
                 const allIncludePaths = this.getAllIncludeFilePaths();
                 this._fileWatcher.updateIncludeFiles(this, allIncludePaths);
             }
@@ -3328,9 +3338,9 @@ export class KanbanWebviewPanel {
                     vscode.window.showInformationMessage(
                         `Backup saved as "${path.basename(backupPath)}"`,
                         'Open backup file'
-                    ).then(choice => {
+                    ).then(async choice => {
                         if (choice === 'Open backup file') {
-                            vscode.commands.executeCommand('vscode.open', vscode.Uri.file(backupPath));
+                            await this.openFileWithReuseCheck(backupPath);
                         }
                     });
                 }
@@ -3362,9 +3372,9 @@ export class KanbanWebviewPanel {
                         vscode.window.showInformationMessage(
                             `Backup saved as "${path.basename(backupPath)}"`,
                             'Open backup file'
-                        ).then(choice => {
+                        ).then(async choice => {
                             if (choice === 'Open backup file') {
-                                vscode.commands.executeCommand('vscode.open', vscode.Uri.file(backupPath));
+                                await this.openFileWithReuseCheck(backupPath);
                             }
                         });
                     }
@@ -3610,31 +3620,31 @@ export class KanbanWebviewPanel {
             // Ensure the inline include file is registered in the unified system
             this.ensureIncludeFileRegistered(relativePath, 'regular');
 
-            // Mark the include file as having external changes WITHOUT resolving automatically
-            // This allows the file states overview to show the conflict
-            const includeFile = this._includeFiles.get(relativePath);
-            if (includeFile) {
+            // Read the new external content
+            const newExternalContent = await this.readFileContent(filePath);
 
-                // Read the new external content
-                try {
-                    const newExternalContent = await this.readFileContent(filePath);
+            if (newExternalContent !== null) {
+                // Update the include file in the unified system
+                const includeFile = this._includeFiles.get(relativePath);
+                if (includeFile) {
+                    // Check if content actually changed
+                    if (newExternalContent !== includeFile.content) {
+                        // Update the content and baseline
+                        includeFile.content = newExternalContent;
+                        includeFile.baseline = newExternalContent;
+                        includeFile.hasUnsavedChanges = false;
+                        includeFile.hasExternalChanges = false;
+                        includeFile.lastModified = Date.now();
 
-                    // Only mark as having external changes if content actually differs from current
-                    if (newExternalContent !== null && newExternalContent !== includeFile.content) {
-                        // Store the external content in a separate field so we can show the diff
-                        includeFile.externalContent = newExternalContent;
-                        includeFile.hasExternalChanges = true;
+                        // Automatically update the content in the frontend
+                        await this.updateInlineIncludeFile(filePath, relativePath);
 
-                    } else {
+                        // Trigger a board refresh to re-render with the new content
+                        await this.sendBoardUpdate(false, true);
+
                     }
-                } catch (readError) {
-                    console.warn(`[External File Change] Could not read external content for ${filePath}:`, readError);
                 }
             }
-
-            // NOTE: We NO LONGER automatically resolve conflicts here
-            // The user will use the file states overview to manually resolve
-            // by clicking Save (keep internal) or Reload (use external)
 
         } catch (error) {
             console.error('[InlineInclude] Error handling inline include file change:', error);
@@ -3723,6 +3733,41 @@ export class KanbanWebviewPanel {
     }
 
     /**
+     * Open a file with reuse check - focuses existing editor if already open
+     */
+    private async openFileWithReuseCheck(filePath: string): Promise<void> {
+        try {
+            // Normalize the path for comparison (resolve symlinks, normalize separators)
+            const normalizedPath = path.resolve(filePath);
+
+            // Check if the file is already open as a document (even if not visible)
+            const existingDocument = vscode.workspace.textDocuments.find(doc => {
+                const docPath = path.resolve(doc.uri.fsPath);
+                return docPath === normalizedPath;
+            });
+
+            if (existingDocument) {
+                // File is already open, focus it
+                await vscode.window.showTextDocument(existingDocument, {
+                    preserveFocus: false,
+                    preview: false
+                    // Let VS Code find the existing tab location
+                });
+            } else {
+                // File is not open, open it normally
+                const fileUri = vscode.Uri.file(filePath);
+                const document = await vscode.workspace.openTextDocument(fileUri);
+                await vscode.window.showTextDocument(document, {
+                    preserveFocus: false,
+                    preview: false
+                });
+            }
+        } catch (error) {
+            console.error(`[KanbanWebviewPanel] Error opening file ${filePath}:`, error);
+        }
+    }
+
+    /**
      * Track unsaved changes in include files when board is modified
      * @returns true if ONLY include files have changes (no main file changes), false otherwise
      */
@@ -3775,15 +3820,11 @@ export class KanbanWebviewPanel {
 
                         // Keep legacy tracking for compatibility
                         const unifiedIncludeFile = this._includeFiles.get(normalizedIncludeFile);
-                        console.log(`[CHANGE-DETECT] Looking for ${normalizedIncludeFile} in unified map with ${this._includeFiles.size} entries, found: ${!!unifiedIncludeFile}`);
                         if (unifiedIncludeFile) {
                             unifiedIncludeFile.hasUnsavedChanges = true;
-                            console.log(`[SETTING UNSAVED] Set hasUnsavedChanges=true for ${normalizedIncludeFile} during change detection`);
-                            console.log(`[SETTING UNSAVED] Stack trace:`, new Error().stack?.split('\n').slice(0, 5).join('\n'));
 
                             // CRITICAL: Also synchronize to FileStateManager for recovery
                             fileStateManager.markFrontendChange(absolutePath, true, currentPresentationContent);
-                            console.log(`[SETTING UNSAVED] Synchronized hasUnsavedChanges=true to FileStateManager for recovery`);
 
                             this._includeFilesChanged = true;
                             this._changedIncludeFiles.add(normalizedIncludeFile);
@@ -3951,9 +3992,7 @@ export class KanbanWebviewPanel {
             const basePath = path.dirname(currentDocument.uri.fsPath);
             const absolutePath = path.resolve(basePath, filePath);
 
-            console.log(`[_writeFileContent] Writing to file: ${absolutePath}`);
             fs.writeFileSync(absolutePath, content, 'utf8');
-            console.log(`[_writeFileContent] File saved successfully: ${absolutePath}`);
 
         } catch (error) {
             console.error(`[_writeFileContent] Error writing file ${filePath}:`, error);

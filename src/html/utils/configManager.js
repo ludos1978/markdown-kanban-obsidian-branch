@@ -18,7 +18,7 @@ class ConfigManager {
             enableBackups: true,
             backupInterval: 300,
             backupLocation: '',
-            openLinksInNewTab: true,
+            openLinksInNewTab: false,
             whitespace: 'normal',
             maxRowHeight: 'auto',
             showRowTags: true,

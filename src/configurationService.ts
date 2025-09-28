@@ -59,7 +59,7 @@ export class ConfigurationService {
         enableBackups: true,
         backupInterval: 15,
         backupLocation: '',
-        openLinksInNewTab: true,
+        openLinksInNewTab: false,
         whitespace: 'normal',
         maxRowHeight: 0,
         showRowTags: true,

@@ -31,6 +31,7 @@ export interface FileResolutionResult {
 
 export class FileManager {
     private _document?: vscode.TextDocument;
+    private _filePath?: string; // Track file path independently of document
     private _isFileLocked: boolean = false;
     private _webview: vscode.Webview;
     private _extensionUri: vscode.Uri;
@@ -46,10 +47,25 @@ export class FileManager {
 
     public setDocument(document: vscode.TextDocument | undefined) {
         this._document = document;
+        // Remember the file path even when document is cleared
+        if (document) {
+            this._filePath = document.fileName;
+        }
+        // Note: Don't clear _filePath when document is undefined - keep it for reference
+    }
+
+    public clearDocument() {
+        // Clear document reference but keep file path for display
+        this._document = undefined;
     }
 
     public getDocument(): vscode.TextDocument | undefined {
         return this._document;
+    }
+
+    public getFilePath(): string | undefined {
+        // Return the preserved file path, which persists even when document is closed
+        return this._filePath;
     }
 
     public isFileLocked(): boolean {
@@ -69,9 +85,10 @@ export class FileManager {
 
     public sendFileInfo() {
         const fileInfo: FileInfo = {
-            fileName: this._document ? path.basename(this._document.fileName) : 'No file loaded',
-            filePath: this._document ? this._document.fileName : '',
-            documentPath: this._document ? this._document.uri.fsPath : '',
+            fileName: this._document ? path.basename(this._document.fileName) :
+                     (this._filePath ? path.basename(this._filePath) : 'No file loaded'),
+            filePath: this._document ? this._document.fileName : (this._filePath || ''),
+            documentPath: this._document ? this._document.uri.fsPath : (this._filePath || ''),
             isLocked: this._isFileLocked
         };
 

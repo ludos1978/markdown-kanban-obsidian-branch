@@ -21,7 +21,6 @@ const HOVER_HIDE_DELAY = 300; // ms
  * Create and show the debug overlay
  */
 function showDebugOverlay() {
-    console.log('[DebugOverlay] showDebugOverlay called');
 
     if (debugOverlayElement) {
         debugOverlayElement.remove();
@@ -91,7 +90,6 @@ function showDebugOverlay() {
     // Start auto-refresh when overlay is visible
     startAutoRefresh();
 
-    console.log('[DebugOverlay] Debug overlay displayed');
 }
 
 /**
@@ -169,10 +167,8 @@ function hideDebugOverlayDelayed() {
  * Update the debug overlay with fresh data
  */
 function refreshDebugOverlay() {
-    console.log('[DEBUG refreshDebugOverlay] Called - overlay visible:', debugOverlayVisible, 'element exists:', !!debugOverlayElement);
 
     if (!debugOverlayVisible || !debugOverlayElement) {
-        console.log('[DEBUG refreshDebugOverlay] Skipping - overlay not ready');
         return;
     }
 
@@ -180,10 +176,8 @@ function refreshDebugOverlay() {
 
     // Only request new data if we don't have recent data
     if (window.vscode) {
-        console.log('[DEBUG refreshDebugOverlay] Sending getTrackedFilesDebugInfo message to backend');
         window.vscode.postMessage({ type: 'getTrackedFilesDebugInfo' });
     } else {
-        console.log('[DEBUG refreshDebugOverlay] ERROR: window.vscode not available!');
     }
 
     // Don't rebuild DOM here - let updateTrackedFilesData handle it
@@ -205,7 +199,6 @@ function toggleDebugOverlaySticky() {
         pinButton.style.color = debugOverlaySticky ? 'white' : 'var(--vscode-button-foreground)';
     }
 
-    console.log(`[DebugOverlay] Sticky mode ${debugOverlaySticky ? 'enabled' : 'disabled'}`);
 }
 
 /**
@@ -222,7 +215,6 @@ function startAutoRefresh() {
         }
     }, 5000);
 
-    console.log('[DebugOverlay] Auto-refresh started');
 }
 
 /**
@@ -232,7 +224,6 @@ function stopAutoRefresh() {
     if (autoRefreshTimer) {
         clearInterval(autoRefreshTimer);
         autoRefreshTimer = null;
-        console.log('[DebugOverlay] Auto-refresh stopped');
     }
 }
 
@@ -251,24 +242,15 @@ function createDataHash(data) {
  * Update tracked files data from backend
  */
 function updateTrackedFilesData(data) {
-    console.log('[DEBUG updateTrackedFilesData] Received data from backend:', data);
 
     // ENHANCED DEBUG: Show main file state specifically
     if (data && data.watcherDetails) {
-        console.log('[DEBUG updateTrackedFilesData] Main file state received:', {
-            hasInternalChanges: data.watcherDetails.hasInternalChanges,
-            hasExternalChanges: data.watcherDetails.hasExternalChanges,
-            isUnsavedInEditor: data.watcherDetails.isUnsavedInEditor,
-            documentVersion: data.watcherDetails.documentVersion,
-            lastDocumentVersion: data.watcherDetails.lastDocumentVersion
-        });
     }
 
     const newDataHash = createDataHash(data);
 
     // Only update if data actually changed
     if (newDataHash === lastTrackedFilesDataHash) {
-        console.log('[DebugOverlay] Data unchanged, skipping DOM update');
         return;
     }
 
@@ -278,7 +260,6 @@ function updateTrackedFilesData(data) {
     if (debugOverlayVisible && debugOverlayElement) {
         // Only update the content, preserve scroll position
         updateFileStatesContent();
-        console.log('[DebugOverlay] DOM updated with new data');
     }
 }
 
@@ -625,7 +606,6 @@ function createSystemHealthSection() {
  * Get short label for include type (for path line)
  */
 function getIncludeTypeShortLabel(fileType) {
-    console.log('[DebugOverlay] getIncludeTypeShortLabel called with fileType:', fileType);
     let result;
     switch (fileType) {
         case 'include-regular':
@@ -644,7 +624,6 @@ function getIncludeTypeShortLabel(fileType) {
             result = 'include'; // default fallback
             break;
     }
-    console.log('[DebugOverlay] getIncludeTypeShortLabel returning:', result, 'for type:', fileType);
     return result;
 }
 
@@ -696,15 +675,6 @@ function createAllFilesArray() {
     const mainFile = trackedFilesData.mainFile || 'Unknown';
     const mainFileInfo = trackedFilesData.watcherDetails || {};
 
-    // Debug logging to see what data we're getting
-    console.log('[DEBUG createAllFilesArray] Main file processing:', {
-        mainFile: mainFile,
-        mainFileInfo: mainFileInfo,
-        hasInternalChanges: mainFileInfo.hasInternalChanges,
-        hasExternalChanges: mainFileInfo.hasExternalChanges,
-        isUnsavedInEditor: mainFileInfo.isUnsavedInEditor,
-        rawIsUnsavedInEditor: mainFileInfo.isUnsavedInEditor
-    });
 
     const mainFileData = {
         path: mainFile,
@@ -721,22 +691,12 @@ function createAllFilesArray() {
         lastModified: trackedFilesData.mainFileLastModified || 'Unknown'
     };
 
-    console.log('[DEBUG createAllFilesArray] Final main file data:', mainFileData);
     allFiles.push(mainFileData);
 
     // Add include files
     const includeFiles = trackedFilesData.includeFiles || [];
-    console.log('[DebugOverlay] Include files received:', includeFiles.length, includeFiles);
 
     includeFiles.forEach(file => {
-        console.log('[DebugOverlay] Processing include file:', file.path, {
-            hasInternalChanges: file.hasInternalChanges,
-            hasExternalChanges: file.hasExternalChanges,
-            isUnsavedInEditor: file.isUnsavedInEditor,
-            exists: file.exists,
-            type: file.type,
-            fileType: file.fileType
-        });
 
         allFiles.push({
             path: file.path,
@@ -820,11 +780,6 @@ function createFileStatesList(allFiles) {
                         const mainFileClass = file.isMainFile ? 'main-file' : '';
 
                         // Debug log for each file being rendered
-                        console.log('[DebugOverlay] Rendering file:', file.name, {
-                            type: file.type,
-                            isMainFile: file.isMainFile,
-                            willShowLabel: !file.isMainFile
-                        });
 
                         return `
                             <tr class="file-row ${mainFileClass}">
@@ -1717,7 +1672,6 @@ function initializeDebugOverlay() {
     window.addEventListener('message', (event) => {
         const message = event.data;
         if (message && message.type === 'documentStateChanged') {
-            console.log('[DEBUG documentStateChanged] Document state changed:', message, 'overlay visible:', debugOverlayVisible);
             if (debugOverlayVisible) {
                 refreshDebugOverlay();
             }

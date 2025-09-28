@@ -820,9 +820,54 @@ export class MessageHandler {
                 }
             }
 
-            // Create a VS Code URI and open the file
+            // Create a VS Code URI
             const fileUri = vscode.Uri.file(absolutePath);
-            await vscode.commands.executeCommand('vscode.open', fileUri);
+
+            // Normalize the path for comparison (resolve symlinks, normalize separators)
+            const normalizedPath = path.resolve(absolutePath);
+
+            console.log(`[EDITOR_REUSE] Attempting to open: ${normalizedPath}`);
+
+            // Check if the file is already open as a document (even if not visible)
+            const existingDocument = vscode.workspace.textDocuments.find(doc => {
+                const docPath = path.resolve(doc.uri.fsPath);
+                return docPath === normalizedPath;
+            });
+
+            if (existingDocument) {
+                console.log(`[EDITOR_REUSE] Found existing document`);
+
+                // Check if it's currently visible
+                const visibleEditor = vscode.window.visibleTextEditors.find(editor =>
+                    path.resolve(editor.document.uri.fsPath) === normalizedPath
+                );
+
+                if (visibleEditor) {
+                    console.log(`[EDITOR_REUSE] Document is visible in column ${visibleEditor.viewColumn}`);
+                    console.log(`[EDITOR_REUSE] Current active editor column: ${vscode.window.activeTextEditor?.viewColumn}`);
+
+                    // Document is already visible - check if we need to focus it
+                    if (vscode.window.activeTextEditor?.document.uri.fsPath === normalizedPath) {
+                        console.log(`[EDITOR_REUSE] Document is already active - no action needed`);
+                        return; // Already focused, nothing to do
+                    }
+                }
+
+                console.log(`[EDITOR_REUSE] Calling showTextDocument`);
+                await vscode.window.showTextDocument(existingDocument, {
+                    preserveFocus: false,
+                    preview: false
+                });
+                console.log(`[EDITOR_REUSE] showTextDocument completed`);
+            } else {
+                console.log(`[EDITOR_REUSE] Document not open, opening normally`);
+                // Open the document first, then show it
+                const document = await vscode.workspace.openTextDocument(absolutePath);
+                await vscode.window.showTextDocument(document, {
+                    preserveFocus: false,
+                    preview: false
+                });
+            }
 
 
         } catch (error) {
@@ -1312,9 +1357,9 @@ export class MessageHandler {
         md5Hash?: string
     ): Promise<void> {
         try {
-            // Get current file path from the file manager
+            // Get current file path from the file manager (use preserved path if document is closed)
             const document = this._fileManager.getDocument();
-            const currentFilePath = document?.uri.fsPath;
+            const currentFilePath = this._fileManager.getFilePath() || document?.uri.fsPath;
             if (!currentFilePath) {
                 console.error('[MESSAGE HANDLER] No current file path available');
 
@@ -2153,17 +2198,10 @@ export class MessageHandler {
         // Get unified file state that all systems should use
         const fileState = this.getUnifiedFileState();
 
-        // Debug logging to see what we're actually getting
-        console.log(`[Debug] Tracking data collection:
-            hasInternalChanges: ${fileState.hasInternalChanges}
-            hasExternalChanges: ${fileState.hasExternalChanges}
-            isUnsavedInEditor: ${fileState.isUnsavedInEditor}
-            documentVersion: ${fileState.documentVersion}
-            lastDocumentVersion: ${fileState.lastDocumentVersion}
-        `);
 
-        const mainFilePath = document?.uri.fsPath || 'Unknown';
-        const mainFileState = fileStateManager.getFileState(mainFilePath);
+        // Use preserved file path from FileManager, which persists even when document is closed
+        const mainFilePath = this._fileManager.getFilePath() || document?.uri.fsPath || 'Unknown';
+        const mainFileState = mainFilePath !== 'Unknown' ? fileStateManager.getFileState(mainFilePath) : undefined;
 
         const mainFileInfo = {
             path: mainFilePath,
@@ -2178,7 +2216,6 @@ export class MessageHandler {
             baseline: mainFileState?.frontend.baseline || ''
         };
 
-        console.log('[DEBUG collectTrackedFilesDebugInfo] Main file info being sent to frontend:', mainFileInfo);
 
         // External file watchers
         const externalWatchers: any[] = [];
@@ -2207,7 +2244,6 @@ export class MessageHandler {
         const includeFiles: any[] = [];
         const allStates = fileStateManager.getAllStates();
 
-        console.log(`[Debug] FileStateManager has ${allStates.size} tracked files`);
 
         for (const [filePath, fileStateData] of allStates) {
             // Skip main file - we handle it separately
@@ -2215,16 +2251,6 @@ export class MessageHandler {
                 continue;
             }
 
-            console.log(`[Debug] Include file ${filePath}:
-                fileType: ${fileStateData.fileType}
-                needsSave: ${fileStateData.needsSave}
-                needsReload: ${fileStateData.needsReload}
-                hasConflict: ${fileStateData.hasConflict}
-                isDirtyInEditor: ${fileStateData.backend.isDirtyInEditor}
-                hasFileSystemChanges: ${fileStateData.backend.hasFileSystemChanges}
-                contentLength: ${fileStateData.frontend.content?.length || 0}
-                baselineLength: ${fileStateData.frontend.baseline?.length || 0}
-            `);
 
             includeFiles.push({
                 path: fileStateData.relativePath,
