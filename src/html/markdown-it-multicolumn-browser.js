@@ -15,6 +15,11 @@
     }
 
     function ruler(state, startLine, endLine, silent) {
+        // Prevent re-entrant parsing when already inside a multicolumn context
+        if (state.parentType === 'multicolumn') {
+            return false;
+        }
+
         var start = state.bMarks[startLine] + state.tShift[startLine];
         //Quickly check
         var firstChar = state.src.charCodeAt(start);
@@ -27,6 +32,11 @@
         }
         if (state.src.substr(start, 4) !== "---:") {
             return false;
+        }
+
+        // Don't process if in silent mode (used during list parsing)
+        if (silent) {
+            return true;
         }
         var containerToken = state.push('multicolumn_open', 'div', 1);
         containerToken.block = true;
@@ -69,7 +79,10 @@
                 }
             }
             else if (state.src.substr(start, 4) === ":--:") {
-                parseContent(startLine + 1, nextLine);
+                // Only parse content if there's actual content to parse
+                if (nextLine > startLine + 1) {
+                    parseContent(startLine + 1, nextLine);
+                }
                 blockToken = state.push('multicolumn_block_close', 'div', -1);
                 blockToken.block = true;
                 blockToken = state.push('multicolumn_block_open', 'div', 1);
@@ -81,7 +94,10 @@
                 startLine = nextLine;
             }
         }
-        parseContent(startLine + 1, nextLine);
+        // Only parse final content if there's actual content to parse
+        if (nextLine > startLine + 1) {
+            parseContent(startLine + 1, nextLine);
+        }
         blockToken = state.push('multicolumn_block_close', 'div', -1);
         blockToken.block = true;
         containerToken = state.push('multicolumn_close', 'div', -1);
