@@ -247,6 +247,24 @@ function datePersonTagPlugin(md, options = {}) {
 
 // Tag extraction functions now in utils/tagUtils.js
 
+// Enhanced strikethrough plugin with delete buttons
+function enhancedStrikethroughPlugin(md) {
+    // Override the default strikethrough renderer
+    md.renderer.rules.s_open = function(tokens, idx, options, env, renderer) {
+        const token = tokens[idx];
+        // Generate unique ID for this strikethrough element
+        const uniqueId = 'strike-' + Math.random().toString(36).substr(2, 9);
+        return `<span class="strikethrough-container" data-strike-id="${uniqueId}">` +
+               `<del class="strikethrough-content">`;
+    };
+
+    md.renderer.rules.s_close = function(tokens, idx, options, env, renderer) {
+        return `</del>` +
+               `<button class="delete-strike-btn" onclick="deleteStrikethrough(event)" title="Remove strikethrough text">×</button>` +
+               `</span>`;
+    };
+}
+
 function renderMarkdown(text) {
     if (!text) {return '';}
     
@@ -264,7 +282,8 @@ function renderMarkdown(text) {
         .use(tagPlugin, {
             tagColors: window.tagColors || {}
         })
-        .use(datePersonTagPlugin); // Add this line
+        .use(datePersonTagPlugin) // Add this line
+        .use(enhancedStrikethroughPlugin); // Add enhanced strikethrough with delete buttons
 
         // Add plugins that are available from CDN (CSP-compliant)
         if (typeof window.markdownitEmoji !== 'undefined') {

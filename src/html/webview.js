@@ -4014,3 +4014,139 @@ function handleColumnExportResult(result) {
     }
 }
 
+/**
+ * Delete strikethrough text content when delete button is clicked
+ * @param {Event} event - The click event from the delete button
+ */
+function deleteStrikethrough(event) {
+    console.log('🗑️ Delete strikethrough clicked');
+    event.preventDefault();
+    event.stopPropagation();
+
+    const button = event.target;
+    const container = button.closest('.strikethrough-container');
+
+    console.log('🗑️ Button:', button);
+    console.log('🗑️ Container:', container);
+
+    if (!container) {
+        console.warn('🗑️ No strikethrough container found');
+        return;
+    }
+
+    // Find the task or column element that contains this strikethrough
+    const taskElement = container.closest('.task-item');
+    const columnTitleElement = container.closest('.column-title');
+
+    console.log('🗑️ Task element:', taskElement);
+    console.log('🗑️ Column title element:', columnTitleElement);
+
+    if (taskElement) {
+        console.log('🗑️ Deleting from task');
+        deleteStrikethroughFromTask(container, taskElement);
+    } else if (columnTitleElement) {
+        console.log('🗑️ Deleting from column');
+        deleteStrikethroughFromColumn(container, columnTitleElement);
+    } else {
+        console.warn('🗑️ No parent task or column found');
+    }
+}
+
+/**
+ * Remove strikethrough content from a task
+ * @param {HTMLElement} container - The strikethrough container element
+ * @param {HTMLElement} taskElement - The task element
+ */
+function deleteStrikethroughFromTask(container, taskElement) {
+    console.log('🗑️ deleteStrikethroughFromTask called');
+    const taskId = taskElement.dataset.taskId;
+    const columnElement = taskElement.closest('[data-column-id]');
+
+    if (!columnElement) {
+        console.error('🗑️ Could not find column element for task');
+        return;
+    }
+
+    const columnId = columnElement.dataset.columnId;
+
+    console.log('🗑️ Task ID:', taskId);
+    console.log('🗑️ Column ID:', columnId);
+
+    // Get the current task content (could be in title or description)
+    const titleElement = taskElement.querySelector('.task-title-display');
+    const descriptionElement = taskElement.querySelector('.task-description-display');
+
+    let contentElement = null;
+    if (titleElement && titleElement.contains(container)) {
+        contentElement = titleElement;
+        console.log('🗑️ Found strikethrough in task title');
+    } else if (descriptionElement && descriptionElement.contains(container)) {
+        contentElement = descriptionElement;
+        console.log('🗑️ Found strikethrough in task description');
+    }
+
+    if (!contentElement) {
+        console.warn('🗑️ No task content element found that contains the strikethrough');
+        return;
+    }
+
+    console.log('🗑️ Content before removal:', contentElement.innerHTML);
+
+    // Remove the strikethrough container from the DOM
+    container.remove();
+
+    // Get the updated content after removal
+    const updatedContent = contentElement.innerHTML;
+    console.log('🗑️ Content after removal:', updatedContent);
+
+    // Determine which field was updated and send appropriate message
+    const isTitle = contentElement.classList.contains('task-title-display');
+    const isDescription = contentElement.classList.contains('task-description-display');
+
+    const message = {
+        type: 'updateTaskFromStrikethroughDeletion',
+        taskId: taskId,
+        columnId: columnId,
+        newContent: updatedContent,
+        contentType: isTitle ? 'title' : (isDescription ? 'description' : 'unknown')
+    };
+    console.log('🗑️ Sending message:', message);
+    vscode.postMessage(message);
+}
+
+/**
+ * Remove strikethrough content from a column title
+ * @param {HTMLElement} container - The strikethrough container element
+ * @param {HTMLElement} columnTitleElement - The column title element
+ */
+function deleteStrikethroughFromColumn(container, columnTitleElement) {
+    console.log('🗑️ deleteStrikethroughFromColumn called');
+    const columnElement = columnTitleElement.closest('[data-column-id]');
+
+    if (!columnElement) {
+        console.error('🗑️ Could not find column element for column title');
+        return;
+    }
+
+    const columnId = columnElement.dataset.columnId;
+
+    console.log('🗑️ Column ID:', columnId);
+    console.log('🗑️ Title before removal:', columnTitleElement.innerHTML);
+
+    // Remove the strikethrough container from the DOM
+    container.remove();
+
+    // Get the updated title content after removal
+    const updatedTitle = columnTitleElement.innerHTML;
+    console.log('🗑️ Title after removal:', updatedTitle);
+
+    // Send message to backend to update the column title
+    const message = {
+        type: 'updateColumnTitleFromStrikethroughDeletion',
+        columnId: columnId,
+        newTitle: updatedTitle
+    };
+    console.log('🗑️ Sending message:', message);
+    vscode.postMessage(message);
+}
+

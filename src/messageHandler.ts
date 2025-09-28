@@ -253,6 +253,12 @@ export class MessageHandler {
                 // Note: Task include changes are now only saved when the main kanban file is saved,
                 // not automatically on every edit. This prevents unwanted overwrites of external files.
                 break;
+            case 'updateTaskFromStrikethroughDeletion':
+                await this.handleUpdateTaskFromStrikethroughDeletion(message);
+                break;
+            case 'updateColumnTitleFromStrikethroughDeletion':
+                await this.handleUpdateColumnTitleFromStrikethroughDeletion(message);
+                break;
             case 'moveTask':
                 await this.performBoardAction(() => 
                     this._boardOperations.moveTask(this._getCurrentBoard()!, message.taskId, message.fromColumnId, message.toColumnId, message.newIndex)
@@ -2334,5 +2340,104 @@ export class MessageHandler {
                 console.warn('[Debug] Error clearing panel caches:', error);
             }
         }
+    }
+
+    /**
+     * Handle updating task content after strikethrough deletion
+     */
+    private async handleUpdateTaskFromStrikethroughDeletion(message: any): Promise<void> {
+        console.log('🗑️ Backend: handleUpdateTaskFromStrikethroughDeletion called', message);
+        const { taskId, columnId, newContent, contentType } = message;
+
+        try {
+            const board = this._getCurrentBoard();
+            if (!board) {
+                console.error('🗑️ Backend: No current board available for strikethrough deletion');
+                return;
+            }
+
+            console.log('🗑️ Backend: Original HTML content:', newContent);
+            console.log('🗑️ Backend: Content type:', contentType);
+
+            // Convert HTML content back to markdown
+            const markdownContent = this.convertHtmlToMarkdown(newContent);
+            console.log('🗑️ Backend: Converted markdown content:', markdownContent);
+
+            // Update the appropriate field based on content type
+            const updateData: any = {};
+            if (contentType === 'title') {
+                updateData.title = markdownContent;
+            } else if (contentType === 'description') {
+                updateData.description = markdownContent;
+            } else {
+                console.warn('🗑️ Backend: Unknown content type, defaulting to title');
+                updateData.title = markdownContent;
+            }
+
+            await this.performBoardAction(() =>
+                this._boardOperations.editTask(board, taskId, columnId, updateData)
+            );
+
+            console.log('🗑️ Backend: Task updated successfully');
+
+        } catch (error) {
+            console.error('🗑️ Backend: Error updating task from strikethrough deletion:', error);
+            vscode.window.showErrorMessage('Failed to update task content');
+        }
+    }
+
+    /**
+     * Handle updating column title after strikethrough deletion
+     */
+    private async handleUpdateColumnTitleFromStrikethroughDeletion(message: any): Promise<void> {
+        console.log('🗑️ Backend: handleUpdateColumnTitleFromStrikethroughDeletion called', message);
+        const { columnId, newTitle } = message;
+
+        try {
+            const board = this._getCurrentBoard();
+            if (!board) {
+                console.error('🗑️ Backend: No current board available for strikethrough deletion');
+                return;
+            }
+
+            console.log('🗑️ Backend: Original HTML title:', newTitle);
+
+            // Convert HTML content back to markdown
+            const markdownTitle = this.convertHtmlToMarkdown(newTitle);
+            console.log('🗑️ Backend: Converted markdown title:', markdownTitle);
+
+            // Update the column title
+            await this.performBoardAction(() =>
+                this._boardOperations.editColumnTitle(board, columnId, markdownTitle)
+            );
+
+            console.log('🗑️ Backend: Column title updated successfully');
+
+        } catch (error) {
+            console.error('🗑️ Backend: Error updating column title from strikethrough deletion:', error);
+            vscode.window.showErrorMessage('Failed to update column title');
+        }
+    }
+
+    /**
+     * Convert HTML content back to markdown (simplified conversion for strikethrough removal)
+     */
+    private convertHtmlToMarkdown(htmlContent: string): string {
+        // Simple HTML to markdown conversion for the basic elements we expect
+        return htmlContent
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p><p[^>]*>/gi, '\n\n')
+            .replace(/<p[^>]*>/gi, '')
+            .replace(/<\/p>/gi, '')
+            .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+            .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+            .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+            .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+            .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)')
+            .replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gi, '![$1]($2)')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&')
+            .trim();
     }
 }

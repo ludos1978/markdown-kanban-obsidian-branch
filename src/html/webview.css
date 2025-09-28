@@ -724,6 +724,41 @@ body.small-card-fonts .task-title-container .markdown-content img {
   background-color: rgba(var(--vscode-textLink-activeForeground-rgb, 0, 122, 204), 0.1);
 }
 
+/* Strikethrough delete button styling */
+.strikethrough-container {
+  position: relative;
+  display: inline;
+}
+
+.strikethrough-container:hover .delete-strike-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+.delete-strike-btn {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background-color: var(--vscode-errorBackground, #f48771);
+  color: var(--vscode-errorForeground, #ffffff);
+  font-size: 12px;
+  line-height: 14px;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  vertical-align: baseline;
+}
+
+.delete-strike-btn:hover {
+  background-color: var(--vscode-errorHoverBackground, #e74c3c);
+  transform: scale(1.1);
+}
+
 .kanban-full-height-column.collapsed .column-title {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
