@@ -1,6 +1,10 @@
 ## markdown-include-1.md
 
-![](root/image-512x512.png)
+markdown-include-1.md
+
+Modify this line
+
+![](root/mid/image-512x512.png)
 
 ---
 
