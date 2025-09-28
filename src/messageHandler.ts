@@ -2356,12 +2356,12 @@ export class MessageHandler {
                 return;
             }
 
-            console.log('🗑️ Backend: Original HTML content:', newContent);
+            console.log('🗑️ Backend: Received markdown content:', newContent);
             console.log('🗑️ Backend: Content type:', contentType);
 
-            // Convert HTML content back to markdown
-            const markdownContent = this.convertHtmlToMarkdown(newContent);
-            console.log('🗑️ Backend: Converted markdown content:', markdownContent);
+            // Content is already in markdown format from frontend
+            const markdownContent = newContent;
+            console.log('🗑️ Backend: Using markdown content directly:', markdownContent);
 
             // Update the appropriate field based on content type
             const updateData: any = {};
@@ -2400,11 +2400,11 @@ export class MessageHandler {
                 return;
             }
 
-            console.log('🗑️ Backend: Original HTML title:', newTitle);
+            console.log('🗑️ Backend: Received markdown title:', newTitle);
 
-            // Convert HTML content back to markdown
-            const markdownTitle = this.convertHtmlToMarkdown(newTitle);
-            console.log('🗑️ Backend: Converted markdown title:', markdownTitle);
+            // Content is already in markdown format from frontend
+            const markdownTitle = newTitle;
+            console.log('🗑️ Backend: Using markdown title directly:', markdownTitle);
 
             // Update the column title
             await this.performBoardAction(() =>
