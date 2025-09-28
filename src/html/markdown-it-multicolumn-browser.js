@@ -79,10 +79,7 @@
                 }
             }
             else if (state.src.substr(start, 4) === ":--:") {
-                // Only parse content if there's actual content to parse
-                if (nextLine > startLine + 1) {
-                    parseContent(startLine + 1, nextLine);
-                }
+                parseContent(startLine + 1, nextLine);
                 blockToken = state.push('multicolumn_block_close', 'div', -1);
                 blockToken.block = true;
                 blockToken = state.push('multicolumn_block_open', 'div', 1);
@@ -94,10 +91,7 @@
                 startLine = nextLine;
             }
         }
-        // Only parse final content if there's actual content to parse
-        if (nextLine > startLine + 1) {
-            parseContent(startLine + 1, nextLine);
-        }
+        parseContent(startLine + 1, nextLine);
         blockToken = state.push('multicolumn_block_close', 'div', -1);
         blockToken.block = true;
         containerToken = state.push('multicolumn_close', 'div', -1);
