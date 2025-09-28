@@ -5,9 +5,11 @@ import { LinkHandler } from './linkHandler';
 import { KanbanBoard } from './markdownParser';
 import { ExternalFileWatcher } from './externalFileWatcher';
 import { configService } from './configurationService';
+import { ExportService } from './exportService';
+import { getFileStateManager } from './fileStateManager';
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as os from 'os';
 
 interface FocusTarget {
@@ -31,6 +33,7 @@ export class MessageHandler {
     private _saveWithBackup: () => Promise<void>;
     private _markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => void;
     private _previousBoardForFocus?: KanbanBoard;
+    private _activeOperations = new Map<string, { type: string, startTime: number }>();
 
     constructor(
         fileManager: FileManager,
@@ -64,6 +67,49 @@ export class MessageHandler {
         this._markUnsavedChanges = callbacks.markUnsavedChanges;
     }
 
+    private async startOperation(operationId: string, type: string, description: string) {
+        this._activeOperations.set(operationId, { type, startTime: Date.now() });
+
+        // Send to frontend
+        const panel = this._getWebviewPanel();
+        if (panel && panel.webview) {
+            panel.webview.postMessage({
+                type: 'operationStarted',
+                operationId,
+                operationType: type,
+                description
+            });
+        }
+    }
+
+    private async updateOperationProgress(operationId: string, progress: number, message?: string) {
+        const panel = this._getWebviewPanel();
+        if (panel && panel.webview) {
+            panel.webview.postMessage({
+                type: 'operationProgress',
+                operationId,
+                progress,
+                message
+            });
+        }
+    }
+
+    private async endOperation(operationId: string) {
+        const operation = this._activeOperations.get(operationId);
+        if (operation) {
+            this._activeOperations.delete(operationId);
+
+            // Send to frontend
+            const panel = this._getWebviewPanel();
+            if (panel && panel.webview) {
+                panel.webview.postMessage({
+                    type: 'operationCompleted',
+                    operationId
+                });
+            }
+        }
+    }
+
     public async handleMessage(message: any): Promise<void> {
 
         switch (message.type) {
@@ -75,15 +121,7 @@ export class MessageHandler {
                 await this.handleRedo();
                 break;
 
-            // Include file refresh
-            case 'refreshIncludes':
-                await this.handleRefreshIncludes();
-                break;
 
-            // Include file content request for frontend processing
-            case 'requestIncludeFile':
-                await this.handleRequestIncludeFile(message.filePath);
-                break;
 
             // Runtime function tracking report
             case 'runtimeTrackingReport':
@@ -106,6 +144,16 @@ export class MessageHandler {
                 await this.handleConfirmDisableIncludeMode(message);
                 break;
 
+            // Include file content request for frontend processing
+            case 'requestIncludeFile':
+                await this.handleRequestIncludeFile(message.filePath);
+                break;
+
+            // Register inline include for conflict resolution
+            case 'registerInlineInclude':
+                await this.handleRegisterInlineInclude(message.filePath, message.content);
+                break;
+
             // Request include file name for enabling include mode
             case 'requestIncludeFileName':
                 await this.handleRequestIncludeFileName(message);
@@ -125,6 +173,10 @@ export class MessageHandler {
                 break;
             case 'openExternalLink':
                 await this._linkHandler.handleExternalLink(message.href);
+                break;
+
+            case 'openFile':
+                await this.handleOpenFile(message.filePath);
                 break;
 
             // Drag and drop operations
@@ -194,17 +246,8 @@ export class MessageHandler {
                     this._boardOperations.editTask(this._getCurrentBoard()!, message.taskId, message.columnId, message.taskData)
                 );
 
-                // If this is a task with include mode, save changes to the included file immediately
-                const boardForTask = this._getCurrentBoard();
-                if (boardForTask) {
-                    const column = boardForTask.columns.find(col => col.id === message.columnId);
-                    const task = column?.tasks.find(t => t.id === message.taskId);
-                    if (task && task.includeMode) {
-                        const panel = this._getWebviewPanel();
-                        await panel.saveTaskIncludeChanges(task);
-                        console.log(`[MessageHandler] Saved task include changes for task ${message.taskId}`);
-                    }
-                }
+                // Note: Task include changes are now only saved when the main kanban file is saved,
+                // not automatically on every edit. This prevents unwanted overwrites of external files.
                 break;
             case 'moveTask':
                 await this.performBoardAction(() => 
@@ -303,71 +346,93 @@ export class MessageHandler {
                 // Check if this might be a column include file change
                 const currentBoard = this._getCurrentBoard();
                 const column = currentBoard?.columns.find(col => col.id === message.columnId);
-                const oldIncludeFiles = column?.includeFiles ? [...column.includeFiles] : [];
 
-                console.log(`[MessageHandler Debug] Column before edit:`, {
-                    columnId: message.columnId,
-                    currentTitle: column?.title,
-                    includeMode: column?.includeMode,
-                    oldIncludeFiles: oldIncludeFiles,
-                    currentTasks: column?.tasks?.length || 0
-                });
+                // Check if the new title contains column include syntax
+                const hasColumnIncludeMatches = message.title.match(/!!!columninclude\(([^)]+)\)!!!/g);
 
-                await this.performBoardActionSilent(() =>
-                    this._boardOperations.editColumnTitle(currentBoard!, message.columnId, message.title)
-                );
+                if (hasColumnIncludeMatches) {
+                    // Check if this column currently has unsaved changes
+                    if (column && column.includeMode && column.includeFiles && column.includeFiles.length > 0) {
+                        const panel = this._getWebviewPanel();
+                        const hasUnsavedChanges = await panel.checkColumnIncludeUnsavedChanges(column);
 
-                console.log(`[MessageHandler Debug] Column after edit:`, {
-                    columnId: message.columnId,
-                    newTitle: column?.title,
-                    includeMode: column?.includeMode,
-                    newIncludeFiles: column?.includeFiles,
-                    currentTasks: column?.tasks?.length || 0
-                });
+                        if (hasUnsavedChanges) {
+                            let saveChoice: string | undefined;
 
-                // If include files changed, load new content immediately
-                const newIncludeFiles = column?.includeFiles || [];
-                const includeFilesChanged = JSON.stringify(oldIncludeFiles) !== JSON.stringify(newIncludeFiles);
+                            // Keep asking until user makes a definitive choice (not Cancel/Escape)
+                            do {
+                                saveChoice = await vscode.window.showWarningMessage(
+                                    `The included file "${column.includeFiles[0]}" has unsaved changes. Do you want to save before switching to a new file?`,
+                                    { modal: true },
+                                    'Save and Switch',
+                                    'Discard and Switch',
+                                    'Cancel'
+                                );
+                            } while (saveChoice === 'Cancel' || !saveChoice);
 
-                console.log(`[MessageHandler Debug] Include files changed: ${includeFilesChanged}`, {
-                    oldIncludeFiles: oldIncludeFiles,
-                    newIncludeFiles: newIncludeFiles
-                });
+                            if (saveChoice === 'Save and Switch') {
+                                // Save current changes first
+                                await panel.saveColumnIncludeChanges(column);
+                            }
+                            // If 'Discard and Switch', just continue without saving
+                        }
+                    }
 
-                if (includeFilesChanged && column && newIncludeFiles.length > 0) {
-                    console.log(`[MessageHandler] Include files changed, loading new content from: ${newIncludeFiles.join(', ')}`);
+                    // Update the column title first
+                    await this.performBoardActionSilent(() =>
+                        this._boardOperations.editColumnTitle(currentBoard!, message.columnId, message.title)
+                    );
 
-                    // Use the webview panel to load the new content
-                    const panel = this._getWebviewPanel();
-                    await panel.loadNewIncludeContent(column, newIncludeFiles);
+                    // Extract the include files from the new title
+                    const newIncludeFiles: string[] = [];
+                    hasColumnIncludeMatches.forEach((match: string) => {
+                        const filePath = match.replace(/!!!columninclude\(([^)]+)\)!!!/, '$1').trim();
+                        newIncludeFiles.push(filePath);
+                    });
+
+                    // Get the updated column and load new content
+                    const updatedBoard = this._getCurrentBoard();
+                    const updatedColumn = updatedBoard?.columns.find(col => col.id === message.columnId);
+
+                    if (updatedColumn && newIncludeFiles.length > 0) {
+                        // Use the webview panel to load the new content
+                        const panel = this._getWebviewPanel();
+                        await panel.updateIncludeContentUnified(updatedColumn, newIncludeFiles, 'column_title_edit');
+                    } else if (newIncludeFiles.length > 0) {
+                        console.error(`[MessageHandler Error] Could not find updated column ${message.columnId} after title edit`);
+                    }
+                } else {
+                    // Regular title edit without include syntax
+                    await this.performBoardActionSilent(() =>
+                        this._boardOperations.editColumnTitle(currentBoard!, message.columnId, message.title)
+                    );
                 }
                 break;
             case 'editTaskTitle':
-                console.log(`[MessageHandler Debug] editTaskTitle received:`, {
-                    taskId: message.taskId,
-                    columnId: message.columnId,
-                    title: message.title
-                });
+                // console.log(`[MessageHandler Debug] editTaskTitle received:`, {
+                //     taskId: message.taskId,
+                //     columnId: message.columnId,
+                //     title: message.title
+                // });
 
                 // Check if this might be a task include file change
                 const currentBoardForTask = this._getCurrentBoard();
                 const targetColumn = currentBoardForTask?.columns.find(col => col.id === message.columnId);
                 const task = targetColumn?.tasks.find(t => t.id === message.taskId);
-                const oldTaskIncludeFiles = task?.includeFiles ? [...task.includeFiles] : [];
 
-                console.log(`[MessageHandler Debug] Task before edit:`, {
-                    taskId: message.taskId,
-                    columnId: message.columnId,
-                    currentTitle: task?.title,
-                    includeMode: task?.includeMode,
-                    oldIncludeFiles: oldTaskIncludeFiles
-                });
+                // console.log(`[MessageHandler Debug] Task before edit:`, {
+                //     taskId: message.taskId,
+                //     columnId: message.columnId,
+                //     currentTitle: task?.title,
+                //     includeMode: task?.includeMode,
+                //     oldIncludeFiles: oldTaskIncludeFiles
+                // });
 
                 // Check if the new title contains task include syntax
                 const hasTaskIncludeMatches = message.title.match(/!!!taskinclude\(([^)]+)\)!!!/g);
 
                 if (hasTaskIncludeMatches) {
-                    console.log(`[MessageHandler] Task include syntax detected`);
+                    // console.log(`[MessageHandler] Task include syntax detected`);
 
                     // Check if this task currently has unsaved changes
                     if (task && task.includeMode && task.includeFiles && task.includeFiles.length > 0) {
@@ -375,34 +440,31 @@ export class MessageHandler {
                         const hasUnsavedChanges = await panel.checkTaskIncludeUnsavedChanges(task);
 
                         if (hasUnsavedChanges) {
-                            // Prompt user to save before switching
-                            const saveChoice = await vscode.window.showWarningMessage(
-                                `The included file "${task.includeFiles[0]}" has unsaved changes. Do you want to save before switching to a new file?`,
-                                { modal: true },
-                                'Save and Switch',
-                                'Discard and Switch',
-                                'Cancel'
-                            );
+                            let saveChoice: string | undefined;
+
+                            // Keep asking until user makes a definitive choice (not Cancel/Escape)
+                            do {
+                                saveChoice = await vscode.window.showWarningMessage(
+                                    `The included file "${task.includeFiles[0]}" has unsaved changes. Do you want to save before switching to a new file?`,
+                                    { modal: true },
+                                    'Save and Switch',
+                                    'Discard and Switch',
+                                    'Cancel'
+                                );
+                            } while (saveChoice === 'Cancel' || !saveChoice);
 
                             if (saveChoice === 'Save and Switch') {
                                 // Save current changes first
                                 await panel.saveTaskIncludeChanges(task);
-                            } else if (saveChoice === 'Cancel') {
-                                // User cancelled, don't switch
-                                return;
                             }
                             // If 'Discard and Switch', just continue without saving
                         }
                     }
 
-                    console.log(`[MessageHandler] Proceeding with include file switch, triggering board re-parse`);
-
                     // Update the task title first
                     await this.performBoardActionSilent(() =>
                         this._boardOperations.editTask(currentBoardForTask!, message.taskId, message.columnId, { title: message.title })
                     );
-
-                    console.log(`[MessageHandler] Task title updated, extracting include files from new title`);
 
                     // Extract the include files from the new title
                     const newIncludeFiles: string[] = [];
@@ -411,21 +473,17 @@ export class MessageHandler {
                         newIncludeFiles.push(filePath);
                     });
 
-                    console.log(`[MessageHandler] Found include files:`, newIncludeFiles);
-
                     // Get the updated task and load new content
                     const updatedBoard = this._getCurrentBoard();
                     const updatedColumn = updatedBoard?.columns.find(col => col.id === message.columnId);
                     const updatedTask = updatedColumn?.tasks.find(t => t.id === message.taskId);
 
                     if (updatedTask && newIncludeFiles.length > 0) {
-                        console.log(`[MessageHandler] Loading new content for task ${message.taskId}`);
-
                         // Use the existing method that works
                         const panel = this._getWebviewPanel();
                         await panel.loadNewTaskIncludeContent(updatedTask, newIncludeFiles);
-                    } else {
-                        console.log(`[MessageHandler] Could not find updated task or no include files`);
+                    } else if (newIncludeFiles.length > 0) {
+                        console.error(`[MessageHandler Error] Could not find updated task ${message.taskId} in column ${message.columnId} after title edit`);
                     }
                 } else {
                     // Regular title edit without include syntax
@@ -465,10 +523,6 @@ export class MessageHandler {
             case 'requestTaskIncludeFileName':
                 await this.handleRequestTaskIncludeFileName(message.taskId, message.columnId);
                 break;
-            case 'updateTaskInBackend':
-                // DEPRECATED: This is now handled via markUnsavedChanges with cachedBoard
-                // The complete board state is sent, which is more reliable than individual field updates
-                break;
 
             case 'saveClipboardImage':
                 await this.handleSaveClipboardImage(
@@ -490,8 +544,72 @@ export class MessageHandler {
                 );
                 break;
 
+            case 'getExportDefaultFolder':
+                await this.handleGetExportDefaultFolder();
+                break;
+
+            case 'selectExportFolder':
+                await this.handleSelectExportFolder(message.defaultPath);
+                break;
+
+            case 'exportWithAssets':
+                const exportId = `export_${Date.now()}`;
+                await this.startOperation(exportId, 'export', 'Exporting kanban with assets...');
+                try {
+                    await this.handleExportWithAssets(message.options, exportId);
+                    await this.endOperation(exportId);
+                } catch (error) {
+                    await this.endOperation(exportId);
+                    throw error;
+                }
+                break;
+
+            case 'exportColumn':
+                const columnExportId = `export_column_${Date.now()}`;
+                await this.startOperation(columnExportId, 'export', 'Exporting column...');
+                try {
+                    await this.handleExportColumn(message.options, columnExportId);
+                    await this.endOperation(columnExportId);
+                } catch (error) {
+                    await this.endOperation(columnExportId);
+                    throw error;
+                }
+                break;
+
+            case 'showError':
+                vscode.window.showErrorMessage(message.message);
+                break;
+
+            case 'showInfo':
+                vscode.window.showInformationMessage(message.message);
+                break;
+
+            case 'askOpenExportFolder':
+                await this.handleAskOpenExportFolder(message.path);
+                break;
+
+            case 'getTrackedFilesDebugInfo':
+                await this.handleGetTrackedFilesDebugInfo();
+                break;
+
+            case 'clearTrackedFilesCache':
+                await this.handleClearTrackedFilesCache();
+                break;
+
+            case 'reloadAllIncludedFiles':
+                await this.handleReloadAllIncludedFiles();
+                break;
+
+            case 'saveIndividualFile':
+                await this.handleSaveIndividualFile(message.filePath, message.isMainFile);
+                break;
+
+            case 'reloadIndividualFile':
+                await this.handleReloadIndividualFile(message.filePath, message.isMainFile);
+                break;
+
             default:
-                console.warn('Unknown message type:', message.type);
+                console.error('handleMessage : Unknown message type:', message.type);
                 break;
         }
     }
@@ -616,8 +734,8 @@ export class MessageHandler {
         
         if (columnsToUnfold.size > 0) {
             const webviewPanel = this._getWebviewPanel();
-            if (webviewPanel && webviewPanel.webview) {
-                webviewPanel.webview.postMessage({
+            if (webviewPanel && webviewPanel._panel && webviewPanel._panel.webview) {
+                webviewPanel._panel.webview.postMessage({
                     type: 'unfoldColumnsBeforeUpdate',
                     columnIds: Array.from(columnsToUnfold)
                 });
@@ -630,9 +748,9 @@ export class MessageHandler {
 
     private sendFocusTargets(focusTargets: FocusTarget[]) {
         const webviewPanel = this._getWebviewPanel();
-        if (webviewPanel && webviewPanel.webview) {
+        if (webviewPanel && webviewPanel._panel && webviewPanel._panel.webview) {
             // Send focus message immediately - webview will wait for rendering to complete
-            webviewPanel.webview.postMessage({
+            webviewPanel._panel.webview.postMessage({
                 type: 'focusAfterUndoRedo',
                 focusTargets: focusTargets
             });
@@ -682,26 +800,79 @@ export class MessageHandler {
         }
     }
 
-    private updateTaskInBackend(taskId: string, columnId: string, field: string, value: string) {
-        const board = this._getCurrentBoard();
-        if (!board) {
-            console.warn('No board available to update task');
-            return;
-        }
-        
-        // Find and update the task
-        for (const column of board.columns) {
-            if (column.id === columnId) {
-                const task = column.tasks.find((t: any) => t.id === taskId);
-                if (task) {
-                    (task as any)[field] = value;
-                    // Update the board reference to ensure it's saved
-                    this._setBoard(board);
+    /**
+     * Handle opening a file in VS Code
+     */
+    private async handleOpenFile(filePath: string): Promise<void> {
+        try {
+
+            // Resolve the file path to absolute if it's relative
+            let absolutePath = filePath;
+            if (!path.isAbsolute(filePath)) {
+                // Get the current document's directory as base
+                const document = this._fileManager.getDocument();
+                if (document) {
+                    const currentDir = path.dirname(document.uri.fsPath);
+                    absolutePath = path.resolve(currentDir, filePath);
+                } else {
+                    console.error('[MessageHandler] Cannot resolve relative path - no current document');
                     return;
                 }
             }
+
+            // Create a VS Code URI
+            const fileUri = vscode.Uri.file(absolutePath);
+
+            // Normalize the path for comparison (resolve symlinks, normalize separators)
+            const normalizedPath = path.resolve(absolutePath);
+
+            console.log(`[EDITOR_REUSE] Attempting to open: ${normalizedPath}`);
+
+            // Check if the file is already open as a document (even if not visible)
+            const existingDocument = vscode.workspace.textDocuments.find(doc => {
+                const docPath = path.resolve(doc.uri.fsPath);
+                return docPath === normalizedPath;
+            });
+
+            if (existingDocument) {
+                console.log(`[EDITOR_REUSE] Found existing document`);
+
+                // Check if it's currently visible
+                const visibleEditor = vscode.window.visibleTextEditors.find(editor =>
+                    path.resolve(editor.document.uri.fsPath) === normalizedPath
+                );
+
+                if (visibleEditor) {
+                    console.log(`[EDITOR_REUSE] Document is visible in column ${visibleEditor.viewColumn}`);
+                    console.log(`[EDITOR_REUSE] Current active editor column: ${vscode.window.activeTextEditor?.viewColumn}`);
+
+                    // Document is already visible - check if we need to focus it
+                    if (vscode.window.activeTextEditor?.document.uri.fsPath === normalizedPath) {
+                        console.log(`[EDITOR_REUSE] Document is already active - no action needed`);
+                        return; // Already focused, nothing to do
+                    }
+                }
+
+                console.log(`[EDITOR_REUSE] Calling showTextDocument`);
+                await vscode.window.showTextDocument(existingDocument, {
+                    preserveFocus: false,
+                    preview: false
+                });
+                console.log(`[EDITOR_REUSE] showTextDocument completed`);
+            } else {
+                console.log(`[EDITOR_REUSE] Document not open, opening normally`);
+                // Open the document first, then show it
+                const document = await vscode.workspace.openTextDocument(absolutePath);
+                await vscode.window.showTextDocument(document, {
+                    preserveFocus: false,
+                    preview: false
+                });
+            }
+
+
+        } catch (error) {
+            console.error(`[MessageHandler] Error opening file ${filePath}:`, error);
         }
-        console.warn(`Task ${taskId} not found in column ${columnId}`);
     }
 
     private async handleSaveBoardState(board: any) {
@@ -755,7 +926,8 @@ export class MessageHandler {
         if (success) {
             // Use cache-first architecture: mark as unsaved but don't send board update
             // The frontend already has the correct state from immediate updates
-            this._markUnsavedChanges(true);
+            // CRITICAL: Pass the current board so that trackIncludeFileUnsavedChanges is called
+            this._markUnsavedChanges(true, this._getCurrentBoard());
         }
     }
 
@@ -768,24 +940,28 @@ export class MessageHandler {
             // Only create backup if 5+ minutes have passed since unsaved changes
             // This uses the BackupManager to check timing and creates a regular backup
             const webviewPanel = this._getWebviewPanel();
-            if (webviewPanel.backupManager && webviewPanel.backupManager.shouldCreatePageHiddenBackup()) {
+            if (webviewPanel?.backupManager && webviewPanel.backupManager.shouldCreatePageHiddenBackup()) {
                 await webviewPanel.backupManager.createBackup(document, { label: 'backup' });
-                console.log(`Created periodic backup for "${fileName}" (page hidden, 5+ min unsaved)`);
             } else {
-                console.log(`Skipped backup for "${fileName}" (page hidden, <5 min since unsaved changes)`);
             }
 
-            // Reset the close prompt flag in webview
-            this._getWebviewPanel().webview.postMessage({
-                type: 'resetClosePromptFlag'
-            });
+            // Reset the close prompt flag in webview (with null check)
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel && panel._panel.webview) {
+                panel._panel.webview.postMessage({
+                    type: 'resetClosePromptFlag'
+                });
+            }
 
         } catch (error) {
             console.error('Error handling page hidden backup:', error);
-            // Reset flag even if there was an error
-            this._getWebviewPanel().webview.postMessage({
-                type: 'resetClosePromptFlag'
-            });
+            // Reset flag even if there was an error (with null check)
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel && panel._panel.webview) {
+                panel._panel.webview.postMessage({
+                    type: 'resetClosePromptFlag'
+                });
+            }
         }
     }
 
@@ -853,12 +1029,10 @@ export class MessageHandler {
                     binding.command === 'editor.action.insertSnippet' &&
                     binding.args?.name) {
 
-                    console.log(`Found snippet "${binding.args.name}" for shortcut ${shortcut}`);
                     return binding.args.name;
                 }
             }
 
-            console.log(`No snippet keybinding found for shortcut: ${shortcut}`);
             return null;
 
         } catch (error) {
@@ -894,7 +1068,6 @@ export class MessageHandler {
                 }
             }
 
-            console.log(`Loaded ${keybindings.length} keybindings from VS Code configuration`);
             return keybindings;
 
         } catch (error) {
@@ -953,7 +1126,6 @@ export class MessageHandler {
             // Find the specific snippet
             const snippet = allSnippets[snippetName];
             if (!snippet) {
-                console.log(`Snippet "${snippetName}" not found in markdown snippets`);
                 return '';
             }
 
@@ -964,7 +1136,6 @@ export class MessageHandler {
             } else if (typeof snippet.body === 'string') {
                 body = snippet.body;
             } else {
-                console.log(`Invalid snippet body format for "${snippetName}"`);
                 return '';
             }
 
@@ -999,7 +1170,6 @@ export class MessageHandler {
             const extensionSnippets = await this.loadExtensionSnippets();
             Object.assign(allSnippets, extensionSnippets);
 
-            console.log(`Loaded ${Object.keys(allSnippets).length} markdown snippets`);
             return allSnippets;
 
         } catch (error) {
@@ -1099,82 +1269,7 @@ export class MessageHandler {
             .replace(/\$0/g, ''); // Final cursor position -> empty
     }
 
-    private async handleRefreshIncludes(): Promise<void> {
-        try {
-            // Call refreshIncludes on the webview panel
-            const panel = this._getWebviewPanel();
-            if (panel && typeof panel.refreshIncludes === 'function') {
-                await panel.refreshIncludes();
-            } else {
-            }
-        } catch (error) {
-            console.error('[MESSAGE HANDLER] Error refreshing includes:', error);
-            vscode.window.showErrorMessage(`Failed to refresh includes: ${error}`);
-        }
-    }
 
-    private async handleRequestIncludeFile(filePath: string): Promise<void> {
-
-        try {
-            const panel = this._getWebviewPanel();
-            if (!panel || !panel._panel) {
-                console.error('[MESSAGE HANDLER] No webview panel available');
-                return;
-            }
-
-            // Resolve the file path relative to the current document
-            const document = this._fileManager.getDocument();
-            if (!document) {
-                console.error('[MESSAGE HANDLER] No current document available');
-                return;
-            }
-
-            const basePath = path.dirname(document.uri.fsPath);
-            const absolutePath = path.resolve(basePath, filePath);
-
-
-            // Read the file content
-            let content: string;
-            try {
-                if (!fs.existsSync(absolutePath)) {
-                    console.warn('[MESSAGE HANDLER] Include file not found:', absolutePath);
-                    // Send null content to indicate file not found
-                    await panel._panel.webview.postMessage({
-                        type: 'includeFileContent',
-                        filePath: filePath,
-                        content: null,
-                        error: `File not found: ${filePath}`
-                    });
-                    return;
-                }
-
-                content = fs.readFileSync(absolutePath, 'utf8');
-
-                // Register the include file with the file watcher
-                const watcher = ExternalFileWatcher.getInstance();
-                watcher.registerFile(absolutePath, 'include', panel);
-
-                // Send the content back to the frontend
-                await panel._panel.webview.postMessage({
-                    type: 'includeFileContent',
-                    filePath: filePath,
-                    content: content
-                });
-
-            } catch (fileError) {
-                console.error('[MESSAGE HANDLER] Error reading include file:', fileError);
-                await panel._panel.webview.postMessage({
-                    type: 'includeFileContent',
-                    filePath: filePath,
-                    content: null,
-                    error: `Error reading file: ${fileError}`
-                });
-            }
-
-        } catch (error) {
-            console.error('[MESSAGE HANDLER] Error handling include file request:', error);
-        }
-    }
 
     private async handleRuntimeTrackingReport(report: any): Promise<void> {
 
@@ -1196,12 +1291,6 @@ export class MessageHandler {
 
             // Log summary
             if (report.summary) {
-                console.log(`[MESSAGE HANDLER] Session summary:`, {
-                    duration: Math.round(report.metadata.duration / 1000) + 's',
-                    totalCalls: report.summary.totalCalls,
-                    uniqueFunctions: report.summary.uniqueFunctions,
-                    mostCalled: report.summary.mostCalled?.[0]?.name
-                });
             }
 
         } catch (error) {
@@ -1268,9 +1357,9 @@ export class MessageHandler {
         md5Hash?: string
     ): Promise<void> {
         try {
-            // Get current file path from the file manager
+            // Get current file path from the file manager (use preserved path if document is closed)
             const document = this._fileManager.getDocument();
-            const currentFilePath = document?.uri.fsPath;
+            const currentFilePath = this._fileManager.getFilePath() || document?.uri.fsPath;
             if (!currentFilePath) {
                 console.error('[MESSAGE HANDLER] No current file path available');
 
@@ -1359,7 +1448,6 @@ export class MessageHandler {
 
             // If this is an immediate update (like column include changes), trigger a save and reload
             if (message.immediate) {
-                console.log('[updateBoard] Immediate update requested - triggering save and reload');
 
                 // Save the changes to markdown
                 await this._onSaveToMarkdown();
@@ -1399,6 +1487,104 @@ export class MessageHandler {
 
         } catch (error) {
             console.error('[confirmDisableIncludeMode] Error handling confirmation:', error);
+        }
+    }
+
+    private async handleRequestIncludeFile(filePath: string): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel || !panel._panel) {
+                console.error('[MESSAGE HANDLER] No webview panel available');
+                return;
+            }
+
+            // Resolve the file path relative to the current document
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                console.error('[MESSAGE HANDLER] No current document available');
+                return;
+            }
+
+            const basePath = path.dirname(document.uri.fsPath);
+            const absolutePath = path.resolve(basePath, filePath);
+
+
+            // Read the file content
+            let content: string;
+            try {
+                if (!fs.existsSync(absolutePath)) {
+                    console.warn('[MESSAGE HANDLER] Include file not found:', absolutePath);
+                    // Send null content to indicate file not found
+                    await panel._panel.webview.postMessage({
+                        type: 'includeFileContent',
+                        filePath: filePath,
+                        content: null,
+                        error: `File not found: ${filePath}`
+                    });
+                    return;
+                }
+
+                content = fs.readFileSync(absolutePath, 'utf8');
+
+                // Register the include file with the file watcher
+                const watcher = ExternalFileWatcher.getInstance();
+                watcher.registerFile(absolutePath, 'include', panel);
+
+                // Send the content back to the frontend
+                await panel._panel.webview.postMessage({
+                    type: 'includeFileContent',
+                    filePath: filePath,
+                    content: content
+                });
+
+            } catch (fileError) {
+                console.error('[MESSAGE HANDLER] Error reading include file:', fileError);
+                await panel._panel.webview.postMessage({
+                    type: 'includeFileContent',
+                    filePath: filePath,
+                    content: null,
+                    error: `Error reading file: ${filePath}`
+                });
+            }
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error handling include file request:', error);
+        }
+    }
+
+    private async handleRegisterInlineInclude(filePath: string, content: string): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel || !panel.ensureIncludeFileRegistered) {
+                return;
+            }
+
+            // Normalize path format
+            let relativePath = filePath;
+            if (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) {
+                relativePath = './' + relativePath;
+            }
+
+            // Register the inline include in the unified system
+            panel.ensureIncludeFileRegistered(relativePath, 'regular');
+
+            // Update the content and baseline
+            const includeFile = panel._includeFiles?.get(relativePath);
+            if (includeFile && content) {
+                includeFile.content = content;
+                includeFile.baseline = content;
+                includeFile.hasUnsavedChanges = false;
+                includeFile.lastModified = Date.now();
+
+                // Set absolute path for file watching
+                const currentDocument = this._fileManager.getDocument();
+                if (currentDocument) {
+                    const basePath = path.dirname(currentDocument.uri.fsPath);
+                    includeFile.absolutePath = path.resolve(basePath, filePath);
+                }
+            }
+
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error registering inline include:', error);
         }
     }
 
@@ -1509,6 +1695,640 @@ export class MessageHandler {
 
         } catch (error) {
             console.error('[requestTaskIncludeFileName] Error handling input request:', error);
+        }
+    }
+
+    private async handleGetExportDefaultFolder(): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                console.error('No document available for export');
+                return;
+            }
+
+            const defaultFolder = ExportService.generateDefaultExportFolder(document.uri.fsPath);
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                panel._panel.webview.postMessage({
+                    type: 'exportDefaultFolder',
+                    folderPath: defaultFolder
+                });
+            }
+        } catch (error) {
+            console.error('Error getting export default folder:', error);
+        }
+    }
+
+    private async handleSelectExportFolder(defaultPath?: string): Promise<void> {
+        try {
+            const result = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Select Export Folder',
+                defaultUri: defaultPath ? vscode.Uri.file(defaultPath) : undefined
+            });
+
+            if (result && result[0]) {
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'exportFolderSelected',
+                        folderPath: result[0].fsPath
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error selecting export folder:', error);
+        }
+    }
+
+    private async handleExportWithAssets(options: any, operationId?: string): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                vscode.window.showErrorMessage('No document available for export');
+                return;
+            }
+
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Exporting markdown with assets...',
+                cancellable: false
+            }, async (progress) => {
+                // Update both VS Code progress and our custom indicator
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 10, 'Analyzing assets...');
+                }
+                progress.report({ increment: 20, message: 'Analyzing assets...' });
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 30, 'Processing files...');
+                }
+
+                const result = await ExportService.exportWithAssets(document, options);
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 90, 'Finalizing export...');
+                }
+                progress.report({ increment: 80, message: 'Finalizing export...' });
+
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'exportResult',
+                        result: result
+                    });
+                }
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 100);
+                }
+            });
+
+        } catch (error) {
+            console.error('Error exporting with assets:', error);
+            vscode.window.showErrorMessage(`Export failed: ${error}`);
+        }
+    }
+
+    private async handleExportColumn(options: any, operationId?: string): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                vscode.window.showErrorMessage('No document available for export');
+                return;
+            }
+
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Exporting column...',
+                cancellable: false
+            }, async (progress) => {
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 20, 'Analyzing column content...');
+                }
+                progress.report({ increment: 20, message: 'Analyzing column content...' });
+
+                const result = await ExportService.exportColumn(document, options);
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 90, 'Finalizing export...');
+                }
+                progress.report({ increment: 80, message: 'Finalizing export...' });
+
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'columnExportResult',
+                        result: result
+                    });
+                }
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 100);
+                }
+            });
+
+        } catch (error) {
+            console.error('Error exporting column:', error);
+            vscode.window.showErrorMessage(`Column export failed: ${error}`);
+        }
+    }
+
+    private async handleAskOpenExportFolder(exportPath: string): Promise<void> {
+        try {
+            const folderPath = path.dirname(exportPath);
+            const result = await vscode.window.showInformationMessage(
+                'Export completed successfully!',
+                'Open Export Folder',
+                'Dismiss'
+            );
+
+            if (result === 'Open Export Folder') {
+                await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(folderPath), true);
+            }
+        } catch (error) {
+            console.error('Error handling export folder open request:', error);
+        }
+    }
+
+    /**
+     * Handle request for tracked files debug information
+     */
+    private async handleGetTrackedFilesDebugInfo(): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            // Collect debug information from various sources
+            const debugData = await this.collectTrackedFilesDebugInfo();
+
+            // Send debug data to frontend
+            panel._panel.webview.postMessage({
+                type: 'trackedFilesDebugInfo',
+                data: debugData
+            });
+
+        } catch (error) {
+            console.error('[MessageHandler] Error getting tracked files debug info:', error);
+        }
+    }
+
+    /**
+     * Handle request to clear tracked files cache
+     */
+    private async handleClearTrackedFilesCache(): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            // Clear various caches
+            await this.clearAllTrackedFileCaches();
+
+            // Confirm cache clear
+            panel._panel.webview.postMessage({
+                type: 'debugCacheCleared'
+            });
+
+
+        } catch (error) {
+            console.error('[MessageHandler] Error clearing tracked files cache:', error);
+        }
+    }
+
+    /**
+     * Handle request to reload all included files (images, videos, includes)
+     */
+    private async handleReloadAllIncludedFiles(): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            let reloadCount = 0;
+
+            // Reload all include files by refreshing their content from disk
+            const includeFileMap = (panel as any)._includeFiles;
+            if (includeFileMap) {
+                for (const [relativePath, fileData] of includeFileMap) {
+                    try {
+                        // Read fresh content from disk
+                        const freshContent = await (panel as any)._readFileContent(relativePath);
+                        if (freshContent !== null) {
+                            // Update content and reset baseline to fresh content
+                            (panel as any).updateIncludeFileContent(relativePath, freshContent, true);
+                            reloadCount++;
+                        }
+                    } catch (error) {
+                        console.warn(`[MessageHandler] Failed to reload include file ${relativePath}:`, error);
+                    }
+                }
+            }
+
+            // Trigger a full webview refresh to reload all media and includes
+            const document = this._fileManager.getDocument();
+            if (document) {
+                await panel.loadMarkdownFile(document);
+            }
+
+            // Send confirmation message
+            panel._panel.webview.postMessage({
+                type: 'allIncludedFilesReloaded',
+                reloadCount: reloadCount
+            });
+
+
+        } catch (error) {
+            console.error('[MessageHandler] Error reloading all included files:', error);
+        }
+    }
+
+    /**
+     * Handle request to save an individual file
+     */
+    private async handleSaveIndividualFile(filePath: string, isMainFile: boolean): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            if (isMainFile) {
+                // Save the main kanban file by triggering the existing save mechanism
+                await panel.saveToMarkdown();
+
+                panel._panel.webview.postMessage({
+                    type: 'individualFileSaved',
+                    filePath: filePath,
+                    isMainFile: true,
+                    success: true
+                });
+            } else {
+                // For include files, save the current content to disk
+                const includeFileMap = (panel as any)._includeFiles;
+                const includeFile = includeFileMap?.get(filePath);
+
+                if (includeFile && includeFile.content) {
+                    // Write the current content to disk
+                    await (panel as any)._writeFileContent(filePath, includeFile.content);
+
+                    // Update baseline to match saved content
+                    includeFile.baseline = includeFile.content;
+                    includeFile.hasUnsavedChanges = false;
+                    includeFile.lastModified = Date.now();
+
+                    console.log(`[MessageHandler] Saved include file: ${filePath}`);
+
+                    panel._panel.webview.postMessage({
+                        type: 'individualFileSaved',
+                        filePath: filePath,
+                        isMainFile: false,
+                        success: true
+                    });
+                } else {
+                    console.warn(`[MessageHandler] Include file not found or has no content: ${filePath}`);
+
+                    panel._panel.webview.postMessage({
+                        type: 'individualFileSaved',
+                        filePath: filePath,
+                        isMainFile: false,
+                        success: false,
+                        error: 'File not found or has no content'
+                    });
+                }
+            }
+
+        } catch (error) {
+            console.error(`[MessageHandler] Error saving individual file ${filePath}:`, error);
+
+            const panel = this._getWebviewPanel();
+            if (panel) {
+                panel._panel.webview.postMessage({
+                    type: 'individualFileSaved',
+                    filePath: filePath,
+                    isMainFile: isMainFile,
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
+        }
+    }
+
+    /**
+     * Handle request to reload an individual file from saved state
+     */
+    private async handleReloadIndividualFile(filePath: string, isMainFile: boolean): Promise<void> {
+        try {
+            const panel = this._getWebviewPanel();
+            if (!panel) {
+                return;
+            }
+
+            if (isMainFile) {
+                // Reload the main file by refreshing from the document
+                const document = this._fileManager.getDocument();
+                if (document) {
+                    await panel.loadMarkdownFile(document);
+                }
+                console.log('[MessageHandler] Reloaded main kanban file');
+
+                panel._panel.webview.postMessage({
+                    type: 'individualFileReloaded',
+                    filePath: filePath,
+                    isMainFile: true,
+                    success: true
+                });
+            } else {
+                // For include files, reload content from disk
+                const includeFileMap = (panel as any)._includeFiles;
+                const includeFile = includeFileMap?.get(filePath);
+
+                console.log(`[MessageHandler] Attempting to reload include file:
+                    filePath: ${filePath}
+                    includeFileMap exists: ${!!includeFileMap}
+                    includeFileMap size: ${includeFileMap?.size || 0}
+                    includeFile found: ${!!includeFile}
+                    Available keys: ${includeFileMap ? Array.from(includeFileMap.keys()).join(', ') : 'none'}
+                `);
+
+                if (includeFile) {
+                    try {
+                        // Read fresh content from disk
+                        const freshContent = await (panel as any)._readFileContent(filePath);
+
+                        if (freshContent !== null) {
+                            // Update content and reset baseline
+                            includeFile.content = freshContent;
+                            includeFile.baseline = freshContent;
+                            includeFile.hasUnsavedChanges = false;
+                            includeFile.hasExternalChanges = false; // Clear external changes flag
+                            includeFile.isUnsavedInEditor = false; // Clear editor unsaved flag
+                            includeFile.externalContent = undefined; // Clear external content
+                            includeFile.lastModified = Date.now();
+
+                            console.log(`[MessageHandler] Reloaded include file: ${filePath}`);
+
+                            // Trigger webview refresh to show updated content
+                            const document = this._fileManager.getDocument();
+                            if (document) {
+                                await panel.loadMarkdownFile(document);
+                            }
+
+                            panel._panel.webview.postMessage({
+                                type: 'individualFileReloaded',
+                                filePath: filePath,
+                                isMainFile: false,
+                                success: true
+                            });
+                        } else {
+                            console.warn(`[MessageHandler] Could not read include file: ${filePath}`);
+
+                            panel._panel.webview.postMessage({
+                                type: 'individualFileReloaded',
+                                filePath: filePath,
+                                isMainFile: false,
+                                success: false,
+                                error: 'Could not read file from disk'
+                            });
+                        }
+                    } catch (readError) {
+                        console.error(`[MessageHandler] Error reading include file ${filePath}:`, readError);
+
+                        panel._panel.webview.postMessage({
+                            type: 'individualFileReloaded',
+                            filePath: filePath,
+                            isMainFile: false,
+                            success: false,
+                            error: readError instanceof Error ? readError.message : String(readError)
+                        });
+                    }
+                } else {
+                    console.warn(`[MessageHandler] Include file not tracked: ${filePath}`);
+
+                    panel._panel.webview.postMessage({
+                        type: 'individualFileReloaded',
+                        filePath: filePath,
+                        isMainFile: false,
+                        success: false,
+                        error: 'File not tracked'
+                    });
+                }
+            }
+
+        } catch (error) {
+            console.error(`[MessageHandler] Error reloading individual file ${filePath}:`, error);
+
+            const panel = this._getWebviewPanel();
+            if (panel) {
+                panel._panel.webview.postMessage({
+                    type: 'individualFileReloaded',
+                    filePath: filePath,
+                    isMainFile: isMainFile,
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
+        }
+    }
+
+    /**
+     * Collect comprehensive debug information about tracked files
+     */
+    /**
+     * Get unified file state data that all systems should use for consistency
+     * THIS METHOD MUST BE USED BY ALL SYSTEMS - FILE STATE WINDOW, POPUPS, CONFLICT RESOLUTION
+     */
+    public getUnifiedFileState(): {
+        hasInternalChanges: boolean;
+        hasExternalChanges: boolean;
+        isUnsavedInEditor: boolean;
+        documentVersion: number;
+        lastDocumentVersion: number;
+    } {
+        const document = this._fileManager.getDocument();
+        if (!document) {
+            return {
+                hasInternalChanges: false,
+                hasExternalChanges: false,
+                isUnsavedInEditor: false,
+                documentVersion: 0,
+                lastDocumentVersion: -1
+            };
+        }
+
+        const fileStateManager = getFileStateManager();
+        const mainFileState = fileStateManager.getFileState(document.uri.fsPath);
+
+        if (!mainFileState) {
+            // Fallback to legacy method if state not yet initialized
+            const panel = this._getWebviewPanel();
+            const documentVersion = document.version;
+            const lastDocumentVersion = panel ? (panel as any)._lastDocumentVersion || -1 : -1;
+
+            return {
+                hasInternalChanges: panel ? (panel as any)._hasUnsavedChanges || false : false,
+                hasExternalChanges: panel ? (panel as any)._hasExternalUnsavedChanges || false : false,
+                isUnsavedInEditor: document.isDirty,
+                documentVersion,
+                lastDocumentVersion
+            };
+        }
+
+        return {
+            hasInternalChanges: mainFileState.needsSave,
+            hasExternalChanges: mainFileState.needsReload,
+            isUnsavedInEditor: mainFileState.backend.isDirtyInEditor,
+            documentVersion: mainFileState.backend.documentVersion,
+            lastDocumentVersion: mainFileState.backend.documentVersion - 1 // Approximation
+        };
+    }
+
+    private async collectTrackedFilesDebugInfo(): Promise<any> {
+        const document = this._fileManager.getDocument();
+        const fileStateManager = getFileStateManager();
+
+        // Get unified file state that all systems should use
+        const fileState = this.getUnifiedFileState();
+
+
+        // Use preserved file path from FileManager, which persists even when document is closed
+        const mainFilePath = this._fileManager.getFilePath() || document?.uri.fsPath || 'Unknown';
+        const mainFileState = mainFilePath !== 'Unknown' ? fileStateManager.getFileState(mainFilePath) : undefined;
+
+        const mainFileInfo = {
+            path: mainFilePath,
+            lastModified: mainFileState?.backend.lastModified?.toISOString() || 'Unknown',
+            exists: mainFileState?.backend.exists ?? (document ? true : false),
+            watcherActive: true, // Assume active for now
+            hasInternalChanges: fileState.hasInternalChanges,
+            hasExternalChanges: fileState.hasExternalChanges,
+            documentVersion: fileState.documentVersion,
+            lastDocumentVersion: fileState.lastDocumentVersion,
+            isUnsavedInEditor: fileState.isUnsavedInEditor,
+            baseline: mainFileState?.frontend.baseline || ''
+        };
+
+
+        // External file watchers
+        const externalWatchers: any[] = [];
+        let watcherDebugInfo: any = {};
+        try {
+            // Get external file watcher instance
+            const { ExternalFileWatcher } = require('./externalFileWatcher');
+            const watcher = ExternalFileWatcher.getInstance();
+
+            // Get debug information from watcher
+            watcherDebugInfo = watcher.getDebugInfo();
+
+            // Transform watcher info for display
+            watcherDebugInfo.watchers.forEach((watcherInfo: any) => {
+                externalWatchers.push({
+                    path: watcherInfo.path,
+                    active: watcherInfo.active,
+                    type: watcherInfo.type
+                });
+            });
+        } catch (error) {
+            console.warn('[Debug] Could not access ExternalFileWatcher:', error);
+        }
+
+        // Include files from FileStateManager
+        const includeFiles: any[] = [];
+        const allStates = fileStateManager.getAllStates();
+
+
+        for (const [filePath, fileStateData] of allStates) {
+            // Skip main file - we handle it separately
+            if (filePath === mainFilePath) {
+                continue;
+            }
+
+
+            includeFiles.push({
+                path: fileStateData.relativePath,
+                type: fileStateData.fileType,
+                exists: fileStateData.backend.exists,
+                lastModified: fileStateData.backend.lastModified?.toISOString() || 'Unknown',
+                size: 'Unknown', // Size not tracked in FileStateManager yet
+                hasInternalChanges: fileStateData.needsSave,
+                hasExternalChanges: fileStateData.needsReload,
+                isUnsavedInEditor: fileStateData.backend.isDirtyInEditor,
+                baseline: fileStateData.frontend.baseline,
+                content: fileStateData.frontend.content,
+                externalContent: '', // Not tracked separately anymore
+                contentLength: fileStateData.frontend.content.length,
+                baselineLength: fileStateData.frontend.baseline.length,
+                externalContentLength: 0
+            });
+        }
+
+        // Conflict management status
+        const conflictManager = {
+            healthy: watcherDebugInfo.listenerEnabled || false,
+            trackedFiles: watcherDebugInfo.totalWatchedFiles || (1 + includeFiles.length),
+            activeWatchers: watcherDebugInfo.totalWatchers || 0,
+            pendingConflicts: 0,
+            watcherFailures: 0,
+            listenerEnabled: watcherDebugInfo.listenerEnabled || false,
+            documentSaveListenerActive: watcherDebugInfo.documentSaveListenerActive || false
+        };
+
+        // System health
+        const systemHealth = {
+            overall: (watcherDebugInfo.totalWatchers > 0 && includeFiles.length > 0) ? 'good' : 'warn',
+            extensionState: 'active',
+            memoryUsage: 'normal',
+            lastError: null
+        };
+
+        return {
+            mainFile: mainFileInfo.path,
+            mainFileLastModified: mainFileInfo.lastModified,
+            fileWatcherActive: mainFileInfo.watcherActive,
+            externalWatchers: externalWatchers,
+            includeFiles: includeFiles,
+            conflictManager: conflictManager,
+            systemHealth: systemHealth,
+            hasUnsavedChanges: this._getWebviewPanel() ? (this._getWebviewPanel() as any)._hasUnsavedChanges || false : false,
+            timestamp: new Date().toISOString(),
+            watcherDetails: mainFileInfo, // FIX: Send main file info instead of external watcher info
+            externalWatcherDebugInfo: watcherDebugInfo // Keep external watcher info separate
+        };
+    }
+
+    /**
+     * Clear all tracked file caches
+     */
+    private async clearAllTrackedFileCaches(): Promise<void> {
+        const panel = this._getWebviewPanel();
+
+        if (panel) {
+            // Clear include file caches
+            try {
+                const includeFileMap = (panel as any)._includeFiles;
+                if (includeFileMap) {
+                    includeFileMap.clear();
+                }
+
+                // Clear cached board state if needed
+                (panel as any)._cachedBoardFromWebview = null;
+
+                // Trigger a fresh load
+                const document = this._fileManager.getDocument();
+                if (document) {
+                    await panel.loadMarkdownFile(document, false);
+                }
+            } catch (error) {
+                console.warn('[Debug] Error clearing panel caches:', error);
+            }
         }
     }
 }

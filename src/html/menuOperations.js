@@ -53,10 +53,7 @@ class SimpleMenuManager {
 
     // Safe function execution without eval
     executeSafeFunction(functionString, element) {
-        if (functionString.includes('console.log')) {
-            functionString = functionString.replace(/console\.log\([^)]*\);?\s*/g, '');
-        }
-        
+
         // Handle window.tagHandlers pattern - but check if already handled
         const tagHandlerMatch = functionString.match(/window\.tagHandlers\['([^']+)'\]\(([^)]*)\)/);
         if (tagHandlerMatch) {
@@ -845,7 +842,7 @@ function changeColumnSpan(columnId, delta) {
     }
 
     // Update the column element immediately
-    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (columnElement) {
         // Update CSS classes (only blocked by viewport-based widths, not pixel widths)
         columnElement.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
@@ -918,7 +915,7 @@ function toggleColumnStack(columnId) {
     }
 
     // Update the column element immediately
-    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (columnElement) {
         // Update the title display (without stack tags if they're hidden)
         const titleElement = columnElement.querySelector('.column-title-display');
@@ -959,13 +956,13 @@ function toggleColumnStack(columnId) {
 function deleteColumn(columnId) {
     // Close all menus properly
     closeAllMenus();
-    
+
     // NEW CACHE SYSTEM: Remove column from cached board first
     if (window.cachedBoard) {
         const columnIndex = window.cachedBoard.columns.findIndex(col => col.id === columnId);
         if (columnIndex >= 0) {
             const deletedColumn = window.cachedBoard.columns.splice(columnIndex, 1)[0];
-            
+
             // Also update currentBoard for compatibility
             if (window.currentBoard !== window.cachedBoard) {
                 const currentColumnIndex = window.currentBoard.columns.findIndex(col => col.id === columnId);
@@ -973,19 +970,19 @@ function deleteColumn(columnId) {
                     window.currentBoard.columns.splice(currentColumnIndex, 1);
                 }
             }
-            
-            // Remove column from DOM immediately
-            const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+
+            // Remove column from DOM immediately - use specific selector to avoid removing tasks
+            const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
             if (columnElement) {
                 columnElement.remove();
             }
-            
+
             // Mark board as having unsaved changes
             markUnsavedChanges();
-            
+
             // Send message to VS Code for undo tracking
             vscode.postMessage({ type: 'deleteColumn', columnId });
-            
+
         }
     }
 }
@@ -1746,42 +1743,78 @@ function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
 function deleteTask(taskId, columnId) {
     // Close all menus properly
     closeAllMenus();
-    
+
     // NEW CACHE SYSTEM: Remove task from cached board instead of sending to VS Code immediately
     if (window.cachedBoard) {
-        const column = window.cachedBoard.columns.find(col => col.id === columnId);
-        if (column) {
-            const taskIndex = column.tasks.findIndex(t => t.id === taskId);
+        // Find the task in any column (task might have been moved since the menu was generated)
+        let foundColumn = null;
+        let taskIndex = -1;
+
+        for (const column of window.cachedBoard.columns) {
+            taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex >= 0) {
-                const deletedTask = column.tasks.splice(taskIndex, 1)[0];
-                
-                // Also update currentBoard for compatibility
-                if (window.currentBoard !== window.cachedBoard) {
-                    const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
-                    if (currentColumn) {
-                        const currentTaskIndex = currentColumn.tasks.findIndex(t => t.id === taskId);
-                        if (currentTaskIndex >= 0) {
-                            currentColumn.tasks.splice(currentTaskIndex, 1);
-                        }
+                foundColumn = column;
+                break;
+            }
+        }
+
+        if (foundColumn && taskIndex >= 0) {
+            const deletedTask = foundColumn.tasks.splice(taskIndex, 1)[0];
+
+            // Also update currentBoard for compatibility
+            if (window.currentBoard !== window.cachedBoard) {
+                for (const currentColumn of window.currentBoard.columns) {
+                    const currentTaskIndex = currentColumn.tasks.findIndex(t => t.id === taskId);
+                    if (currentTaskIndex >= 0) {
+                        currentColumn.tasks.splice(currentTaskIndex, 1);
+                        break;
                     }
                 }
-                
-                // Remove task from DOM immediately
-                const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
-                if (taskElement) {
-                    taskElement.remove();
-                }
-                
-                // Mark board as having unsaved changes
-                markUnsavedChanges();
-                
-                // Send message to VS Code for undo tracking
-                vscode.postMessage({ type: 'deleteTask', taskId, columnId });
-                
             }
+
+            // Remove task from DOM immediately
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (taskElement) {
+                taskElement.remove();
+            }
+
+            // Check if column is now empty and add placeholder button
+            updateColumnEmptyState(foundColumn.id);
+
+            // Mark board as having unsaved changes
+            markUnsavedChanges();
+
+            // Send message to VS Code for undo tracking - use the actual column where task was found
+            vscode.postMessage({ type: 'deleteTask', taskId, columnId: foundColumn.id });
+
         }
     }
 }
+
+// Helper function to update column empty state (add/remove placeholder button)
+function updateColumnEmptyState(columnId) {
+    const tasksContainer = document.querySelector(`#tasks-${columnId}`);
+    if (!tasksContainer) { return; }
+
+    // Count actual task elements (not placeholder buttons)
+    const taskElements = tasksContainer.querySelectorAll('.task-item');
+    const hasAddButton = tasksContainer.querySelector('.add-task-btn');
+
+    if (taskElements.length === 0 && !hasAddButton) {
+        // Column is empty and has no add button - add it
+        const addButton = document.createElement('button');
+        addButton.className = 'add-task-btn';
+        addButton.setAttribute('onclick', `addTask('${columnId}')`);
+        addButton.innerHTML = '\n                        + Add Task\n                    ';
+        tasksContainer.appendChild(addButton);
+    } else if (taskElements.length > 0 && hasAddButton) {
+        // Column has tasks but still has add button - remove it
+        hasAddButton.remove();
+    }
+}
+
+// Make updateColumnEmptyState globally available
+window.updateColumnEmptyState = updateColumnEmptyState;
 
 // Helper function to update cache when creating tasks
 function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
@@ -1871,7 +1904,7 @@ function addTask(columnId) {
 
 // Helper function to unfold a column if it's collapsed
 function unfoldColumnIfCollapsed(columnId) {
-    const column = document.querySelector(`[data-column-id="${columnId}"]`);
+    const column = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (column?.classList.contains('collapsed')) {
         toggleColumnCollapse(columnId);
         return true; // Column was unfolded
@@ -1911,45 +1944,65 @@ function addColumn(rowNumber) {
  * Side effects: Updates pending changes, triggers visual updates
  */
 function toggleColumnTag(columnId, tagName, event) {
-    
+
     // Enhanced duplicate prevention with stronger key and longer timeout
     const key = `column-${columnId}-${tagName}`;
     const now = Date.now();
     if (!window._lastTagExecution) {
         window._lastTagExecution = {};
     }
-    
+
     if (window._lastTagExecution[key] && now - window._lastTagExecution[key] < 500) {
         return;
     }
     window._lastTagExecution[key] = now;
-    
+
     if (event) {
         event.stopPropagation();
         event.preventDefault();
     }
-    
-    if (!window.currentBoard?.columns) {
+
+    // Try to find the column in the best available board data
+    let boardToUse = null;
+    let column = null;
+
+    // First try cachedBoard (most current)
+    if (window.cachedBoard?.columns) {
+        column = window.cachedBoard.columns.find(c => c.id === columnId);
+        if (column) {
+            boardToUse = window.cachedBoard;
+        }
+    }
+
+    // If not found, try currentBoard
+    if (!column && window.currentBoard?.columns) {
+        column = window.currentBoard.columns.find(c => c.id === columnId);
+        if (column) {
+            boardToUse = window.currentBoard;
+        }
+    }
+
+    if (!column) {
+        if (window.currentBoard?.columns) {
+        }
+        if (window.cachedBoard?.columns) {
+        }
         return;
     }
 
-    const column = window.currentBoard.columns.find(c => c.id === columnId);
-    if (!column) {
-        return;
-    }
-    
-    
+
     // Also check DOM element
-    const domElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    const domElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (!domElement) {
         return;
     }
+
     
     const tagWithHash = `#${tagName}`;
     let title = column.title || '';
     const wasActive = new RegExp(`#${tagName}\\b`, 'gi').test(title);
-    
-    
+
+
     if (wasActive) {
         const beforeRemoval = title;
         title = title.replace(new RegExp(`#${tagName}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
@@ -1963,12 +2016,19 @@ function toggleColumnTag(columnId, tagName, event) {
         }
     }
     
-    // Update cached board directly - single source of truth
+    // Update the board data - make sure both boards are updated
     const oldTitle = column.title;
     column.title = title;
 
-    // Also update in cached board if different reference
-    if (window.cachedBoard) {
+    // Ensure both currentBoard and cachedBoard are updated if they exist and are different
+    if (window.currentBoard && window.currentBoard !== boardToUse) {
+        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+        if (currentColumn) {
+            currentColumn.title = title;
+        }
+    }
+
+    if (window.cachedBoard && window.cachedBoard !== boardToUse) {
         const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (cachedColumn) {
             cachedColumn.title = title;
@@ -2016,84 +2076,131 @@ function toggleColumnTag(columnId, tagName, event) {
  * Side effects: Updates pending changes, triggers visual updates
  */
 function toggleTaskTag(taskId, columnId, tagName, event) {
-    
+    console.log('DEBUG: toggleTaskTag called', { taskId, columnId, tagName });
+
     // Enhanced duplicate prevention with stronger key and longer timeout
     const key = `task-${taskId}-${tagName}`;
     const now = Date.now();
     if (!window._lastTagExecution) {
         window._lastTagExecution = {};
     }
-    
+
     if (window._lastTagExecution[key] && now - window._lastTagExecution[key] < 500) {
+        console.log('DEBUG: toggleTaskTag blocked by duplicate prevention');
         return;
     }
     window._lastTagExecution[key] = now;
-    
+
     if (event) {
         event.stopPropagation();
         event.preventDefault();
     }
-    
-    if (!window.currentBoard?.columns) {
-        return;
-    }
-    
-    let column = window.currentBoard.columns.find(c => c.id === columnId);
-    let task = column?.tasks.find(t => t.id === taskId);
 
-    // If task not found in the expected column, search all columns for the task
-    if (!task) {
-        for (const col of window.currentBoard.columns) {
-            const foundTask = col.tasks.find(t => t.id === taskId);
-            if (foundTask) {
-                column = col;
-                task = foundTask;
-                break;
+    // Try to find the task in the best available board data
+    let boardToUse = null;
+    let column = null;
+    let task = null;
+
+    // First try cachedBoard (most current)
+    if (window.cachedBoard?.columns) {
+        column = window.cachedBoard.columns.find(c => c.id === columnId);
+        task = column?.tasks.find(t => t.id === taskId);
+
+        // If task not found in expected column, search all columns
+        if (!task) {
+            for (const col of window.cachedBoard.columns) {
+                const foundTask = col.tasks.find(t => t.id === taskId);
+                if (foundTask) {
+                    column = col;
+                    task = foundTask;
+                    break;
+                }
             }
+        }
+
+        if (task) {
+            boardToUse = window.cachedBoard;
+            console.log('DEBUG: Using cachedBoard for task');
+        }
+    }
+
+    // If not found, try currentBoard
+    if (!task && window.currentBoard?.columns) {
+        column = window.currentBoard.columns.find(c => c.id === columnId);
+        task = column?.tasks.find(t => t.id === taskId);
+
+        // If task not found in expected column, search all columns
+        if (!task) {
+            for (const col of window.currentBoard.columns) {
+                const foundTask = col.tasks.find(t => t.id === taskId);
+                if (foundTask) {
+                    column = col;
+                    task = foundTask;
+                    break;
+                }
+            }
+        }
+
+        if (task) {
+            boardToUse = window.currentBoard;
+            console.log('DEBUG: Using currentBoard for task');
         }
     }
 
     if (!column || !task) {
+        console.log('DEBUG: Task or column not found in any board', { taskId, columnId });
         return;
     }
+
+    console.log('DEBUG: Found task', task);
     
     
     // Also check DOM element
     const domElement = document.querySelector(`[data-task-id="${taskId}"]`);
     if (!domElement) {
+        console.log('DEBUG: DOM element not found for task', taskId);
         return;
     }
-    
+
     const tagWithHash = `#${tagName}`;
     let title = task.title || '';
     const wasActive = new RegExp(`#${tagName}\\b`, 'gi').test(title);
-    
-    
+
+    console.log('DEBUG: Current task title:', title);
+    console.log('DEBUG: Tag was active:', wasActive);
+
     if (wasActive) {
-        const beforeRemoval = title;
         title = title.replace(new RegExp(`#${tagName}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
     } else {
         title = `${title} ${tagWithHash}`.trim();
     }
-    
-    // NEW CACHE SYSTEM: Update cached board first - single source of truth
+
+    // Update the task in the found board
     const oldTitle = task.title;
-    
-    // Update in cached board (primary source of truth for saves)
-    if (window.cachedBoard) {
-        const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+    task.title = title;
+    console.log('DEBUG: Updated task.title from', oldTitle, 'to', title);
+
+    // Ensure both currentBoard and cachedBoard are updated if they exist and are different
+    if (window.currentBoard && window.currentBoard !== boardToUse) {
+        const currentColumn = window.currentBoard.columns.find(col => col.id === column.id);
+        if (currentColumn) {
+            const currentTask = currentColumn.tasks.find(t => t.id === taskId);
+            if (currentTask) {
+                currentTask.title = title;
+                console.log('DEBUG: Updated currentBoard task title');
+            }
+        }
+    }
+
+    if (window.cachedBoard && window.cachedBoard !== boardToUse) {
+        const cachedColumn = window.cachedBoard.columns.find(col => col.id === column.id);
         if (cachedColumn) {
             const cachedTask = cachedColumn.tasks.find(t => t.id === taskId);
             if (cachedTask) {
                 cachedTask.title = title;
+                console.log('DEBUG: Updated cachedBoard task title');
             }
         }
-    }
-    
-    // Also update currentBoard for compatibility (if it's a different reference)
-    task.title = title; // Update the task we found from currentBoard
-    if (window.currentBoard !== window.cachedBoard) {
-        // Task is already updated above since 'task' came from currentBoard
     }
     
     // Mark as unsaved since we made a change
@@ -2131,7 +2238,7 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
  */
 function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     // Use unique ID to find column element - NEVER use titles for selection
-    const columnElement = document.querySelector(`[data-column-id="${columnId}"]`);
+    const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (!columnElement) {
         return;
     }
@@ -2711,19 +2818,6 @@ function manualRefresh() {
     }, 100);
 }
 
-// Refresh includes function
-function refreshIncludes() {
-    // Update button to show it's refreshing
-    const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
-    const iconSpan = refreshIncludesBtn?.querySelector('.refresh-includes-icon');
-    if (iconSpan) {
-        iconSpan.textContent = '🔄'; // Spinning/refresh icon
-    }
-
-    // Send message to backend to refresh includes
-    vscode.postMessage({ type: 'refreshIncludes' });
-    vscode.postMessage({ type: 'showMessage', text: 'Refreshing included files...' });
-}
 
 // Function to update refresh button state
 /**
@@ -3130,7 +3224,10 @@ function updateTagCategoryCounts(id, type, columnId = null) {
 window.toggleDonutMenu = toggleDonutMenu;
 window.toggleFileBarMenu = toggleFileBarMenu;
 window.closeAllMenus = closeAllMenus;
-window.handleColumnTagClick = (columnId, tagName, event) => toggleColumnTag(columnId, tagName, event);
+window.handleColumnTagClick = (columnId, tagName, event) => {
+    console.log('DEBUG: handleColumnTagClick called', { columnId, tagName });
+    return toggleColumnTag(columnId, tagName, event);
+};
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(taskId, columnId, tagName, event);
 window.updateTagChipStyle = updateTagChipStyle;
 window.updateTagButtonAppearance = updateTagButtonAppearance;
@@ -3328,31 +3425,20 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         }
     });
 
-    // Always try to add header-bars-container to column-header (even if empty)
-    const isCollapsed = element.classList.contains('collapsed');
-    if (isCollapsed) {
-        // For collapsed elements, add bars directly to the column
-        if (headerBars.length > 0) {
-            headerBars.forEach(bar => element.appendChild(bar));
-        }
-    } else {
-        // For expanded elements, always add header-bars-container to column-header
-        const columnHeader = element.querySelector('.column-header');
-        if (columnHeader) {
-            const headerContainer = document.createElement('div');
-            headerContainer.className = 'header-bars-container';
-            headerBars.forEach(bar => headerContainer.appendChild(bar));
-            // Header container should be first child, so insert at the beginning
-            columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
-        } else {
-            // Fallback: add directly to element if no column-header found
-            if (headerBars.length > 0) {
-                const headerContainer = document.createElement('div');
-                headerContainer.className = 'header-bars-container';
-                headerBars.forEach(bar => headerContainer.appendChild(bar));
-                element.appendChild(headerContainer);
-            }
-        }
+    // Always try to add header-bars-container to column-header (regardless of collapsed state)
+    const columnHeader = element.querySelector('.column-header');
+    if (columnHeader && headerBars.length > 0) {
+        const headerContainer = document.createElement('div');
+        headerContainer.className = 'header-bars-container';
+        headerBars.forEach(bar => headerContainer.appendChild(bar));
+        // Header container should be first child, so insert at the beginning
+        columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
+    } else if (headerBars.length > 0) {
+        // Fallback: add directly to element if no column-header found
+        const headerContainer = document.createElement('div');
+        headerContainer.className = 'header-bars-container';
+        headerBars.forEach(bar => headerContainer.appendChild(bar));
+        element.appendChild(headerContainer);
     }
 
     // Set classes only if there are actual header bars
@@ -3378,25 +3464,19 @@ function updateAllVisualTagElements(element, allTags, elementType) {
     });
     
     if (footerBars.length > 0) {
-        const isCollapsed = element.classList.contains('collapsed');
-        if (isCollapsed) {
-            // For collapsed elements, add bars directly to the column
-            footerBars.forEach(bar => element.appendChild(bar));
+        // Always try to add footer-bars-container to column-footer (regardless of collapsed state)
+        const columnFooter = element.querySelector('.column-footer');
+        if (columnFooter) {
+            const footerContainer = document.createElement('div');
+            footerContainer.className = 'footer-bars-container';
+            footerBars.forEach(bar => footerContainer.appendChild(bar));
+            columnFooter.appendChild(footerContainer);
         } else {
-            // For expanded elements, find column-footer and add container there
-            const columnFooter = element.querySelector('.column-footer');
-            if (columnFooter) {
-                const footerContainer = document.createElement('div');
-                footerContainer.className = 'footer-bars-container';
-                footerBars.forEach(bar => footerContainer.appendChild(bar));
-                columnFooter.appendChild(footerContainer);
-            } else {
-                // Fallback: add directly to element if no column-footer found
-                const footerContainer = document.createElement('div');
-                footerContainer.className = 'footer-bars-container';
-                footerBars.forEach(bar => footerContainer.appendChild(bar));
-                element.appendChild(footerContainer);
-            }
+            // Fallback: add directly to element if no column-footer found
+            const footerContainer = document.createElement('div');
+            footerContainer.className = 'footer-bars-container';
+            footerBars.forEach(bar => footerContainer.appendChild(bar));
+            element.appendChild(footerContainer);
         }
         element.classList.add('has-footer-bar');
         if (hasFooterLabel) {element.classList.add('has-footer-label');}
@@ -3415,7 +3495,6 @@ window.submenuGenerator = window.menuManager; // Compatibility alias
 window.manualRefresh = manualRefresh;
 window.updateVisualTagState = updateVisualTagState;
 window.updateAllVisualTagElements = updateAllVisualTagElements;
-window.refreshIncludes = refreshIncludes;
 window.toggleTaskIncludeMode = toggleTaskIncludeMode;
 window.editTaskIncludeFile = editTaskIncludeFile;
 

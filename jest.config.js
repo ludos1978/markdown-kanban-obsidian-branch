@@ -17,7 +17,7 @@ module.exports = {
     ],
     
     // Module paths
-    moduleNameMapping: {
+    moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1'
     },
     
@@ -61,10 +61,10 @@ module.exports = {
     verbose: true,
     
     // Global setup
-    globalSetup: '<rootDir>/src/test/globalSetup.js',
-    
+    // globalSetup: '<rootDir>/src/test/globalSetup.js',
+
     // Global teardown
-    globalTeardown: '<rootDir>/src/test/globalTeardown.js',
+    // globalTeardown: '<rootDir>/src/test/globalTeardown.js',
     
     // Mock configuration
     clearMocks: true,

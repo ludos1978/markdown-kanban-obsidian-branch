@@ -313,14 +313,12 @@ export class BoardOperations {
 
             column.displayTitle = displayTitle || 'Included Column';
 
-            console.log(`[BoardOperations] Updated include files for column "${column.title}": [${newIncludeFiles.join(', ')}]`);
         } else if (column.includeMode) {
             // Title no longer contains include syntax - disable include mode
             column.includeMode = false;
             column.includeFiles = undefined;
             column.originalTitle = undefined;
             column.displayTitle = undefined;
-            console.log(`[BoardOperations] Disabled include mode for column "${column.title}"`);
         }
 
         return true;

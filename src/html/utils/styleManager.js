@@ -98,24 +98,6 @@ class StyleManager {
         this.styleElement.textContent = cssText;
     }
 
-    /**
-     * Clear all dynamic styles
-     */
-    clearStyles() {
-        this.styles.clear();
-        this.styleElement.textContent = '';
-    }
-
-    /**
-     * Remove specific style
-     * @param {string} property - CSS property name
-     * @param {string} selector - CSS selector
-     */
-    removeStyle(property, selector = ':root') {
-        const key = `${selector}-${property}`;
-        this.styles.delete(key);
-        this.updateStylesheet();
-    }
 }
 
 // Create singleton instance

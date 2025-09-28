@@ -294,24 +294,6 @@ class ModalUtils {
         }
     }
 
-    /**
-     * Close all modals
-     */
-    closeAllModals() {
-        this.activeModals.forEach(modal => {
-            this.closeModal(modal);
-        });
-        this.activeModals.clear();
-        this.keyHandlers.clear();
-    }
-
-    /**
-     * Check if any modal is currently open
-     * @returns {boolean} True if any modal is open
-     */
-    hasOpenModals() {
-        return this.activeModals.size > 0;
-    }
 
     /**
      * Show a loading modal

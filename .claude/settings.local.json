@@ -29,7 +29,13 @@
       "Bash(sed:*)",
       "Read(///**)",
       "Bash(npm run:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(awk:*)",
+      "Bash(timeout 30 npm run analyze-cleanup:*)",
+      "Bash(gtimeout:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx tsc:*)",
+      "Bash(npx jest:*)"
     ],
     "deny": [],
     "ask": []

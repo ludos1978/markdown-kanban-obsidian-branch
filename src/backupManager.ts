@@ -82,11 +82,14 @@ export class BackupManager {
 
             // Write backup file
             fs.writeFileSync(backupPath, content, 'utf8');
-            
+
+            // Set hidden attribute on Windows
+            await this.setFileHidden(backupPath);
+
             this._lastBackupTime = new Date();
             this._lastContentHash = contentHash;
-            
-            console.log(`Backup created: ${backupPath}`);
+
+            console.log(`✅ Backup created: ${backupPath} (Label: ${options.label || 'backup'}, Forced: ${options.forceCreate || false})`);
             
             // Clean up old backups
             await this.cleanupOldBackups(document);
@@ -122,8 +125,8 @@ export class BackupManager {
             }
         }
 
-        // Hidden file with . prefix for auto and backup files, normal files for conflicts
-        const prefix = (label === 'backup' || label === 'auto') ? '.' : '';
+        // All automatically generated files should be hidden
+        const prefix = '.';
         const backupFileName = `${prefix}${basename}-${label}-${timestamp}.md`;
 
         return path.join(backupDir, backupFileName);
@@ -140,10 +143,9 @@ export class BackupManager {
                 return null;
             }
 
-            const contentHash = this.hashContent(content);
-
-            // For include files, we'll create a backup if content changes or force is requested
+            // For conflict backups, always create regardless of content comparison
             if (!options.forceCreate) {
+                const contentHash = this.hashContent(content);
                 // Read existing file to compare content
                 try {
                     const existingContent = fs.readFileSync(filePath, 'utf8');
@@ -155,6 +157,7 @@ export class BackupManager {
                     // File might not exist yet, proceed with backup
                 }
             }
+            // If forceCreate is true, skip all content comparison and always create backup
 
             const backupPath = this.generateFileBackupPath(filePath, options.label || 'backup');
 
@@ -164,19 +167,13 @@ export class BackupManager {
                 fs.mkdirSync(backupDir, { recursive: true });
             }
 
-            // Read current file content for backup (before overwriting)
-            let backupContent = '';
-            try {
-                backupContent = fs.readFileSync(filePath, 'utf8');
-            } catch (error) {
-                console.log(`No existing file to backup at ${filePath}`);
-                return null; // No existing file to backup
-            }
+            // Use the provided content (internal kanban changes) for backup
+            // This is what we want to preserve before reloading from external file
+            fs.writeFileSync(backupPath, content, 'utf8');
 
-            // Write backup file with current content
-            fs.writeFileSync(backupPath, backupContent, 'utf8');
+            // Set hidden attribute on Windows
+            await this.setFileHidden(backupPath);
 
-            console.log(`Include file backup created: ${backupPath}`);
             return backupPath;
 
         } catch (error) {
@@ -209,8 +206,8 @@ export class BackupManager {
             }
         }
 
-        // Hidden file with . prefix for auto and backup files, normal files for conflicts
-        const prefix = (label === 'backup' || label === 'auto') ? '.' : '';
+        // All automatically generated files should be hidden
+        const prefix = '.';
         const backupFileName = `${prefix}${basename}-${label}-${timestamp}${ext}`;
 
         return path.join(backupDir, backupFileName);
@@ -269,7 +266,7 @@ export class BackupManager {
                 return;
             }
 
-            // Find all backup and auto files for this document
+            // Find backup and auto files for this document (excluding conflicts which should be preserved)
             // Pattern matches: .basename-(backup|auto)-YYYYMMDDTHHmmss.md
             const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(backup|auto)-\\d{8}T\\d{6}\\.md$`);
 
@@ -286,12 +283,11 @@ export class BackupManager {
             // Delete old backups if we exceed the maximum
             if (backupFiles.length > maxBackups) {
                 const filesToDelete = backupFiles.slice(maxBackups);
-                console.log(`Cleaning up ${filesToDelete.length} old backups (keeping ${maxBackups} newest)`);
 
                 for (const file of filesToDelete) {
                     try {
                         fs.unlinkSync(file.path);
-                        console.log(`Deleted old backup: ${file.name}`);
+                        // console.log(`Deleted old backup: ${file.name}`);
                     } catch (error) {
                         console.error(`Failed to delete backup ${file.name}:`, error);
                     }
@@ -406,6 +402,32 @@ export class BackupManager {
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to restore from backup: ${error}`);
             return false;
+        }
+    }
+
+    /**
+     * Set file as hidden on Windows using attrib command
+     * On Unix systems, files starting with . are already hidden
+     */
+    private async setFileHidden(filePath: string): Promise<void> {
+        try {
+            // Only need to set hidden attribute on Windows
+            if (process.platform === 'win32') {
+                const { exec } = await import('child_process');
+                const util = await import('util');
+                const execPromise = util.promisify(exec);
+
+                try {
+                    await execPromise(`attrib +H "${filePath}"`);
+                } catch (error) {
+                    // Silently fail if attrib command fails
+                    // The . prefix will still make it hidden in most file managers
+                    console.debug(`Failed to set hidden attribute for ${filePath}:`, error);
+                }
+            }
+        } catch (error) {
+            // Silently fail - file is still created with . prefix
+            console.debug(`Error setting file hidden:`, error);
         }
     }
 

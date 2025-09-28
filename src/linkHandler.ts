@@ -141,20 +141,55 @@ export class LinkHandler {
 
             if (isTextFile) {
                 const openInNewTab = configService.getConfig('openLinksInNewTab');
-                
+
                 try {
-                    const document = await vscode.workspace.openTextDocument(resolvedPath);
-                    
-                    if (openInNewTab) {
-                        await vscode.window.showTextDocument(document, {
-                            preview: false,
-                            viewColumn: vscode.ViewColumn.Beside
+                    // Normalize the path for comparison (resolve symlinks, normalize separators)
+                    const normalizedPath = path.resolve(resolvedPath);
+
+                    console.log(`[LINKHANDLER_REUSE] Attempting to open: ${normalizedPath}`);
+                    console.log(`[LINKHANDLER_REUSE] Open documents: ${vscode.workspace.textDocuments.length}`);
+                    console.log(`[LINKHANDLER_REUSE] Visible editors: ${vscode.window.visibleTextEditors.length}`);
+                    console.log(`[LINKHANDLER_REUSE] All document paths:`, vscode.workspace.textDocuments.map(d => d.uri.fsPath));
+                    console.log(`[LINKHANDLER_REUSE] openInNewTab: ${openInNewTab}`);
+
+                    // Check if file is already open as a document (even if not visible)
+                    const existingDocument = vscode.workspace.textDocuments.find(doc => {
+                        const docPath = path.resolve(doc.uri.fsPath);
+                        const matches = docPath === normalizedPath;
+                        console.log(`[LINKHANDLER_REUSE] Comparing: "${docPath}" vs "${normalizedPath}" = ${matches}`);
+                        return matches;
+                    });
+
+                    if (existingDocument) {
+                        console.log(`[LINKHANDLER_REUSE] Found existing document - will focus it`);
+                        console.log(`[LINKHANDLER_REUSE] openInNewTab setting: ${openInNewTab} (ignored for existing docs)`);
+
+                        // ALWAYS focus existing documents, ignore openInNewTab setting
+                        await vscode.window.showTextDocument(existingDocument, {
+                            preserveFocus: false,
+                            preview: false
                         });
+                        console.log(`[LINKHANDLER_REUSE] Successfully focused existing document`);
                     } else {
-                        await vscode.window.showTextDocument(document, {
-                            preview: false,
-                            preserveFocus: false
-                        });
+                        console.log(`[LINKHANDLER_REUSE] Document not open, opening new: openInNewTab=${openInNewTab}`);
+                        // File is not open, open it according to user preference
+                        const document = await vscode.workspace.openTextDocument(resolvedPath);
+
+                        if (openInNewTab) {
+                            console.log(`[LINKHANDLER_REUSE] Opening in new tab group (split view)`);
+                            // Open in new tab group (split view)
+                            await vscode.window.showTextDocument(document, {
+                                preview: false,
+                                viewColumn: vscode.ViewColumn.Beside
+                            });
+                        } else {
+                            console.log(`[LINKHANDLER_REUSE] Opening in current tab group`);
+                            // Open in current tab group
+                            await vscode.window.showTextDocument(document, {
+                                preview: false,
+                                preserveFocus: false
+                            });
+                        }
                     }
                     
                     if (!isAbsolute) {
@@ -259,12 +294,48 @@ export class LinkHandler {
                         const ext = path.extname(filename).toLowerCase();
                         
                         if (!ext || textExtensions.includes(ext)) {
-                            // Try to open as text document
-                            const document = await vscode.workspace.openTextDocument(resolution.resolvedPath);
-                            await vscode.window.showTextDocument(document, {
-                                preview: false,
-                                preserveFocus: false
+                            // Normalize the path for comparison (resolve symlinks, normalize separators)
+                            const normalizedPath = path.resolve(resolution.resolvedPath);
+
+                            console.log(`[WIKILINK_REUSE] Attempting to open: ${normalizedPath}`);
+                            console.log(`[WIKILINK_REUSE] Open documents: ${vscode.workspace.textDocuments.length}`);
+                            console.log(`[WIKILINK_REUSE] All document paths:`, vscode.workspace.textDocuments.map(d => d.uri.fsPath));
+
+                            // Check if file is already open as a document (even if not visible)
+                            const existingDocument = vscode.workspace.textDocuments.find(doc => {
+                                const docPath = path.resolve(doc.uri.fsPath);
+                                const matches = docPath === normalizedPath;
+                                console.log(`[WIKILINK_REUSE] Comparing: "${docPath}" vs "${normalizedPath}" = ${matches}`);
+                                return matches;
                             });
+
+                            if (existingDocument) {
+                                console.log(`[WIKILINK_REUSE] Found existing document, focusing it`);
+                                // File is already open, always focus it
+                                try {
+                                    await vscode.window.showTextDocument(existingDocument, {
+                                        preserveFocus: false,
+                                        preview: false
+                                    });
+                                    console.log(`[WIKILINK_REUSE] Successfully focused existing document`);
+                                } catch (error) {
+                                    console.error(`[WIKILINK_REUSE] Failed to focus existing document:`, error);
+                                    // Fallback to opening normally
+                                    const document = await vscode.workspace.openTextDocument(resolution.resolvedPath);
+                                    await vscode.window.showTextDocument(document, {
+                                        preview: false,
+                                        preserveFocus: false
+                                    });
+                                }
+                            } else {
+                                console.log(`[WIKILINK_REUSE] Document not open, opening new`);
+                                // File is not open, open it normally
+                                const document = await vscode.workspace.openTextDocument(resolution.resolvedPath);
+                                await vscode.window.showTextDocument(document, {
+                                    preview: false,
+                                    preserveFocus: false
+                                });
+                            }
                             
                             vscode.window.showInformationMessage(
                                 `Opened wiki link: ${documentName} → ${path.basename(resolution.resolvedPath)}`

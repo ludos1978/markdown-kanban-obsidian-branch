@@ -1372,26 +1372,6 @@ function setTagVisibility(setting) {
 // Export tag visibility functionality
 let currentExportTagVisibility = 'allexcludinglayout'; // Default setting
 
-function setExportTagVisibility(setting) {
-    // Store the export tag visibility setting
-    currentExportTagVisibility = setting;
-    window.currentExportTagVisibility = setting;
-
-    // Store preference
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'exportTagVisibility',
-        value: setting
-    });
-
-    // Update menu indicators
-    updateAllMenuIndicators();
-
-    // Close menu
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
-}
 
 // Helper function to filter tags from text based on export tag visibility setting
 function filterTagsForExport(text) {
@@ -1757,7 +1737,7 @@ function updateDocumentUri(newUri) {
         const hadSavedState = restoreFoldingState();
         
         // If no saved state exists and board is ready, apply defaults for new document
-        if (!hadSavedState && currentBoard && currentBoard.columns) {
+        if (!hadSavedState && window.currentBoard && window.currentBoard.columns) {
             applyDefaultFoldingToNewDocument();
         }
     }
@@ -1959,7 +1939,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Request initial board data and file info
     setTimeout(() => {
-        if (!currentBoard || !currentBoard.columns || currentBoard.columns.length === 0) {
+        if (!window.currentBoard || !window.currentBoard.columns || window.currentBoard.columns.length === 0) {
             vscode.postMessage({ type: 'requestBoardUpdate' });
         }
         if (!currentFileInfo) {
@@ -2082,10 +2062,6 @@ function performFocusActions(focusTargets) {
             setTimeout(() => {
                 element.classList.remove('focus-highlight');
             }, 2000);
-        } else {
-            if (index === 0) {
-                // Only debug for first target to avoid spam
-            }
         }
     });
 }
@@ -2104,7 +2080,7 @@ window.addEventListener('message', event => {
     
     switch (message.type) {
         case 'updateBoard':
-            const previousBoard = currentBoard;
+            const previousBoard = window.currentBoard;
             
             // Clear card focus when board is updated
             focusCard(null);
@@ -2124,6 +2100,14 @@ window.addEventListener('message', event => {
                 // If this is a save confirmation (no unsaved changes), update the saved reference
                 if (!window.hasUnsavedChanges) {
                     window.savedBoardState = JSON.parse(JSON.stringify(message.board));
+                }
+
+                // For undo/redo operations, update the saved state reference but preserve pending changes
+                // Pending changes represent ongoing user edits that should persist through undo operations
+                if (message.isUndo || message.isRedo) {
+                    window.savedBoardState = JSON.parse(JSON.stringify(message.board));
+                    // Note: We intentionally do NOT clear pending changes here, as they represent
+                    // valid user modifications that should persist through undo/redo operations
                 }
             }
             currentBoard = window.cachedBoard;
@@ -2438,53 +2422,22 @@ window.addEventListener('message', event => {
             // Store focus targets to be processed after rendering completes
             window.pendingFocusTargets = message.focusTargets;
             break;
-        case 'includeFilesChanged':
-            // Update the refresh includes button to show status
-            const refreshIncludesBtn = document.getElementById('refresh-includes-btn');
-            const countSpan = refreshIncludesBtn?.querySelector('.refresh-includes-count');
-            const iconSpan = refreshIncludesBtn?.querySelector('.refresh-includes-icon');
-
-            if (refreshIncludesBtn) {
-                // Button is always visible, just update its state
-                if (message.hasChanges) {
-                    refreshIncludesBtn.classList.add('has-changes');
-                    if (iconSpan) iconSpan.textContent = '❗';
-                } else {
-                    refreshIncludesBtn.classList.remove('has-changes');
-                    if (iconSpan) iconSpan.textContent = '✓';
-                }
-
-                // Update badge count
-                if (countSpan && message.changedFiles) {
-                    const changeCount = message.changedFiles.length;
-                    countSpan.textContent = changeCount > 0 ? changeCount.toString() : '';
-                }
-
-                // Update tooltip to show which files are tracked and which changed
-                let tooltip = '';
-                if (message.trackedFiles && message.trackedFiles.length > 0) {
-                    tooltip = `Tracked files (${message.trackedFiles.length}):\n`;
-                    tooltip += message.trackedFiles.map(f => `  • ${f}`).join('\n');
-
-                    if (message.hasChanges && message.changedFiles && message.changedFiles.length > 0) {
-                        tooltip += '\n\nChanged files:\n';
-                        tooltip += message.changedFiles.map(f => `  ⚠ ${f}`).join('\n');
-                    }
-                } else {
-                    tooltip = 'No included files tracked';
-                }
-
-                refreshIncludesBtn.title = tooltip;
-            }
-            break;
         case 'includeFileContent':
             // Handle include file content response from backend
             if (typeof window.updateIncludeFileCache === 'function') {
                 window.updateIncludeFileCache(message.filePath, message.content);
             }
             break;
-        case 'refreshIncludesOnly':
-            // Lightweight include refresh - just re-render markdown without board changes
+
+        case 'updateIncludeContent':
+            // Handle processed include content from backend
+            if (typeof window.updateIncludeContent === 'function') {
+                window.updateIncludeContent(message.filePath, message.content);
+            }
+            break;
+
+        case 'includesUpdated':
+            // All includes have been processed and updated - trigger re-render
             if (typeof window.renderBoard === 'function') {
                 window.renderBoard();
             }
@@ -2545,6 +2498,7 @@ window.addEventListener('message', event => {
             if (window.cachedBoard && window.cachedBoard.columns) {
                 const column = window.cachedBoard.columns.find(c => c.id === message.columnId);
                 if (column) {
+
                     // Update tasks and column metadata
                     column.tasks = message.tasks || [];
                     column.title = message.columnTitle || column.title;
@@ -2562,6 +2516,8 @@ window.addEventListener('message', event => {
                         }
                     }
                 }
+            } else {
+                console.warn('[Frontend] No cached board available for updateColumnContent');
             }
             break;
         case 'updateTaskContent':
@@ -2601,6 +2557,93 @@ window.addEventListener('message', event => {
                         }
                     }
                 }
+            }
+            break;
+        case 'exportDefaultFolder':
+            setExportDefaultFolder(message.folderPath);
+            setColumnExportDefaultFolder(message.folderPath);
+            break;
+        case 'exportFolderSelected':
+            setSelectedExportFolder(message.folderPath);
+            setSelectedColumnExportFolder(message.folderPath);
+            break;
+        case 'exportResult':
+            handleExportResult(message.result);
+            break;
+        case 'columnExportResult':
+            handleColumnExportResult(message.result);
+            break;
+
+        // Activity indicator messages
+        case 'operationStarted':
+            if (window.activityManager) {
+                window.activityManager.startOperation(
+                    message.operationId,
+                    message.operationType,
+                    message.description
+                );
+            }
+            break;
+
+        case 'operationProgress':
+            if (window.activityManager) {
+                window.activityManager.updateProgress(
+                    message.operationId,
+                    message.progress,
+                    message.message
+                );
+            }
+            break;
+
+        case 'operationCompleted':
+            if (window.activityManager) {
+                window.activityManager.endOperation(message.operationId);
+            }
+            break;
+
+        case 'trackedFilesDebugInfo':
+            // Handle debug info response from backend
+            if (typeof window.updateTrackedFilesData === 'function') {
+                window.updateTrackedFilesData(message.data);
+            }
+            break;
+
+        case 'debugCacheCleared':
+            // Handle debug cache clear confirmation
+            break;
+
+        case 'allIncludedFilesReloaded':
+            // Handle reload confirmation
+            if (message.reloadCount > 0) {
+                } else {
+            }
+            break;
+
+        case 'individualFileSaved':
+            // Handle individual file save confirmation
+            const fileName = message.filePath.split('/').pop();
+            if (message.success) {
+                // Refresh the debug overlay to show updated states
+                if (typeof window.refreshDebugOverlay === 'function') {
+                    setTimeout(() => window.refreshDebugOverlay(), 500);
+                }
+            } else {
+                console.error(`[Debug] Failed to save ${fileName}: ${message.error}`);
+                console.error(`[Debug] Failed to save ${fileName}: ${message.error}`);
+            }
+            break;
+
+        case 'individualFileReloaded':
+            // Handle individual file reload confirmation
+            const reloadedFileName = message.filePath.split('/').pop();
+            if (message.success) {
+                // Refresh the debug overlay to show updated states
+                if (typeof window.refreshDebugOverlay === 'function') {
+                    setTimeout(() => window.refreshDebugOverlay(), 500);
+                }
+            } else {
+                console.error(`[Debug] Failed to reload ${reloadedFileName}: ${message.error}`);
+                console.error(`[Debug] Failed to reload ${reloadedFileName}: ${message.error}`);
             }
             break;
     }
@@ -2650,7 +2693,7 @@ if (typeof MutationObserver !== 'undefined') {
             }
         });
     });
-    
+
     // Start observing when DOM is ready
     if (document.body) {
         themeObserver.observe(document.body, {
@@ -3548,7 +3591,7 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 function initializeLayoutPresetsMenu() {
     const dropdown = document.getElementById('layout-presets-dropdown');
-    if (!dropdown) return;
+    if (!dropdown) { return; }
 
     // Clear existing content
     dropdown.innerHTML = '';
@@ -3584,7 +3627,7 @@ function toggleLayoutPresetsMenu() {
     const dropdown = document.getElementById('layout-presets-dropdown');
     const button = document.getElementById('layout-presets-btn');
 
-    if (!dropdown || !button) return;
+    if (!dropdown || !button) { return; }
 
     const isVisible = dropdown.classList.contains('show');
 
@@ -3615,7 +3658,7 @@ function toggleLayoutPresetsMenu() {
  */
 function applyLayoutPreset(presetKey) {
     const preset = layoutPresets[presetKey];
-    if (!preset) return;
+    if (!preset) { return; }
 
     // Apply each setting in the preset
     Object.entries(preset.settings).forEach(([settingKey, value]) => {
@@ -3696,3 +3739,258 @@ function updateLayoutPresetsActiveState() {
         textSpan.textContent = layoutPresets[currentPreset].label;
     }
 }
+
+// Export & Pack functionality
+let exportDefaultFolder = '';
+
+/**
+ * Show the export dialog
+ */
+function showExportDialog() {
+    const modal = document.getElementById('export-modal');
+    if (!modal) {
+        return;
+    }
+
+    // Generate default export folder name
+    vscode.postMessage({
+        type: 'getExportDefaultFolder'
+    });
+
+    modal.style.display = 'block';
+}
+
+/**
+ * Close the export dialog
+ */
+function closeExportModal() {
+    const modal = document.getElementById('export-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+/**
+ * Set the default export folder
+ */
+function setExportDefaultFolder(folderPath) {
+    exportDefaultFolder = folderPath;
+    const folderInput = document.getElementById('export-folder');
+    if (folderInput) {
+        folderInput.value = folderPath;
+    }
+}
+
+/**
+ * Open folder selection dialog
+ */
+function selectExportFolder() {
+    vscode.postMessage({
+        type: 'selectExportFolder',
+        defaultPath: exportDefaultFolder
+    });
+}
+
+/**
+ * Set the selected export folder
+ */
+function setSelectedExportFolder(folderPath) {
+    exportDefaultFolder = folderPath;
+    const folderInput = document.getElementById('export-folder');
+    if (folderInput) {
+        folderInput.value = folderPath;
+    }
+}
+
+/**
+ * Execute the export operation
+ */
+function executeExport() {
+    const folderInput = document.getElementById('export-folder');
+    if (!folderInput || !folderInput.value.trim()) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'Please select an export folder'
+        });
+        return;
+    }
+
+    // Gather options from the form
+    const options = {
+        targetFolder: folderInput.value.trim(),
+        includeFiles: document.getElementById('include-files')?.checked || false,
+        includeImages: document.getElementById('include-images')?.checked || false,
+        includeVideos: document.getElementById('include-videos')?.checked || false,
+        includeOtherMedia: document.getElementById('include-other-media')?.checked || false,
+        includeDocuments: document.getElementById('include-documents')?.checked || false,
+        fileSizeLimitMB: parseInt(document.getElementById('file-size-limit')?.value) || 100,
+        tagVisibility: document.getElementById('export-tag-visibility')?.value || 'all'
+    };
+
+    // Close modal
+    closeExportModal();
+
+    // Send export request
+    vscode.postMessage({
+        type: 'exportWithAssets',
+        options: options
+    });
+}
+
+/**
+ * Handle export result
+ */
+function handleExportResult(result) {
+    if (result.success) {
+        vscode.postMessage({
+            type: 'showInfo',
+            message: result.message
+        });
+
+        if (result.exportedPath) {
+            // Ask if user wants to open the export folder
+            vscode.postMessage({
+                type: 'askOpenExportFolder',
+                path: result.exportedPath
+            });
+        }
+    } else {
+        vscode.postMessage({
+            type: 'showError',
+            message: result.message
+        });
+    }
+}
+
+// Column Export Functions
+let selectedColumnIndex = -1;
+let selectedColumnTitle = '';
+let selectedColumnId = '';
+
+window.exportColumn = function exportColumn(columnId) {
+    // Find the column in the current board
+    if (!window.currentBoard || !window.currentBoard.columns) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'No board data available'
+        });
+        return;
+    }
+
+    const columnIndex = window.currentBoard.columns.findIndex(c => c.id === columnId);
+    const column = window.currentBoard.columns[columnIndex];
+
+    if (!column) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'Column not found'
+        });
+        return;
+    }
+
+    // Store the column info and show the export dialog
+    selectedColumnId = columnId;
+    selectedColumnIndex = columnIndex;
+    selectedColumnTitle = column.title || `Column ${columnIndex + 1}`;
+
+    showColumnExportDialog(columnIndex, column.title);
+};
+
+function showColumnExportDialog(columnIndex, columnTitle) {
+    selectedColumnIndex = columnIndex;
+    selectedColumnTitle = columnTitle || `Column ${columnIndex + 1}`;
+
+    // Update the column info display
+    document.getElementById('column-export-info').textContent = selectedColumnTitle;
+
+    // Request default folder from backend
+    vscode.postMessage({ type: 'getExportDefaultFolder' });
+
+    // Show the modal
+    const modal = document.getElementById('column-export-modal');
+    modal.style.display = 'block';
+}
+
+function closeColumnExportModal() {
+    const modal = document.getElementById('column-export-modal');
+    modal.style.display = 'none';
+    selectedColumnIndex = -1;
+    selectedColumnTitle = '';
+}
+
+function selectColumnExportFolder() {
+    vscode.postMessage({ type: 'selectExportFolder' });
+}
+
+function setSelectedColumnExportFolder(folderPath) {
+    document.getElementById('column-export-folder').value = folderPath;
+}
+
+function setColumnExportDefaultFolder(folderPath) {
+    const input = document.getElementById('column-export-folder');
+    if (!input.value) {
+        input.value = folderPath;
+    }
+}
+
+function executeColumnExport() {
+    if (selectedColumnIndex === -1) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'No column selected for export'
+        });
+        return;
+    }
+
+    const folderPath = document.getElementById('column-export-folder').value;
+    if (!folderPath) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'Please select an export folder'
+        });
+        return;
+    }
+
+    const options = {
+        targetFolder: folderPath,
+        columnIndex: selectedColumnIndex,
+        columnTitle: selectedColumnTitle,
+        includeFiles: document.getElementById('column-include-files').checked,
+        includeImages: document.getElementById('column-include-images').checked,
+        includeVideos: document.getElementById('column-include-videos').checked,
+        includeOtherMedia: document.getElementById('column-include-other-media').checked,
+        includeDocuments: document.getElementById('column-include-documents').checked,
+        fileSizeLimitMB: parseInt(document.getElementById('column-file-size-limit').value) || 100,
+        tagVisibility: document.getElementById('column-export-tag-visibility')?.value || 'all'
+    };
+
+    vscode.postMessage({
+        type: 'exportColumn',
+        options: options
+    });
+
+    closeColumnExportModal();
+}
+
+function handleColumnExportResult(result) {
+    if (result.success) {
+        vscode.postMessage({
+            type: 'showInfo',
+            message: result.message
+        });
+
+        if (result.exportedPath) {
+            // Ask if user wants to open the export folder
+            vscode.postMessage({
+                type: 'askOpenExportFolder',
+                path: result.exportedPath
+            });
+        }
+    } else {
+        vscode.postMessage({
+            type: 'showError',
+            message: result.message
+        });
+    }
+}
+

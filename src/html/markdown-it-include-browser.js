@@ -9,7 +9,7 @@
 })(this, (function() {
   "use strict";
 
-  const INCLUDE_RE = /!!!include\(([^)]+)\)!!!/gi;
+  const INCLUDE_RE = /!!!include\(([^)]+)\)!!!/;
 
   // Cache for file contents to avoid repeated requests
   const fileCache = new Map();
@@ -28,14 +28,13 @@
       const start = state.pos;
       const max = state.posMax;
 
-      // Create a fresh regex instance to avoid state issues with global flag
-      const includeRe = new RegExp(options.includeRe.source, options.includeRe.flags);
-
-      // Look for include pattern
-      const match = includeRe.exec(state.src.slice(start));
+      // Look for include pattern using match() to avoid regex state issues
+      const srcSlice = state.src.slice(start);
+      const match = srcSlice.match(options.includeRe);
       if (!match || match.index !== 0) {
         return false;
       }
+
 
       if (silent) {return true;}
 
@@ -142,6 +141,19 @@
 
     // Update cache
     fileCache.set(filePath, content);
+
+    // Register this inline include in the backend's unified system for conflict resolution
+    if (typeof vscode !== 'undefined') {
+      try {
+        vscode.postMessage({
+          type: 'registerInlineInclude',
+          filePath: filePath,
+          content: content
+        });
+      } catch (error) {
+        console.error('Error registering inline include:', error);
+      }
+    }
 
     // Trigger re-render of affected content
     if (typeof window !== 'undefined' && window.renderBoard) {

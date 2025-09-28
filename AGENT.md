@@ -1,3 +1,37 @@
+# --- USER REQUEST ---
+
+## General work order
+
+Create a file FUNCTIONS.md that keeps track of all functions in files in front and backend. Each functions is described as: 
+- path_to_filename-classname_functionname or -functionname when it's not in a class.
+- a description of the functionality in 1 or 2 lines of keywords or sentences.
+
+Implmement the requested features according to the request. Keep changes small. Suggest DRY cleanups if you find functions get similar functionality. Before creating a new functionality or creating larger code parts allways consult the FUNCTIONS.md. Never modify the save data without the users permission. After modifying the code update the FUNCTIONS.md according to the rules:
+Each functions is described as: 
+- path_to_filename-classname_functionname or -functionname when it's not in a class.
+- a description of the functionality in 1 or 2 lines of keywords or sentences.
+
+Never try to add an alternative implementation. Dont try to add failsaves or backup solutions, we need the general execution to be perfect.
+
+if you add logs, make sure they are at keypoints of relevant data modifications. only trigger them when data is modified, keep logs that are triggered by events minimal.
+
+General rules:
+- use relative paths, relative to the main kanban file for all data storage, except for included files, they use relative paths to theyr own location.
+- use the data chache to store modifications unless the user saves the data.
+- never remove functionality without the users consent.
+- if you cleanup code, allways check what the code does, create a list of these features and reimplement all these features.
+- dont be overly optimistic, ony things that are tested are proved, othervise we assume it's still broken.
+- after finishing a problem and before working on another cleanup the obsolete and unused changes. comiit before doing this and after.
+- before working on a new feature make a branch.
+- after finishing working on a feature merge the branch with main.
+- use files to store informations that you can use in this working session. store them in ./tmp/ dont add them to the repository, dont add changes of files in the ./tests to the reposority
+- allways check for compile errors
+- allways check for log messages that could be removed or made to show up less often.
+- allways use a tag to add to log files such s [kanban.functionname]
+
+# --- END USER REQUEST ---
+
+
 # Kanban Board Extension - Developer Documentation
 
 ## Program Architecture Overview
@@ -782,3 +816,199 @@ All settings from the file-info-burger menu can be configured in presets:
 - **Integration**: Seamless application of multiple settings with single click
 - **State Management**: Current preset tracked and restored on file reopen
 - **Fallback**: Built-in presets available if user hasn't configured custom ones
+
+---
+
+## 📋 **Include Systems Specification**
+
+### **CRITICAL**: Three Distinct Include Systems - No Other Implementations Allowed
+
+The markdown-kanban extension implements exactly **three** include systems. These are the ONLY supported include mechanisms:
+
+### 1. **Regular Includes (`!!!include(file.md)!!!`)**
+**Purpose**: Static content inclusion within task descriptions or anywhere in markdown
+**Syntax**: `!!!include(relative/path/to/file.md)!!!`
+**Processing**: Frontend (browser) via `markdown-it-include-browser.js`
+
+**How it Works**:
+- Processed during **markdown rendering** in the webview
+- Uses `markdown-it` plugin that runs in the browser
+- When `!!!include(file.md)!!!` is encountered, it:
+  1. Requests file content from VS Code backend via `postMessage`
+  2. Caches the content in browser memory
+  3. Replaces the include statement with actual file content
+  4. Re-renders the markdown with included content
+
+**Save Behavior**:
+Regular includes are **read-only** during Kanban editing:
+1. **Main File**: Task descriptions with includes are saved normally
+2. **Included File**: Content is not modified - remains static
+3. **One-way Sync**: Changes only flow from included file to Kanban display
+
+**Use Cases**:
+- Include common text snippets in task descriptions
+- Include documentation or notes inline
+- Static content that doesn't change structure of kanban
+
+---
+
+### 2. **Column Includes (`!!!columninclude(file.md)!!!`)**
+**Purpose**: Generate entire column content (tasks) from external files
+**Syntax**: `## !!!columninclude(presentation.md)!!! Column Title`
+**Processing**: Backend during board parsing via `MarkdownKanbanParser`
+
+**How it Works**:
+- Processed during **board parsing** on the backend
+- In `markdownParser.ts`, when a column title contains `!!!columninclude(...)!!!`:
+  1. Reads the external file from disk
+  2. Uses `PresentationParser.parseMarkdownToTasks()` to convert file content to tasks
+  3. Populates the column with these generated tasks
+  4. Sets `column.includeMode = true` and `column.includeFiles = [filePath]`
+  5. Stores both original title (with syntax) and display title (cleaned)
+
+**Data Structure**:
+```typescript
+column = {
+  id: "col_123",
+  title: "!!!columninclude(presentation.md)!!! My Presentation", // Original with syntax
+  displayTitle: "My Presentation", // Cleaned for display
+  includeMode: true,
+  includeFiles: ["presentation.md"],
+  tasks: [...] // Generated from file content
+}
+```
+
+**Save Behavior**: ✅ **FULLY IMPLEMENTED**
+When you modify tasks in a column include and save (Cmd+S):
+1. **Include Files Saved First**: `saveAllColumnIncludeChanges()` runs before main file save
+2. **Content Conversion**: Current tasks converted to presentation format via `PresentationParser.tasksToPresentation()`
+3. **File Backup**: Automatic backup created before overwriting included file
+4. **Validation**: Smart logic prevents accidental overwrites from file path changes
+5. **Main File**: Saves with include syntax intact (`## !!!columninclude(file.md)!!! Title`)
+6. **Bidirectional Sync**: ✅ Changes flow both ways between Kanban UI and included file
+
+**Use Cases**:
+- Import presentation slides as kanban tasks
+- Dynamic column content from external files
+- Collaborative workflows where column content comes from separate files
+- **Edit presentations through Kanban interface** - changes saved back to presentation file
+
+---
+
+### 3. **Task Includes (`!!!taskinclude(file.md)!!!`)**
+**Purpose**: Generate individual task content from external files
+**Syntax**: `- [ ] !!!taskinclude(task-details.md)!!!`
+**Processing**: Backend during board parsing via `MarkdownKanbanParser`
+
+**How it Works**:
+- Processed during **board parsing** on the backend
+- In `markdownParser.ts`, when a task title contains `!!!taskinclude(...)!!!`:
+  1. Reads the external file from disk
+  2. Extracts title (first line) and description (remaining content)
+  3. Updates task properties with file content
+  4. Sets `task.includeMode = true` and `task.includeFiles = [filePath]`
+  5. Stores both original title (with syntax) and display title (from file)
+
+**Data Structure**:
+```typescript
+task = {
+  id: "task_456",
+  title: "!!!taskinclude(feature-spec.md)!!!", // Original with syntax
+  displayTitle: "New User Feature", // From file first line
+  description: "Full feature description...", // From file content
+  includeMode: true,
+  includeFiles: ["feature-spec.md"],
+  originalTitle: "!!!taskinclude(feature-spec.md)!!!" // Preserved for saving
+}
+```
+
+**Save Behavior**: ✅ **FULLY IMPLEMENTED**
+When you modify a task include and save (Cmd+S):
+1. **Include Files Saved First**: `saveAllTaskIncludeChanges()` runs before main file save
+2. **Content Conversion**: Task title and description combined and saved to included file
+3. **File Backup**: Automatic backup created before overwriting included file
+4. **Main File**: Saves with include syntax intact (`- [ ] !!!taskinclude(file.md)!!!`)
+5. **Bidirectional Sync**: ✅ Changes flow both ways between Kanban UI and included file
+
+**Use Cases**:
+- Link tasks to detailed specification files
+- Dynamic task content from external documentation
+- Keep kanban lightweight while linking to comprehensive details
+- **Edit specifications through Kanban interface** - changes saved back to spec file
+
+---
+
+## 🔄 **Key Differences Summary**
+
+| Feature | Regular Includes | Column Includes | Task Includes |
+|---------|-----------------|-----------------|---------------|
+| **Processing** | Frontend (browser) | Backend (parsing) | Backend (parsing) |
+| **Timing** | Markdown rendering | Board load/save | Board load/save |
+| **Scope** | Inline content | Entire column | Individual task |
+| **Caching** | Browser memory | File system tracking | File system tracking |
+| **Change Detection** | Via file watchers | Via FileStateManager | Via FileStateManager |
+| **Content Type** | Raw markdown text | Tasks array | Task title + description |
+| **Structure Impact** | None (text replacement) | Creates column structure | Updates task properties |
+
+## 🏗️ **Architecture Integration**
+
+**Regular Includes**:
+- Handled by frontend `markdown-it-include-browser.js`
+- Requests content via `requestIncludeFile` message
+- No backend state tracking needed
+
+**Column/Task Includes**:
+- Parsed by backend `MarkdownKanbanParser`
+- Tracked in `FileStateManager` as `include-column` and `include-task` types
+- Changes detected via file watchers and document listeners
+- Content synchronized between file system and kanban state
+
+## 🚫 **STRICT IMPLEMENTATION RULE**
+
+**NO OTHER INCLUDE MECHANISMS SHALL BE IMPLEMENTED**
+
+These three systems provide complete coverage for all include use cases:
+- Static content inclusion (regular includes)
+- Dynamic column generation (column includes)
+- Dynamic task content (task includes)
+
+Any requests to implement additional include systems should be rejected and redirected to use one of these existing three mechanisms.
+
+---
+
+## 📊 **FileStateManager Architecture**
+
+### **Unified State Management**
+
+The FileStateManager provides a single source of truth for all file states with clear separation:
+
+**Backend State** (File System & VS Code):
+- `backend.exists`: File exists on disk
+- `backend.lastModified`: Last modification timestamp
+- `backend.isDirtyInEditor`: VS Code has unsaved changes
+- `backend.documentVersion`: VS Code document version
+- `backend.hasFileSystemChanges`: File changed externally
+
+**Frontend State** (Kanban UI):
+- `frontend.hasUnsavedChanges`: Kanban has modifications
+- `frontend.content`: Current content in Kanban
+- `frontend.baseline`: Last known saved content
+
+**Computed State**:
+- `needsReload`: Backend changes need loading into frontend
+- `needsSave`: Frontend changes need saving to backend
+- `hasConflict`: Both backend and frontend have changes
+
+### **Integration Points**
+
+1. **MessageHandler**: Provides unified file state data
+2. **KanbanWebviewPanel**: Updates states via markUnsavedChanges callback
+3. **ExternalFileWatcher**: Reports backend changes
+4. **Document Listeners**: Track editor changes
+
+### **File Types**
+- `main`: Main kanban markdown file
+- `include-column`: Files used by columninclude
+- `include-task`: Files used by taskinclude
+
+This architecture ensures no overlapping state storage while preserving all functionality.

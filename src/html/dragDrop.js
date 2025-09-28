@@ -989,40 +989,6 @@ function calculateInsertionIndex(column, clientY) {
     return -1;
 }
 
-// Helper function to restore original column position
-function restoreColumnPosition() {
-
-    if (dragState.draggedColumn && dragState.originalColumnIndex >= 0) {
-        const board = document.getElementById('kanban-board');
-        const columns = Array.from(board.querySelectorAll('.kanban-full-height-column'));
-        
-        // Remove from current position
-        if (dragState.draggedColumn.parentNode === board) {
-            board.removeChild(dragState.draggedColumn);
-        }
-        
-        // Insert back to original position
-        if (dragState.originalColumnNextSibling) {
-            board.insertBefore(dragState.draggedColumn, dragState.originalColumnNextSibling);
-        } else if (dragState.originalColumnIndex >= columns.length) {
-            // Was last item
-            const addColumnBtn = board.querySelector('.add-column-btn');
-            if (addColumnBtn) {
-                board.insertBefore(dragState.draggedColumn, addColumnBtn);
-            } else {
-                board.appendChild(dragState.draggedColumn);
-            }
-        } else {
-            // Insert at index
-            const targetColumn = columns[dragState.originalColumnIndex];
-            if (targetColumn && targetColumn !== dragState.draggedColumn) {
-                board.insertBefore(dragState.draggedColumn, targetColumn);
-            }
-        }
-        
-        dragState.draggedColumn.classList.remove('drag-source-hidden');
-    }
-}
 
 // Helper function to restore original task position
 function restoreTaskPosition() {
@@ -1432,6 +1398,14 @@ function setupTaskDragHandle(handle) {
                                         window.updateColumnDisplay(finalColumnId);
                                     }
                                 }
+
+                                // Check empty state for both columns
+                                if (typeof updateColumnEmptyState === 'function') {
+                                    updateColumnEmptyState(originalColumnId);
+                                    if (originalColumnId !== finalColumnId) {
+                                        updateColumnEmptyState(finalColumnId);
+                                    }
+                                }
                             }
                         }
 
@@ -1476,7 +1450,12 @@ function getDragAfterTaskElement(container, y) {
 
     const draggableElements = [...container.querySelectorAll('.task-item')].filter(el => el !== dragState.draggedTask);
     const addButton = container.querySelector('.add-task-btn');
-    
+
+    // If column is empty (only has add button), always drop at the beginning (before add button)
+    if (draggableElements.length === 0) {
+        return null; // This means insert at the end (before add button if it exists)
+    }
+
     // If dragging over or near the add button area, treat it as dropping at the end
     if (addButton) {
         const addButtonBox = addButton.getBoundingClientRect();
@@ -1485,11 +1464,11 @@ function getDragAfterTaskElement(container, y) {
             return null;
         }
     }
-    
+
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const offset = y - box.top - box.height / 2;
-        
+
         if (offset < 0 && offset > closest.offset) {
             return { offset: offset, element: child };
         } else {

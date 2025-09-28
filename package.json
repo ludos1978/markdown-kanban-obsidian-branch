@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.13.5",
+  "version": "0.13.20",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -41,9 +41,9 @@
         "markdown-kanban.backupInterval": {
           "type": "number",
           "default": 15,
-          "minimum": 5,
+          "minimum": 1,
           "maximum": 60,
-          "description": "Interval in minutes between automatic backups (5-60 minutes)"
+          "description": "Interval in minutes between automatic backups (1-60 minutes)"
         },
         "markdown-kanban.backupLocation": {
           "type": "string",
@@ -2115,7 +2115,10 @@
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^8.40.0",
     "@typescript-eslint/parser": "^8.40.0",
+    "@vscode/test-electron": "^2.5.2",
     "esbuild": "^0.25.9",
+    "jest": "^30.1.3",
+    "jest-environment-jsdom": "^30.1.2",
     "markdown-it": "^14.0.1",
     "markdown-it-anchor": "^9.2.0",
     "markdown-it-checkboxes": "^1.0.0",

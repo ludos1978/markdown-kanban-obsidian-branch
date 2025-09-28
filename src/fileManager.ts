@@ -31,6 +31,7 @@ export interface FileResolutionResult {
 
 export class FileManager {
     private _document?: vscode.TextDocument;
+    private _filePath?: string; // Track file path independently of document
     private _isFileLocked: boolean = false;
     private _webview: vscode.Webview;
     private _extensionUri: vscode.Uri;
@@ -46,10 +47,25 @@ export class FileManager {
 
     public setDocument(document: vscode.TextDocument | undefined) {
         this._document = document;
+        // Remember the file path even when document is cleared
+        if (document) {
+            this._filePath = document.fileName;
+        }
+        // Note: Don't clear _filePath when document is undefined - keep it for reference
+    }
+
+    public clearDocument() {
+        // Clear document reference but keep file path for display
+        this._document = undefined;
     }
 
     public getDocument(): vscode.TextDocument | undefined {
         return this._document;
+    }
+
+    public getFilePath(): string | undefined {
+        // Return the preserved file path, which persists even when document is closed
+        return this._filePath;
     }
 
     public isFileLocked(): boolean {
@@ -69,9 +85,10 @@ export class FileManager {
 
     public sendFileInfo() {
         const fileInfo: FileInfo = {
-            fileName: this._document ? path.basename(this._document.fileName) : 'No file loaded',
-            filePath: this._document ? this._document.fileName : '',
-            documentPath: this._document ? this._document.uri.fsPath : '',
+            fileName: this._document ? path.basename(this._document.fileName) :
+                     (this._filePath ? path.basename(this._filePath) : 'No file loaded'),
+            filePath: this._document ? this._document.fileName : (this._filePath || ''),
+            documentPath: this._document ? this._document.uri.fsPath : (this._filePath || ''),
             isLocked: this._isFileLocked
         };
 
@@ -249,28 +266,37 @@ export class FileManager {
      */
     public async resolveFilePath(href: string): Promise<FileResolutionResult | null> {
         const attemptedPaths: string[] = [];
-        
-        const isAbsolute = path.isAbsolute(href) || 
-                        href.match(/^[a-zA-Z]:/) || 
-                        href.startsWith('/') ||     
-                        href.startsWith('\\');     
+
+        // Decode URL-encoded paths (e.g., %20 -> space)
+        let decodedHref = href;
+        try {
+            decodedHref = decodeURIComponent(href);
+        } catch (error) {
+            // If decoding fails, use the original href
+            decodedHref = href;
+        }
+
+        const isAbsolute = path.isAbsolute(decodedHref) ||
+                        decodedHref.match(/^[a-zA-Z]:/) ||
+                        decodedHref.startsWith('/') ||
+                        decodedHref.startsWith('\\');
 
         if (isAbsolute) {
-            attemptedPaths.push(href);
+            attemptedPaths.push(decodedHref);
             try {
-                const exists = fs.existsSync(href);
-                return { 
-                    resolvedPath: href, 
-                    exists, 
+                const exists = fs.existsSync(decodedHref);
+                return {
+                    resolvedPath: decodedHref,
+                    exists,
                     isAbsolute: true,
-                    attemptedPaths 
+                    attemptedPaths
                 };
             } catch (error) {
-                return { 
-                    resolvedPath: href, 
-                    exists: false, 
+                return {
+                    resolvedPath: decodedHref,
+                    exists: false,
                     isAbsolute: true,
-                    attemptedPaths 
+                    attemptedPaths
                 };
             }
         }
@@ -283,10 +309,10 @@ export class FileManager {
         if (workspaceFolders && workspaceFolders.length > 0) {
             for (const folder of workspaceFolders) {
                 const folderName = path.basename(folder.uri.fsPath);
-                if (href.startsWith(folderName + '/') || href.startsWith(folderName + '\\')) {
+                if (decodedHref.startsWith(folderName + '/') || decodedHref.startsWith(folderName + '\\')) {
                     // This is a workspace-relative path
                     isWorkspaceRelative = true;
-                    const relativePath = href.substring(folderName.length + 1);
+                    const relativePath = decodedHref.substring(folderName.length + 1);
                     const candidate = path.resolve(folder.uri.fsPath, relativePath);
                     candidates.push(candidate);
                     attemptedPaths.push(candidate);
@@ -300,7 +326,7 @@ export class FileManager {
             // First: Check relative to current document directory (only if we have a document)
             if (this._document) {
                 const currentDir = path.dirname(this._document.uri.fsPath);
-                const candidate = path.resolve(currentDir, href);
+                const candidate = path.resolve(currentDir, decodedHref);
                 candidates.push(candidate);
                 attemptedPaths.push(candidate);
             }
@@ -308,7 +334,7 @@ export class FileManager {
             // Second: Check in all workspace folders
             if (workspaceFolders) {
                 for (const folder of workspaceFolders) {
-                    const candidate = path.resolve(folder.uri.fsPath, href);
+                    const candidate = path.resolve(folder.uri.fsPath, decodedHref);
                     candidates.push(candidate);
                     attemptedPaths.push(candidate);
                 }

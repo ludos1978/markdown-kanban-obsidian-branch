@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
-export type ConflictType = 'panel_close' | 'external_main' | 'external_include' | 'presave_check';
+export type ConflictType = 'panel_close' | 'external_main' | 'external_include' | 'presave_check' | 'watcher_failure' | 'permission_denied' | 'file_missing' | 'circular_dependency' | 'batch_conflict' | 'network_timeout' | 'crash_recovery';
 export type FileType = 'main' | 'include';
 
 export interface ConflictContext {
@@ -23,6 +23,7 @@ export interface ConflictResolution {
     shouldSave: boolean;
     shouldReload: boolean;
     shouldIgnore: boolean;
+    customAction?: string;
 }
 
 /**
@@ -34,7 +35,7 @@ export class ConflictResolver {
     private activeDialogs = new Set<string>();
     private pendingResolutions = new Map<string, Promise<ConflictResolution>>();
 
-    private constructor() {}
+    protected constructor() {}
 
     public static getInstance(): ConflictResolver {
         if (!ConflictResolver.instance) {
@@ -161,7 +162,7 @@ export class ConflictResolver {
                     shouldProceed: true,
                     shouldCreateBackup: false,
                     shouldSave: false,
-                    shouldReload: false,
+                    shouldReload: true,
                     shouldIgnore: false
                 };
             default:
@@ -320,25 +321,22 @@ export class ConflictResolver {
             };
         }
 
-        // Has unsaved include file changes - show conflict dialog
-        const discardMyChanges = 'Discard my changes and reload';
-        const saveAsBackup = 'Save my changes as backup and reload';
-        const saveAndIgnoreExternal = 'Save my changes and ignore external';
-        const ignoreExternal = 'Ignore external changes (Esc)';
+        // Has unsaved include file changes - show conflict dialog per specification
+        // Option order matches specification with "ignore external changes" as default
+        const ignoreExternal = 'Ignore external changes (default)';
+        const overwriteExternal = 'Overwrite external file with kanban contents';
+        const saveAsBackup = 'Save kanban as backup and reload from external';
+        const discardMyChanges = 'Discard kanban changes and reload from external';
 
-        let message: string;
-        if (hasExternalChanges) {
-            message = `The include file "${context.fileName}" has been modified externally. Your current kanban changes to this file may be lost if you reload.`;
-        } else {
-            message = `You have unsaved changes in the include file "${context.fileName}". How would you like to proceed?`;
-        }
+        // Message focuses on the conflict without suggesting data loss
+        const message = `The include file "${context.fileName}" has been modified externally and you have unsaved changes in your kanban. How would you like to resolve this conflict?`;
 
         const choice = await vscode.window.showWarningMessage(
             message,
             { modal: true },
             discardMyChanges,
             saveAsBackup,
-            saveAndIgnoreExternal,
+            overwriteExternal,
             ignoreExternal
         );
 
@@ -372,7 +370,7 @@ export class ConflictResolver {
                     shouldReload: true,
                     shouldIgnore: false
                 };
-            case saveAndIgnoreExternal:
+            case overwriteExternal:
                 return {
                     action: 'discard_external',
                     shouldProceed: true,

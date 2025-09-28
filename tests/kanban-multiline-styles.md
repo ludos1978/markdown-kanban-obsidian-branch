@@ -6,7 +6,7 @@ kanban-plugin: board
 
 ## ## Title
 
-## In Progress #inprogress
+## In Progress #inprogress #feature
 - [ ] #blue
 - [ ] #cyan
 - [ ] #green
