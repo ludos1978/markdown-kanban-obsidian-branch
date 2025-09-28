@@ -1516,9 +1516,34 @@ function createColumnElement(column, columnIndex) {
     // Corner badges handled by immediate update system
     const cornerBadgesHtml = '';
 
-    // Use displayTitle from column data if available (for include columns), otherwise filter tags
-    const displayTitle = column.displayTitle || (column.title ? window.filterTagsFromText(column.title) : '');
-    const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
+    // Handle columninclude specially - show filename as clickable link
+    let displayTitle;
+    let renderedTitle = '';
+
+    if (column.includeMode && column.includeFiles && column.includeFiles.length > 0) {
+        // For columninclude, show filename as a clickable link
+        const fileName = column.includeFiles[0]; // Use the first include file
+        const baseFileName = fileName.split('/').pop().split('\\').pop(); // Get just the filename
+
+        // Create a clickable link that handles Alt+click to open file
+        const linkHtml = `<span class="columninclude-link" data-file-path="${escapeHtml(fileName)}" onclick="handleColumnIncludeClick(event, '${escapeHtml(fileName)}')" title="Alt+click to open file">${escapeHtml(baseFileName)}</span>`;
+
+        // Combine with any additional title content (after removing include syntax)
+        let additionalTitle = column.displayTitle || '';
+        if (!additionalTitle && column.title) {
+            additionalTitle = column.title.replace(/!!!columninclude\([^)]+\)!!!/g, '').trim();
+        }
+
+        if (additionalTitle) {
+            renderedTitle = `${linkHtml} ${renderMarkdown(additionalTitle)}`;
+        } else {
+            renderedTitle = linkHtml;
+        }
+    } else {
+        // Normal column - use displayTitle or filter tags
+        displayTitle = column.displayTitle || (column.title ? window.filterTagsFromText(column.title) : '');
+        renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
+    }
 
     // For editing, always use the full title including include syntax
     const editTitle = column.title || '';

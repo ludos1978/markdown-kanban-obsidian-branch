@@ -179,6 +179,10 @@ export class MessageHandler {
                 await this.handleOpenFile(message.filePath);
                 break;
 
+            case 'openIncludeFile':
+                await this._linkHandler.handleFileLink(message.filePath);
+                break;
+
             // Drag and drop operations
             case 'handleFileDrop':
                 await this._fileManager.handleFileDrop(message);
