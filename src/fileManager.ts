@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { FileTypeUtils } from './utils/fileTypeUtils';
 import * as fs from 'fs';
+import { configService } from './configurationService';
 
 export interface FileInfo {
     fileName: string;
@@ -187,6 +188,20 @@ export class FileManager {
         return relativePath.replace(/\\/g, '/');
     }
 
+    /**
+     * Generate a file path based on user configuration (relative or absolute)
+     */
+    public generateConfiguredPath(filePath: string): string {
+        const pathMode = configService.getPathGenerationMode();
+
+        if (pathMode === 'absolute') {
+            return filePath;
+        } else {
+            // Use existing relative path logic
+            return this.getRelativePath(filePath);
+        }
+    }
+
     private isImageFile(fileName: string): boolean {
         return FileTypeUtils.isImageFile(fileName);
     }
@@ -195,6 +210,8 @@ export class FileManager {
         try {
             const { fileName, dropPosition, activeEditor } = message;
             const isImage = this.isImageFile(fileName);
+            // Note: Simple file drop only provides fileName, not full path
+            // so we can only generate relative paths in this case
             const relativePath = `./${fileName}`;
             
             const fileInfo: FileDropInfo = {
@@ -237,8 +254,8 @@ export class FileManager {
                 const fileName = path.basename(uri.fsPath);
                 const isImage = this.isImageFile(fileName);
                 
-                // Use enhanced relative path generation
-                const relativePath = this.getRelativePath(uri.fsPath);
+                // Use configured path generation (relative or absolute based on user setting)
+                const relativePath = this.generateConfiguredPath(uri.fsPath);
                 
                 const fileInfo: FileDropInfo = {
                     fileName,

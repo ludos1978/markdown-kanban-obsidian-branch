@@ -10,6 +10,7 @@ export interface KanbanConfiguration {
     backupInterval: number;
     backupLocation: string;
     openLinksInNewTab: boolean;
+    pathGeneration: 'relative' | 'absolute';
     whitespace: string;
     maxRowHeight: number;
     showRowTags: boolean;
@@ -33,6 +34,7 @@ export interface ConfigurationDefaults {
     backupInterval: number;
     backupLocation: string;
     openLinksInNewTab: boolean;
+    pathGeneration: 'relative' | 'absolute';
     whitespace: string;
     maxRowHeight: number;
     showRowTags: boolean;
@@ -60,6 +62,7 @@ export class ConfigurationService {
         backupInterval: 15,
         backupLocation: '',
         openLinksInNewTab: false,
+        pathGeneration: 'relative' as 'relative' | 'absolute',
         whitespace: 'normal',
         maxRowHeight: 0,
         showRowTags: true,
@@ -216,8 +219,14 @@ export class ConfigurationService {
     // Link configuration
     public getLinkConfiguration() {
         return {
-            openLinksInNewTab: this.getConfig('openLinksInNewTab')
+            openLinksInNewTab: this.getConfig('openLinksInNewTab'),
+            pathGeneration: this.getConfig('pathGeneration')
         };
+    }
+
+    // Path generation configuration
+    public getPathGenerationMode(): 'relative' | 'absolute' {
+        return this.getConfig('pathGeneration');
     }
 
     // Media configuration

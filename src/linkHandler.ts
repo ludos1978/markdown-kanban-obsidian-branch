@@ -244,18 +244,18 @@ export class LinkHandler {
             return;
         }
 
-        const documentDir = path.dirname(document.uri.fsPath);
-        const relativePath = path.relative(documentDir, replacementUri.fsPath).replace(/\\/g, '/');
-        
-        const isImage = originalPath.includes('.png') || originalPath.includes('.jpg') || 
-                       originalPath.includes('.jpeg') || originalPath.includes('.gif') || 
+        // Generate path based on user configuration (relative or absolute)
+        const configuredPath = this._fileManager.generateConfiguredPath(replacementUri.fsPath);
+
+        const isImage = originalPath.includes('.png') || originalPath.includes('.jpg') ||
+                       originalPath.includes('.jpeg') || originalPath.includes('.gif') ||
                        originalPath.includes('.svg') || originalPath.includes('.bmp') ||
                        originalPath.includes('.webp');
-        
+
         // Call the callback to handle replacement in the backend
-        await this._onRequestLinkReplacement(originalPath, relativePath, isImage);
-        
-        vscode.window.showInformationMessage(`Link updated: ${originalPath} → ${relativePath}`);
+        await this._onRequestLinkReplacement(originalPath, configuredPath, isImage);
+
+        vscode.window.showInformationMessage(`Link updated: ${originalPath} → ${configuredPath}`);
     }
 
     /**

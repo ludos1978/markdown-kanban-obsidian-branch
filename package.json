@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.13.20",
+  "version": "0.13.23",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -71,6 +71,16 @@
           "type": "boolean",
           "default": false,
           "description": "Open file links in new tabs instead of replacing the current editor"
+        },
+        "markdown-kanban.pathGeneration": {
+          "type": "string",
+          "enum": ["relative", "absolute"],
+          "default": "relative",
+          "description": "How to generate file paths when creating links from drag & drop, clipboard, and link replacement",
+          "enumDescriptions": [
+            "Generate relative paths from the current document",
+            "Generate absolute file system paths"
+          ]
         },
         "markdown-kanban.whitespace": {
           "type": "string",

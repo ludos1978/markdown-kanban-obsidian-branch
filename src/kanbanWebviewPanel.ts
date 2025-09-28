@@ -710,8 +710,13 @@ export class KanbanWebviewPanel {
         if (!this._board || !this._board.valid) { return; }
 
         this._undoRedoManager.saveStateForUndo(this._board);
-        
+
         let modified = false;
+
+        // URL encode the new path for proper markdown links
+        const encodedNewPath = encodeURI(newPath).replace(/[()]/g, (match) => {
+            return match === '(' ? '%28' : '%29';
+        });
 
         // Helper function to replace link in text
         const replaceLink = (text: string): string => {
@@ -720,33 +725,30 @@ export class KanbanWebviewPanel {
             const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
             let out = text;
-            let changed = false;
+            let modified = false;
 
             // Image link pattern: ![alt](path)
             const imageRegex = new RegExp(`(!\\[[^\\]]*\\]\\()${escapedPath}(\\))`, 'g');
-            if (imageRegex.test(out)) {
-                out = out.replace(imageRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
-                changed = true;
-            }
+            out = out.replace(imageRegex, (match, prefix, suffix) => {
+                modified = true;
+                return `~~${prefix}${originalPath}${suffix}~~ ${prefix}${encodedNewPath}${suffix}`;
+            });
 
-            // Regular link pattern: [text](path)
-            const linkRegex = new RegExp(`(\\[[^\\]]+\\]\\()${escapedPath}(\\))`, 'g');
-            if (linkRegex.test(out)) {
-                out = out.replace(linkRegex, `~~$1${originalPath}$2~~ $1${newPath}$2`);
-                changed = true;
-            }
+            // Regular link pattern: [text](path) - but not images (check for ! before)
+            const linkRegex = new RegExp(`(^|[^!])(\\[[^\\]]+\\]\\()${escapedPath}(\\))`, 'gm');
+            out = out.replace(linkRegex, (match, before, prefix, suffix) => {
+                modified = true;
+                return `${before}~~${prefix}${originalPath}${suffix}~~ ${prefix}${encodedNewPath}${suffix}`;
+            });
 
             // Wiki link pattern: [[target|label]] or [[target]]
-            const wikiRegex = new RegExp(`(\\[\\[)\s*${escapedPath}(\\|[^\]]*)?(\\]\\])`, 'g');
-            if (wikiRegex.test(out)) {
-                out = out.replace(wikiRegex, (_m, p1, p2 = '', p3) => {
-                    const labelPart = p2 || '';
-                    return `~~${p1}${originalPath}${labelPart}${p3}~~ ${p1}${newPath}${labelPart}${p3}`;
-                });
-                changed = true;
-            }
+            const wikiRegex = new RegExp(`(\\[\\[)\\s*${escapedPath}(\\|[^\\]]*)?(\\]\\])`, 'g');
+            out = out.replace(wikiRegex, (match, prefix, labelPart = '', suffix) => {
+                modified = true;
+                return `~~${prefix}${originalPath}${labelPart}${suffix}~~ ${prefix}${encodedNewPath}${labelPart}${suffix}`;
+            });
 
-            return changed ? out : text;
+            return out;
         };
 
         // Search and replace in all columns and tasks
