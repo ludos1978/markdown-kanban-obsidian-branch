@@ -2418,26 +2418,4 @@ export class MessageHandler {
             vscode.window.showErrorMessage('Failed to update column title');
         }
     }
-
-    /**
-     * Convert HTML content back to markdown (simplified conversion for strikethrough removal)
-     */
-    private convertHtmlToMarkdown(htmlContent: string): string {
-        // Simple HTML to markdown conversion for the basic elements we expect
-        return htmlContent
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/p><p[^>]*>/gi, '\n\n')
-            .replace(/<p[^>]*>/gi, '')
-            .replace(/<\/p>/gi, '')
-            .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
-            .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
-            .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
-            .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
-            .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)')
-            .replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gi, '![$1]($2)')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&amp;/g, '&')
-            .trim();
-    }
 }
