@@ -501,8 +501,9 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* when it has no child - kanban-row */
 .kanban-board:not(:has(.kanban-row)) {
-	padding: var(--whitespace);
-  gap: var(--whitespace);
+	gap: var(--whitespace);
+	padding-left: var(--whitespace);
+	padding-right: var(--whitespace);
 }
 
 .kanban-board.multi-row {
@@ -546,6 +547,8 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .column-footer {
 	padding-top: var(--whitespace);
+	position: sticky;
+	top: 28px;
 	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
 	border-left: 0.5px solid var(--vscode-panel-border);
 	border-right: 0.5px solid var(--vscode-panel-border);
@@ -627,7 +630,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   align-items: center;
   margin-bottom: var(--whitespace);
   position: sticky;
-  top: 0px;
+  top: var(--whitespace-div2);
   z-index: 10;
   background-color: var(--vscode-editor-background);
 	border-radius: 4px 4px 0px 0px;
@@ -636,6 +639,17 @@ body.small-card-fonts .task-title-container .markdown-content img {
   /* border-bottom: 0.5px solid var(--vscode-panel-border); */
   margin-bottom: 0;
   flex-direction: column;
+}
+
+.kanban-full-height-column::before {
+	content: '';
+	position: sticky;
+	top: 0px;
+	left: 0;
+	right: 0;
+	height: var(--whitespace-div2);
+	background-color: var(--vscode-editor-background);
+	z-index: 11;
 }
 
 .column-header:not(:has(.header-bars-container):has(.header-bar)) {
@@ -1759,7 +1773,7 @@ button.file-bar-menu-item {
 }
 
 .task-menu-container {
-  z-index: 50;
+  z-index: 9;
 	margin-left: auto; /* align to right */
 }
 
