@@ -4049,10 +4049,10 @@ function findColumnById(columnId) {
 }
 
 /**
- * Surgically remove a specific strikethrough pattern from markdown text by index
- * This function finds and removes only the specific ~~text~~ pattern at the given index
+ * Surgically remove a specific strikethrough pattern from markdown text using character indices
+ * This function removes the exact strikethrough at the specified position
  * @param {string} originalMarkdown - The original markdown content
- * @param {string} textToRemove - The text content that was inside the strikethrough
+ * @param {string} textToRemove - The text content that was inside the strikethrough (not used in new approach)
  * @param {number} targetIndex - The index of the strikethrough to remove (0-based)
  * @returns {string} The markdown with the specific strikethrough pattern removed
  */
@@ -4062,77 +4062,58 @@ function removeStrikethroughFromMarkdown(originalMarkdown, textToRemove, targetI
     }
 
     console.log('🗑️ Frontend: Attempting to remove strikethrough from markdown');
-    console.log('🗑️ Frontend: Original markdown length:', originalMarkdown.length);
-    console.log('🗑️ Frontend: Text to remove:', JSON.stringify(textToRemove));
-    console.log('🗑️ Frontend: Target index:', targetIndex);
+    console.log('🗑️ Frontend: Original markdown:', originalMarkdown);
+    console.log('🗑️ Frontend: Target strikethrough index:', targetIndex);
 
-    // Extract all ~~...~~ patterns from the original markdown
-    const allStrikethroughMatches = originalMarkdown.match(/~~[^~]*~~/g);
+    // Find all strikethrough patterns with their positions
+    const strikethroughData = findAllStrikethroughsWithPositions(originalMarkdown);
 
-    if (!allStrikethroughMatches || allStrikethroughMatches.length === 0) {
+    if (!strikethroughData || strikethroughData.length === 0) {
         console.log('🗑️ Frontend: No strikethrough patterns found in markdown');
         return originalMarkdown;
     }
 
-    console.log('🗑️ Frontend: Found strikethrough patterns:', allStrikethroughMatches);
+    console.log('🗑️ Frontend: Found strikethroughs with positions:', strikethroughData);
 
-    // If we have a valid target index, remove that specific pattern
-    if (targetIndex >= 0 && targetIndex < allStrikethroughMatches.length) {
-        const targetPattern = allStrikethroughMatches[targetIndex];
-        console.log('🗑️ Frontend: Removing pattern at index', targetIndex, ':', targetPattern);
-
-        // Find the position of this specific pattern occurrence in the original text
-        let currentIndex = 0;
-        let searchStartPos = 0;
-        let patternPosition = -1;
-
-        for (let i = 0; i <= targetIndex; i++) {
-            const pattern = allStrikethroughMatches[i];
-            const foundPos = originalMarkdown.indexOf(pattern, searchStartPos);
-
-            if (foundPos === -1) {
-                console.log('🗑️ Frontend: Could not find pattern position');
-                return originalMarkdown;
-            }
-
-            if (i === targetIndex) {
-                patternPosition = foundPos;
-                break;
-            }
-
-            searchStartPos = foundPos + pattern.length;
-        }
-
-        if (patternPosition !== -1) {
-            const targetPattern = allStrikethroughMatches[targetIndex];
-            const result = originalMarkdown.substring(0, patternPosition) +
-                          originalMarkdown.substring(patternPosition + targetPattern.length);
-
-            console.log('🗑️ Frontend: Successfully removed pattern at position', patternPosition);
-            return result;
-        }
+    // Check if target index is valid
+    if (targetIndex < 0 || targetIndex >= strikethroughData.length) {
+        console.log('🗑️ Frontend: Invalid target index:', targetIndex, 'for', strikethroughData.length, 'patterns');
+        return originalMarkdown;
     }
 
-    // Fallback: try to match by content if index-based removal failed
-    console.log('🗑️ Frontend: Index-based removal failed, trying content matching');
+    // Get the specific strikethrough to remove
+    const targetStrikethrough = strikethroughData[targetIndex];
+    console.log('🗑️ Frontend: Removing strikethrough at character positions', targetStrikethrough.start, 'to', targetStrikethrough.end);
+    console.log('🗑️ Frontend: Content being removed:', originalMarkdown.substring(targetStrikethrough.start, targetStrikethrough.end));
 
-    if (textToRemove) {
-        // Try to find a pattern that contains the text we're looking for
-        for (let i = 0; i < allStrikethroughMatches.length; i++) {
-            const match = allStrikethroughMatches[i];
-            const contentInsideStrike = match.slice(2, -2); // Remove ~~ from both ends
+    // Remove the strikethrough using exact character positions
+    const result = originalMarkdown.substring(0, targetStrikethrough.start) +
+                  originalMarkdown.substring(targetStrikethrough.end);
 
-            // Check if the content inside the strikethrough matches our text
-            if (contentInsideStrike.includes(textToRemove) || textToRemove.includes(contentInsideStrike)) {
-                console.log('🗑️ Frontend: Found matching pattern by content:', match);
-                return originalMarkdown.replace(match, '');
-            }
-        }
+    console.log('🗑️ Frontend: Result after removal:', result);
+    return result;
+}
+
+/**
+ * Find all strikethrough patterns in markdown with their exact character positions
+ * @param {string} markdown - The markdown text to search
+ * @returns {Array} Array of objects with pattern, start, and end positions
+ */
+function findAllStrikethroughsWithPositions(markdown) {
+    const results = [];
+    const regex = /~~([^~]*)~~/g;
+    let match;
+
+    while ((match = regex.exec(markdown)) !== null) {
+        results.push({
+            pattern: match[0],           // The full match including ~~
+            content: match[1],           // Content without ~~
+            start: match.index,          // Start position in string
+            end: match.index + match[0].length  // End position in string
+        });
     }
 
-    // Final fallback: remove the first pattern
-    console.log('🗑️ Frontend: Content matching failed, removing first pattern');
-    return originalMarkdown.replace(allStrikethroughMatches[0], '');
+    return results;
 }
 
 /**

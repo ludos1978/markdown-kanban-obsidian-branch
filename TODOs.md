@@ -4,6 +4,47 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] it still converts this
+
+"""
+~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~
+middle
+~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~
+third
+~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~
+  ![image](/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/folder%20with%20space/image-512x512.png)
+"""
+
+to this
+
+"""
+~~~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~ ![image](/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/folder%20with%20space/image-512x512.png)~~
+middle
+~~~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~ ![image](/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/folder%20with%20space/image-512x512.png)~~
+third
+~~~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~ ![image](/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/folder%20with%20space/image-512x512.png)~~
+  ![image](/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/folder%20with%20space/image-512x512.png)
+"""
+
+when i try to fix the first broken link. it should only modify the first link when i search for the corrected file and replace the original (already striked trough) link to
+
+"""
+~~~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~~~
+"""
+
+but!
+
+this breaks the rendering. so even better would be to have an already striked trough link remain striked trough. add the corrected link after without strike-trough. and add a style to the strike-trough so a broken image or media is also striked trough in the rendered content. Is this possible? ULTRATHINK ULTRATHINK
+
+- [ ] when searching and replacing replacement text, the striketrough is not
+  properly placed. there are multiple types of links that must be properly
+  striked-trough and the alternative path must be added in the same
+  style. the types of links may be: ![]() -> ~~![]()~~ , []() -> ~~[]()~~
+  , <> -> ~~<>~~ or [[]] -> ~~[[]]~~ maybe there is others i dont know of.
+  currently i think the stiketrough does not take the minimum sized item
+  according to the above rules, but sometimes takes a larger area that is
+  striked trough.ß
+
 - [ ] add an option to the export as in which style to export. it can be eigher kanbanstyle (does not modify the style, copies the markdown as in the original markdown) or it can be presentation style (which uses the same method as when copying the columns and cards as markdown.)
 - the copy as markdown will allways use presentation mode
 - the export functionality of tasks and columns gets a dropdown selection with "presentation" and "kanbanstyle"

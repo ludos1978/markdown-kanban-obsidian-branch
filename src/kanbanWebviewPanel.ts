@@ -718,7 +718,7 @@ export class KanbanWebviewPanel {
             return match === '(' ? '%28' : '%29';
         });
 
-        // Helper function to replace link in text
+        // Helper function to replace link in text with precise strikethrough placement
         const replaceLink = (text: string): string => {
             if (!text) { return text; }
             // Escape special regex characters in the original path
@@ -727,25 +727,40 @@ export class KanbanWebviewPanel {
             let out = text;
             let modified = false;
 
-            // Image link pattern: ![alt](path)
-            const imageRegex = new RegExp(`(!\\[[^\\]]*\\]\\()${escapedPath}(\\))`, 'g');
-            out = out.replace(imageRegex, (match, prefix, suffix) => {
+            // Image link pattern: ![alt](path) -> ~~![alt](path)~~ ![alt](newpath)
+            // Captures the complete minimal image link structure
+            const imageRegex = new RegExp(`(!\\[[^\\]]*\\]\\(${escapedPath}\\))`, 'g');
+            out = out.replace(imageRegex, (match) => {
                 modified = true;
-                return `~~${prefix}${originalPath}${suffix}~~ ${prefix}${encodedNewPath}${suffix}`;
+                const newLink = match.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
+                return `~~${match}~~ ${newLink}`;
             });
 
-            // Regular link pattern: [text](path) - but not images (check for ! before)
-            const linkRegex = new RegExp(`(^|[^!])(\\[[^\\]]+\\]\\()${escapedPath}(\\))`, 'gm');
-            out = out.replace(linkRegex, (match, before, prefix, suffix) => {
+            // Regular link pattern: [text](path) -> ~~[text](path)~~ [text](newpath)
+            // Excludes images by checking the character before the match
+            const linkRegex = new RegExp(`(^|[^!])(\\[[^\\]]+\\]\\(${escapedPath}\\))`, 'gm');
+            out = out.replace(linkRegex, (match, before, linkPart) => {
                 modified = true;
-                return `${before}~~${prefix}${originalPath}${suffix}~~ ${prefix}${encodedNewPath}${suffix}`;
+                const newLink = linkPart.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
+                return `${before}~~${linkPart}~~ ${newLink}`;
             });
 
-            // Wiki link pattern: [[target|label]] or [[target]]
-            const wikiRegex = new RegExp(`(\\[\\[)\\s*${escapedPath}(\\|[^\\]]*)?(\\]\\])`, 'g');
-            out = out.replace(wikiRegex, (match, prefix, labelPart = '', suffix) => {
+            // Wiki link pattern: [[target]] or [[target|label]] -> ~~[[target]]~~ [[newtarget]]
+            // Captures the complete minimal wiki link structure
+            const wikiRegex = new RegExp(`(\\[\\[\\s*${escapedPath}(?:\\|[^\\]]*)?\\]\\])`, 'g');
+            out = out.replace(wikiRegex, (match) => {
                 modified = true;
-                return `~~${prefix}${originalPath}${labelPart}${suffix}~~ ${prefix}${encodedNewPath}${labelPart}${suffix}`;
+                const newLink = match.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
+                return `~~${match}~~ ${newLink}`;
+            });
+
+            // Auto-link pattern: <path> -> ~~<path>~~ <newpath>
+            // Captures the complete minimal auto-link structure
+            const autolinkRegex = new RegExp(`(<${escapedPath}>)`, 'g');
+            out = out.replace(autolinkRegex, (match) => {
+                modified = true;
+                const newLink = `<${encodedNewPath}>`;
+                return `~~${match}~~ ${newLink}`;
             });
 
             return out;
