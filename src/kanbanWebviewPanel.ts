@@ -706,7 +706,7 @@ export class KanbanWebviewPanel {
 
     // ============= END UNIFIED INCLUDE FILE SYSTEM METHODS =============
 
-    private async handleLinkReplacement(originalPath: string, newPath: string, isImage: boolean) {
+    private async handleLinkReplacement(originalPath: string, newPath: string, isImage: boolean, taskId?: string, columnId?: string, linkIndex?: number) {
         if (!this._board || !this._board.valid) { return; }
 
         this._undoRedoManager.saveStateForUndo(this._board);
@@ -718,71 +718,80 @@ export class KanbanWebviewPanel {
             return match === '(' ? '%28' : '%29';
         });
 
-        // Helper function to replace link in text with precise strikethrough placement
-        const replaceLink = (text: string): string => {
-            if (!text) { return text; }
-            // Escape special regex characters in the original path
-            const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-            let out = text;
-            let modified = false;
-
-            // Create a comprehensive pattern that handles all link types in one pass
-            // This prevents multiple passes from interfering with each other
-
-            // Combined pattern that matches all types of links with the target path
-            const allLinksPattern = new RegExp(
-                `(~~)?((!\\[[^\\]]*\\]\\(${escapedPath}\\))|` +                    // Image links with optional strikethrough
-                `((?<!!)\\[[^\\]]+\\]\\(${escapedPath}\\))|` +                    // Regular links (not images) with optional strikethrough
-                `(\\[\\[\\s*${escapedPath}(?:\\|[^\\]]*)?\\]\\])|` +             // Wiki links with optional strikethrough
-                `(<${escapedPath}>))(~~)?`,                                      // Auto links with optional strikethrough
-                'g'
-            );
-
-            // Single pass replacement that handles all cases properly
-            out = out.replace(allLinksPattern, (match, startStrike, fullLink, imageLink, regularLink, wikiLink, autoLink, endStrike) => {
-                // Determine which type of link we matched
-                const linkPart = imageLink || regularLink || wikiLink || autoLink;
-                if (!linkPart) return match;
-
-                // Create the corrected version of the link
-                const newLink = linkPart.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
-
-                // If the link is already strikethrough (has both ~~ markers)
-                if (startStrike && endStrike) {
-                    modified = true;
-                    return `~~${linkPart}~~ ${newLink}`;
-                }
-                // If the link is not strikethrough, add it
-                else {
-                    modified = true;
-                    return `~~${linkPart}~~ ${newLink}`;
-                }
-            });
-
-            return out;
-        };
-
-        // Search and replace in all columns and tasks
-        for (const column of this._board.columns) {
-            const newTitle = replaceLink(column.title);
-            if (newTitle !== column.title) {
-                column.title = newTitle;
-                modified = true;
+        // If we have specific context, target only that link instance
+        if (taskId && columnId) {
+            // Find the specific column and task
+            const targetColumn = this._board.columns.find(col => col.id === columnId);
+            if (!targetColumn) {
+                console.warn(`Column ${columnId} not found for link replacement`);
+                return;
             }
 
-            for (const task of column.tasks) {
-                const newTaskTitle = replaceLink(task.title);
-                if (newTaskTitle !== task.title) {
-                    task.title = newTaskTitle;
+            const targetTask = targetColumn.tasks.find(task => task.id === taskId);
+            if (!targetTask) {
+                console.warn(`Task ${taskId} not found for link replacement`);
+                return;
+            }
+
+            // Replace only the specific occurrence by index in the specific task
+            // Check task title first
+            const updatedTitle = this.replaceSingleLink(targetTask.title, originalPath, encodedNewPath, linkIndex);
+            if (updatedTitle !== targetTask.title) {
+                targetTask.title = updatedTitle;
+                modified = true;
+            }
+            // If not found in title and task has description, check description
+            else if (targetTask.description) {
+                const updatedDescription = this.replaceSingleLink(targetTask.description, originalPath, encodedNewPath, linkIndex);
+                if (updatedDescription !== targetTask.description) {
+                    targetTask.description = updatedDescription;
+                    modified = true;
+                }
+            }
+        }
+        // If no specific context but we have a columnId, target only that column
+        else if (columnId && !taskId) {
+            const targetColumn = this._board.columns.find(col => col.id === columnId);
+            if (!targetColumn) {
+                console.warn(`Column ${columnId} not found for link replacement`);
+                return;
+            }
+
+            // Replace only the specific occurrence by index in the column title
+            const updatedTitle = this.replaceSingleLink(targetColumn.title, originalPath, encodedNewPath, linkIndex);
+            if (updatedTitle !== targetColumn.title) {
+                targetColumn.title = updatedTitle;
+                modified = true;
+            }
+        }
+        // Fallback: global replacement (original behavior)
+        else {
+            // Helper function to replace link in text with precise strikethrough placement
+            const replaceLink = (text: string): string => {
+                return this.replaceSingleLink(text, originalPath, encodedNewPath);
+            };
+
+            // Search and replace in all columns and tasks
+            for (const column of this._board.columns) {
+                const newTitle = replaceLink(column.title);
+                if (newTitle !== column.title) {
+                    column.title = newTitle;
                     modified = true;
                 }
 
-                if (task.description) {
-                    const newDescription = replaceLink(task.description);
-                    if (newDescription !== task.description) {
-                        task.description = newDescription;
+                for (const task of column.tasks) {
+                    const newTaskTitle = replaceLink(task.title);
+                    if (newTaskTitle !== task.title) {
+                        task.title = newTaskTitle;
                         modified = true;
+                    }
+
+                    if (task.description) {
+                        const newDescription = replaceLink(task.description);
+                        if (newDescription !== task.description) {
+                            task.description = newDescription;
+                            modified = true;
+                        }
                     }
                 }
             }
@@ -792,6 +801,135 @@ export class KanbanWebviewPanel {
             await this.saveToMarkdown();
             await this.sendBoardUpdate();
         }
+    }
+
+    /**
+     * Replace only the specific occurrence (by index) of a specific link in text
+     * Handles both already strikethrough and regular links properly
+     */
+    private replaceSingleLink(text: string, originalPath: string, encodedNewPath: string, targetIndex: number = 0): string {
+        if (!text) { return text; }
+
+        // Escape special regex characters in the original path
+        const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Define all patterns we need to check
+        const patterns = [
+            // Already strikethrough patterns
+            { regex: new RegExp(`~~(!\\[[^\\]]*\\]\\(${escapedPath}\\))~~`, 'g'), type: 'strikeImage' },
+            { regex: new RegExp(`~~(\\[[^\\]]+\\]\\(${escapedPath}\\))~~`, 'g'), type: 'strikeLink' },
+            { regex: new RegExp(`~~(\\[\\[\\s*${escapedPath}(?:\\|[^\\]]*)?\\]\\])~~`, 'g'), type: 'strikeWiki' },
+            { regex: new RegExp(`~~(<${escapedPath}>)~~`, 'g'), type: 'strikeAuto' },
+            // Regular patterns
+            { regex: new RegExp(`(!\\[[^\\]]*\\]\\(${escapedPath}\\))`, 'g'), type: 'image' },
+            { regex: new RegExp(`(^|[^!])(\\[[^\\]]+\\]\\(${escapedPath}\\))`, 'gm'), type: 'link' },
+            { regex: new RegExp(`(\\[\\[\\s*${escapedPath}(?:\\|[^\\]]*)?\\]\\])`, 'g'), type: 'wiki' },
+            { regex: new RegExp(`(<${escapedPath}>)`, 'g'), type: 'auto' }
+        ];
+
+        // Find all matches with their positions
+        const allMatches = [];
+        for (const pattern of patterns) {
+            let match;
+            const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+            while ((match = regex.exec(text)) !== null) {
+                allMatches.push({
+                    match: match,
+                    start: match.index,
+                    end: match.index + match[0].length,
+                    type: pattern.type,
+                    fullMatch: match[0]
+                });
+                // Prevent infinite loops on zero-width matches
+                if (match.index === regex.lastIndex) {
+                    regex.lastIndex++;
+                }
+            }
+        }
+
+        // Sort matches by position
+        allMatches.sort((a, b) => a.start - b.start);
+
+        // Check if targetIndex is valid
+        if (targetIndex >= 0 && targetIndex < allMatches.length) {
+            const targetMatch = allMatches[targetIndex];
+            return this.replaceMatchAtPosition(text, targetMatch, originalPath, encodedNewPath);
+        } else if (allMatches.length > 0) {
+            // Fallback: replace first match
+            const targetMatch = allMatches[0];
+            return this.replaceMatchAtPosition(text, targetMatch, originalPath, encodedNewPath);
+        }
+
+        // No matches found
+        return text;
+    }
+
+    /**
+     * Replace a specific match at its exact position with the new path
+     * Uses position-based slicing instead of pattern-based replacement to avoid replacing wrong occurrences
+     */
+    private replaceMatchAtPosition(text: string, matchInfo: any, originalPath: string, encodedNewPath: string): string {
+        const { match, type, start, end } = matchInfo;
+        const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        let replacement = '';
+
+        switch (type) {
+            case 'strikeImage': {
+                const imageLink = match[1];
+                const newImageLink = imageLink.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
+                replacement = `~~${imageLink}~~ ${newImageLink}`;
+                break;
+            }
+            case 'strikeLink': {
+                const regularLink = match[1];
+                const newRegularLink = regularLink.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
+                replacement = `~~${regularLink}~~ ${newRegularLink}`;
+                break;
+            }
+            case 'strikeWiki': {
+                const wikiLink = match[1];
+                const newWikiLink = wikiLink.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
+                replacement = `~~${wikiLink}~~ ${newWikiLink}`;
+                break;
+            }
+            case 'strikeAuto': {
+                const autoLink = match[1];
+                const newAutoLink = `<${encodedNewPath}>`;
+                replacement = `~~${autoLink}~~ ${newAutoLink}`;
+                break;
+            }
+            case 'image': {
+                const imageLink = match[1];
+                const newImageLink = imageLink.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
+                replacement = `~~${imageLink}~~ ${newImageLink}`;
+                break;
+            }
+            case 'link': {
+                const before = match[1];
+                const regularLink = match[2];
+                const newRegularLink = regularLink.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
+                replacement = `${before}~~${regularLink}~~ ${newRegularLink}`;
+                break;
+            }
+            case 'wiki': {
+                const wikiLink = match[1];
+                const newWikiLink = wikiLink.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
+                replacement = `~~${wikiLink}~~ ${newWikiLink}`;
+                break;
+            }
+            case 'auto': {
+                const autoLink = match[1];
+                const newAutoLink = `<${encodedNewPath}>`;
+                replacement = `~~${autoLink}~~ ${newAutoLink}`;
+                break;
+            }
+            default:
+                return text;
+        }
+
+        // Use position-based replacement: slice before + replacement + slice after
+        return text.slice(0, start) + replacement + text.slice(end);
     }
 
     /**

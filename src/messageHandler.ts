@@ -166,7 +166,7 @@ export class MessageHandler {
 
             // Enhanced file and link handling
             case 'openFileLink':
-                await this._linkHandler.handleFileLink(message.href);
+                await this._linkHandler.handleFileLink(message.href, message.taskId, message.columnId, message.linkIndex);
                 break;
             case 'openWikiLink':
                 await this._linkHandler.handleWikiLink(message.documentName);

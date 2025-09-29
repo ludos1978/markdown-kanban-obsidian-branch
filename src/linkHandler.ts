@@ -9,12 +9,12 @@ export class LinkHandler {
     private _fileManager: FileManager;
     private _fileSearchService: FileSearchService;
     private _webview: vscode.Webview;
-    private _onRequestLinkReplacement: (originalPath: string, newPath: string, isImage: boolean) => Promise<void>; // ADD THIS
+    private _onRequestLinkReplacement: (originalPath: string, newPath: string, isImage: boolean, taskId?: string, columnId?: string, linkIndex?: number) => Promise<void>; // ADD THIS
 
     constructor(
         fileManager: FileManager, 
         webview: vscode.Webview,
-        onRequestLinkReplacement: (originalPath: string, newPath: string, isImage: boolean) => Promise<void> // ADD THIS
+        onRequestLinkReplacement: (originalPath: string, newPath: string, isImage: boolean, taskId?: string, columnId?: string, linkIndex?: number) => Promise<void> // ADD THIS
     ) {
         this._fileManager = fileManager;
         // Provide extension root so FileSearchService can load icon assets
@@ -25,7 +25,7 @@ export class LinkHandler {
     /**
      * Enhanced file link handler with workspace-relative path support
      */
-    public async handleFileLink(href: string) {
+    public async handleFileLink(href: string, taskId?: string, columnId?: string, linkIndex?: number) {
         try {
             if (href.startsWith('file://')) {
                 href = vscode.Uri.parse(href).fsPath;
@@ -51,7 +51,7 @@ export class LinkHandler {
                     : undefined;
                 const replacement = await this._fileSearchService.pickReplacementForBrokenLink(href, baseDir);
                 if (replacement) {
-                    await this.applyLinkReplacement(href, replacement);
+                    await this.applyLinkReplacement(href, replacement, taskId, columnId, linkIndex);
                     return;
                 }
                 
@@ -237,7 +237,7 @@ export class LinkHandler {
         }
     }
 
-    private async applyLinkReplacement(originalPath: string, replacementUri: vscode.Uri) {
+    private async applyLinkReplacement(originalPath: string, replacementUri: vscode.Uri, taskId?: string, columnId?: string, linkIndex?: number) {
         const document = this._fileManager.getDocument();
         if (!document) {
             vscode.window.showErrorMessage('No document loaded to update links');
@@ -253,7 +253,7 @@ export class LinkHandler {
                        originalPath.includes('.webp');
 
         // Call the callback to handle replacement in the backend
-        await this._onRequestLinkReplacement(originalPath, configuredPath, isImage);
+        await this._onRequestLinkReplacement(originalPath, configuredPath, isImage, taskId, columnId, linkIndex);
 
         vscode.window.showInformationMessage(`Link updated: ${originalPath} → ${configuredPath}`);
     }

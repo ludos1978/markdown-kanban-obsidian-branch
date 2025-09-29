@@ -1897,10 +1897,48 @@ function toggleTaskCollapse(taskId) {
 }
 
 // Single function to handle opening links/images/wiki links
-function handleLinkOrImageOpen(event, target) {
+function handleLinkOrImageOpen(event, target, taskId = null, columnId = null) {
     const link = target.closest('a');
     const img = target.closest('img');
     const wikiLink = target.closest('.wiki-link');
+
+    // Function to find the position index of clicked element among similar elements
+    function findElementIndex(clickedElement, containerElement, attributeName) {
+        if (!clickedElement || !containerElement) return 0;
+
+        const attributeValue = clickedElement.getAttribute(attributeName);
+        if (!attributeValue) return 0;
+
+        // Find all elements with the same attribute value in the container
+        const selector = clickedElement.tagName.toLowerCase() + `[${attributeName}="${attributeValue}"]`;
+        const allSimilar = containerElement.querySelectorAll(selector);
+
+        // Find the index of our clicked element
+        return Array.from(allSimilar).indexOf(clickedElement);
+    }
+
+    // Find the task or column container to scope the search
+    let containerElement = null;
+    let linkIndex = 0;
+
+    if (taskId) {
+        // Look for task container
+        containerElement = target.closest(`[data-task-id="${taskId}"]`);
+        if (!containerElement) {
+            containerElement = target.closest('.task-item');
+        }
+    } else if (columnId) {
+        // Look for column container
+        containerElement = target.closest(`[data-column-id="${columnId}"]`);
+        if (!containerElement) {
+            containerElement = target.closest('.column');
+        }
+    }
+
+    if (!containerElement) {
+        // Fallback to the entire board
+        containerElement = document.querySelector('.kanban-board');
+    }
     
     // Handle wiki links
     if (wikiLink) {
@@ -1908,9 +1946,15 @@ function handleLinkOrImageOpen(event, target) {
         event.stopPropagation();
         const documentName = wikiLink.getAttribute('data-document');
         if (documentName) {
+            // Calculate index for wiki links
+            linkIndex = findElementIndex(wikiLink, containerElement, 'data-document');
+
             vscode.postMessage({
                 type: 'openWikiLink',
-                documentName: documentName
+                documentName: documentName,
+                linkIndex: linkIndex,
+                taskId: taskId,
+                columnId: columnId
             });
         }
         return true;
@@ -1928,9 +1972,16 @@ function handleLinkOrImageOpen(event, target) {
                     href: href
                 });
             } else {
+                // Calculate index for file links using the href attribute
+                const hrefAttr = link.getAttribute('data-original-href') ? 'data-original-href' : 'href';
+                linkIndex = findElementIndex(link, containerElement, hrefAttr);
+
                 vscode.postMessage({
                     type: 'openFileLink',
-                    href: href
+                    href: href,
+                    linkIndex: linkIndex,
+                    taskId: taskId,
+                    columnId: columnId
                 });
             }
         }
@@ -1943,9 +1994,16 @@ function handleLinkOrImageOpen(event, target) {
         event.stopPropagation();
         const originalSrc = img.getAttribute('data-original-src') || img.getAttribute('src');
         if (originalSrc && !originalSrc.startsWith('data:')) {
+            // Calculate index for images using the src attribute
+            const srcAttr = img.getAttribute('data-original-src') ? 'data-original-src' : 'src';
+            linkIndex = findElementIndex(img, containerElement, srcAttr);
+
             vscode.postMessage({
                 type: 'openFileLink',
-                href: originalSrc
+                href: originalSrc,
+                linkIndex: linkIndex,
+                taskId: taskId,
+                columnId: columnId
             });
         }
         return true;
@@ -1958,7 +2016,7 @@ function handleLinkOrImageOpen(event, target) {
 function handleColumnTitleClick(event, columnId) {
     if (event.altKey) {
         // Alt+click: open link/image
-        if (handleLinkOrImageOpen(event, event.target)) {return;}
+        if (handleLinkOrImageOpen(event, event.target, taskId, columnId)) {return;}
         return; // Don't edit if Alt is pressed
     }
 
@@ -1984,7 +2042,7 @@ function handleTaskTitleClick(event, element, taskId, columnId) {
 
     if (event.altKey) {
         // Alt+click: open link/image
-        if (handleLinkOrImageOpen(event, event.target)) {return;}
+        if (handleLinkOrImageOpen(event, event.target, taskId, columnId)) {return;}
         return; // Don't edit if Alt is pressed
     }
 
@@ -2004,7 +2062,7 @@ function handleDescriptionClick(event, element, taskId, columnId) {
 
     if (event.altKey) {
         // Alt+click: open link/image
-        if (handleLinkOrImageOpen(event, event.target)) {return;}
+        if (handleLinkOrImageOpen(event, event.target, taskId, columnId)) {return;}
         return; // Don't edit if Alt is pressed
     }
 
