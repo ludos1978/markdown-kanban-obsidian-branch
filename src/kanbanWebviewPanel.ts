@@ -707,6 +707,7 @@ export class KanbanWebviewPanel {
     // ============= END UNIFIED INCLUDE FILE SYSTEM METHODS =============
 
     private async handleLinkReplacement(originalPath: string, newPath: string, isImage: boolean, taskId?: string, columnId?: string, linkIndex?: number) {
+        console.log(`[HANDLE_LINK_REPLACEMENT_DEBUG] Called with: originalPath="${originalPath}", taskId="${taskId}", columnId="${columnId}", linkIndex=${linkIndex}`);
         if (!this._board || !this._board.valid) { return; }
 
         this._undoRedoManager.saveStateForUndo(this._board);
@@ -810,6 +811,9 @@ export class KanbanWebviewPanel {
     private replaceSingleLink(text: string, originalPath: string, encodedNewPath: string, targetIndex: number = 0): string {
         if (!text) { return text; }
 
+        console.log(`[LINK_REPLACE_DEBUG] Targeting index ${targetIndex} for path: ${originalPath}`);
+        console.log(`[LINK_REPLACE_DEBUG] Text length: ${text.length}`);
+
         // Escape special regex characters in the original path
         const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -850,13 +854,36 @@ export class KanbanWebviewPanel {
         // Sort matches by position
         allMatches.sort((a, b) => a.start - b.start);
 
-        // Check if targetIndex is valid
-        if (targetIndex >= 0 && targetIndex < allMatches.length) {
-            const targetMatch = allMatches[targetIndex];
+        // Remove nested matches - if we have both ~~![image]~~ and ![image], remove the inner one
+        const filteredMatches = [];
+        for (const match of allMatches) {
+            // Check if this match is contained within any other match
+            const isNested = allMatches.some(other =>
+                other !== match &&
+                other.start < match.start &&
+                other.end > match.end &&
+                (other.type.startsWith('strike') && !match.type.startsWith('strike'))
+            );
+
+            if (!isNested) {
+                filteredMatches.push(match);
+            }
+        }
+
+        console.log(`[LINK_REPLACE_DEBUG] Found ${allMatches.length} matches, ${filteredMatches.length} after filtering nested:`);
+        filteredMatches.forEach((match, i) => {
+            console.log(`  [${i}] ${match.type} at ${match.start}-${match.end}: "${match.fullMatch}"`);
+        });
+
+        // Check if targetIndex is valid (using filtered matches)
+        if (targetIndex >= 0 && targetIndex < filteredMatches.length) {
+            const targetMatch = filteredMatches[targetIndex];
+            console.log(`[LINK_REPLACE_DEBUG] Using target index ${targetIndex}: ${targetMatch.type} at ${targetMatch.start}-${targetMatch.end}`);
             return this.replaceMatchAtPosition(text, targetMatch, originalPath, encodedNewPath);
-        } else if (allMatches.length > 0) {
+        } else if (filteredMatches.length > 0) {
             // Fallback: replace first match
-            const targetMatch = allMatches[0];
+            const targetMatch = filteredMatches[0];
+            console.log(`[LINK_REPLACE_DEBUG] Target index ${targetIndex} invalid, using fallback index 0`);
             return this.replaceMatchAtPosition(text, targetMatch, originalPath, encodedNewPath);
         }
 
@@ -871,6 +898,9 @@ export class KanbanWebviewPanel {
     private replaceMatchAtPosition(text: string, matchInfo: any, originalPath: string, encodedNewPath: string): string {
         const { match, type, start, end } = matchInfo;
         const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        console.log(`[LINK_REPLACE_DEBUG] Replacing at position ${start}-${end}, type: ${type}`);
+        console.log(`[LINK_REPLACE_DEBUG] Original text slice: "${text.slice(start, end)}"`);
 
         let replacement = '';
 
@@ -929,7 +959,10 @@ export class KanbanWebviewPanel {
         }
 
         // Use position-based replacement: slice before + replacement + slice after
-        return text.slice(0, start) + replacement + text.slice(end);
+        console.log(`[LINK_REPLACE_DEBUG] Replacement: "${replacement}"`);
+        const result = text.slice(0, start) + replacement + text.slice(end);
+        console.log(`[LINK_REPLACE_DEBUG] Result length: ${result.length} (was ${text.length})`);
+        return result;
     }
 
     /**
@@ -1060,7 +1093,7 @@ export class KanbanWebviewPanel {
                     columnWidth: "250px",
                     cardHeight: "auto",
                     fontSize: "0_5x",
-                    whitespace: "4px",
+                    whitespace: "8px",
                     tagVisibility: "allexcludinglayout"
                 }
             },
@@ -1075,14 +1108,13 @@ export class KanbanWebviewPanel {
                     tagVisibility: "allexcludinglayout"
                 }
             },
-            grid3x3: {
+            grid3x: {
                 label: "3x3 Grid",
                 description: "Grid layout for organized viewing",
                 settings: {
                     columnWidth: "33percent",
-                    cardHeight: "33percent",
-                    fontSize: "2x",
-                    layoutRows: 3,
+                    cardHeight: "auto",
+                    fontSize: "1_5x",
                     whitespace: "12px"
                 }
             },

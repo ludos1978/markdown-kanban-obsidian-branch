@@ -42,7 +42,7 @@
           "type": "number",
           "default": 15,
           "minimum": 1,
-          "maximum": 60,
+          "maximum": 120,
           "description": "Interval in minutes between automatic backups (1-60 minutes)"
         },
         "markdown-kanban.backupLocation": {
@@ -75,7 +75,7 @@
         "markdown-kanban.pathGeneration": {
           "type": "string",
           "enum": ["relative", "absolute"],
-          "default": "relative",
+          "default": "absolute",
           "description": "How to generate file paths when creating links from drag & drop, clipboard, and link replacement",
           "enumDescriptions": [
             "Generate relative paths from the current document",
@@ -85,7 +85,7 @@
         "markdown-kanban.whitespace": {
           "type": "string",
           "default": "4px",
-          "description": "The amount of whitespace/padding to use in the Kanban board (e.g., '4px', '8px', '2px')",
+          "description": "The amount of whitespace-padding to use in the Kanban board (e.g., '4px', '8px', '2px')",
           "pattern": "^\\d+(\\.\\d+)?(px|em|rem)$",
           "patternErrorMessage": "Please enter a valid CSS size value (e.g., '4px', '0.5em', '1rem')"
         },

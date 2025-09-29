@@ -26,6 +26,7 @@ export class LinkHandler {
      * Enhanced file link handler with workspace-relative path support
      */
     public async handleFileLink(href: string, taskId?: string, columnId?: string, linkIndex?: number) {
+        console.log(`[LINK_HANDLER_DEBUG] handleFileLink called: href="${href}", taskId="${taskId}", columnId="${columnId}", linkIndex=${linkIndex}`);
         try {
             if (href.startsWith('file://')) {
                 href = vscode.Uri.parse(href).fsPath;
@@ -51,6 +52,7 @@ export class LinkHandler {
                     : undefined;
                 const replacement = await this._fileSearchService.pickReplacementForBrokenLink(href, baseDir);
                 if (replacement) {
+                    console.log(`[LINK_HANDLER_DEBUG] File replacement selected, calling applyLinkReplacement with linkIndex=${linkIndex}`);
                     await this.applyLinkReplacement(href, replacement, taskId, columnId, linkIndex);
                     return;
                 }
@@ -253,6 +255,7 @@ export class LinkHandler {
                        originalPath.includes('.webp');
 
         // Call the callback to handle replacement in the backend
+        console.log(`[LINK_HANDLER_DEBUG] Calling _onRequestLinkReplacement with linkIndex=${linkIndex}`);
         await this._onRequestLinkReplacement(originalPath, configuredPath, isImage, taskId, columnId, linkIndex);
 
         vscode.window.showInformationMessage(`Link updated: ${originalPath} → ${configuredPath}`);

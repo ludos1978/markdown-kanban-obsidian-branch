@@ -3327,7 +3327,7 @@ function calculateTaskDescriptionHeight() {
 
         // Set the max-height for the description container
         if (availableHeight > 0) {
-            descContainer.style.maxHeight = 'calc(' + availableHeight + 'px - var(--whitespace-div2)';
+            descContainer.style.maxHeight = 'calc(' + availableHeight + 'px - var(--whitespace-div2))';
             descContainer.style.overflow = 'auto';
         } else {
             descContainer.style.maxHeight = '';

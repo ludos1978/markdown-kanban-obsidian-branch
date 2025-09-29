@@ -1909,12 +1909,22 @@ function handleLinkOrImageOpen(event, target, taskId = null, columnId = null) {
         const attributeValue = clickedElement.getAttribute(attributeName);
         if (!attributeValue) return 0;
 
-        // Find all elements with the same attribute value in the container
-        const selector = clickedElement.tagName.toLowerCase() + `[${attributeName}="${attributeValue}"]`;
-        const allSimilar = containerElement.querySelectorAll(selector);
+        // Find all elements with the same tag name in the container
+        const tagName = clickedElement.tagName.toLowerCase();
+        const allElementsWithTag = containerElement.querySelectorAll(tagName);
+
+        // Filter by attribute value (avoid CSS selector escaping issues)
+        const allSimilar = Array.from(allElementsWithTag).filter(el =>
+            el.getAttribute(attributeName) === attributeValue
+        );
+
+        console.log(`[FRONTEND_INDEX_DEBUG] Found ${allSimilar.length} elements with same ${attributeName}="${attributeValue}"`);
 
         // Find the index of our clicked element
-        return Array.from(allSimilar).indexOf(clickedElement);
+        const index = allSimilar.indexOf(clickedElement);
+        console.log(`[FRONTEND_INDEX_DEBUG] Clicked element is at index ${index}`);
+
+        return index >= 0 ? index : 0;
     }
 
     // Find the task or column container to scope the search
@@ -1997,6 +2007,8 @@ function handleLinkOrImageOpen(event, target, taskId = null, columnId = null) {
             // Calculate index for images using the src attribute
             const srcAttr = img.getAttribute('data-original-src') ? 'data-original-src' : 'src';
             linkIndex = findElementIndex(img, containerElement, srcAttr);
+
+            console.log(`[FRONTEND_DEBUG] Image click: href="${originalSrc}", linkIndex=${linkIndex}, taskId=${taskId}, columnId=${columnId}`);
 
             vscode.postMessage({
                 type: 'openFileLink',
