@@ -799,7 +799,18 @@ export class KanbanWebviewPanel {
         }
 
         if (modified) {
-            await this.saveToMarkdown();
+            // Mark as having unsaved changes but don't auto-save
+            // The user will need to manually save to persist the changes
+            console.log('[kanban.handleLinkReplacement] Link replaced, board marked as modified (manual save required)');
+
+            // Mark board as having unsaved changes in the file state manager
+            const document = this._fileManager.getDocument();
+            if (document) {
+                const fileStateManager = getFileStateManager();
+                fileStateManager.markFrontendChange(document.uri.fsPath, true, JSON.stringify(this._board));
+                this._hasUnsavedChanges = true;
+            }
+
             await this.sendBoardUpdate();
         }
     }
