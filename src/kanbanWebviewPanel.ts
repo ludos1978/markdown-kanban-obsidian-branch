@@ -727,40 +727,37 @@ export class KanbanWebviewPanel {
             let out = text;
             let modified = false;
 
-            // Image link pattern: ![alt](path) -> ~~![alt](path)~~ ![alt](newpath)
-            // Captures the complete minimal image link structure
-            const imageRegex = new RegExp(`(!\\[[^\\]]*\\]\\(${escapedPath}\\))`, 'g');
-            out = out.replace(imageRegex, (match) => {
-                modified = true;
-                const newLink = match.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
-                return `~~${match}~~ ${newLink}`;
-            });
+            // Create a comprehensive pattern that handles all link types in one pass
+            // This prevents multiple passes from interfering with each other
 
-            // Regular link pattern: [text](path) -> ~~[text](path)~~ [text](newpath)
-            // Excludes images by checking the character before the match
-            const linkRegex = new RegExp(`(^|[^!])(\\[[^\\]]+\\]\\(${escapedPath}\\))`, 'gm');
-            out = out.replace(linkRegex, (match, before, linkPart) => {
-                modified = true;
+            // Combined pattern that matches all types of links with the target path
+            const allLinksPattern = new RegExp(
+                `(~~)?((!\\[[^\\]]*\\]\\(${escapedPath}\\))|` +                    // Image links with optional strikethrough
+                `((?<!!)\\[[^\\]]+\\]\\(${escapedPath}\\))|` +                    // Regular links (not images) with optional strikethrough
+                `(\\[\\[\\s*${escapedPath}(?:\\|[^\\]]*)?\\]\\])|` +             // Wiki links with optional strikethrough
+                `(<${escapedPath}>))(~~)?`,                                      // Auto links with optional strikethrough
+                'g'
+            );
+
+            // Single pass replacement that handles all cases properly
+            out = out.replace(allLinksPattern, (match, startStrike, fullLink, imageLink, regularLink, wikiLink, autoLink, endStrike) => {
+                // Determine which type of link we matched
+                const linkPart = imageLink || regularLink || wikiLink || autoLink;
+                if (!linkPart) return match;
+
+                // Create the corrected version of the link
                 const newLink = linkPart.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
-                return `${before}~~${linkPart}~~ ${newLink}`;
-            });
 
-            // Wiki link pattern: [[target]] or [[target|label]] -> ~~[[target]]~~ [[newtarget]]
-            // Captures the complete minimal wiki link structure
-            const wikiRegex = new RegExp(`(\\[\\[\\s*${escapedPath}(?:\\|[^\\]]*)?\\]\\])`, 'g');
-            out = out.replace(wikiRegex, (match) => {
-                modified = true;
-                const newLink = match.replace(new RegExp(escapedPath, 'g'), encodedNewPath);
-                return `~~${match}~~ ${newLink}`;
-            });
-
-            // Auto-link pattern: <path> -> ~~<path>~~ <newpath>
-            // Captures the complete minimal auto-link structure
-            const autolinkRegex = new RegExp(`(<${escapedPath}>)`, 'g');
-            out = out.replace(autolinkRegex, (match) => {
-                modified = true;
-                const newLink = `<${encodedNewPath}>`;
-                return `~~${match}~~ ${newLink}`;
+                // If the link is already strikethrough (has both ~~ markers)
+                if (startStrike && endStrike) {
+                    modified = true;
+                    return `~~${linkPart}~~ ${newLink}`;
+                }
+                // If the link is not strikethrough, add it
+                else {
+                    modified = true;
+                    return `~~${linkPart}~~ ${newLink}`;
+                }
             });
 
             return out;
