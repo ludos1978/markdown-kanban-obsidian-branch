@@ -95,6 +95,7 @@ export class KanbanWebviewPanel {
                     board: this._board,
                     columnWidth: this._getColumnWidthConfiguration(),
                     taskMinHeight: this._getTaskMinHeightConfiguration(),
+                    sectionMaxHeight: this._getSectionMaxHeightConfiguration(),
                     fontSize: this._getFontSizeConfiguration(),
                     fontFamily: this._getFontFamilyConfiguration(),
                     whitespace: this._getWhitespaceConfiguration(),
@@ -1049,6 +1050,10 @@ export class KanbanWebviewPanel {
         return configService.getConfig('taskMinHeight');
     }
 
+    private async _getSectionMaxHeightConfiguration(): Promise<string> {
+        return configService.getConfig('sectionMaxHeight');
+    }
+
     private async _getFontSizeConfiguration(): Promise<string> {
         return configService.getConfig('fontSize');
     }
@@ -1107,7 +1112,8 @@ export class KanbanWebviewPanel {
                     columnWidth: "33percent",
                     cardHeight: "auto",
                     fontSize: "1x",
-                    whitespace: "12px"
+                    whitespace: "12px",
+										sectionMaxHeight: "30vh"
                 }
             },
             presentation: {
@@ -1470,9 +1476,11 @@ export class KanbanWebviewPanel {
         const tagColors = await this._getTagConfiguration();
         
         const whitespace = await this._getWhitespaceConfiguration();
-        
+
         const taskMinHeight = await this._getTaskMinHeightConfiguration();
-        
+
+        const sectionMaxHeight = await this._getSectionMaxHeightConfiguration();
+
         const fontSize = await this._getFontSizeConfiguration();
         
         const fontFamily = await this._getFontFamilyConfiguration();
@@ -1503,6 +1511,7 @@ export class KanbanWebviewPanel {
                 tagColors: tagColors,
                 whitespace: whitespace,
                 taskMinHeight: taskMinHeight,
+                sectionMaxHeight: sectionMaxHeight,
                 fontSize: fontSize,
                 fontFamily: fontFamily,
                 columnWidth: columnWidth,

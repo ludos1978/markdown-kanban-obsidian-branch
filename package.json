@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.13.37",
+  "version": "0.13.38",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -1783,6 +1783,33 @@
             "Minimum height of 89% of viewport height"
           ]
         },
+        "markdown-kanban.sectionMaxHeight": {
+          "type": "string",
+          "default": "auto",
+          "description": "Maximum height for content sections between horizontal rules (HRs) in task descriptions",
+          "enum": [
+            "auto",
+            "100px",
+            "200px",
+            "300px",
+            "400px",
+            "500px",
+            "20vh",
+            "30vh",
+            "40vh"
+          ],
+          "enumDescriptions": [
+            "No height limit (automatic based on content)",
+            "Maximum 100 pixels",
+            "Maximum 200 pixels",
+            "Maximum 300 pixels",
+            "Maximum 400 pixels",
+            "Maximum 500 pixels",
+            "Maximum 20% of viewport height",
+            "Maximum 30% of viewport height",
+            "Maximum 40% of viewport height"
+          ]
+        },
         "markdown-kanban.fontSize": {
           "type": "string",
           "default": "small",
@@ -1889,6 +1916,10 @@
                   "cardHeight": {
                     "type": "string",
                     "description": "Card height setting"
+                  },
+                  "sectionMaxHeight": {
+                    "type": "string",
+                    "description": "Section max height setting"
                   },
                   "fontSize": {
                     "type": "string",

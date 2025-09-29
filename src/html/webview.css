@@ -879,11 +879,10 @@ body.small-card-fonts .task-title-container .markdown-content img {
   align-items: stretch;
 }
 
-/* Apply fixed height when task height is limited */
+/* Apply min and max height when task height is limited */
 .task-height-limited .task-item {
-  height: var(--task-height) !important;
+  min-height: var(--task-height) !important;
   max-height: var(--task-height) !important;
-  /* overflow: hidden; */
 }
 
 .task-item:not(:has(.header-bars-container)) {
@@ -1064,6 +1063,35 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .task-description-display:hover {
   background-color: var(--vscode-list-hoverBackground);
+}
+
+/* Task section styling for content between HRs */
+.task-section {
+  display: block;
+}
+
+/* Apply max-height to sections when section-height-limited class is active */
+body.section-height-limited .task-section {
+  max-height: var(--section-max-height, auto);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure images and figures within sections are constrained by section height */
+body.section-height-limited .task-section img,
+body.section-height-limited .task-section figure {
+  max-height: var(--section-max-height, auto);
+  object-fit: contain;
+  flex-shrink: 1;
+}
+
+/* Constrain figure content */
+body.section-height-limited .task-section figure img {
+  max-height: calc(var(--section-max-height, auto) - 2em);
+  width: auto;
+  height: auto;
 }
 
 

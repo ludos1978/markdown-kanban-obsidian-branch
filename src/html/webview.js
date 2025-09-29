@@ -105,6 +105,19 @@ const menuConfig = {
         { label: "1/2 Screen (43.5%)", value: "50percent" },
         { label: "Full Screen (89%)", value: "100percent" }
     ],
+    sectionMaxHeight: [
+        { label: "No Limit (Auto)", value: "auto" },
+        { separator: true },
+        { label: "Tiny (100px)", value: "100px" },
+        { label: "Small (200px)", value: "200px" },
+        { label: "Medium (300px)", value: "300px" },
+        { label: "Large (400px)", value: "400px" },
+        { label: "Extra Large (500px)", value: "500px" },
+        { separator: true },
+        { label: "1/5 Screen (20%)", value: "20vh" },
+        { label: "1/3 Screen (30%)", value: "30vh" },
+        { label: "2/5 Screen (40%)", value: "40vh" }
+    ],
     whitespace: [
         { label: "Compact (4px)", value: "4px" },
         { label: "Default (8px)", value: "8px" },
@@ -192,6 +205,8 @@ function getCurrentSettingValue(configKey) {
             return window.currentColumnWidth || '350px';
         case 'cardHeight':
             return window.currentTaskMinHeight || 'auto';
+        case 'sectionMaxHeight':
+            return window.currentSectionMaxHeight || 'auto';
         case 'whitespace':
             return window.currentWhitespace || '8px';
         case 'fontSize':
@@ -220,6 +235,7 @@ function updateAllMenuIndicators() {
     const menuMappings = [
         { selector: '[data-menu="columnWidth"]', config: 'columnWidth', function: 'setColumnWidth' },
         { selector: '[data-menu="cardHeight"]', config: 'cardHeight', function: 'setTaskMinHeight' },
+        { selector: '[data-menu="sectionMaxHeight"]', config: 'sectionMaxHeight', function: 'setSectionMaxHeight' },
         { selector: '[data-menu="whitespace"]', config: 'whitespace', function: 'setWhitespace' },
         { selector: '[data-menu="fontSize"]', config: 'fontSize', function: 'setFontSize' },
         { selector: '[data-menu="fontFamily"]', config: 'fontFamily', function: 'setFontFamily' },
@@ -1496,6 +1512,33 @@ function setTaskMinHeight(height) {
     });
 }
 
+// Section max height functions
+function applySectionMaxHeight(height) {
+    window.currentSectionMaxHeight = height;
+
+    // Use styleManager to apply section max height
+    styleManager.applySectionMaxHeight(height);
+
+    // Wrap task description sections
+    styleManager.wrapTaskDescriptionSections();
+}
+
+function setSectionMaxHeight(height) {
+    applySectionMaxHeight(height);
+
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'sectionMaxHeight',
+        value: height
+    });
+
+    updateAllMenuIndicators();
+
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+}
+
 // Function to detect row tags from board
 /**
  * Auto-detects number of rows from column tags
@@ -2224,6 +2267,13 @@ window.addEventListener('message', event => {
                     applyTaskMinHeight(taskMinHeight);
                 } else {
                     applyTaskMinHeight('auto'); // Default fallback
+                }
+
+                // Update section max height with the value from configuration
+                if (message.sectionMaxHeight) {
+                    applySectionMaxHeight(message.sectionMaxHeight);
+                } else {
+                    applySectionMaxHeight('auto'); // Default fallback
                 }
 
                 // Update font size with the value from configuration
