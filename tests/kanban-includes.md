@@ -4,6 +4,12 @@ kanban-plugin: board
 
 ---
 
+## a
+- [ ] b
+  ~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~
+  middle
+  ~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~
+
 ## taskinclude
 - [ ] !!!taskinclude(markdown-include-2.md)!!!
 
