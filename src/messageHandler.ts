@@ -950,7 +950,7 @@ export class MessageHandler {
             // Only create backup if 5+ minutes have passed since unsaved changes
             // This uses the BackupManager to check timing and creates a regular backup
             const webviewPanel = this._getWebviewPanel();
-            if (webviewPanel?.backupManager && webviewPanel.backupManager.shouldCreatePageHiddenBackup()) {
+            if (document && webviewPanel?.backupManager && webviewPanel.backupManager.shouldCreatePageHiddenBackup()) {
                 await webviewPanel.backupManager.createBackup(document, { label: 'backup' });
             } else {
             }

@@ -44,6 +44,12 @@ export class BackupManager {
      */
     public async createBackup(document: vscode.TextDocument, options: BackupOptions = {}): Promise<boolean> {
         try {
+            // Safety check: ensure document is valid
+            if (!document) {
+                console.warn('BackupManager: Cannot create backup - document is undefined');
+                return false;
+            }
+
             const enableBackups = configService.getConfig('enableBackups');
             const defaultIntervalMinutes = configService.getConfig('backupInterval', 15);
 
@@ -110,10 +116,6 @@ export class BackupManager {
         const dir = path.dirname(originalPath);
         const basename = path.basename(originalPath, '.md');
 
-        // Generate timestamp in format: YYYYMMDDTHHmmss
-        const now = new Date();
-        const timestamp = this.formatTimestamp(now);
-
         const backupLocation = configService.getConfig('backupLocation', 'same-folder');
 
         let backupDir = dir;
@@ -127,6 +129,16 @@ export class BackupManager {
 
         // All automatically generated files should be hidden
         const prefix = '.';
+
+        // For autosave, use a fixed filename (only one autosave file)
+        if (label === 'auto') {
+            const backupFileName = `${prefix}${basename}-autosave.md`;
+            return path.join(backupDir, backupFileName);
+        }
+
+        // For backup and conflict files, use timestamp
+        const now = new Date();
+        const timestamp = this.formatTimestamp(now);
         const backupFileName = `${prefix}${basename}-${label}-${timestamp}.md`;
 
         return path.join(backupDir, backupFileName);
@@ -190,10 +202,6 @@ export class BackupManager {
         const ext = path.extname(filePath);
         const basename = path.basename(filePath, ext);
 
-        // Generate timestamp in format: YYYYMMDDTHHmmss
-        const now = new Date();
-        const timestamp = this.formatTimestamp(now);
-
         const backupLocation = configService.getConfig('backupLocation', 'same-folder');
 
         let backupDir = dir;
@@ -208,6 +216,16 @@ export class BackupManager {
 
         // All automatically generated files should be hidden
         const prefix = '.';
+
+        // For autosave, use a fixed filename (only one autosave file)
+        if (label === 'auto') {
+            const backupFileName = `${prefix}${basename}-autosave${ext}`;
+            return path.join(backupDir, backupFileName);
+        }
+
+        // For backup and conflict files, use timestamp
+        const now = new Date();
+        const timestamp = this.formatTimestamp(now);
         const backupFileName = `${prefix}${basename}-${label}-${timestamp}${ext}`;
 
         return path.join(backupDir, backupFileName);
@@ -266,9 +284,10 @@ export class BackupManager {
                 return;
             }
 
-            // Find backup and auto files for this document (excluding conflicts which should be preserved)
-            // Pattern matches: .basename-(backup|auto)-YYYYMMDDTHHmmss.md
-            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(backup|auto)-\\d{8}T\\d{6}\\.md$`);
+            // Only clean up backup files with timestamps, NOT autosave or conflict files
+            // Pattern matches: .basename-backup-YYYYMMDDTHHmmss.md
+            // This EXCLUDES: autosave (single file) and conflict files (user-created)
+            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-backup-\\d{8}T\\d{6}\\.md$`);
 
             const files = fs.readdirSync(backupDir);
             const backupFiles = files
@@ -287,7 +306,7 @@ export class BackupManager {
                 for (const file of filesToDelete) {
                     try {
                         fs.unlinkSync(file.path);
-                        // console.log(`Deleted old backup: ${file.name}`);
+                        console.log(`Deleted old backup (exceeded limit of ${maxBackups}): ${file.name}`);
                     } catch (error) {
                         console.error(`Failed to delete backup ${file.name}:`, error);
                     }
@@ -339,7 +358,10 @@ export class BackupManager {
             const dir = path.dirname(originalPath);
             const basename = path.basename(originalPath, '.md');
             
-            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(backup|auto)-(\\d{8}T\\d{6})\\.md$`);
+            // Match backup files (with timestamp) and autosave file (without timestamp)
+            // This includes: .basename-backup-YYYYMMDDTHHmmss.md, .basename-conflict-YYYYMMDDTHHmmss.md, .basename-autosave.md
+            const backupPattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(backup|conflict)-(\\d{8}T\\d{6})\\.md$`);
+            const autosavePattern = new RegExp(`^\\.${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-autosave\\.md$`);
             
             const files = fs.readdirSync(dir);
             const backups = files

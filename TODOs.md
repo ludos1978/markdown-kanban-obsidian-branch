@@ -4,7 +4,36 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] the addon that delets a text which is strike-trough (between two ~~) converts the remaining contents to html, instead of leaving it as markdown. this is very wrong 
+- [ ] add an option to the export as in which style to export. it can be eigher kanbanstyle (does not modify the style, copies the markdown as in the original markdown) or it can be presentation style (which uses the same method as when copying the columns and cards as markdown.)
+- the copy as markdown will allways use presentation mode
+- the export functionality of tasks and columns gets a dropdown selection with "presentation" and "kanbanstyle"
+
+- [x] Failed to create backup: TypeError: Cannot read properties of undefined (reading 'getText')
+	at BackupManager.createBackup (/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/dist/extension.js:8513:32)
+	at MessageHandler.handlePageHiddenWithUnsavedChanges (/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/dist/extension.js:7344:42)
+	at MessageHandler.handleMessage (/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/dist/extension.js:6782:20)
+	at Ah.value (/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/dist/extension.js:9935:38)
+	at D.B (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:27:2375)
+	at D.fire (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:27:2593)
+	at wB.$onMessage (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:135:95573)
+	at i4.S (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:29:115936)
+	at i4.Q (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:29:115716)
+	at i4.M (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:29:114805)
+	at i4.L (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:29:114043)
+	at Ah.value (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:29:112707)
+	at D.B (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:27:2375)
+	at D.fire (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:27:2593)
+	at Jn.fire (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:29:9459)
+	at Ah.value (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:197:3917)
+	at D.B (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:27:2375)
+	at D.fire (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:27:2593)
+	at Jn.fire (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:29:9459)
+	at MessagePortMain.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:197:2209)
+	at MessagePortMain.emit (node:events:518:28)
+	at MessagePortMain._internalPort.emit (node:electron/js2c/utility_init:2:2949)
+	at Object.callbackTrampoline (node:internal/async_hooks:130:17) (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:175:30205))
+
+- [x] the addon that delets a text which is strike-trough (between two ~~) converts the remaining contents to html, instead of leaving it as markdown. this is very wrong 
 ultrathink
 - [x] the plugin that generates class multicolumn by adding "---:", ":--:", ":---" sometimes generates the same content twice. can you find a reason why? ultrathink ultrathink ultrathink ultrathink 
 
