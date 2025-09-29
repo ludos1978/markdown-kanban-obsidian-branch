@@ -35,7 +35,8 @@
       "Bash(gtimeout:*)",
       "mcp__ide__getDiagnostics",
       "Bash(npx tsc:*)",
-      "Bash(npx jest:*)"
+      "Bash(npx jest:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

@@ -16,7 +16,7 @@ markdown-include-2.md
 
 Modify this line 6
 
-![](root/image-512x512.png)
+![caption](root/image-512x512.png "title")
 
 ---
 

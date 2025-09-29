@@ -3877,6 +3877,19 @@ s {
     display: none !important;
 }
 
+/* Image figures with captions */
+figure {
+  margin: 0;
+  display: block;
+}
+
+figcaption {
+  font-size: 0.8em;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 4px;
+  text-align: center;
+}
+
 /* Image Fill Controls */
 /* Default: Images fit their natural content size (use existing behavior) */
 .image-fill-fit .task-title-container .markdown-content img,
@@ -3889,7 +3902,7 @@ s {
     max-width: 100% !important;
     width: auto !important;
     height: auto !important;
-    max-height: inherit; /* Keep title images smaller */
+    max-height: inherit;
     object-fit: contain !important;
     object-position: left !important;
 }

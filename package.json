@@ -74,7 +74,10 @@
         },
         "markdown-kanban.pathGeneration": {
           "type": "string",
-          "enum": ["relative", "absolute"],
+          "enum": [
+            "relative",
+            "absolute"
+          ],
           "default": "absolute",
           "description": "How to generate file paths when creating links from drag & drop, clipboard, and link replacement",
           "enumDescriptions": [

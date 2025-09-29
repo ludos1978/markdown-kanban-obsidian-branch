@@ -335,6 +335,11 @@ function renderMarkdown(text) {
         if (typeof window.markdownItInclude !== 'undefined') {
             md.use(window.markdownItInclude); // !!!include()!!! file inclusion support
         }
+        if (typeof window.markdownItImageFigures !== 'undefined') {
+            md.use(window.markdownItImageFigures, {
+                figcaption: 'title'
+            }); // Image figures with captions from title attribute
+        }
 
         // Note: Most other plugins can't be loaded via CDN due to CSP restrictions
         // Advanced plugin functionality would need to be bundled or implemented differently

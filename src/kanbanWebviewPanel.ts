@@ -1883,7 +1883,8 @@ export class KanbanWebviewPanel {
             'markdown-it-underline-browser.js',
             'markdown-it-abbr-browser.js',
             'markdown-it-container-browser.js',
-            'markdown-it-include-browser.js'
+            'markdown-it-include-browser.js',
+            'markdown-it-image-figures-browser.js'
         ];
         
         jsFiles.forEach(jsFile => {
