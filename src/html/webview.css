@@ -771,6 +771,11 @@ body.small-card-fonts .task-title-container .markdown-content img {
   /* Add visual indicator for broken images */
   border: 1px dashed var(--vscode-errorForeground, #f48771);
   background-color: var(--vscode-errorBackground, rgba(244, 135, 113, 0.1));
+  /* Make broken images smaller and not full width */
+  max-width: 200px !important;
+  width: auto !important;
+  height: auto !important;
+  display: inline-block !important;
 }
 
 .strikethrough-content a {

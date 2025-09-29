@@ -410,11 +410,7 @@ export class FileManager {
                     return webviewUri.toString();
                 }
             } catch (error) {
-                console.warn('Failed to resolve image for display:', imagePath, error);
-                // Log attempted paths for debugging
-                if (resolution.attemptedPaths) {
-                    console.warn('Attempted paths:', resolution.attemptedPaths);
-                }
+                // Silently handle image resolution failure
             }
         } else if (resolution && !resolution.exists) {
             // Log failed image resolution attempts

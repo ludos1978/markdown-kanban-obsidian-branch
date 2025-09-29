@@ -836,7 +836,6 @@ export class MessageHandler {
             // Normalize the path for comparison (resolve symlinks, normalize separators)
             const normalizedPath = path.resolve(absolutePath);
 
-            console.log(`[EDITOR_REUSE] Attempting to open: ${normalizedPath}`);
 
             // Check if the file is already open as a document (even if not visible)
             const existingDocument = vscode.workspace.textDocuments.find(doc => {
@@ -845,7 +844,6 @@ export class MessageHandler {
             });
 
             if (existingDocument) {
-                console.log(`[EDITOR_REUSE] Found existing document`);
 
                 // Check if it's currently visible
                 const visibleEditor = vscode.window.visibleTextEditors.find(editor =>
@@ -853,24 +851,18 @@ export class MessageHandler {
                 );
 
                 if (visibleEditor) {
-                    console.log(`[EDITOR_REUSE] Document is visible in column ${visibleEditor.viewColumn}`);
-                    console.log(`[EDITOR_REUSE] Current active editor column: ${vscode.window.activeTextEditor?.viewColumn}`);
 
                     // Document is already visible - check if we need to focus it
                     if (vscode.window.activeTextEditor?.document.uri.fsPath === normalizedPath) {
-                        console.log(`[EDITOR_REUSE] Document is already active - no action needed`);
                         return; // Already focused, nothing to do
                     }
                 }
 
-                console.log(`[EDITOR_REUSE] Calling showTextDocument`);
                 await vscode.window.showTextDocument(existingDocument, {
                     preserveFocus: false,
                     preview: false
                 });
-                console.log(`[EDITOR_REUSE] showTextDocument completed`);
             } else {
-                console.log(`[EDITOR_REUSE] Document not open, opening normally`);
                 // Open the document first, then show it
                 const document = await vscode.workspace.openTextDocument(absolutePath);
                 await vscode.window.showTextDocument(document, {
@@ -1995,7 +1987,6 @@ export class MessageHandler {
                     includeFile.hasUnsavedChanges = false;
                     includeFile.lastModified = Date.now();
 
-                    console.log(`[MessageHandler] Saved include file: ${filePath}`);
 
                     panel._panel.webview.postMessage({
                         type: 'individualFileSaved',
@@ -2048,7 +2039,6 @@ export class MessageHandler {
                 if (document) {
                     await panel.loadMarkdownFile(document);
                 }
-                console.log('[MessageHandler] Reloaded main kanban file');
 
                 panel._panel.webview.postMessage({
                     type: 'individualFileReloaded',
@@ -2061,13 +2051,6 @@ export class MessageHandler {
                 const includeFileMap = (panel as any)._includeFiles;
                 const includeFile = includeFileMap?.get(filePath);
 
-                console.log(`[MessageHandler] Attempting to reload include file:
-                    filePath: ${filePath}
-                    includeFileMap exists: ${!!includeFileMap}
-                    includeFileMap size: ${includeFileMap?.size || 0}
-                    includeFile found: ${!!includeFile}
-                    Available keys: ${includeFileMap ? Array.from(includeFileMap.keys()).join(', ') : 'none'}
-                `);
 
                 if (includeFile) {
                     try {
@@ -2084,7 +2067,6 @@ export class MessageHandler {
                             includeFile.externalContent = undefined; // Clear external content
                             includeFile.lastModified = Date.now();
 
-                            console.log(`[MessageHandler] Reloaded include file: ${filePath}`);
 
                             // Trigger webview refresh to show updated content
                             const document = this._fileManager.getDocument();
@@ -2346,7 +2328,6 @@ export class MessageHandler {
      * Handle updating task content after strikethrough deletion
      */
     private async handleUpdateTaskFromStrikethroughDeletion(message: any): Promise<void> {
-        console.log('🗑️ Backend: handleUpdateTaskFromStrikethroughDeletion called', message);
         const { taskId, columnId, newContent, contentType } = message;
 
         try {
@@ -2356,12 +2337,9 @@ export class MessageHandler {
                 return;
             }
 
-            console.log('🗑️ Backend: Received markdown content:', newContent);
-            console.log('🗑️ Backend: Content type:', contentType);
 
             // Content is already in markdown format from frontend
             const markdownContent = newContent;
-            console.log('🗑️ Backend: Using markdown content directly:', markdownContent);
 
             // Update the appropriate field based on content type
             const updateData: any = {};
@@ -2378,7 +2356,6 @@ export class MessageHandler {
                 this._boardOperations.editTask(board, taskId, columnId, updateData)
             );
 
-            console.log('🗑️ Backend: Task updated successfully');
 
         } catch (error) {
             console.error('🗑️ Backend: Error updating task from strikethrough deletion:', error);
@@ -2390,7 +2367,6 @@ export class MessageHandler {
      * Handle updating column title after strikethrough deletion
      */
     private async handleUpdateColumnTitleFromStrikethroughDeletion(message: any): Promise<void> {
-        console.log('🗑️ Backend: handleUpdateColumnTitleFromStrikethroughDeletion called', message);
         const { columnId, newTitle } = message;
 
         try {
@@ -2400,18 +2376,15 @@ export class MessageHandler {
                 return;
             }
 
-            console.log('🗑️ Backend: Received markdown title:', newTitle);
 
             // Content is already in markdown format from frontend
             const markdownTitle = newTitle;
-            console.log('🗑️ Backend: Using markdown title directly:', markdownTitle);
 
             // Update the column title
             await this.performBoardAction(() =>
                 this._boardOperations.editColumnTitle(board, columnId, markdownTitle)
             );
 
-            console.log('🗑️ Backend: Column title updated successfully');
 
         } catch (error) {
             console.error('🗑️ Backend: Error updating column title from strikethrough deletion:', error);

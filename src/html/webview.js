@@ -1750,6 +1750,52 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Populate dynamic menus
     populateDynamicMenus();
+
+    // Handle image loading errors silently to reduce console noise
+    function addImageErrorHandlers() {
+        const images = document.querySelectorAll('img');
+        images.forEach(img => {
+            if (!img.hasAttribute('data-error-handled')) {
+                img.addEventListener('error', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    // Silently handle image loading errors
+                    this.style.display = 'inline-block';
+                    this.style.maxWidth = '200px';
+                    this.style.width = 'auto';
+                    this.style.height = 'auto';
+                });
+                img.setAttribute('data-error-handled', 'true');
+            }
+        });
+    }
+
+    // Add error handlers on page load and when DOM changes
+    addImageErrorHandlers();
+
+    // Monitor for new images being added dynamically
+    const observer = new MutationObserver((mutations) => {
+        let hasNewImages = false;
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.tagName === 'IMG' || node.querySelector('img')) {
+                            hasNewImages = true;
+                        }
+                    }
+                });
+            }
+        });
+        if (hasNewImages) {
+            addImageErrorHandlers();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
     
     // Update clipboard content when window gets focus
     window.addEventListener('focus', async () => {
@@ -4061,36 +4107,27 @@ function removeStrikethroughFromMarkdown(originalMarkdown, textToRemove, targetI
         return originalMarkdown;
     }
 
-    console.log('🗑️ Frontend: Attempting to remove strikethrough from markdown');
-    console.log('🗑️ Frontend: Original markdown:', originalMarkdown);
-    console.log('🗑️ Frontend: Target strikethrough index:', targetIndex);
 
     // Find all strikethrough patterns with their positions
     const strikethroughData = findAllStrikethroughsWithPositions(originalMarkdown);
 
     if (!strikethroughData || strikethroughData.length === 0) {
-        console.log('🗑️ Frontend: No strikethrough patterns found in markdown');
         return originalMarkdown;
     }
 
-    console.log('🗑️ Frontend: Found strikethroughs with positions:', strikethroughData);
 
     // Check if target index is valid
     if (targetIndex < 0 || targetIndex >= strikethroughData.length) {
-        console.log('🗑️ Frontend: Invalid target index:', targetIndex, 'for', strikethroughData.length, 'patterns');
         return originalMarkdown;
     }
 
     // Get the specific strikethrough to remove
     const targetStrikethrough = strikethroughData[targetIndex];
-    console.log('🗑️ Frontend: Removing strikethrough at character positions', targetStrikethrough.start, 'to', targetStrikethrough.end);
-    console.log('🗑️ Frontend: Content being removed:', originalMarkdown.substring(targetStrikethrough.start, targetStrikethrough.end));
 
     // Remove the strikethrough using exact character positions
     const result = originalMarkdown.substring(0, targetStrikethrough.start) +
                   originalMarkdown.substring(targetStrikethrough.end);
 
-    console.log('🗑️ Frontend: Result after removal:', result);
     return result;
 }
 
@@ -4188,10 +4225,6 @@ function deleteStrikethroughFromTask(container, taskElement) {
     const allStrikethroughContainers = contentElement.querySelectorAll('.strikethrough-container');
     const strikethroughIndex = Array.from(allStrikethroughContainers).indexOf(container);
 
-    console.log('🗑️ Frontend: Strikethrough ID:', strikeId);
-    console.log('🗑️ Frontend: Text to remove from DOM:', textToRemove);
-    console.log('🗑️ Frontend: Strikethrough index in content:', strikethroughIndex);
-    console.log('🗑️ Frontend: Total strikethroughs in content:', allStrikethroughContainers.length);
 
     // Remove the strikethrough container from the DOM
     container.remove();
@@ -4217,12 +4250,10 @@ function deleteStrikethroughFromTask(container, taskElement) {
         return;
     }
 
-    console.log('🗑️ Frontend: Original markdown:', originalMarkdown);
 
     // Surgically remove the strikethrough pattern from original markdown
     const updatedMarkdownContent = removeStrikethroughFromMarkdown(originalMarkdown, textToRemove, strikethroughIndex);
 
-    console.log('🗑️ Frontend: Updated markdown after removal:', updatedMarkdownContent);
 
     const message = {
         type: 'updateTaskFromStrikethroughDeletion',
@@ -4253,7 +4284,6 @@ function deleteStrikethroughFromColumn(container, columnTitleElement) {
     const strikethroughContent = container.querySelector('.strikethrough-content');
     const textToRemove = strikethroughContent ? strikethroughContent.textContent : '';
 
-    console.log('🗑️ Frontend Column: Text to remove from DOM:', textToRemove);
 
     // Remove the strikethrough container from the DOM
     container.remove();
@@ -4267,19 +4297,15 @@ function deleteStrikethroughFromColumn(container, columnTitleElement) {
 
     const originalMarkdown = column.originalTitle || column.title || '';
 
-    console.log('🗑️ Frontend Column: Original markdown:', originalMarkdown);
 
     // Find the position/index of this strikethrough among all strikethroughs in the column
     const allStrikethroughContainers = columnTitleElement.querySelectorAll('.strikethrough-container');
     const strikethroughIndex = Array.from(allStrikethroughContainers).indexOf(container);
 
-    console.log('🗑️ Frontend Column: Strikethrough index:', strikethroughIndex);
-    console.log('🗑️ Frontend Column: Total strikethroughs:', allStrikethroughContainers.length);
 
     // Surgically remove the strikethrough pattern from original markdown
     const updatedMarkdownTitle = removeStrikethroughFromMarkdown(originalMarkdown, textToRemove, strikethroughIndex);
 
-    console.log('🗑️ Frontend Column: Updated markdown after removal:', updatedMarkdownTitle);
 
     // Send message to backend to update the column title
     const message = {

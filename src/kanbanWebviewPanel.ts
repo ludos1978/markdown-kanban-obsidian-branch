@@ -173,7 +173,6 @@ export class KanbanWebviewPanel {
             const docUri = document.uri.toString();
             kanbanPanel._trackedDocumentUri = docUri;  // Track the URI for cleanup
             KanbanWebviewPanel.panels.set(docUri, kanbanPanel);
-            console.log(`[KANBAN_CLOSE_DEBUG] createOrShow - Set tracked URI: ${docUri}`);
             // Load immediately - webview will request data when ready
             kanbanPanel.loadMarkdownFile(document);
         }
@@ -270,7 +269,6 @@ export class KanbanWebviewPanel {
         this._panelId = `panel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; // Generate unique ID
         this._context = context;
 
-        console.log(`[KANBAN_CLOSE_DEBUG] KanbanWebviewPanel created with ID: ${this._panelId}`);
 
         // Initialize components
         this._fileManager = new FileManager(this._panel.webview, extensionUri);
@@ -707,7 +705,6 @@ export class KanbanWebviewPanel {
     // ============= END UNIFIED INCLUDE FILE SYSTEM METHODS =============
 
     private async handleLinkReplacement(originalPath: string, newPath: string, isImage: boolean, taskId?: string, columnId?: string, linkIndex?: number) {
-        console.log(`[HANDLE_LINK_REPLACEMENT_DEBUG] Called with: originalPath="${originalPath}", taskId="${taskId}", columnId="${columnId}", linkIndex=${linkIndex}`);
         if (!this._board || !this._board.valid) { return; }
 
         this._undoRedoManager.saveStateForUndo(this._board);
@@ -801,7 +798,6 @@ export class KanbanWebviewPanel {
         if (modified) {
             // Mark as having unsaved changes but don't auto-save
             // The user will need to manually save to persist the changes
-            console.log('[kanban.handleLinkReplacement] Link replaced, board marked as modified (manual save required)');
 
             // Mark board as having unsaved changes in the file state manager
             const document = this._fileManager.getDocument();
@@ -822,8 +818,6 @@ export class KanbanWebviewPanel {
     private replaceSingleLink(text: string, originalPath: string, encodedNewPath: string, targetIndex: number = 0): string {
         if (!text) { return text; }
 
-        console.log(`[LINK_REPLACE_DEBUG] Targeting index ${targetIndex} for path: ${originalPath}`);
-        console.log(`[LINK_REPLACE_DEBUG] Text length: ${text.length}`);
 
         // Escape special regex characters in the original path
         const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -881,20 +875,16 @@ export class KanbanWebviewPanel {
             }
         }
 
-        console.log(`[LINK_REPLACE_DEBUG] Found ${allMatches.length} matches, ${filteredMatches.length} after filtering nested:`);
         filteredMatches.forEach((match, i) => {
-            console.log(`  [${i}] ${match.type} at ${match.start}-${match.end}: "${match.fullMatch}"`);
         });
 
         // Check if targetIndex is valid (using filtered matches)
         if (targetIndex >= 0 && targetIndex < filteredMatches.length) {
             const targetMatch = filteredMatches[targetIndex];
-            console.log(`[LINK_REPLACE_DEBUG] Using target index ${targetIndex}: ${targetMatch.type} at ${targetMatch.start}-${targetMatch.end}`);
             return this.replaceMatchAtPosition(text, targetMatch, originalPath, encodedNewPath);
         } else if (filteredMatches.length > 0) {
             // Fallback: replace first match
             const targetMatch = filteredMatches[0];
-            console.log(`[LINK_REPLACE_DEBUG] Target index ${targetIndex} invalid, using fallback index 0`);
             return this.replaceMatchAtPosition(text, targetMatch, originalPath, encodedNewPath);
         }
 
@@ -910,8 +900,6 @@ export class KanbanWebviewPanel {
         const { match, type, start, end } = matchInfo;
         const escapedPath = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-        console.log(`[LINK_REPLACE_DEBUG] Replacing at position ${start}-${end}, type: ${type}`);
-        console.log(`[LINK_REPLACE_DEBUG] Original text slice: "${text.slice(start, end)}"`);
 
         let replacement = '';
 
@@ -970,9 +958,7 @@ export class KanbanWebviewPanel {
         }
 
         // Use position-based replacement: slice before + replacement + slice after
-        console.log(`[LINK_REPLACE_DEBUG] Replacement: "${replacement}"`);
         const result = text.slice(0, start) + replacement + text.slice(end);
-        console.log(`[LINK_REPLACE_DEBUG] Result length: ${result.length} (was ${text.length})`);
         return result;
     }
 
@@ -984,19 +970,14 @@ export class KanbanWebviewPanel {
         const documentCloseListener = vscode.workspace.onDidCloseTextDocument(async (document) => {
             const currentDocument = this._fileManager.getDocument();
 
-            console.log(`[KANBAN_CLOSE_DEBUG] Document closed: ${document.uri.fsPath}`);
-            console.log(`[KANBAN_CLOSE_DEBUG] Current kanban document: ${currentDocument ? currentDocument.uri.fsPath : 'none'}`);
 
             if (currentDocument && currentDocument.uri.toString() === document.uri.toString()) {
-                console.log(`[KANBAN_CLOSE_DEBUG] Main kanban document was closed - but keeping panel open`);
-                console.log(`[KANBAN_CLOSE_DEBUG] About to call clearDocument() and sendFileInfo()`);
                 // DO NOT close the panel when the document is closed!
                 // The kanban should stay open and functional
                 // Clear document reference but keep file path for display
                 this._fileManager.clearDocument();
                 this._fileManager.sendFileInfo();
             } else {
-                console.log(`[KANBAN_CLOSE_DEBUG] Unrelated document closed - ignoring`);
             }
         });
 
@@ -1175,7 +1156,6 @@ export class KanbanWebviewPanel {
     private _setupEventListeners() {
         // Handle panel disposal - check for unsaved changes first
         this._panel.onDidDispose(async () => {
-            console.log(`[KANBAN_CLOSE_DEBUG] VS Code triggered panel onDidDispose event`);
             console.trace(`[KANBAN_CLOSE_DEBUG] onDidDispose call stack`);
             await this._handlePanelClose();
         }, null, this._disposables);
@@ -1183,7 +1163,6 @@ export class KanbanWebviewPanel {
         // View state change handler
         this._panel.onDidChangeViewState(
             e => {
-                console.log(`[KANBAN_CLOSE_DEBUG] Panel view state changed - visible: ${e.webviewPanel.visible}, active: ${e.webviewPanel.active}`);
                 if (e.webviewPanel.visible) {
                     // Panel became visible - send file info
                     this._fileManager.sendFileInfo();
@@ -1362,7 +1341,6 @@ export class KanbanWebviewPanel {
             // Remove this panel from old document tracking
             const oldDocUri = this._trackedDocumentUri || previousDocument?.uri.toString();
             if (oldDocUri && KanbanWebviewPanel.panels.get(oldDocUri) === this) {
-                console.log(`[KANBAN_CLOSE_DEBUG] Removing old panel tracking for: ${oldDocUri}`);
                 KanbanWebviewPanel.panels.delete(oldDocUri);
                 // Unregister the old main file from the watcher if we have a previous document
                 if (previousDocument) {
@@ -1374,7 +1352,6 @@ export class KanbanWebviewPanel {
             const newDocUri = document.uri.toString();
             this._trackedDocumentUri = newDocUri;  // Remember this URI for cleanup
             KanbanWebviewPanel.panels.set(newDocUri, this);
-            console.log(`[KANBAN_CLOSE_DEBUG] Added panel tracking for: ${newDocUri}`);
 
             // Update panel title
             const fileName = path.basename(document.fileName);
@@ -2032,7 +2009,6 @@ export class KanbanWebviewPanel {
     }
 
     public async dispose() {
-        console.log(`[KANBAN_CLOSE_DEBUG] dispose() called - cleaning up kanban panel`);
         console.trace(`[KANBAN_CLOSE_DEBUG] dispose() call stack`);
 
         // Clear unsaved changes flag and prevent closing flags
@@ -2050,14 +2026,12 @@ export class KanbanWebviewPanel {
 
         // Remove from panels map using the tracked URI (which persists even after document is closed)
         if (this._trackedDocumentUri && KanbanWebviewPanel.panels.get(this._trackedDocumentUri) === this) {
-            console.log(`[KANBAN_CLOSE_DEBUG] Removing panel from map using tracked URI: ${this._trackedDocumentUri}`);
             KanbanWebviewPanel.panels.delete(this._trackedDocumentUri);
         }
 
         // Also check all entries as a fallback in case tracking failed
         for (const [uri, panel] of KanbanWebviewPanel.panels.entries()) {
             if (panel === this) {
-                console.log(`[KANBAN_CLOSE_DEBUG] Found and removing panel from map with URI (fallback): ${uri}`);
                 KanbanWebviewPanel.panels.delete(uri);
             }
         }

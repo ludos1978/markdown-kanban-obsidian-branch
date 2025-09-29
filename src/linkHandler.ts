@@ -26,7 +26,6 @@ export class LinkHandler {
      * Enhanced file link handler with workspace-relative path support
      */
     public async handleFileLink(href: string, taskId?: string, columnId?: string, linkIndex?: number) {
-        console.log(`[LINK_HANDLER_DEBUG] handleFileLink called: href="${href}", taskId="${taskId}", columnId="${columnId}", linkIndex=${linkIndex}`);
         try {
             if (href.startsWith('file://')) {
                 href = vscode.Uri.parse(href).fsPath;
@@ -52,7 +51,6 @@ export class LinkHandler {
                     : undefined;
                 const replacement = await this._fileSearchService.pickReplacementForBrokenLink(href, baseDir);
                 if (replacement) {
-                    console.log(`[LINK_HANDLER_DEBUG] File replacement selected, calling applyLinkReplacement with linkIndex=${linkIndex}`);
                     await this.applyLinkReplacement(href, replacement, taskId, columnId, linkIndex);
                     return;
                 }
@@ -148,32 +146,22 @@ export class LinkHandler {
                     // Normalize the path for comparison (resolve symlinks, normalize separators)
                     const normalizedPath = path.resolve(resolvedPath);
 
-                    console.log(`[LINKHANDLER_REUSE] Attempting to open: ${normalizedPath}`);
-                    console.log(`[LINKHANDLER_REUSE] Open documents: ${vscode.workspace.textDocuments.length}`);
-                    console.log(`[LINKHANDLER_REUSE] Visible editors: ${vscode.window.visibleTextEditors.length}`);
-                    console.log(`[LINKHANDLER_REUSE] All document paths:`, vscode.workspace.textDocuments.map(d => d.uri.fsPath));
-                    console.log(`[LINKHANDLER_REUSE] openInNewTab: ${openInNewTab}`);
 
                     // Check if file is already open as a document (even if not visible)
                     const existingDocument = vscode.workspace.textDocuments.find(doc => {
                         const docPath = path.resolve(doc.uri.fsPath);
                         const matches = docPath === normalizedPath;
-                        console.log(`[LINKHANDLER_REUSE] Comparing: "${docPath}" vs "${normalizedPath}" = ${matches}`);
                         return matches;
                     });
 
                     if (existingDocument) {
-                        console.log(`[LINKHANDLER_REUSE] Found existing document - will focus it`);
-                        console.log(`[LINKHANDLER_REUSE] openInNewTab setting: ${openInNewTab} (ignored for existing docs)`);
 
                         // ALWAYS focus existing documents, ignore openInNewTab setting
                         await vscode.window.showTextDocument(existingDocument, {
                             preserveFocus: false,
                             preview: false
                         });
-                        console.log(`[LINKHANDLER_REUSE] Successfully focused existing document`);
                     } else {
-                        console.log(`[LINKHANDLER_REUSE] Document not open, opening new: openInNewTab=${openInNewTab}`);
                         // File is not open, open it according to user preference
                         const document = await vscode.workspace.openTextDocument(resolvedPath);
 
@@ -255,7 +243,6 @@ export class LinkHandler {
                        originalPath.includes('.webp');
 
         // Call the callback to handle replacement in the backend
-        console.log(`[LINK_HANDLER_DEBUG] Calling _onRequestLinkReplacement with linkIndex=${linkIndex}`);
         await this._onRequestLinkReplacement(originalPath, configuredPath, isImage, taskId, columnId, linkIndex);
 
         vscode.window.showInformationMessage(`Link updated: ${originalPath} → ${configuredPath}`);

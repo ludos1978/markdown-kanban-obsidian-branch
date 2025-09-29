@@ -715,8 +715,6 @@ function generateTagMenuItems(id, type, columnId = null) {
     const tagConfig = window.tagColors || {};
 
     // Debug: Check if tagColors is available
-    // console.log('DEBUG: window.tagColors:', window.tagColors);
-    // console.log('DEBUG: tagConfig keys:', Object.keys(tagConfig));
 
     const userAddedTags = getUserAddedTags();
     
@@ -1918,11 +1916,8 @@ function handleLinkOrImageOpen(event, target, taskId = null, columnId = null) {
             el.getAttribute(attributeName) === attributeValue
         );
 
-        console.log(`[FRONTEND_INDEX_DEBUG] Found ${allSimilar.length} elements with same ${attributeName}="${attributeValue}"`);
-
         // Find the index of our clicked element
         const index = allSimilar.indexOf(clickedElement);
-        console.log(`[FRONTEND_INDEX_DEBUG] Clicked element is at index ${index}`);
 
         return index >= 0 ? index : 0;
     }
@@ -2008,7 +2003,6 @@ function handleLinkOrImageOpen(event, target, taskId = null, columnId = null) {
             const srcAttr = img.getAttribute('data-original-src') ? 'data-original-src' : 'src';
             linkIndex = findElementIndex(img, containerElement, srcAttr);
 
-            console.log(`[FRONTEND_DEBUG] Image click: href="${originalSrc}", linkIndex=${linkIndex}, taskId=${taskId}, columnId=${columnId}`);
 
             vscode.postMessage({
                 type: 'openFileLink',
@@ -2062,7 +2056,6 @@ function handleTaskTitleClick(event, element, taskId, columnId) {
     event.preventDefault();
     event.stopPropagation();
 
-    console.log('About to call editTitle');
     if (typeof editTitle === 'function') {
         editTitle(element, taskId, columnId);
     } else {
@@ -2082,7 +2075,6 @@ function handleDescriptionClick(event, element, taskId, columnId) {
     event.preventDefault();
     event.stopPropagation();
 
-    console.log('About to call editDescription');
     if (typeof editDescription === 'function') {
         if (taskId && columnId) {
             editDescription(element, taskId, columnId);

@@ -52,7 +52,6 @@ export function activate(context: vscode.ExtensionContext) {
 	if (vscode.window.registerWebviewPanelSerializer) {
 		vscode.window.registerWebviewPanelSerializer(KanbanWebviewPanel.viewType, {
 			async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any) {
-				console.log('[DEBUG] Deserializing webview panel with state:', state);
 				KanbanWebviewPanel.revive(webviewPanel, context.extensionUri, context, state);
 			}
 		});

@@ -920,8 +920,6 @@ function reloadImages() {
         }
     });
 
-    console.log(`[Debug] Reloaded ${images.length} images and ${videos.length} videos`);
-    console.log(`[Debug] Reloaded ${images.length + videos.length} media elements`);
 }
 
 /**
@@ -1632,7 +1630,6 @@ if (document.readyState === 'loading') {
 }
 
 function initializeDebugOverlay() {
-    console.log('[DebugOverlay] Initializing debug overlay system...');
 
     // Make functions globally available immediately
     window.showDebugOverlay = showDebugOverlay;
@@ -1648,25 +1645,16 @@ function initializeDebugOverlay() {
     if (typeof window.manualRefresh === 'function') {
         originalManualRefresh = window.manualRefresh;
         window.manualRefresh = enhancedManualRefresh;
-        console.log('[DebugOverlay] Enhanced manual refresh function');
     } else {
-        console.log('[DebugOverlay] manualRefresh not available yet, will try later');
         // Try again after a short delay
         setTimeout(() => {
             if (typeof window.manualRefresh === 'function' && !originalManualRefresh) {
                 originalManualRefresh = window.manualRefresh;
                 window.manualRefresh = enhancedManualRefresh;
-                console.log('[DebugOverlay] Enhanced manual refresh function (delayed)');
             }
         }, 1000);
     }
 
-    console.log('[DebugOverlay] Debug overlay system loaded. Press Ctrl+Shift+D or right-click refresh button to open.');
-    console.log('[DebugOverlay] Functions available:', {
-        showDebugOverlay: typeof window.showDebugOverlay,
-        hideDebugOverlay: typeof window.hideDebugOverlay,
-        vscode: typeof window.vscode
-    });
 
     // Listen for document state changes from backend to auto-refresh overlay
     window.addEventListener('message', (event) => {
@@ -1679,4 +1667,3 @@ function initializeDebugOverlay() {
     });
 }
 
-console.log('[DebugOverlay] Script loaded');

@@ -2076,7 +2076,6 @@ function toggleColumnTag(columnId, tagName, event) {
  * Side effects: Updates pending changes, triggers visual updates
  */
 function toggleTaskTag(taskId, columnId, tagName, event) {
-    console.log('DEBUG: toggleTaskTag called', { taskId, columnId, tagName });
 
     // Enhanced duplicate prevention with stronger key and longer timeout
     const key = `task-${taskId}-${tagName}`;
@@ -2086,7 +2085,6 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     }
 
     if (window._lastTagExecution[key] && now - window._lastTagExecution[key] < 500) {
-        console.log('DEBUG: toggleTaskTag blocked by duplicate prevention');
         return;
     }
     window._lastTagExecution[key] = now;
@@ -2120,7 +2118,6 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
 
         if (task) {
             boardToUse = window.cachedBoard;
-            console.log('DEBUG: Using cachedBoard for task');
         }
     }
 
@@ -2143,22 +2140,18 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
 
         if (task) {
             boardToUse = window.currentBoard;
-            console.log('DEBUG: Using currentBoard for task');
         }
     }
 
     if (!column || !task) {
-        console.log('DEBUG: Task or column not found in any board', { taskId, columnId });
         return;
     }
 
-    console.log('DEBUG: Found task', task);
     
     
     // Also check DOM element
     const domElement = document.querySelector(`[data-task-id="${taskId}"]`);
     if (!domElement) {
-        console.log('DEBUG: DOM element not found for task', taskId);
         return;
     }
 
@@ -2166,8 +2159,6 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     let title = task.title || '';
     const wasActive = new RegExp(`#${tagName}\\b`, 'gi').test(title);
 
-    console.log('DEBUG: Current task title:', title);
-    console.log('DEBUG: Tag was active:', wasActive);
 
     if (wasActive) {
         title = title.replace(new RegExp(`#${tagName}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
@@ -2178,7 +2169,6 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     // Update the task in the found board
     const oldTitle = task.title;
     task.title = title;
-    console.log('DEBUG: Updated task.title from', oldTitle, 'to', title);
 
     // Ensure both currentBoard and cachedBoard are updated if they exist and are different
     if (window.currentBoard && window.currentBoard !== boardToUse) {
@@ -2187,7 +2177,6 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
             const currentTask = currentColumn.tasks.find(t => t.id === taskId);
             if (currentTask) {
                 currentTask.title = title;
-                console.log('DEBUG: Updated currentBoard task title');
             }
         }
     }
@@ -2198,7 +2187,6 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
             const cachedTask = cachedColumn.tasks.find(t => t.id === taskId);
             if (cachedTask) {
                 cachedTask.title = title;
-                console.log('DEBUG: Updated cachedBoard task title');
             }
         }
     }
@@ -3225,7 +3213,6 @@ window.toggleDonutMenu = toggleDonutMenu;
 window.toggleFileBarMenu = toggleFileBarMenu;
 window.closeAllMenus = closeAllMenus;
 window.handleColumnTagClick = (columnId, tagName, event) => {
-    console.log('DEBUG: handleColumnTagClick called', { columnId, tagName });
     return toggleColumnTag(columnId, tagName, event);
 };
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => toggleTaskTag(taskId, columnId, tagName, event);

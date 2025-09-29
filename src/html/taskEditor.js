@@ -1075,18 +1075,15 @@ window.taskEditor = taskEditor;
  * @param {string} columnId - Parent column ID
  */
 function editTitle(element, taskId, columnId) {
-    console.log('editTitle called', { element, taskId, columnId });
 
     // Don't start editing if we're already editing this field
     if (taskEditor.currentEditor &&
         taskEditor.currentEditor.type === 'task-title' &&
         taskEditor.currentEditor.taskId === taskId &&
         taskEditor.currentEditor.columnId === columnId) {
-        console.log('Already editing this title');
         return; // Already editing this title
     }
 
-    console.log('Starting edit with taskEditor.startEdit');
     taskEditor.startEdit(element, 'task-title', taskId, columnId, true); // preserveCursor=true for clicks
 }
 
@@ -1099,20 +1096,17 @@ function editTitle(element, taskId, columnId) {
  * @param {string} columnId - Parent column ID
  */
 function editDescription(element, taskId, columnId) {
-    console.log('editDescription called', { element, taskId, columnId });
 
     // Don't start editing if we're already editing this field
     if (taskEditor.currentEditor &&
         taskEditor.currentEditor.type === 'task-description' &&
         taskEditor.currentEditor.taskId === taskId &&
         taskEditor.currentEditor.columnId === columnId) {
-        console.log('Already editing this description');
         return; // Already editing this description
     }
 
     // Find the actual container if needed
     const container = element.closest('.task-description-container') || element;
-    console.log('Starting description edit with container:', container);
     taskEditor.startEdit(container, 'task-description', taskId, columnId, true); // preserveCursor=true for clicks
 }
 
