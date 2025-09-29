@@ -1106,7 +1106,7 @@ export class KanbanWebviewPanel {
                 settings: {
                     columnWidth: "33percent",
                     cardHeight: "auto",
-                    fontSize: "1_5x",
+                    fontSize: "1x",
                     whitespace: "12px"
                 }
             },
