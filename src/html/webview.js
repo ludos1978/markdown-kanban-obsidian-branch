@@ -3000,8 +3000,7 @@ function handleTaskNavigation(key) {
         // Go to first section of current task
         const sections = currentFocusedCard.querySelectorAll('.task-section');
         if (sections.length > 0) {
-            sections[0].focus();
-            sections[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            focusSection(sections[0]);
         }
     } else {
         // For other directions, use card-level navigation
@@ -3025,8 +3024,7 @@ function handleSectionNavigation(key, currentSection) {
     if (key === 'ArrowDown') {
         if (currentIndex < allSections.length - 1) {
             // Go to next section in same task
-            allSections[currentIndex + 1].focus();
-            allSections[currentIndex + 1].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            focusSection(allSections[currentIndex + 1]);
         } else {
             // At last section, go to first section of next task
             const column = taskItem.closest('.kanban-full-height-column');
@@ -3038,8 +3036,7 @@ function handleSectionNavigation(key, currentSection) {
                 const nextTask = columnCards[taskIndex + 1];
                 const nextSections = nextTask.querySelectorAll('.task-section');
                 if (nextSections.length > 0) {
-                    nextSections[0].focus();
-                    nextSections[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    focusSection(nextSections[0]);
                 }
             } else {
                 // At last task of column, wrap to first section of first task in next column
@@ -3055,8 +3052,7 @@ function handleSectionNavigation(key, currentSection) {
                         const firstTaskSections = firstTask.querySelectorAll('.task-section');
 
                         if (firstTaskSections.length > 0) {
-                            firstTaskSections[0].focus();
-                            firstTaskSections[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            focusSection(firstTaskSections[0]);
                         }
                     }
                 }
@@ -3065,8 +3061,7 @@ function handleSectionNavigation(key, currentSection) {
     } else if (key === 'ArrowUp') {
         if (currentIndex > 0) {
             // Go to previous section in same task
-            allSections[currentIndex - 1].focus();
-            allSections[currentIndex - 1].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            focusSection(allSections[currentIndex - 1]);
         } else {
             // At first section, go to last section of previous task
             const column = taskItem.closest('.kanban-full-height-column');
@@ -3078,8 +3073,7 @@ function handleSectionNavigation(key, currentSection) {
                 const prevTask = columnCards[taskIndex - 1];
                 const prevSections = prevTask.querySelectorAll('.task-section');
                 if (prevSections.length > 0) {
-                    prevSections[prevSections.length - 1].focus();
-                    prevSections[prevSections.length - 1].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    focusSection(prevSections[prevSections.length - 1]);
                 }
             } else {
                 // At first task of column, wrap to last section of last task in previous column
@@ -3095,8 +3089,7 @@ function handleSectionNavigation(key, currentSection) {
                         const lastTaskSections = lastTask.querySelectorAll('.task-section');
 
                         if (lastTaskSections.length > 0) {
-                            lastTaskSections[lastTaskSections.length - 1].focus();
-                            lastTaskSections[lastTaskSections.length - 1].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            focusSection(lastTaskSections[lastTaskSections.length - 1]);
                         }
                     }
                 }
@@ -3120,8 +3113,7 @@ function handleSectionNavigation(key, currentSection) {
                 const targetSections = targetTask.querySelectorAll('.task-section');
 
                 if (targetSections.length > 0) {
-                    targetSections[0].focus();
-                    targetSections[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    focusSection(targetSections[0]);
                 }
             }
         }
