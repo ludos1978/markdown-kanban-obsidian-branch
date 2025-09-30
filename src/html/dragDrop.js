@@ -76,7 +76,10 @@ if (!dragState) {
         lastRow: null,
         targetRowNumber: null,
         targetPosition: null,
-        finalRowNumber: null
+        finalRowNumber: null,
+
+        // Modifier keys
+        altKeyPressed: false
     });
 }
 

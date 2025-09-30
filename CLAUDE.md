@@ -38,3 +38,4 @@
 - use files to store informations that you can use in this working session. store them in ./tmp/ dont add them to the repository, dont add changes of files in the ./tests to the reposority
 - allways think, for every time we try to recolve an unfixed problem think even harder.
 - never implement any mock code. allways fully implement it, in the most simple way.
+- after working on a problem and verifying that it's solved, check if any of the changes are obsolete or unneeded and remove these changes if it's so.
