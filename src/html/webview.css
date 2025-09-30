@@ -1068,6 +1068,16 @@ body.small-card-fonts .task-title-container .markdown-content img {
 /* Task section styling for content between HRs */
 .task-section {
   display: block;
+  outline: none; /* Remove default focus outline */
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+/* Focus styling for task sections */
+.task-section:focus {
+  background-color: var(--vscode-list-focusBackground);
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
 }
 
 /* Apply max-height to sections when section-height-limited class is active */

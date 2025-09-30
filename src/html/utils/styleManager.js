@@ -157,8 +157,18 @@ styleManager.wrapTaskDescriptionSections = function() {
     const taskDescriptions = document.querySelectorAll('.task-description-display');
 
     taskDescriptions.forEach(desc => {
-        // Skip if already processed
-        if (desc.hasAttribute('data-sections-wrapped')) return;
+        // Check if already wrapped - if so, unwrap first
+        if (desc.hasAttribute('data-sections-wrapped')) {
+            // Unwrap existing sections
+            const sections = desc.querySelectorAll('.task-section');
+            sections.forEach(section => {
+                while (section.firstChild) {
+                    desc.insertBefore(section.firstChild, section);
+                }
+                section.remove();
+            });
+            desc.removeAttribute('data-sections-wrapped');
+        }
 
         const hrs = Array.from(desc.querySelectorAll('hr'));
 
@@ -166,6 +176,7 @@ styleManager.wrapTaskDescriptionSections = function() {
             // No HRs: wrap entire content in a section
             const wrapper = document.createElement('div');
             wrapper.className = 'task-section';
+            wrapper.setAttribute('tabindex', '0'); // Make focusable for keyboard navigation
             while (desc.firstChild) {
                 wrapper.appendChild(desc.firstChild);
             }
@@ -204,6 +215,7 @@ styleManager.wrapTaskDescriptionSections = function() {
                     // Wrap content in a section div
                     const wrapper = document.createElement('div');
                     wrapper.className = 'task-section';
+                    wrapper.setAttribute('tabindex', '0'); // Make focusable for keyboard navigation
                     sectionNodes.forEach(node => wrapper.appendChild(node));
                     desc.appendChild(wrapper);
                 }

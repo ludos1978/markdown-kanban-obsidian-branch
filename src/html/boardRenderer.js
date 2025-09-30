@@ -26,6 +26,63 @@ function interpolateColor(color1, color2, factor) {
 }
 
 /**
+ * Wraps rendered HTML content in task-section divs for keyboard navigation
+ * Sections are separated by <hr> tags
+ * @param {string} html - Rendered HTML content
+ * @returns {string} HTML with sections wrapped
+ */
+function wrapTaskSections(html) {
+    if (!html || !html.trim()) {
+        return html;
+    }
+
+    // Create a temporary container to parse the HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    const hrs = Array.from(temp.querySelectorAll('hr'));
+
+    if (hrs.length === 0) {
+        // No HRs: wrap entire content in a section
+        return `<div class="task-section" tabindex="0">${html}</div>`;
+    }
+
+    // Has HRs: wrap sections between HRs
+    const sections = [];
+    let currentSection = [];
+
+    Array.from(temp.childNodes).forEach(node => {
+        if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'HR') {
+            // Save current section if it has content
+            if (currentSection.length > 0) {
+                sections.push({ type: 'section', nodes: currentSection });
+                currentSection = [];
+            }
+            sections.push({ type: 'hr', node: node });
+        } else {
+            currentSection.push(node);
+        }
+    });
+
+    // Don't forget the last section
+    if (currentSection.length > 0) {
+        sections.push({ type: 'section', nodes: currentSection });
+    }
+
+    // Build HTML string
+    return sections.map(section => {
+        if (section.type === 'hr') {
+            return section.node.outerHTML;
+        } else {
+            const sectionHtml = section.nodes.map(node =>
+                node.nodeType === Node.ELEMENT_NODE ? node.outerHTML : node.textContent
+            ).join('');
+            return `<div class="task-section" tabindex="0">${sectionHtml}</div>`;
+        }
+    }).join('');
+}
+
+/**
  * Applies all tag-based CSS styles to the document
  * Purpose: Injects dynamic CSS for tag colors, borders, and effects
  * Used by: renderBoard() after board content is rendered
@@ -1674,7 +1731,12 @@ function createTaskElement(task, columnId, taskIndex) {
         return '';
     }
 
-    const renderedDescription = (task.description && typeof task.description === 'string' && task.description.trim()) ? renderMarkdown(task.description) : '';
+    let renderedDescription = (task.description && typeof task.description === 'string' && task.description.trim()) ? renderMarkdown(task.description) : '';
+
+    // Wrap description in task sections for keyboard navigation
+    if (renderedDescription) {
+        renderedDescription = wrapTaskSections(renderedDescription);
+    }
 
     // Use same pattern as column includes:
     // - displayTitle for display (content from file or filtered title)
@@ -2824,6 +2886,9 @@ window.isDarkTheme = isDarkTheme;
 
 window.getAllTagsInUse = getAllTagsInUse;
 window.getUserAddedTags = getUserAddedTags;
+
+// Expose section wrapping function for taskEditor
+window.wrapTaskSections = wrapTaskSections;
 
 // window.handleColumnBarsOnToggle = handleColumnBarsOnToggle; // Removed - no longer needed
 window.handleLinkOrImageOpen = handleLinkOrImageOpen;

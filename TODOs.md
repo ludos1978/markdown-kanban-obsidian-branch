@@ -4,6 +4,8 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] Columns that are in a "vertical stack" have a #stack tag or the next column has a #stack tag. Add a feature to make the columns fold horizontally, but keep the vertical folding function available. An column in a "vertical stack" stack should by default folds to horizontal folding state, a column in outside a stack should fold to vertical fold state. If shift is pressed while pressing the fold button again, the horizontal/vertical folding should switch. when pressing shift while it's unfolded, fold to the not-default-state. When shift is not pressed a folded column unfolds.
+
 - [ ] it still converts this
 
 """

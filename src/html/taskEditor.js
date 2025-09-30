@@ -767,7 +767,12 @@ class TaskEditor {
                                 displayValue = task.displayTitle || '';
                             }
 
-                            this.currentEditor.displayElement.innerHTML = renderMarkdown(displayValue);
+                            let renderedHtml = renderMarkdown(displayValue);
+                            // Wrap in sections for keyboard navigation if this is a task description
+                            if (type === 'task-description' && typeof window.wrapTaskSections === 'function') {
+                                renderedHtml = window.wrapTaskSections(renderedHtml);
+                            }
+                            this.currentEditor.displayElement.innerHTML = renderedHtml;
                         } else {
                             // Handle empty values - must be truly empty for CSS :empty selector
                             this.currentEditor.displayElement.innerHTML = '';
@@ -899,6 +904,7 @@ class TaskEditor {
                     value: false
                 });
             }
+
         }
 
         this.currentEditor = null;

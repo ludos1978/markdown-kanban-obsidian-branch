@@ -1518,9 +1518,6 @@ function applySectionMaxHeight(height) {
 
     // Use styleManager to apply section max height
     styleManager.applySectionMaxHeight(height);
-
-    // Wrap task description sections
-    styleManager.wrapTaskDescriptionSections();
 }
 
 function setSectionMaxHeight(height) {
@@ -2977,6 +2974,106 @@ function navigateToCard(direction) {
     }
 }
 
+// Handle navigation from task level (card focused)
+function handleTaskNavigation(key) {
+    if (key === 'ArrowDown') {
+        // Go to first section of current task
+        const sections = currentFocusedCard.querySelectorAll('.task-section');
+        if (sections.length > 0) {
+            sections[0].focus();
+            sections[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    } else {
+        // For other directions, use card-level navigation
+        const direction = {
+            'ArrowUp': 'up',
+            'ArrowLeft': 'left',
+            'ArrowRight': 'right'
+        }[key];
+        if (direction) {
+            navigateToCard(direction);
+        }
+    }
+}
+
+// Handle navigation from section level
+function handleSectionNavigation(key, currentSection) {
+    const taskItem = currentSection.closest('.task-item');
+    const allSections = Array.from(taskItem.querySelectorAll('.task-section'));
+    const currentIndex = allSections.indexOf(currentSection);
+
+    if (key === 'ArrowDown') {
+        if (currentIndex < allSections.length - 1) {
+            // Go to next section in same task
+            allSections[currentIndex + 1].focus();
+            allSections[currentIndex + 1].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+            // At last section, go to first section of next task
+            const column = taskItem.closest('.kanban-full-height-column');
+            const columnCards = Array.from(column.querySelectorAll('[class*="task-item"]'));
+            const taskIndex = columnCards.indexOf(taskItem);
+
+            if (taskIndex < columnCards.length - 1) {
+                const nextTask = columnCards[taskIndex + 1];
+                const nextSections = nextTask.querySelectorAll('.task-section');
+                if (nextSections.length > 0) {
+                    nextSections[0].focus();
+                    nextSections[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            }
+        }
+    } else if (key === 'ArrowUp') {
+        if (currentIndex > 0) {
+            // Go to previous section in same task
+            allSections[currentIndex - 1].focus();
+            allSections[currentIndex - 1].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+            // At first section, go to last section of previous task
+            const column = taskItem.closest('.kanban-full-height-column');
+            const columnCards = Array.from(column.querySelectorAll('[class*="task-item"]'));
+            const taskIndex = columnCards.indexOf(taskItem);
+
+            if (taskIndex > 0) {
+                const prevTask = columnCards[taskIndex - 1];
+                const prevSections = prevTask.querySelectorAll('.task-section');
+                if (prevSections.length > 0) {
+                    prevSections[prevSections.length - 1].focus();
+                    prevSections[prevSections.length - 1].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            }
+        }
+    } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        // Navigate to corresponding section in adjacent column
+        const column = taskItem.closest('.kanban-full-height-column');
+        const columns = Array.from(document.querySelectorAll('.kanban-full-height-column'));
+        const columnIndex = columns.indexOf(column);
+
+        const targetColumnIndex = key === 'ArrowLeft' ? columnIndex - 1 : columnIndex + 1;
+
+        if (targetColumnIndex >= 0 && targetColumnIndex < columns.length) {
+            const targetColumn = columns[targetColumnIndex];
+            const columnCards = Array.from(column.querySelectorAll('[class*="task-item"]'));
+            const taskIndex = columnCards.indexOf(taskItem);
+
+            const targetColumnCards = Array.from(targetColumn.querySelectorAll('[class*="task-item"]'));
+
+            if (targetColumnCards.length > 0) {
+                // Try to find corresponding task (same index), or closest available
+                const targetTaskIndex = Math.min(taskIndex, targetColumnCards.length - 1);
+                const targetTask = targetColumnCards[targetTaskIndex];
+                const targetSections = targetTask.querySelectorAll('.task-section');
+
+                if (targetSections.length > 0) {
+                    // Try to find corresponding section index, or closest available
+                    const targetSectionIndex = Math.min(currentIndex, targetSections.length - 1);
+                    targetSections[targetSectionIndex].focus();
+                    targetSections[targetSectionIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            }
+        }
+    }
+}
+
 // Keyboard shortcuts for search and navigation
 document.addEventListener('keydown', (e) => {
     
@@ -2992,22 +3089,43 @@ document.addEventListener('keydown', (e) => {
     
     // Don't trigger search shortcuts when editing (except when in search input)
     const isInSearchInput = activeElement && activeElement.id === 'search-input';
-    
-    // Arrow key navigation when not editing
+
+    // Check if focused on a task section
+    const isFocusedOnSection = activeElement && activeElement.classList.contains('task-section');
+    const isFocusedOnTask = currentFocusedCard !== null;
+
+    // Hierarchical arrow key navigation
     if (!isEditing && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
-        
-        const direction = {
-            'ArrowUp': 'up',
-            'ArrowDown': 'down',
-            'ArrowLeft': 'left',
-            'ArrowRight': 'right'
-        }[e.key];
-        
-        navigateToCard(direction);
+
+        if (isFocusedOnSection) {
+            // Navigation from section level
+            handleSectionNavigation(e.key, activeElement);
+        } else if (isFocusedOnTask) {
+            // Navigation from task level
+            handleTaskNavigation(e.key);
+        } else {
+            // Navigation from board level (no focus)
+            const direction = {
+                'ArrowUp': 'up',
+                'ArrowDown': 'down',
+                'ArrowLeft': 'left',
+                'ArrowRight': 'right'
+            }[e.key];
+            navigateToCard(direction);
+        }
         return;
     }
     
+    // Escape to exit section focus and return to card focus
+    if (e.key === 'Escape' && !isEditing && isFocusedOnSection) {
+        const taskItem = activeElement.closest('.task-item');
+        if (taskItem) {
+            taskItem.focus();
+        }
+        return;
+    }
+
     // Escape to clear card focus
     if (e.key === 'Escape' && !isEditing && currentFocusedCard) {
         focusCard(null);
