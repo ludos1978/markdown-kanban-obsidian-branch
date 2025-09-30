@@ -1075,9 +1075,8 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Focus styling for task sections */
 .task-section:focus {
-  background-color: var(--vscode-list-focusBackground);
-  outline: 2px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
+  outline: 3px solid black;
+  outline-offset: -3px;
 }
 
 /* Apply max-height to sections when section-height-limited class is active */
@@ -3659,30 +3658,10 @@ body.font-family-consolas {
 
 /* Card focus styles for keyboard navigation */
 .task-item.card-focused {
-    outline: 2px solid var(--vscode-focusBorder, #007acc);
-    outline-offset: 2px;
+    outline: 3px solid black;
+    outline-offset: -3px;
     position: relative;
     z-index: 1;
-    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
-    border-radius: 4px;
-}
-
-.task-item.card-focused::before {
-    content: '';
-    position: absolute;
-    top: -3px;
-    left: -3px;
-    right: -3px;
-    bottom: -3px;
-    background: rgba(0, 122, 204, 0.05);
-    border-radius: 6px;
-    z-index: -1;
-    pointer-events: none;
-}
-
-/* Ensure focused cards are visible above other elements */
-.task-item.card-focused {
-    transform: translateZ(0);
 }
 
 /* Multi-column layout styles */

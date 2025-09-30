@@ -8,6 +8,8 @@ kanban-plugin: board
 
 - [ ] When moving a task into a folded column while pressing alt, the column should not unfold as it usually does.
 
+- [ ] Export and pack of the kanban does not generate the default folder name it should export into
+
 - [ ] if multiple columns are in a vertical stack. can you make all the sticky headers to stick, eighter at the top or the bottom? so if 3 columns are above each other, allways show the headers of all columns. it's to be able to drop items into all rows at all the time.
 
 - [x] it still converts this
