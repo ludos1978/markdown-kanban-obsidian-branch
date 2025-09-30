@@ -49,7 +49,10 @@ if (!dragState) {
         lastRow: null,
         targetRowNumber: null,
         targetPosition: null,
-        finalRowNumber: null
+        finalRowNumber: null,
+
+        // Modifier keys
+        altKeyPressed: false
     };
     window.dragState = dragState;
 } else if (!dragState.originalColumnIndex) {
@@ -1175,9 +1178,14 @@ function setupTaskDragAndDrop() {
 
         // Add dragover handler to the entire column for appending to end
         columnElement.addEventListener('dragover', e => {
+            // Update Alt key state during drag (user might press/release Alt mid-drag)
+            if (dragState.isDragging) {
+                dragState.altKeyPressed = e.altKey;
+            }
+
             // Only process if we have a dragged task
             if (!dragState.draggedTask) {return;}
-            
+
             // Check if we're over the tasks container specifically
             const isOverTasksContainer = tasksContainer.contains(e.target);
             
@@ -1219,12 +1227,17 @@ function setupTaskDragAndDrop() {
         // Keep the existing tasks container specific handling for precise placement
         tasksContainer.addEventListener('dragover', e => {
             e.preventDefault();
-            
+
+            // Update Alt key state during drag (user might press/release Alt mid-drag)
+            if (dragState.isDragging) {
+                dragState.altKeyPressed = e.altKey;
+            }
+
             // Only stop propagation for internal task drags, not external drops
             if (dragState.draggedTask && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
                 e.stopPropagation(); // Prevent column-level handler from interfering
             }
-            
+
             if (!dragState.draggedTask) {return;}
             
             // Remove any column-level visual feedback when over tasks
@@ -1291,6 +1304,7 @@ function setupTaskDragHandle(handle) {
             dragState.originalTaskNextSibling = taskItem.nextSibling;
             dragState.originalTaskIndex = Array.from(dragState.originalTaskParent.children).indexOf(taskItem);
             dragState.isDragging = true; // IMPORTANT: Set this BEFORE setting data
+            dragState.altKeyPressed = e.altKey; // Track Alt key state from the start
             
             // Set multiple data formats
             e.dataTransfer.effectAllowed = 'move';
@@ -1341,9 +1355,9 @@ function setupTaskDragHandle(handle) {
                     // Calculate the proper index for the data model
                     const dropIndex = finalIndex >= 0 ? finalIndex : 0;
 
-                    // Unfold the destination column if it's collapsed (unless Alt key is pressed)
+                    // Unfold the destination column if it's collapsed (unless Alt key was pressed during drag)
                     if (typeof unfoldColumnIfCollapsed === 'function') {
-                        const skipUnfold = e.altKey; // Skip unfolding if Alt key is pressed
+                        const skipUnfold = dragState.altKeyPressed; // Skip unfolding if Alt key was pressed
                         unfoldColumnIfCollapsed(finalColumnId, skipUnfold);
                     }
                     
@@ -1425,6 +1439,7 @@ function setupTaskDragHandle(handle) {
             dragState.originalTaskNextSibling = null;
             dragState.originalTaskIndex = -1;
             dragState.isDragging = false; // Extra safety
+            dragState.altKeyPressed = false; // Reset Alt key state
         }
     });
     
@@ -1442,6 +1457,7 @@ function setupTaskDragHandle(handle) {
                 dragState.originalTaskNextSibling = null;
                 dragState.originalTaskIndex = -1;
                 dragState.isDragging = false;
+                dragState.altKeyPressed = false;
             }
         });
     }
