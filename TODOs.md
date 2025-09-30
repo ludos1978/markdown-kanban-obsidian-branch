@@ -4,9 +4,13 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] Columns that are in a "vertical stack" have a #stack tag or the next column has a #stack tag. Add a feature to make the columns fold horizontally, but keep the vertical folding function available. An column in a "vertical stack" stack should by default folds to horizontal folding state, a column in outside a stack should fold to vertical fold state. If shift is pressed while pressing the fold button again, the horizontal/vertical folding should switch. when pressing shift while it's unfolded, fold to the not-default-state. When shift is not pressed a folded column unfolds.
+- [ ] Columns that are in a "vertical stack" have a #stack tag or the next column has a #stack tag. Add a feature to make the columns fold horizontally, but keep the vertical folding function available. An column in a "vertical stack" stack should by default folds to horizontal folding state, a column in outside a stack should fold to vertical fold state. If <alt> is pressed while pressing the fold button again, the horizontal/vertical folding should switch. when pressing <alt> while it's unfolded, fold to the not-default-state. When <alt> is not pressed a folded column unfolds.
 
-- [ ] it still converts this
+- [ ] When moving a task into a folded column while pressing alt, the column should not unfold as it usually does.
+
+- [ ] if multiple columns are in a vertical stack. can you make all the sticky headers to stick, eighter at the top or the bottom? so if 3 columns are above each other, allways show the headers of all columns. it's to be able to drop items into all rows at all the time.
+
+- [x] it still converts this
 
 """
 ~~![image](https://file%2B.vscode-resource.vscode-cdn.net/Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tests/foldeapace/image-512x512.png)~~
