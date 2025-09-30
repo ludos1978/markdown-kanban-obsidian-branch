@@ -733,10 +733,12 @@ export class ExportService {
     }
 
     /**
-     * Generate default export folder name
+     * Generate default export folder name based on source filename and timestamp
+     * Format: {filename}-YYYYMMDD-HHmm
      */
     public static generateDefaultExportFolder(sourceDocumentPath: string): string {
         const sourceDir = path.dirname(sourceDocumentPath);
+        const sourceBasename = path.basename(sourceDocumentPath, '.md');
         const now = new Date();
         const timestamp = now.toISOString()
             .replace(/[-:]/g, '')  // Remove dashes and colons
@@ -744,7 +746,7 @@ export class ExportService {
             .replace('T', '-')     // Replace T with single dash
             .substring(0, 13);     // YYYYMMDD-HHmm
 
-        return path.join(sourceDir, `_Export-${timestamp}`);
+        return path.join(sourceDir, `${sourceBasename}-${timestamp}`);
     }
 
     /**

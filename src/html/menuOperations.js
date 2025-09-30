@@ -1903,7 +1903,10 @@ function addTask(columnId) {
 }
 
 // Helper function to unfold a column if it's collapsed
-function unfoldColumnIfCollapsed(columnId) {
+function unfoldColumnIfCollapsed(columnId, skipUnfold = false) {
+    if (skipUnfold) {
+        return false; // Skip unfolding
+    }
     const column = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (column?.classList.contains('collapsed')) {
         toggleColumnCollapse(columnId);

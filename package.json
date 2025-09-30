@@ -1789,25 +1789,23 @@
           "description": "Maximum height for content sections between horizontal rules (HRs) in task descriptions",
           "enum": [
             "auto",
-            "100px",
             "200px",
-            "300px",
             "400px",
-            "500px",
-            "20vh",
-            "30vh",
-            "40vh"
+            "600px",
+            "33percent",
+            "50percent",
+            "66percent",
+            "100percent"
           ],
           "enumDescriptions": [
             "No height limit (automatic based on content)",
-            "Maximum 100 pixels",
-            "Maximum 200 pixels",
-            "Maximum 300 pixels",
-            "Maximum 400 pixels",
-            "Maximum 500 pixels",
-            "Maximum 20% of viewport height",
-            "Maximum 30% of viewport height",
-            "Maximum 40% of viewport height"
+            "Fixed 200 pixels",
+            "Fixed 400 pixels",
+            "Fixed 600 pixels",
+            "1/3 of viewport height",
+            "1/2 of viewport height",
+            "2/3 of viewport height",
+            "Full viewport height"
           ]
         },
         "markdown-kanban.fontSize": {
@@ -1952,11 +1950,28 @@
                   "whitespace": {
                     "type": "string",
                     "description": "Whitespace setting"
+                  },
+                  "arrowKeyFocusScroll": {
+                    "type": "string",
+                    "description": "Arrow key focus scroll behavior"
                   }
                 }
               }
             }
           }
+        },
+        "markdown-kanban.arrowKeyFocusScroll": {
+          "type": "string",
+          "default": "center",
+          "description": "How arrow key navigation scrolls focused items into view",
+          "enum": [
+            "center",
+            "nearest"
+          ],
+          "enumDescriptions": [
+            "Center the focused item in the viewport",
+            "Scroll just enough to bring the item into view"
+          ]
         },
         "markdown-kanban.layoutRows": {
           "type": "number",

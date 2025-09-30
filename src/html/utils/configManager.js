@@ -33,6 +33,7 @@ class ConfigManager {
             tagVisibility: 'visible',
             exportTagVisibility: true,
             imageFill: 'contain',
+            arrowKeyFocusScroll: 'center',
             tagColors: {}
         };
     }

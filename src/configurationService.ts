@@ -28,6 +28,7 @@ export interface KanbanConfiguration {
     tagVisibility: string;
     exportTagVisibility: boolean;
     imageFill: string;
+    arrowKeyFocusScroll: string;
 }
 
 export interface ConfigurationDefaults {
@@ -51,6 +52,7 @@ export interface ConfigurationDefaults {
     tagVisibility: string;
     exportTagVisibility: boolean;
     imageFill: string;
+    arrowKeyFocusScroll: string;
 }
 
 export class ConfigurationService {
@@ -79,7 +81,8 @@ export class ConfigurationService {
         stickyHeaders: false,
         tagVisibility: 'visible',
         exportTagVisibility: true,
-        imageFill: 'contain'
+        imageFill: 'contain',
+        arrowKeyFocusScroll: 'center'
     };
 
     private constructor() {
@@ -207,7 +210,8 @@ export class ConfigurationService {
             maxRowHeight: this.getConfig('maxRowHeight'),
             layoutPreset: this.getConfig('layoutPreset'),
             layoutPresets: this.getConfig('layoutPresets', {}),
-            stickyHeaders: this.getConfig('stickyHeaders')
+            stickyHeaders: this.getConfig('stickyHeaders'),
+            arrowKeyFocusScroll: this.getConfig('arrowKeyFocusScroll')
         };
     }
 

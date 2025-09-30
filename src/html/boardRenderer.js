@@ -2809,23 +2809,27 @@ function removeAllTags(id, type, columnId = null) {
             updateColumnDisplayImmediate(id, newTitle, false, '');
         }
     } else if (type === 'task') {
-        if (!window.pendingTaskChanges) {
-            window.pendingTaskChanges = new Map();
-        }
-        const task = element; // element is the task object from line 2228
+        const task = element; // element is the task object
         task.title = newTitle; // Update the task title
-        window.pendingTaskChanges.set(id, { taskId: id, columnId: columnId, taskData: task });
-        
+
+        // Send editTask message immediately when tags are removed
+        vscode.postMessage({
+            type: 'editTask',
+            taskId: id,
+            columnId: columnId,
+            taskData: task
+        });
+
         // Update display immediately
         if (typeof updateTaskDisplayImmediate === 'function') {
             updateTaskDisplayImmediate(id, newTitle, false, '');
         }
     }
-    
-    // Update refresh button state
-    const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
+
+    // Update refresh button state (note: tasks now send immediately, only columns use pending)
+    const totalPending = (window.pendingColumnChanges?.size || 0);
     if (typeof updateRefreshButtonState === 'function') {
-        updateRefreshButtonState('unsaved', totalPending);
+        updateRefreshButtonState(totalPending > 0 ? 'unsaved' : 'default', totalPending);
     }
     
     // Update tag category counts if menu is still open

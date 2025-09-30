@@ -847,16 +847,19 @@ class TaskEditor {
                         }
                     }
                     
-                    // Store pending change locally instead of sending immediately
-                    if (!window.pendingTaskChanges) {
-                        window.pendingTaskChanges = new Map();
-                    }
-                    window.pendingTaskChanges.set(taskId, { taskId, columnId, taskData: task });
-                    
-                    // Update refresh button state
-                    const totalPending = (window.pendingColumnChanges?.size || 0) + (window.pendingTaskChanges?.size || 0);
+                    // Send editTask message immediately when edit ends (not on window blur)
+                    vscode.postMessage({
+                        type: 'editTask',
+                        taskId: taskId,
+                        columnId: columnId,
+                        taskData: task
+                    });
+
+                    // Note: No longer storing in pendingTaskChanges since we send immediately
+                    // Update refresh button state (no pending changes since we sent immediately)
                     if (window.updateRefreshButtonState) {
-                        window.updateRefreshButtonState('pending', totalPending);
+                        const totalPending = (window.pendingColumnChanges?.size || 0);
+                        window.updateRefreshButtonState(totalPending > 0 ? 'pending' : 'default', totalPending);
                     }
                     
                 }

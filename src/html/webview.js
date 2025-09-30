@@ -84,55 +84,131 @@ function injectFontSizeCSS() {
     document.head.appendChild(style);
 }
 
-const menuConfig = {
+// Base configuration options - single source of truth for all menu items and CSS values
+// This is the ONLY place where option values and their CSS conversions are defined
+const baseOptions = {
+    // Column width options
     columnWidth: [
-        { label: "Small (250px)", value: "250px", description: "250px" },
-        { label: "Medium (350px)", value: "350px", description: "350px" },
-        { label: "Wide (450px)", value: "450px", description: "450px" },
-        { separator: true },
-        { label: "1/3 Screen (33%)", value: "33percent", description: "33%" },
-        { label: "1/2 Screen (50%)", value: "50percent", description: "50%" },
-        { label: "Full Width (100%)", value: "100percent", description: "100%" }
+        { label: "Small", value: "250px", css: "250px" },
+        { label: "Medium", value: "350px", css: "350px" },
+        { label: "Wide", value: "450px", css: "450px" },
+        { label: "1/3 Screen", value: "33percent", css: "31.5vw", separator: true },
+        { label: "1/2 Screen", value: "50percent", css: "48vw" },
+        { label: "2/3 Screen", value: "66percent", css: "63vw"},
+        { label: "Full Width", value: "100percent", css: "95vw" }
     ],
+    // Card height options
     cardHeight: [
-        { label: "Auto Height", value: "auto" },
-        { separator: true },
-        { label: "Small (200px)", value: "200px" },
-        { label: "Medium (400px)", value: "400px" },
-        { label: "Large (600px)", value: "600px" },
-        { separator: true },
-        { label: "1/3 Screen (26.5%)", value: "33percent" },
-        { label: "1/2 Screen (43.5%)", value: "50percent" },
-        { label: "Full Screen (89%)", value: "100percent" }
+        { label: "Auto", value: "auto", css: "auto" },
+        { label: "Small", value: "200px", css: "200px", separator: true },
+        { label: "Medium", value: "400px", css: "400px" },
+        { label: "Large", value: "600px", css: "600px" },
+        { label: "1/3 Screen", value: "33percent", css: "26.5vh", separator: true },
+        { label: "1/2 Screen", value: "50percent", css: "43.5vh" },
+        { label: "2/3 Screen", value: "66percent", css: "59vh" },
+        { label: "Full Screen", value: "100percent", css: "89vh" }
     ],
+    // Section max height options
     sectionMaxHeight: [
-        { label: "No Limit (Auto)", value: "auto" },
-        { separator: true },
-        { label: "Tiny (100px)", value: "100px" },
-        { label: "Small (200px)", value: "200px" },
-        { label: "Medium (300px)", value: "300px" },
-        { label: "Large (400px)", value: "400px" },
-        { label: "Extra Large (500px)", value: "500px" },
-        { separator: true },
-        { label: "1/5 Screen (20%)", value: "20vh" },
-        { label: "1/3 Screen (30%)", value: "30vh" },
-        { label: "2/5 Screen (40%)", value: "40vh" }
+        { label: "Auto", value: "auto", css: "auto" },
+        { label: "Small", value: "200px", css: "200px", separator: true },
+        { label: "Medium", value: "400px", css: "400px" },
+        { label: "Large", value: "600px", css: "600px" },
+        { label: "1/3 Screen", value: "33percent", css: "17vh", separator: true },
+        { label: "1/2 Screen", value: "50percent", css: "33vh" },
+        { label: "2/3 Screen", value: "66percent", css: "48vh" },
+        { label: "Full Screen", value: "100percent", css: "78vh" }
     ],
+    // Row height options
+    rowHeight: [
+        { label: "Auto", value: "auto", css: "auto" },
+        { label: "Small", value: "300px", css: "300px", separator: true },
+        { label: "Medium", value: "500px", css: "500px" },
+        { label: "Large", value: "700px", css: "700px" },
+        { label: "1/3 Screen", value: "33percent", css: "31.5vh", separator: true },
+        { label: "1/2 Screen", value: "50percent", css: "48vh" },
+        { label: "2/3 Screen", value: "66percent", css: "63vh" },
+        { label: "Full Screen", value: "100percent", css: "95vh" }
+    ],
+    // Whitespace options
     whitespace: [
-        { label: "Compact (4px)", value: "4px" },
-        { label: "Default (8px)", value: "8px" },
-        { label: "Comfortable (12px)", value: "12px" },
-        { label: "Spacious (16px)", value: "16px" },
-        { label: "Large (24px)", value: "24px" },
-        { label: "Extra Large (36px)", value: "36px" },
-        { label: "Maximum (48px)", value: "48px" }
+        { label: "Compact", value: "4px", css: "4px" },
+        { label: "Default", value: "8px", css: "8px" },
+        { label: "Comfortable", value: "12px", css: "12px" },
+        { label: "Spacious", value: "16px", css: "16px" },
+        { label: "Large", value: "24px", css: "24px" },
+        { label: "XL", value: "36px", css: "36px" },
+        { label: "XXL", value: "48px", css: "48px" },
+        { label: "XXXL", value: "60px", css: "60px" }
     ],
+    // Font size options
     fontSize: fontSizeMultipliers.map((multiplier, index) => ({
         label: `${multiplier}x`,
         value: `${multiplier.toString().replace('.', '_')}x`,
+        css: multiplier, // Multiplier value (used for body class, not direct CSS)
         icon: multiplier < 1 ? "a" : "A",
         iconStyle: `font-size: ${10 + index}px;`
     })),
+    // Layout rows options
+    layoutRows: [
+        { label: "1 Row", value: 1, css: 1 },
+        { label: "2 Rows", value: 2, css: 2 },
+        { label: "3 Rows", value: 3, css: 3 },
+        { label: "4 Rows", value: 4, css: 4 },
+        { label: "5 Rows", value: 5, css: 5 },
+        { label: "6 Rows", value: 6, css: 6 }
+    ],
+    // Sticky headers options
+    stickyHeaders: [
+        { label: "Enabled", value: "enabled", css: true, description: "Headers stick to top when scrolling" },
+        { label: "Disabled", value: "disabled", css: false, description: "Headers scroll with content" }
+    ],
+    // Tag visibility options
+    tagVisibility: [
+        { label: "All Tags", value: "all", description: "Show all tags including #span, #row, and @ tags" },
+        { label: "All Excluding Layout", value: "allexcludinglayout", description: "Show all except #span and #row (includes @ tags)" },
+        { label: "Custom Tags Only", value: "customonly", description: "Show only custom tags (not configured ones) and @ tags" },
+        { label: "@ Tags Only", value: "mentionsonly", description: "Show only @ tags" },
+        { label: "No Tags", value: "none", description: "Hide all tags" }
+    ],
+    // Image fill options
+    imageFill: [
+        { label: "Fit Content", value: "fit", css: "fit", description: "Images size to their natural dimensions" },
+        { label: "Fill Space", value: "fill", css: "fill", description: "Images fill available space while keeping aspect ratio" }
+    ],
+    // Arrow key focus scroll options
+    arrowKeyFocusScroll: [
+        { label: "Center", value: "center", css: "center", description: "Center the focused item in the viewport" },
+        { label: "Nearest", value: "nearest", css: "nearest", description: "Scroll just enough to bring the item into view" }
+    ]
+};
+
+// Helper function to convert option value to CSS value
+function getCSS(optionType, value) {
+    if (!baseOptions[optionType]) return value;
+    const option = baseOptions[optionType].find(opt => opt.value === value);
+    return option ? option.css : value;
+}
+
+// Helper function to convert CSS value back to option value (for legacy support)
+function getValue(optionType, css) {
+    if (!baseOptions[optionType]) return css;
+    const option = baseOptions[optionType].find(opt => opt.css === css);
+    return option ? option.value : css;
+}
+
+// MenuConfig - generated from baseOptions for menu display
+const menuConfig = {
+    columnWidth: null, // Generated
+    cardHeight: null, // Generated
+    sectionMaxHeight: null, // Generated
+    rowHeight: null, // Generated
+    whitespace: null, // Generated
+    fontSize: null, // Generated
+    layoutRows: null, // Generated
+    stickyHeaders: null, // Generated
+    tagVisibility: null, // Generated
+    imageFill: null, // Generated
     fontFamily: [
         { label: "System Default", value: "system", icon: "Aa" },
         { label: "Roboto", value: "roboto", icon: "Aa", iconStyle: "font-family: 'Roboto', sans-serif;" },
@@ -151,49 +227,39 @@ const menuConfig = {
         { label: "Source Code Pro", value: "sourcecodepro", icon: "{ }", iconStyle: "font-family: 'Source Code Pro', monospace;" },
         { label: "Consolas", value: "consolas", icon: "{ }", iconStyle: "font-family: Consolas, monospace;" }
     ],
-    layoutRows: [
-        { label: "1 Row", value: 1 },
-        { label: "2 Rows", value: 2 },
-        { label: "3 Rows", value: 3 },
-        { label: "4 Rows", value: 4 },
-        { label: "5 Rows", value: 5 },
-        { label: "6 Rows", value: 6 }
-    ],
-    rowHeight: [
-        { label: "Auto Height", value: "auto" },
-        { separator: true },
-        { label: "Small (300px)", value: "300px" },
-        { label: "Medium (500px)", value: "500px" },
-        { label: "Large (700px)", value: "700px" },
-        { separator: true },
-        { label: "1/3 Screen (31.5%)", value: "33percent" },
-        { label: "1/2 Screen (48%)", value: "50percent" },
-        { label: "2/3 Screen (63%)", value: "67percent" },
-        { label: "Full Screen (95%)", value: "100percent" }
-    ],
-    stickyHeaders: [
-        { label: "Enabled", value: "enabled", description: "Headers stick to top when scrolling" },
-        { label: "Disabled", value: "disabled", description: "Headers scroll with content" }
-    ],
-    tagVisibility: [
-        { label: "All Tags", value: "all", description: "Show all tags including #span, #row, and @ tags" },
-        { label: "All Excluding Layout", value: "allexcludinglayout", description: "Show all except #span and #row (includes @ tags)" },
-        { label: "Custom Tags Only", value: "customonly", description: "Show only custom tags (not configured ones) and @ tags" },
-        { label: "@ Tags Only", value: "mentionsonly", description: "Show only @ tags" },
-        { label: "No Tags", value: "none", description: "Hide all tags" }
-    ],
+    // These are not in baseOptions as they don't need CSS conversion
     exportTagVisibility: [
         { label: "All Tags", value: "all", description: "Export all tags including #span, #row, and @ tags" },
         { label: "All Excluding Layout", value: "allexcludinglayout", description: "Export all except #span and #row (includes @ tags)" },
         { label: "Custom Tags Only", value: "customonly", description: "Export only custom tags (not configured ones) and @ tags" },
         { label: "@ Tags Only", value: "mentionsonly", description: "Export only @ tags" },
         { label: "No Tags", value: "none", description: "Export without any tags" }
-    ],
-    imageFill: [
-        { label: "Fit Content", value: "fit", description: "Images size to their natural dimensions" },
-        { label: "Fill Space", value: "fill", description: "Images fill available space while keeping aspect ratio" }
     ]
 };
+
+// Generate menu configurations from base options
+// Simple generator for most menu types
+['columnWidth', 'cardHeight', 'sectionMaxHeight', 'rowHeight', 'whitespace', 'fontSize', 'layoutRows', 'stickyHeaders', 'tagVisibility', 'imageFill', 'arrowKeyFocusScroll'].forEach(key => {
+    if (baseOptions[key]) {
+        menuConfig[key] = baseOptions[key].map(option => {
+            const result = {
+                label: option.label + (option.value !== 'auto' && option.value !== option.label ? ` (${option.description || option.value})` : ''),
+                value: option.value
+            };
+            if (option.description) result.description = option.description;
+            if (option.icon) result.icon = option.icon;
+            if (option.iconStyle) result.iconStyle = option.iconStyle;
+            if (option.separator) result.separator = true;
+            return result;
+        });
+    }
+});
+
+// Make both baseOptions and menuConfig globally accessible
+window.baseOptions = baseOptions;
+window.menuConfig = menuConfig;
+window.getCSS = getCSS;
+window.getValue = getValue;
 
 // Layout Presets Configuration (will be loaded from backend)
 let layoutPresets = {};
@@ -225,6 +291,8 @@ function getCurrentSettingValue(configKey) {
             return window.currentExportTagVisibility || 'allexcludinglayout';
         case 'imageFill':
             return window.currentImageFill || 'fit';
+        case 'arrowKeyFocusScroll':
+            return window.currentArrowKeyFocusScroll || 'center';
         default:
             return null;
     }
@@ -1048,31 +1116,18 @@ function toggleFileBarMenu(event, button) {
 function applyColumnWidth(size, skipRender = false) {
     currentColumnWidth = size;
     window.currentColumnWidth = size;
-    
-    // Remove all existing column width classes
-    const columns = document.querySelectorAll('.kanban-full-height-column');
-    columns.forEach(column => {
-        column.classList.remove('column-width-33percent', 'column-width-50percent', 'column-width-100percent');
-        // Only remove span classes for viewport-based widths (40%, 66%, 100%), not pixel widths
-        if (size === '33percent' || size === '50percent' || size === '100percent') {
-            column.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
-        }
-    });
 
-    // Handle pixel-based and percentage-based widths differently
-    if (size === '33percent' || size === '50percent' || size === '100percent') {
-        // For percentage widths, add CSS classes
+    // Use styleManager to apply CSS variable - it handles getCSS conversion
+    styleManager.applyColumnWidth(size);
+
+    // For viewport-based widths, clear span classes since they conflict with full-width columns
+    const isViewportWidth = size.endsWith('percent');
+    if (isViewportWidth) {
+        const columns = document.querySelectorAll('.kanban-full-height-column');
         columns.forEach(column => {
-            column.classList.add(`column-width-${size}`);
+            column.classList.remove('column-span-2', 'column-span-3', 'column-span-4');
         });
-        // Reset CSS custom property to default for percentage layouts
-        document.documentElement.style.setProperty('--column-width', '350px');
     } else {
-        // For pixel widths, use CSS custom properties
-        // For pixel widths, use CSS custom properties directly
-        const width = size; // Now size is already in correct format like '250px', '350px', etc.
-        document.documentElement.style.setProperty('--column-width', width);
-
         // For pixel widths, re-apply span classes if they exist
         // Trigger a re-render to restore span classes from column titles
         if (window.currentBoard && !skipRender) {
@@ -1146,17 +1201,8 @@ let currentRowHeight = 'auto';
 
 // Function to apply row height to existing rows
 function applyRowHeight(height) {
-    // Convert percent values to vh for CSS
-    let cssHeight = height;
-    if (height === '33percent') {
-        cssHeight = '31.5vh';
-    } else if (height === '50percent') {
-        cssHeight = '48vh';
-    } else if (height === '67percent') {
-        cssHeight = '63vh';
-    } else if (height === '100percent') {
-        cssHeight = '95vh';
-    }
+    // Convert value to CSS using getCSS helper
+    const cssHeight = getCSS('rowHeight', height);
 
     const rows = document.querySelectorAll('.kanban-row');
     const boardElement = document.getElementById('kanban-board');
@@ -1419,6 +1465,9 @@ function filterTagsForExport(text) {
 
 // Image fill functionality
 let currentImageFill = 'fit'; // Default to fit content
+
+// Arrow key focus scroll setting
+let currentArrowKeyFocusScroll = 'center'; // Default to center
 
 function applyImageFill(setting) {
     // Store current setting
@@ -1865,16 +1914,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.pendingColumnChanges.clear();
             }
             
-            // Send all pending task changes
+            // Note: Task changes are now sent immediately when edits end, not batched here
+            // Only column changes are batched and sent on window blur
+            // Clear any stale task changes if they exist (shouldn't happen normally)
             if (window.pendingTaskChanges && window.pendingTaskChanges.size > 0) {
-                window.pendingTaskChanges.forEach((change) => {
-                    vscode.postMessage({
-                        type: 'editTask',
-                        taskId: change.taskId,
-                        columnId: change.columnId,
-                        taskData: change.taskData
-                    });
-                });
+                console.warn('[webview] Found pending task changes on window blur - this should not happen as tasks send immediately');
                 window.pendingTaskChanges.clear();
             }
             
@@ -2252,15 +2296,8 @@ window.addEventListener('message', event => {
 
                 // Update task min height with the value from configuration
                 if (message.taskMinHeight) {
-                    // Handle legacy card height values
-                    let taskMinHeight = message.taskMinHeight;
-                    if (taskMinHeight === '26.5vh') {
-                        taskMinHeight = '33percent';
-                    } else if (taskMinHeight === '43.5vh') {
-                        taskMinHeight = '50percent';
-                    } else if (taskMinHeight === '89vh') {
-                        taskMinHeight = '100percent';
-                    }
+                    // Handle legacy card height values - convert CSS back to value
+                    const taskMinHeight = getValue('cardHeight', message.taskMinHeight);
                     applyTaskMinHeight(taskMinHeight);
                 } else {
                     applyTaskMinHeight('auto'); // Default fallback
@@ -2338,23 +2375,14 @@ window.addEventListener('message', event => {
             if (isInitialLoad) {
                 // Update row height with the value from configuration
                 if (message.rowHeight) {
-                    // Handle legacy row height values
+                    // Handle legacy row height values - convert CSS back to value
                     let rowHeight = message.rowHeight;
-                    if (rowHeight === '19em') {
-                        rowHeight = '300px';
-                    } else if (rowHeight === '31em') {
-                        rowHeight = '500px';
-                    } else if (rowHeight === '44em') {
-                        rowHeight = '700px';
-                    } else if (rowHeight === '31.5vh') {
-                        rowHeight = '33percent';
-                    } else if (rowHeight === '48vh') {
-                        rowHeight = '50percent';
-                    } else if (rowHeight === '63vh') {
-                        rowHeight = '67percent';
-                    } else if (rowHeight === '95vh') {
-                        rowHeight = '100percent';
-                    }
+                    // Map legacy em values
+                    if (rowHeight === '19em') rowHeight = '300px';
+                    else if (rowHeight === '31em') rowHeight = '500px';
+                    else if (rowHeight === '44em') rowHeight = '700px';
+                    else rowHeight = getValue('rowHeight', rowHeight);
+
                     applyRowHeightSetting(rowHeight);
                 } else {
                     applyRowHeightSetting('auto'); // Default fallback
@@ -2397,6 +2425,15 @@ window.addEventListener('message', event => {
                     applyImageFill(message.imageFill);
                 } else {
                     applyImageFill('fit'); // Default fallback
+                }
+
+                // Update arrow key focus scroll with the value from configuration
+                if (message.arrowKeyFocusScroll) {
+                    currentArrowKeyFocusScroll = message.arrowKeyFocusScroll;
+                    window.currentArrowKeyFocusScroll = message.arrowKeyFocusScroll;
+                } else {
+                    currentArrowKeyFocusScroll = 'center'; // Default fallback
+                    window.currentArrowKeyFocusScroll = 'center';
                 }
 
                 // Update all menu indicators after settings are applied
@@ -2722,7 +2759,6 @@ window.addEventListener('message', event => {
                 }
             } else {
                 console.error(`[Debug] Failed to save ${fileName}: ${message.error}`);
-                console.error(`[Debug] Failed to save ${fileName}: ${message.error}`);
             }
             break;
 
@@ -2735,7 +2771,6 @@ window.addEventListener('message', event => {
                     setTimeout(() => window.refreshDebugOverlay(), 500);
                 }
             } else {
-                console.error(`[Debug] Failed to reload ${reloadedFileName}: ${message.error}`);
                 console.error(`[Debug] Failed to reload ${reloadedFileName}: ${message.error}`);
             }
             break;
@@ -2818,28 +2853,41 @@ function focusCard(card) {
     if (card) {
         card.classList.add('card-focused');
         
-        // Check if card is larger than viewport
-        const cardRect = card.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const viewportWidth = window.innerWidth;
-        
-        const cardTallerThanViewport = cardRect.height > viewportHeight;
-        const cardWiderThanViewport = cardRect.width > viewportWidth;
-        
-        // If card is larger than viewport, scroll to show top-left corner
-        // Otherwise, center the card
-        if (cardTallerThanViewport || cardWiderThanViewport) {
-            card.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start',    // Show top of card
-                inline: 'start'    // Show left of card
+        // Get scroll behavior from settings
+        const scrollBehavior = window.currentArrowKeyFocusScroll || 'center';
+
+        if (scrollBehavior === 'nearest') {
+            // Just bring into view with minimal scrolling
+            card.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+                inline: 'nearest'
             });
         } else {
-            card.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center',   // Center vertically
-                inline: 'center'   // Center horizontally
-            });
+            // Center behavior (default)
+            // Check if card is larger than viewport
+            const cardRect = card.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const viewportWidth = window.innerWidth;
+
+            const cardTallerThanViewport = cardRect.height > viewportHeight;
+            const cardWiderThanViewport = cardRect.width > viewportWidth;
+
+            // If card is larger than viewport, scroll to show top-left corner
+            // Otherwise, center the card
+            if (cardTallerThanViewport || cardWiderThanViewport) {
+                card.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',    // Show top of card
+                    inline: 'start'    // Show left of card
+                });
+            } else {
+                card.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',   // Center vertically
+                    inline: 'center'   // Center horizontally
+                });
+            }
         }
         
         currentFocusedCard = card;
@@ -3602,15 +3650,8 @@ function updateTaskMinHeight(value) {
         value = 'auto';
     }
 
-    // Convert percent values to vh for CSS
-    let cssValue = value;
-    if (value === '33percent') {
-        cssValue = '26.5vh';
-    } else if (value === '50percent') {
-        cssValue = '43.5vh';
-    } else if (value === '100percent') {
-        cssValue = '89vh';
-    }
+    // Convert value to CSS using getCSS helper
+    const cssValue = getCSS('cardHeight', value);
 
     document.documentElement.style.setProperty('--task-height', cssValue);
 

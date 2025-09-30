@@ -1089,9 +1089,11 @@ export class KanbanWebviewPanel {
                 settings: {
                     columnWidth: "250px",
                     cardHeight: "auto",
+										sectionMaxHeight: "auto",
                     fontSize: "0_5x",
                     whitespace: "8px",
-                    tagVisibility: "allexcludinglayout"
+                    tagVisibility: "allexcludinglayout",
+                    arrowKeyFocusScroll: "center"
                 }
             },
             normal: {
@@ -1100,9 +1102,11 @@ export class KanbanWebviewPanel {
                 settings: {
                     columnWidth: "350px",
                     cardHeight: "auto",
+										sectionMaxHeight: "auto",
                     fontSize: "1x",
                     whitespace: "8px",
-                    tagVisibility: "allexcludinglayout"
+                    tagVisibility: "allexcludinglayout",
+                    arrowKeyFocusScroll: "center"
                 }
             },
             grid3x: {
@@ -1111,21 +1115,36 @@ export class KanbanWebviewPanel {
                 settings: {
                     columnWidth: "33percent",
                     cardHeight: "auto",
+										sectionMaxHeight: "auto",
                     fontSize: "1x",
                     whitespace: "12px",
-										sectionMaxHeight: "30vh"
+                    arrowKeyFocusScroll: "nearest"
                 }
             },
+						twoThirds: {
+							label: "2/3 Grid",
+							description: "Grid layout for organized viewing",
+							settings: {
+									columnWidth: "66percent",
+									cardHeight: "auto",
+									fontSize: "1_5x",
+									whitespace: "12px",
+									sectionMaxHeight: "66percent",
+                  arrowKeyFocusScroll: "nearest"
+							}
+						},
             presentation: {
                 label: "Presentation",
                 description: "Full screen view for presentations",
                 settings: {
                     columnWidth: "100percent",
                     cardHeight: "100percent",
+										sectionMaxHeight: "100percent",
                     fontSize: "3x",
                     stickyHeaders: "disabled",
                     tagVisibility: "none",
-                    whitespace: "16px"
+                    whitespace: "16px",
+                    arrowKeyFocusScroll: "center"
                 }
             }
         };

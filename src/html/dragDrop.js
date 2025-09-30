@@ -1340,10 +1340,11 @@ function setupTaskDragHandle(handle) {
                     // DON'T restore position - keep the preview position
                     // Calculate the proper index for the data model
                     const dropIndex = finalIndex >= 0 ? finalIndex : 0;
-                    
-                    // Unfold the destination column if it's collapsed
+
+                    // Unfold the destination column if it's collapsed (unless Alt key is pressed)
                     if (typeof unfoldColumnIfCollapsed === 'function') {
-                        unfoldColumnIfCollapsed(finalColumnId);
+                        const skipUnfold = e.altKey; // Skip unfolding if Alt key is pressed
+                        unfoldColumnIfCollapsed(finalColumnId, skipUnfold);
                     }
                     
                     // NEW CACHE SYSTEM: Update cached board directly

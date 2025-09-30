@@ -105,12 +105,17 @@ const styleManager = new StyleManager();
 
 // Convenience methods for common style applications
 styleManager.applyColumnWidth = function(width) {
-    this.setCSSVariable('column-width', `${width}px`);
+    // Convert value to CSS using getCSS helper
+    const actualWidth = typeof window.getCSS === 'function' ? window.getCSS('columnWidth', width) : width;
+    this.setCSSVariable('column-width', actualWidth);
 };
 
 styleManager.applyCardHeight = function(height) {
+    // Convert value to CSS using getCSS helper
+    const actualHeight = typeof window.getCSS === 'function' ? window.getCSS('cardHeight', height) : height;
+
     // Use the correct CSS variable name
-    this.setCSSVariable('task-height', height);
+    this.setCSSVariable('task-height', actualHeight);
 
     // Properly manage the task-height-limited class
     if (height !== 'auto') {
@@ -121,11 +126,17 @@ styleManager.applyCardHeight = function(height) {
 };
 
 styleManager.applyWhitespace = function(spacing) {
-    this.setCSSVariable('whitespace', `${spacing}px`);
+    // Convert value to CSS using getCSS helper
+    const actualSpacing = typeof window.getCSS === 'function' ? window.getCSS('whitespace', spacing) : spacing;
+    this.setCSSVariable('whitespace', actualSpacing);
 };
 
 styleManager.applyFontSize = function(size) {
-    this.setCSSVariable('font-size', `${size}px`);
+    // fontSize uses body classes, not CSS variables
+    // The getCSS helper returns the multiplier value which applyFontSize in webview.js uses
+    // This method is kept for consistency but fontSize is handled via body classes
+    const multiplier = typeof window.getCSS === 'function' ? window.getCSS('fontSize', size) : parseFloat(size);
+    this.setCSSVariable('font-size-multiplier', multiplier);
 };
 
 styleManager.applyFontFamily = function(family) {
@@ -133,97 +144,30 @@ styleManager.applyFontFamily = function(family) {
 };
 
 styleManager.applyLayoutRows = function(rows) {
-    this.setCSSVariable('layout-rows', rows);
+    // Convert value to CSS using getCSS helper
+    const actualRows = typeof window.getCSS === 'function' ? window.getCSS('layoutRows', rows) : rows;
+    this.setCSSVariable('layout-rows', actualRows);
 };
 
 styleManager.applyRowHeight = function(height) {
-    this.setCSSVariable('row-height', `${height}px`);
+    // Convert value to CSS using getCSS helper
+    const actualHeight = typeof window.getCSS === 'function' ? window.getCSS('rowHeight', height) : height;
+    this.setCSSVariable('row-height', actualHeight);
 };
 
 styleManager.applySectionMaxHeight = function(height) {
-    this.setCSSVariable('section-max-height', height);
+    // Convert value to CSS using getCSS helper
+    const actualHeight = typeof window.getCSS === 'function' ? window.getCSS('sectionMaxHeight', height) : height;
+
+    // Set both min and max height to the same value for fixed height
+    this.setCSSVariable('section-max-height', actualHeight);
+    this.setCSSVariable('section-min-height', actualHeight);
+
     if (height !== 'auto') {
         document.body.classList.add('section-height-limited');
     } else {
         document.body.classList.remove('section-height-limited');
     }
-};
-
-/**
- * Wrap content sections between HRs in task descriptions
- * This allows applying max-height to sections independently without limiting overall task height
- */
-styleManager.wrapTaskDescriptionSections = function() {
-    const taskDescriptions = document.querySelectorAll('.task-description-display');
-
-    taskDescriptions.forEach(desc => {
-        // Check if already wrapped - if so, unwrap first
-        if (desc.hasAttribute('data-sections-wrapped')) {
-            // Unwrap existing sections
-            const sections = desc.querySelectorAll('.task-section');
-            sections.forEach(section => {
-                while (section.firstChild) {
-                    desc.insertBefore(section.firstChild, section);
-                }
-                section.remove();
-            });
-            desc.removeAttribute('data-sections-wrapped');
-        }
-
-        const hrs = Array.from(desc.querySelectorAll('hr'));
-
-        if (hrs.length === 0) {
-            // No HRs: wrap entire content in a section
-            const wrapper = document.createElement('div');
-            wrapper.className = 'task-section';
-            wrapper.setAttribute('tabindex', '0'); // Make focusable for keyboard navigation
-            while (desc.firstChild) {
-                wrapper.appendChild(desc.firstChild);
-            }
-            desc.appendChild(wrapper);
-        } else {
-            // Has HRs: wrap sections between HRs
-            const sections = [];
-            let currentSection = [];
-
-            Array.from(desc.childNodes).forEach(node => {
-                if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'HR') {
-                    // Save current section if it has content
-                    if (currentSection.length > 0) {
-                        sections.push(currentSection);
-                        currentSection = [];
-                    }
-                    sections.push([node]); // HR gets its own section
-                } else {
-                    currentSection.push(node);
-                }
-            });
-
-            // Don't forget the last section
-            if (currentSection.length > 0) {
-                sections.push(currentSection);
-            }
-
-            // Clear the description and rebuild with wrapped sections
-            desc.innerHTML = '';
-            sections.forEach(sectionNodes => {
-                const isHR = sectionNodes.length === 1 && sectionNodes[0].tagName === 'HR';
-                if (isHR) {
-                    // HR stays unwrapped
-                    desc.appendChild(sectionNodes[0]);
-                } else {
-                    // Wrap content in a section div
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'task-section';
-                    wrapper.setAttribute('tabindex', '0'); // Make focusable for keyboard navigation
-                    sectionNodes.forEach(node => wrapper.appendChild(node));
-                    desc.appendChild(wrapper);
-                }
-            });
-        }
-
-        desc.setAttribute('data-sections-wrapped', 'true');
-    });
 };
 
 // Export for use in other modules

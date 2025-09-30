@@ -8,7 +8,22 @@ export class FileSearchService {
         this._extensionUri = extensionUri;
     }
     async searchForFile(fileName: string, baseDir?: string): Promise<vscode.Uri[]> {
-        const nameRoot = path.parse(fileName).name; // filename without extension
+        // Try URL decoding if path contains % (only if it's valid decoding)
+        let decodedFileName = fileName;
+        if (fileName.includes('%')) {
+            try {
+                const decoded = decodeURIComponent(fileName);
+                // Only use decoded path if it's actually different (valid decoding occurred)
+                if (decoded !== fileName) {
+                    decodedFileName = decoded;
+                }
+            } catch {
+                // If decoding fails, use original filename
+                decodedFileName = fileName;
+            }
+        }
+
+        const nameRoot = path.parse(decodedFileName).name; // filename without extension
         const excludePattern = '**/node_modules/**';
 
         const results = new Map<string, vscode.Uri>();
@@ -175,7 +190,22 @@ export class FileSearchService {
      * Provides the same UX in dev and production: preview on hover, Enter to accept.
      */
     async pickReplacementForBrokenLink(originalPath: string, baseDir?: string): Promise<vscode.Uri | undefined> {
-        const nameRoot = path.parse(path.basename(originalPath)).name;
+        // Try URL decoding if path contains % (only if it's valid decoding)
+        let decodedPath = originalPath;
+        if (originalPath.includes('%')) {
+            try {
+                const decoded = decodeURIComponent(originalPath);
+                // Only use decoded path if it's actually different (valid decoding occurred)
+                if (decoded !== originalPath) {
+                    decodedPath = decoded;
+                }
+            } catch {
+                // If decoding fails, use original path
+                decodedPath = originalPath;
+            }
+        }
+
+        const nameRoot = path.parse(path.basename(decodedPath)).name;
 
         const quickPick = vscode.window.createQuickPick();
         quickPick.title = `File not found: ${originalPath}`;
