@@ -2058,12 +2058,17 @@ function toggleColumnTag(columnId, tagName, event) {
     
     // Update corner badges immediately
     updateCornerBadgesImmediate(columnId, 'column', title);
-    
+
+    // Recalculate stacked column heights after tag modification
+    if (typeof window.applyStackedColumnStyles === 'function') {
+        window.applyStackedColumnStyles();
+    }
+
     // NEW CACHE SYSTEM: Changes are already in cachedBoard, mark as unsaved
-    
+
     // Mark board as having unsaved changes
     markUnsavedChanges();
-    
+
 }
 
 // IMPORTANT: This function correctly uses unique task.id and column.id
@@ -2208,12 +2213,17 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     
     // Update corner badges immediately
     updateCornerBadgesImmediate(taskId, 'task', title);
-    
+
+    // Recalculate stacked column heights after tag modification
+    if (typeof window.applyStackedColumnStyles === 'function') {
+        window.applyStackedColumnStyles();
+    }
+
     // NEW CACHE SYSTEM: Changes are already in cachedBoard, mark as unsaved
-    
-    // Mark board as having unsaved changes  
+
+    // Mark board as having unsaved changes
     markUnsavedChanges();
-    
+
 }
 
 // Enhanced DOM update functions using unique IDs

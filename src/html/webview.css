@@ -1829,6 +1829,14 @@ button.file-bar-menu-item {
   grid-row: 1;
   grid-column: 1;
   align-self: start;
+  pointer-events: none;
+}
+
+/* Re-enable pointer events on interactive child elements */
+.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-header,
+.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-footer,
+.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-inner {
+  pointer-events: auto;
 }
 
 /* Sticky headers at bottom with dynamic offsets (set by JavaScript inline styles) */
