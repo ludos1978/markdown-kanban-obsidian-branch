@@ -2204,6 +2204,17 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// Handle collapse toggle clicks with event delegation
+document.addEventListener('click', (e) => {
+    const collapseToggle = e.target.closest('.collapse-toggle');
+    if (collapseToggle) {
+        const columnId = collapseToggle.getAttribute('data-column-id');
+        if (columnId && typeof window.toggleColumnCollapse === 'function') {
+            window.toggleColumnCollapse(columnId, e);
+        }
+    }
+});
+
 // Listen for messages from the extension
 window.addEventListener('message', event => {
     const message = event.data;

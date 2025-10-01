@@ -605,6 +605,15 @@ body.small-card-fonts .task-title-container .markdown-content img {
   margin-top: auto;
 }
 
+/* Footer bars in stacked columns are part of sticky column-footer */
+.kanban-column-stack .column-footer > .stacked-footer-bars {
+  position: relative;
+  background-color: var(--vscode-editor-background);
+  margin-top: 0;
+  width: 100%;
+  flex-shrink: 0;
+}
+
 /* Ensure header/footer bars work in task items */
 .task-item .header-bars-container {
   order: -1;
@@ -1809,10 +1818,64 @@ button.file-bar-menu-item {
 }
 
 .kanban-column-stack {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template: 1fr / 1fr;
+  min-height: 100%;
+  position: relative;
+}
+
+/* All expanded columns overlay in same grid cell with full viewport height */
+.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) {
+  grid-row: 1;
+  grid-column: 1;
+  min-height: 100%; /* CRITICAL: Full height so sticky works across entire scroll */
+  align-self: start;
+}
+
+/* Sticky headers at top with dynamic offsets (set by JavaScript) */
+.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-header {
+  position: sticky;
+  background: var(--vscode-editor-background);
+  z-index: 100;
+  /* top value is set dynamically by applyStackedColumnStyles() */
+}
+
+/* Sticky footers at bottom with dynamic offsets (set by JavaScript) */
+.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-footer {
+  position: sticky;
+  background: var(--vscode-editor-background);
+  z-index: 100;
+  /* bottom value is set dynamically by applyStackedColumnStyles() */
+}
+
+/* Visual separation - add padding to content of stacked columns */
+.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal):nth-child(n+2) .column-inner {
+  padding-top: var(--whitespace);
+}
+
+/* When all columns in a stack are vertically folded (.collapsed), display them horizontally */
+.kanban-column-stack.all-vertical-folded {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start;
   gap: var(--whitespace);
-  align-items: stretch;
+  min-height: auto;
+}
+
+.kanban-column-stack.all-vertical-folded .kanban-full-height-column {
+  min-height: auto;
+}
+
+/* Vertically folded columns in a stack should not use sticky positioning when grouped horizontally */
+.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed {
+  position: relative !important;
+}
+
+.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed .column-header,
+.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed .column-footer {
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
 }
 
 .task-menu-container {
@@ -2907,9 +2970,8 @@ h6 .kanban-tag {
 
 /* Footer bars styling when in column-footer */
 .column-footer > .footer-bars-container {
-  position: sticky;
+  position: relative;
   border-top: none;
-  /* bottom: 0; */
 }
 
 .kanban-full-height-column:not(.collapsed) .header-bar,
@@ -3928,4 +3990,167 @@ figcaption {
     max-height: 100% !important;
     height: auto !important;
     object-fit: contain !important;
+}
+/* ========================================
+   Horizontal Fold Mode (New Feature)
+   ======================================== */
+
+/* Horizontal fold: thin bar with normal text orientation, stays in stack */
+.kanban-full-height-column.collapsed-horizontal {
+  width: 100% !important;
+  min-width: var(--column-width) !important;
+  max-width: var(--column-width) !important;
+  height: 50px !important;
+  min-height: 50px !important;
+  max-height: 50px !important;
+  position: relative !important;
+  top: auto !important;
+  overflow: hidden;
+  align-self: stretch;
+  z-index: 1;
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-inner {
+  overflow: visible;
+  flex: none;
+  display: flex;
+  flex-direction: row !important;
+  height: 50px !important;
+  min-height: 50px !important;
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-header {
+  flex-direction: row !important;
+  border-radius: 4px;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  display: flex;
+  min-height: 0;
+  box-sizing: border-box;
+  position: relative !important;
+  top: auto !important;
+  background-color: var(--vscode-editor-background);
+  height: 100%;
+  width: 100%;
+  padding: 0 var(--whitespace-div2);
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-title-section {
+  flex-direction: row !important;
+  gap: 8px;
+  align-items: center;
+  height: 100%;
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+  margin: 0;
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-title {
+  writing-mode: horizontal-tb !important;
+  transform: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1;
+  padding: 0 8px;
+  margin: 0;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-title,
+.kanban-full-height-column.collapsed-horizontal .column-title * {
+  min-width: 0;
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-controls {
+  flex-direction: row !important;
+  gap: 8px;
+  margin: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  align-items: center;
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-content {
+  display: none !important;
+}
+
+.kanban-full-height-column.collapsed-horizontal .fold-all-btn {
+  display: none !important;
+}
+
+.kanban-full-height-column.collapsed-horizontal .collapse-toggle {
+  margin: 0;
+}
+
+.kanban-full-height-column.collapsed-horizontal .task-count {
+  writing-mode: horizontal-tb !important;
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-title-edit {
+  display: none !important;
+}
+
+/* Header/footer bars in horizontal fold mode */
+.kanban-full-height-column.collapsed-horizontal .header-bar,
+.kanban-full-height-column.collapsed-horizontal .footer-bar {
+  position: static !important;
+  writing-mode: horizontal-tb !important;
+  transform: none !important;
+  display: inline-block !important;
+  height: auto !important;
+  width: auto !important;
+  padding: 2px 4px !important;
+  margin: 0 2px !important;
+  font-size: 9px !important;
+}
+
+.kanban-full-height-column.collapsed-horizontal .header-bars-container,
+.kanban-full-height-column.collapsed-horizontal .footer-bars-container {
+  display: flex;
+  flex-direction: row !important;
+  width: auto !important;
+  flex-shrink: 0;
+  margin: 0;
+  gap: 4px;
+}
+
+.kanban-full-height-column.collapsed-horizontal .header-bar::after,
+.kanban-full-height-column.collapsed-horizontal .footer-bar::after {
+  font-size: 8px !important;
+}
+
+/* Don't apply special width constraints for horizontal fold */
+.kanban-full-height-column.collapsed-horizontal.has-header-label,
+.kanban-full-height-column.collapsed-horizontal.has-footer-label,
+.kanban-full-height-column.collapsed-horizontal.has-header-label.has-footer-label {
+  width: 100% !important;
+  min-width: var(--column-width) !important;
+  max-width: var(--column-width) !important;
+}
+
+/* Column span classes don't apply in horizontal fold */
+.kanban-full-height-column.collapsed-horizontal.column-span-2,
+.kanban-full-height-column.collapsed-horizontal.column-span-3,
+.kanban-full-height-column.collapsed-horizontal.column-span-4 {
+  width: 100% !important;
+  min-width: var(--column-width) !important;
+  max-width: var(--column-width) !important;
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-title .column-row-tag {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 3px;
+}
+
+.kanban-full-height-column.collapsed-horizontal .column-title .kanban-tag {
+  margin: 0 2px;
+  padding: 2px 4px;
+  min-height: unset;
 }

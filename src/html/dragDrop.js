@@ -1683,6 +1683,100 @@ function setupColumnDragAndDrop() {
                 }
             }
 
+            // Update #stack tags based on drop position
+            const stackContainer = columnElement.closest('.kanban-column-stack');
+
+            if (stackContainer) {
+                // Dropped inside a stack
+                const columnsInStack = Array.from(stackContainer.querySelectorAll('.kanban-full-height-column'));
+                const positionInStack = columnsInStack.indexOf(columnElement);
+
+                if (positionInStack === 0) {
+                    // Dropped as FIRST column in stack
+                    // Remove #stack from this column, add #stack to next column
+
+                    // Update dropped column (remove #stack)
+                    if (window.cachedBoard) {
+                        const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+                        if (cachedColumn) {
+                            cachedColumn.title = cachedColumn.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
+                        }
+                    }
+                    if (window.currentBoard) {
+                        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+                        if (currentColumn) {
+                            currentColumn.title = currentColumn.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
+                        }
+                    }
+
+                    // Add #stack to next column (original first column)
+                    if (columnsInStack.length > 1) {
+                        const nextColumnElement = columnsInStack[1];
+                        const nextColumnId = nextColumnElement.getAttribute('data-column-id');
+
+                        if (window.cachedBoard) {
+                            const cachedNextColumn = window.cachedBoard.columns.find(col => col.id === nextColumnId);
+                            if (cachedNextColumn && !/#stack\b/i.test(cachedNextColumn.title)) {
+                                cachedNextColumn.title = cachedNextColumn.title.trim() + ' #stack';
+                            }
+                        }
+                        if (window.currentBoard) {
+                            const currentNextColumn = window.currentBoard.columns.find(col => col.id === nextColumnId);
+                            if (currentNextColumn && !/#stack\b/i.test(currentNextColumn.title)) {
+                                currentNextColumn.title = currentNextColumn.title.trim() + ' #stack';
+                            }
+                        }
+                    }
+                } else if (positionInStack === columnsInStack.length - 1) {
+                    // Dropped as LAST column in stack (at the end)
+                    // Remove #stack from this column
+
+                    if (window.cachedBoard) {
+                        const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+                        if (cachedColumn) {
+                            cachedColumn.title = cachedColumn.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
+                        }
+                    }
+                    if (window.currentBoard) {
+                        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+                        if (currentColumn) {
+                            currentColumn.title = currentColumn.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
+                        }
+                    }
+                } else {
+                    // Dropped BETWEEN stacked columns (middle position)
+                    // Add #stack to dropped column
+
+                    if (window.cachedBoard) {
+                        const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+                        if (cachedColumn && !/#stack\b/i.test(cachedColumn.title)) {
+                            cachedColumn.title = cachedColumn.title.trim() + ' #stack';
+                        }
+                    }
+                    if (window.currentBoard) {
+                        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+                        if (currentColumn && !/#stack\b/i.test(currentColumn.title)) {
+                            currentColumn.title = currentColumn.title.trim() + ' #stack';
+                        }
+                    }
+                }
+            } else {
+                // Dropped OUTSIDE any stack - remove #stack tag
+
+                if (window.cachedBoard) {
+                    const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+                    if (cachedColumn) {
+                        cachedColumn.title = cachedColumn.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
+                    }
+                }
+                if (window.currentBoard) {
+                    const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+                    if (currentColumn) {
+                        currentColumn.title = currentColumn.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
+                    }
+                }
+            }
+
             // Update the visual display
             const titleElement = columnElement.querySelector('.column-title');
             if (titleElement && window.cachedBoard) {

@@ -4,6 +4,23 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- Corrected Summary of Implementation:
+CSS Changes:
+- Grid overlay structure: All stacked columns overlay in single grid cell
+- Full viewport height: Each column min-height: 100vh so sticky works across entire scroll
+- Sticky headers: Position sticky at top with cumulative offsets (0px, 29px, 58px...)
+- Sticky footers: Position sticky at bottom with cumulative offsets (58px, 29px, 0px...)
+- Drag & drop compatible: All handlers preserved on original elements
+JavaScript #stack Tag Logic:
+- Drop between stacked columns or at the end → Adds #stack to dropped column
+- Drop as first in stack → Removes #stack from dropped column, adds #stack to next column
+- Drop outside stack → Removes #stack from dropped column
+What the Implementation Does:
+Stacked columns overlay in same grid position with full viewport height
+Headers stick to top, footers stick to bottom
+Content scrolls naturally as before
+#stack tags automatically managed when dragging columns
+
 - [x] When moving a task into a folded column while pressing alt, the column should not unfold as it usually does.
 
 - [ ] Columns that are in a "vertical stack" have a #stack tag or the next column has a #stack tag. Add a feature to make the columns fold horizontally, but keep the vertical folding function available. An column in a "vertical stack" stack should by default folds to horizontal folding state, a column in outside a stack should fold to vertical fold state. If <alt> is pressed while pressing the fold button again, the horizontal/vertical folding should switch. when pressing <alt> while it's unfolded, fold to the not-default-state. When <alt> is not pressed a folded column unfolds.
@@ -11,6 +28,8 @@ kanban-plugin: board
 - [x] Export and pack of the kanban does not generate the default folder name it should export into (based on the filename of the main kanban file combined with the date-time like "YYYYMMDD-HHmm").
 
 - [ ] if multiple columns are in a vertical stack. can you make all the sticky headers to stick, eighter at the top or the bottom? so if 3 columns are above each other, allways show the headers of all columns. it's to be able to drop items into all rows at all the time.
+
+- [ ] vertically folded columns should allways be next to each other, even if they have the #stack tag.
 
 - [x] it still converts this
 

@@ -1908,7 +1908,7 @@ function unfoldColumnIfCollapsed(columnId, skipUnfold = false) {
         return false; // Skip unfolding
     }
     const column = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
-    if (column?.classList.contains('collapsed')) {
+    if (window.isColumnCollapsed && window.isColumnCollapsed(column)) {
         toggleColumnCollapse(columnId);
         return true; // Column was unfolded
     }
