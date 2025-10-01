@@ -2153,28 +2153,37 @@ function applyStackedColumnStyles() {
             // Filter to only expanded columns
             const expandedColumns = columnData.filter(data => data.isExpanded);
 
-            // Third pass: Calculate all sticky positions from BOTTOM upwards
-            // Step 1: Calculate bottom positions for footers and headers (stacked from bottom)
+            // Third pass: Calculate all sticky positions - BOTH top and bottom
+            // Step 1a: Calculate top positions for headers and footers (stacked from top)
+            let cumulativeStickyTop = 0;
+            const positions = expandedColumns.map((data, expandedIdx) => {
+                const headerTop = cumulativeStickyTop;
+                cumulativeStickyTop += data.headerHeight;
+
+                const footerTop = cumulativeStickyTop;  // Footer right after header
+                cumulativeStickyTop += data.footerHeight + gapPx;  // Add footer height + gap for next column
+
+                return {
+                    ...data,
+                    headerTop,
+                    footerTop,
+                    zIndex: 1000000 + (expandedColumns.length - expandedIdx)
+                };
+            });
+
+            // Step 1b: Calculate bottom positions (stacked from bottom upwards)
             // Iterate BACKWARDS: LAST column (highest index) gets bottom=0 (closest to viewport bottom)
             // FIRST column (index 0) gets largest bottom offset (furthest from viewport bottom)
             let cumulativeFromBottom = 0;
-            const positions = [];
             for (let i = expandedColumns.length - 1; i >= 0; i--) {
-                const data = expandedColumns[i];
-                const expandedIdx = i;
-
                 const footerBottom = cumulativeFromBottom;
-                cumulativeFromBottom += data.footerHeight;
+                cumulativeFromBottom += positions[i].footerHeight;
 
                 const headerBottom = cumulativeFromBottom;  // Header right after footer
-                cumulativeFromBottom += data.headerHeight + gapPx;  // Add header height + gap for next column
+                cumulativeFromBottom += positions[i].headerHeight + gapPx;  // Add header height + gap for next column
 
-                positions[i] = {
-                    ...data,
-                    headerBottom,
-                    footerBottom,
-                    zIndex: 1000000 + (expandedColumns.length - expandedIdx)
-                };
+                positions[i].headerBottom = headerBottom;
+                positions[i].footerBottom = footerBottom;
             }
 
             // Step 3: Calculate padding for column content (creates vertical stacking without stretching column element)
@@ -2185,26 +2194,30 @@ function applyStackedColumnStyles() {
             });
 
             // Step 4: Apply all calculated positions
-            positions.forEach(({ col, index, header, footer, headerBottom, footerBottom, contentPadding, zIndex }) => {
+            positions.forEach(({ col, index, header, footer, headerTop, footerTop, headerBottom, footerBottom, contentPadding, zIndex }) => {
                 // Store calculated positions on the column element
+                col.dataset.headerTop = headerTop;
+                col.dataset.footerTop = footerTop;
                 col.dataset.headerBottom = headerBottom;
                 col.dataset.footerBottom = footerBottom;
                 col.dataset.zIndex = zIndex;
 
-                // Position header+footer sticky at BOTTOM using bottom property ONLY
+                // Position header+footer sticky with BOTH top AND bottom
                 if (header) {
                     header.style.position = 'sticky';
+                    header.style.top = `${headerTop}px`;
                     header.style.bottom = `${headerBottom}px`;
                     header.style.zIndex = zIndex;
                 }
 
                 if (footer) {
                     footer.style.position = 'sticky';
+                    footer.style.top = `${footerTop}px`;
                     footer.style.bottom = `${footerBottom}px`;
                     footer.style.zIndex = zIndex;
                 }
 
-                console.log(`[DEBUG-STACK] Initial setup - Column ${index}: headerBottom=${headerBottom}px, footerBottom=${footerBottom}px, contentPadding=${contentPadding}px`);
+                console.log(`[DEBUG-STACK] Initial setup - Column ${index}: headerTop=${headerTop}px, footerTop=${footerTop}px, headerBottom=${headerBottom}px, footerBottom=${footerBottom}px, contentPadding=${contentPadding}px`);
 
                 // Apply padding to column-offset to push column content down
                 const columnOffset = col.querySelector('.column-offset');
