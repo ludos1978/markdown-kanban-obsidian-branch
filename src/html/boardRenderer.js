@@ -2170,38 +2170,147 @@ function applyStackedColumnStyles() {
                 };
             });
 
-            // Step 2: Calculate padding for content (accounts for full column heights)
+            // Step 2: Calculate footer bottom positions (stacked from bottom, reverse order)
+            let cumulativeBottom = 0;
+            for (let i = expandedColumns.length - 1; i >= 0; i--) {
+                positions[i].footerBottom = cumulativeBottom;
+                cumulativeBottom += positions[i].footerHeight + gapPx;
+            }
+
+            // Step 3: Calculate padding for content (accounts for full column heights)
             let cumulativePadding = 0;
             positions.forEach((pos, idx) => {
                 pos.paddingTop = idx > 0 ? cumulativePadding : 0;
                 cumulativePadding += pos.totalHeight + gapPx;
             });
 
-            // Step 3: Apply all calculated positions
-            positions.forEach(({ col, index, header, footer, headerTop, footerTop, paddingTop, zIndex }) => {
-                // Position header
+            // Step 4: Apply all calculated positions and setup observers
+            positions.forEach(({ col, index, header, footer, headerTop, footerTop, footerBottom, paddingTop, zIndex }) => {
+                // Store calculated positions on the column element for scroll handler
+                col.dataset.headerTop = headerTop;
+                col.dataset.footerTop = footerTop;
+                col.dataset.footerBottom = footerBottom;
+                col.dataset.zIndex = zIndex;
+
+                // Initially position header+footer sticky at top
                 if (header) {
+                    header.style.position = 'sticky';
                     header.style.top = `${headerTop}px`;
+                    header.style.bottom = '';
                     header.style.zIndex = zIndex;
                 }
 
-                // Position column-footer with calculated top offset
                 if (footer) {
-                    footer.style.top = `${footerTop}px`;
                     footer.style.position = 'sticky';
+                    footer.style.top = `${footerTop}px`;
+                    footer.style.bottom = '';
                     footer.style.zIndex = zIndex;
-                    footer.style.bottom = '';  // Clear any bottom positioning
-
-                    console.log(`[kanban.stacked-columns] Column ${index}: header top=${headerTop}px, footer top=${footerTop}px, padding-top=${paddingTop}px`);
                 }
 
-                // Apply padding to column
-                col.style.paddingTop = paddingTop > 0 ? `${paddingTop}px` : '';
+                console.log(`[kanban.stacked-columns] Column ${index}: header top=${headerTop}px, footer top=${footerTop}px, footer bottom=${footerBottom}px, margin-top=${paddingTop}px`);
+
+                // Apply margin to column
+                col.style.marginTop = paddingTop > 0 ? `${paddingTop}px` : '';
             });
+
+            // Step 5: Setup scroll handler to ensure all headers are always visible
+            setupStackedColumnScrollHandler(expandedColumns);
         }
     });
 }
 window.applyStackedColumnStyles = applyStackedColumnStyles;
+
+/**
+ * Setup scroll handler to keep all column headers visible at all times
+ * Uses position:sticky for top, position:fixed for bottom (sticky bottom doesn't work with margin-top positioning)
+ */
+function setupStackedColumnScrollHandler(columnsData) {
+    // Remove existing scroll handler if any
+    if (window.stackedColumnScrollHandler) {
+        window.removeEventListener('scroll', window.stackedColumnScrollHandler, true);
+    }
+
+    // Store columns data
+    window.stackedColumnsData = columnsData;
+
+    // Create scroll handler with FIXED positioning for bottom headers
+    const scrollHandler = () => {
+        if (!window.stackedColumnsData) return;
+
+        const scrollY = window.scrollY || window.pageYOffset;
+        const viewportHeight = window.innerHeight;
+        const viewportBottom = scrollY + viewportHeight;
+
+        window.stackedColumnsData.forEach(({ col }) => {
+            const header = col.querySelector('.column-header');
+            const footer = col.querySelector('.column-footer');
+            if (!header || !footer) return;
+
+            const headerTop = parseFloat(col.dataset.headerTop || 0);
+            const footerTop = parseFloat(col.dataset.footerTop || 0);
+            const footerBottom = parseFloat(col.dataset.footerBottom || 0);
+            const zIndex = parseInt(col.dataset.zIndex || 100);
+            const colIndex = col.dataset.columnIndex;
+
+            // Calculate where the header would be if it was sticking to top
+            // This is the CUMULATIVE height of all headers+footers above this one
+            const whereHeaderWouldStickToTop = headerTop;
+
+            // If this position is below the viewport bottom, header should stick to bottom instead
+            const isCompletelyBelowViewport = whereHeaderWouldStickToTop > viewportBottom;
+
+            console.log(`[kanban.stacked-scroll] Column ${colIndex}: headerTop=${headerTop.toFixed(0)}, scrollY=${scrollY.toFixed(0)}, viewportBottom=${viewportBottom.toFixed(0)}, isBelow=${isCompletelyBelowViewport}`);
+
+            if (isCompletelyBelowViewport) {
+                // Column is completely below viewport - use FIXED positioning at BOTTOM
+                const headerBottom = footerBottom + footer.offsetHeight;
+
+                header.style.position = 'fixed';
+                header.style.top = '';
+                header.style.bottom = `${headerBottom}px`;
+                header.style.left = rect.left + 'px';
+                header.style.right = '0';
+                header.style.zIndex = zIndex;
+
+                footer.style.position = 'fixed';
+                footer.style.top = '';
+                footer.style.bottom = `${footerBottom}px`;
+                footer.style.left = rect.left + 'px';
+                footer.style.right = '0';
+                footer.style.zIndex = zIndex;
+
+                console.log(`[kanban.stacked-scroll] Column ${colIndex} BELOW viewport - FIXED at BOTTOM (bottom=${footerBottom})`);
+            } else {
+                // Column is visible or above viewport - use STICKY at TOP
+                header.style.position = 'sticky';
+                header.style.top = `${headerTop}px`;
+                header.style.bottom = '';
+                header.style.left = '';
+                header.style.right = '';
+                header.style.zIndex = zIndex;
+
+                footer.style.position = 'sticky';
+                footer.style.top = `${footerTop}px`;
+                footer.style.bottom = '';
+                footer.style.left = '';
+                footer.style.right = '';
+                footer.style.zIndex = zIndex;
+
+                console.log(`[kanban.stacked-scroll] Column ${colIndex} VISIBLE/ABOVE - STICKY at TOP (top=${headerTop})`);
+            }
+        });
+    };
+
+    // Store handler reference
+    window.stackedColumnScrollHandler = scrollHandler;
+
+    // Attach scroll listener
+    window.addEventListener('scroll', scrollHandler, true);
+
+    // Run once immediately
+    scrollHandler();
+}
+window.setupStackedColumnScrollHandler = setupStackedColumnScrollHandler;
 
 /**
  * Toggles a task between collapsed and expanded states

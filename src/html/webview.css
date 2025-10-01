@@ -1840,12 +1840,12 @@ button.file-bar-menu-item {
   /* top value is set dynamically by applyStackedColumnStyles() */
 }
 
-/* Sticky footers at bottom with dynamic offsets (set by JavaScript) */
+/* Sticky footers at top with dynamic offsets (set by JavaScript, positioned after headers) */
 .kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-footer {
   position: sticky;
   background: var(--vscode-editor-background);
   z-index: 100;
-  /* bottom value is set dynamically by applyStackedColumnStyles() */
+  /* top value is set dynamically by applyStackedColumnStyles() */
 }
 
 /* Visual separation - add padding to content of stacked columns */
