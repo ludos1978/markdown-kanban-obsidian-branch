@@ -553,7 +553,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 .column-footer {
 	padding-top: var(--whitespace);
 	position: sticky;
-	top: 28px;
+	/* top: 28px; */
 	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
 	border-left: 0.5px solid var(--vscode-panel-border);
 	border-right: 0.5px solid var(--vscode-panel-border);
@@ -644,7 +644,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   align-items: center;
   margin-bottom: var(--whitespace);
   position: sticky;
-  top: var(--whitespace-div2);
+  /* top: var(--whitespace-div2); */
   z-index: 10;
   background-color: var(--vscode-editor-background);
 	border-radius: 4px 4px 0px 0px;
@@ -1821,6 +1821,7 @@ button.file-bar-menu-item {
   display: grid;
   grid-template: 1fr / 1fr;
   position: relative;
+	height: 100%;
 }
 
 /* All expanded columns overlay in same grid cell */

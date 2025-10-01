@@ -1652,6 +1652,7 @@ function createColumnElement(column, columnIndex) {
 
 		// the column-header MUST be outside the column-inner to be able to be sticky over the full height!!!
     columnDiv.innerHTML = `
+				<div class="column-offset"></div>
 				<div class="column-header">
 						${headerBarsHtml || ''}
 						${cornerBadgesHtml}
@@ -2152,26 +2153,26 @@ function applyStackedColumnStyles() {
             // Filter to only expanded columns
             const expandedColumns = columnData.filter(data => data.isExpanded);
 
-            // Third pass: Calculate all sticky positions from BOTTOM upwards using calc(100vh - offset)
-            // Step 1: Calculate positions for footers and headers (stacked from bottom)
-            // Iterate BACKWARDS: LAST column (highest index) gets smallest offset (closest to viewport bottom)
-            // FIRST column (index 0) gets largest offset (furthest from viewport bottom)
+            // Third pass: Calculate all sticky positions from BOTTOM upwards
+            // Step 1: Calculate bottom positions for footers and headers (stacked from bottom)
+            // Iterate BACKWARDS: LAST column (highest index) gets bottom=0 (closest to viewport bottom)
+            // FIRST column (index 0) gets largest bottom offset (furthest from viewport bottom)
             let cumulativeFromBottom = 0;
             const positions = [];
             for (let i = expandedColumns.length - 1; i >= 0; i--) {
                 const data = expandedColumns[i];
                 const expandedIdx = i;
 
-                const footerTopOffset = cumulativeFromBottom;
+                const footerBottom = cumulativeFromBottom;
                 cumulativeFromBottom += data.footerHeight;
 
-                const headerTopOffset = cumulativeFromBottom;  // Header right after footer
+                const headerBottom = cumulativeFromBottom;  // Header right after footer
                 cumulativeFromBottom += data.headerHeight + gapPx;  // Add header height + gap for next column
 
                 positions[i] = {
                     ...data,
-                    headerTopOffset,
-                    footerTopOffset,
+                    headerBottom,
+                    footerBottom,
                     zIndex: 1000000 + (expandedColumns.length - expandedIdx)
                 };
             }
@@ -2183,34 +2184,32 @@ function applyStackedColumnStyles() {
                 cumulativePadding += pos.totalHeight + gapPx;
             });
 
-            // Step 4: Apply all calculated positions and setup observers
-            positions.forEach(({ col, index, header, footer, headerTopOffset, footerTopOffset, contentPadding, zIndex }) => {
-                // Store calculated positions on the column element for scroll handler
-                col.dataset.headerTopOffset = headerTopOffset;
-                col.dataset.footerTopOffset = footerTopOffset;
+            // Step 4: Apply all calculated positions
+            positions.forEach(({ col, index, header, footer, headerBottom, footerBottom, contentPadding, zIndex }) => {
+                // Store calculated positions on the column element
+                col.dataset.headerBottom = headerBottom;
+                col.dataset.footerBottom = footerBottom;
                 col.dataset.zIndex = zIndex;
 
-                // Position header+footer sticky near BOTTOM using top: calc(100vh - offset)
+                // Position header+footer sticky at BOTTOM using bottom property ONLY
                 if (header) {
                     header.style.position = 'sticky';
-                    header.style.top = `calc(100vh - ${headerTopOffset + header.offsetHeight}px)`;
-                    header.style.bottom = '';
+                    header.style.bottom = `${headerBottom}px`;
                     header.style.zIndex = zIndex;
                 }
 
                 if (footer) {
                     footer.style.position = 'sticky';
-                    footer.style.top = `calc(100vh - ${footerTopOffset + footer.offsetHeight}px)`;
-                    footer.style.bottom = '';
+                    footer.style.bottom = `${footerBottom}px`;
                     footer.style.zIndex = zIndex;
                 }
 
-                console.log(`[DEBUG-STACK] Initial setup - Column ${index}: headerTopOffset=${headerTopOffset}px, footerTopOffset=${footerTopOffset}px, contentPadding=${contentPadding}px`);
+                console.log(`[DEBUG-STACK] Initial setup - Column ${index}: headerBottom=${headerBottom}px, footerBottom=${footerBottom}px, contentPadding=${contentPadding}px`);
 
-                // Apply padding to column-inner to push content down (not column element itself)
-                const columnInner = col.querySelector('.column-inner');
-                if (columnInner) {
-                    columnInner.style.paddingTop = contentPadding > 0 ? `${contentPadding}px` : '';
+                // Apply padding to column-offset to push column content down
+                const columnOffset = col.querySelector('.column-offset');
+                if (columnOffset) {
+                    columnOffset.style.paddingTop = contentPadding > 0 ? `${contentPadding}px` : '';
                 }
             });
         }
