@@ -655,16 +655,22 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex-direction: column;
 }
 
-.kanban-full-height-column::before {
+/* .kanban-full-height-column::before,
+.column-header::before {
 	content: '';
 	position: sticky;
 	top: 0px;
 	left: 0;
 	right: 0;
-	height: var(--whitespace-div2);
+	height: var(--whitespace);
 	background-color: var(--vscode-editor-background);
 	z-index: 11;
-}
+} */
+
+/* .column-offset {
+	height: var(--whitespace);
+	background: black;
+} */
 
 .column-header:not(:has(.header-bars-container):has(.header-bar)) {
 	border-top: 0.5px solid var(--vscode-panel-border);
@@ -1837,6 +1843,18 @@ button.file-bar-menu-item {
 .kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-footer,
 .kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-inner {
   pointer-events: auto;
+}
+
+/* Add background to column-inner to hide content from columns below */
+.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-inner {
+  background: var(--vscode-editor-background);
+}
+
+/* Margin spacer above column-header with background (top/bottom set dynamically by JavaScript) */
+.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-margin {
+  position: sticky;
+  background: var(--vscode-editor-background);
+  height: var(--whitespace);
 }
 
 /* Sticky headers at bottom with dynamic offsets (set by JavaScript inline styles) */

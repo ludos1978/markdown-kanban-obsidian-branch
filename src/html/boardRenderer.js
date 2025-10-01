@@ -1653,6 +1653,7 @@ function createColumnElement(column, columnIndex) {
 		// the column-header MUST be outside the column-inner to be able to be sticky over the full height!!!
     columnDiv.innerHTML = `
 				<div class="column-offset"></div>
+				<div class="column-margin"></div>
 				<div class="column-header">
 						${headerBarsHtml || ''}
 						${cornerBadgesHtml}
@@ -2194,7 +2195,7 @@ function applyStackedColumnStyles() {
             });
 
             // Step 4: Apply all calculated positions
-            positions.forEach(({ col, index, header, footer, headerTop, footerTop, headerBottom, footerBottom, contentPadding, zIndex }) => {
+            positions.forEach(({ col, index, header, footer, headerHeight, headerTop, footerTop, headerBottom, footerBottom, contentPadding, zIndex }) => {
                 // Store calculated positions on the column element
                 col.dataset.headerTop = headerTop;
                 col.dataset.footerTop = footerTop;
@@ -2219,10 +2220,21 @@ function applyStackedColumnStyles() {
 
                 console.log(`[DEBUG-STACK] Initial setup - Column ${index}: headerTop=${headerTop}px, footerTop=${footerTop}px, headerBottom=${headerBottom}px, footerBottom=${footerBottom}px, contentPadding=${contentPadding}px`);
 
-                // Apply padding to column-offset to push column content down
+                // Apply margin to column-offset to push column content down
                 const columnOffset = col.querySelector('.column-offset');
                 if (columnOffset) {
-                    columnOffset.style.paddingTop = contentPadding > 0 ? `${contentPadding}px` : '';
+                    columnOffset.style.marginTop = contentPadding > 0 ? `${contentPadding}px` : '';
+                }
+
+                // Set column-margin top and bottom same as header, but --whitespace smaller
+                const columnMargin = col.querySelector('.column-margin');
+                if (columnMargin) {
+                    const marginTop = Math.max(0, headerTop - gapPx);
+                    const marginBottom = headerBottom + headerHeight;
+                    columnMargin.style.position = 'sticky';
+                    columnMargin.style.top = `${marginTop}px`;
+                    columnMargin.style.bottom = `${marginBottom}px`;
+                    columnMargin.style.zIndex = zIndex;
                 }
             });
         }
