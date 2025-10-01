@@ -1883,6 +1883,35 @@ function setupColumnDragAndDrop() {
             }
         });
     });
+
+    // Add dragover handler to stack containers to allow dropping at the end
+    const stacks = document.querySelectorAll('.kanban-column-stack');
+    stacks.forEach(stack => {
+        stack.addEventListener('dragover', e => {
+            if (!dragState.draggedColumn) {return;}
+
+            e.preventDefault();
+
+            // Check if mouse is below all columns
+            const columns = Array.from(stack.querySelectorAll('.kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal)'));
+            if (columns.length === 0) {return;}
+
+            const lastColumn = columns[columns.length - 1];
+            const lastRect = lastColumn.getBoundingClientRect();
+
+            // If mouse is below the last column, append to end
+            if (e.clientY > lastRect.bottom || e.clientX > lastRect.right) {
+                if (dragState.draggedColumn !== stack.lastElementChild) {
+                    stack.appendChild(dragState.draggedColumn);
+
+                    // Recalculate stack positioning after DOM reorder
+                    if (typeof window.applyStackedColumnStyles === 'function') {
+                        window.applyStackedColumnStyles();
+                    }
+                }
+            }
+        });
+    });
 }
 
 function calculateColumnNewPosition(draggedColumn) {
