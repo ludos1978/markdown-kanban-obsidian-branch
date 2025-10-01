@@ -419,7 +419,7 @@ function applyDefaultFoldingState() {
             const foldMode = getDefaultFoldMode(column.id);
             window.columnFoldModes.set(column.id, foldMode);
             if (foldMode === 'vertical') {
-                columnElement?.classList.add('collapsed');
+                columnElement?.classList.add('collapsed-vertical');
             } else {
                 columnElement?.classList.add('collapsed-horizontal');
             }
@@ -428,7 +428,7 @@ function applyDefaultFoldingState() {
             // Non-empty columns should be expanded by default
             window.collapsedColumns.delete(column.id);
             window.columnFoldModes.delete(column.id);
-            columnElement?.classList.remove('collapsed', 'collapsed-horizontal');
+            columnElement?.classList.remove('collapsed-vertical', 'collapsed-horizontal');
             toggle?.classList.remove('rotated');
         }
     });
@@ -545,7 +545,7 @@ function toggleAllColumns() {
             const foldMode = getDefaultFoldMode(column.id);
             window.columnFoldModes.set(column.id, foldMode);
             if (foldMode === 'vertical') {
-                columnElement?.classList.add('collapsed');
+                columnElement?.classList.add('collapsed-vertical');
             } else {
                 columnElement?.classList.add('collapsed-horizontal');
             }
@@ -633,7 +633,7 @@ function applyFoldingStates() {
             // Get fold mode from map, or use default based on stack status
             const foldMode = window.columnFoldModes?.get(columnId) || getDefaultFoldMode(columnId);
             if (foldMode === 'vertical') {
-                columnElement.classList.add('collapsed');
+                columnElement.classList.add('collapsed-vertical');
             } else {
                 columnElement.classList.add('collapsed-horizontal');
             }
@@ -1111,7 +1111,12 @@ function renderSingleColumn(columnId, columnData) {
 
     // Apply current column state (collapsed/expanded)
     if (window.collapsedColumns && window.collapsedColumns.has(columnId)) {
-        newColumnElement.classList.add('collapsed');
+        const foldMode = window.columnFoldModes?.get(columnId) || getDefaultFoldMode(columnId);
+        if (foldMode === 'vertical') {
+            newColumnElement.classList.add('collapsed-vertical');
+        } else {
+            newColumnElement.classList.add('collapsed-horizontal');
+        }
         const toggle = newColumnElement.querySelector('.collapse-toggle');
         if (toggle) {
             toggle.classList.add('rotated');
@@ -1507,7 +1512,12 @@ function toggleAllTasksInColumn(columnId) {
     
     // Update the fold button appearance
     updateFoldAllButton(columnId);
-    
+
+    // Recalculate stacked column heights after fold/unfold
+    if (typeof window.applyStackedColumnStyles === 'function') {
+        window.applyStackedColumnStyles();
+    }
+
     // Save state immediately
     if (window.saveCurrentFoldingState) {
         window.saveCurrentFoldingState();
@@ -1984,7 +1994,7 @@ function toggleColumnCollapse(columnId, event) {
     if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
     if (!window.columnFoldModes) {window.columnFoldModes = new Map();}
 
-    const isCurrentlyCollapsed = column.classList.contains('collapsed') ||
+    const isCurrentlyCollapsed = column.classList.contains('collapsed-vertical') ||
                                   column.classList.contains('collapsed-horizontal');
     const altPressed = event?.altKey || false;
     const defaultMode = getDefaultFoldMode(columnId);
@@ -1995,7 +2005,7 @@ function toggleColumnCollapse(columnId, event) {
         if (altPressed) {
             // Alt+click on folded column: switch fold mode (stay folded)
             const newMode = currentMode === 'vertical' ? 'horizontal' : 'vertical';
-            column.classList.remove('collapsed', 'collapsed-horizontal');
+            column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
             if (newMode === 'vertical') {
                 column.classList.add('collapsed');
             } else {
@@ -2004,7 +2014,7 @@ function toggleColumnCollapse(columnId, event) {
             window.columnFoldModes.set(columnId, newMode);
         } else {
             // Normal click on folded column: unfold
-            column.classList.remove('collapsed', 'collapsed-horizontal');
+            column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
             toggle.classList.remove('rotated');
             window.collapsedColumns.delete(columnId);
             window.columnFoldModes.delete(columnId);
@@ -2013,7 +2023,7 @@ function toggleColumnCollapse(columnId, event) {
         // Currently unfolded
         const targetMode = altPressed ? (defaultMode === 'vertical' ? 'horizontal' : 'vertical') : defaultMode;
         if (targetMode === 'vertical') {
-            column.classList.add('collapsed');
+            column.classList.add('collapsed-vertical');
         } else {
             column.classList.add('collapsed-horizontal');
         }
@@ -2021,13 +2031,7 @@ function toggleColumnCollapse(columnId, event) {
         window.collapsedColumns.add(columnId);
         window.columnFoldModes.set(columnId, targetMode);
 
-        // Reset height for collapsed column - let it use natural size
-        const columnInner = column.querySelector('.column-inner');
-        if (columnInner) {
-            columnInner.style.minHeight = '';
-            columnInner.style.overflowY = 'visible';
-        }
-        column.style.minHeight = '';
+        // CSS handles hiding via display: none on collapsed column-inner
     }
 
     // Save state immediately
@@ -2064,9 +2068,9 @@ function applyStackedColumnStyles() {
     stacks.forEach(stack => {
         const columns = Array.from(stack.querySelectorAll('.kanban-full-height-column'));
 
-        // Check if all columns in stack are vertically folded (.collapsed)
+        // Check if all columns in stack are vertically folded (.collapsed-vertical)
         const allVerticalFolded = columns.length > 0 && columns.every(col =>
-            col.classList.contains('collapsed') && !col.classList.contains('collapsed-horizontal')
+            col.classList.contains('collapsed-vertical')
         );
 
         if (allVerticalFolded) {
@@ -2100,65 +2104,59 @@ function applyStackedColumnStyles() {
             void stack.offsetHeight;
 
             // Second pass: measure actual content heights (header + content + footer)
-            // Store all measurements for later use
+            // Store all measurements for later use (INCLUDING collapsed columns)
             const columnData = [];
             columns.forEach((col, idx) => {
-                const isVerticallyFolded = col.classList.contains('collapsed') && !col.classList.contains('collapsed-horizontal');
-                if (!isVerticallyFolded) {
-                    const header = col.querySelector('.column-header');
-                    const footer = col.querySelector('.column-footer');
-                    const content = col.querySelector('.column-inner');
+                const isVerticallyFolded = col.classList.contains('collapsed-vertical');
+                const isHorizontallyFolded = col.classList.contains('collapsed-horizontal');
 
-                    // Force reflow on each header to ensure bars are included in measurement
-                    if (header) {void header.offsetHeight;}
-                    if (footer) {void footer.offsetHeight;}
+                const header = col.querySelector('.column-header');
+                const footer = col.querySelector('.column-footer');
+                const content = col.querySelector('.column-inner');
 
-                    const headerHeight = header ? header.offsetHeight : 0;
-                    const footerHeight = footer ? footer.offsetHeight : 0;
-                    const contentHeight = content ? content.scrollHeight : 0;
+                // Force reflow on each header to ensure bars are included in measurement
+                if (header) {void header.offsetHeight;}
+                if (footer) {void footer.offsetHeight;}
 
-                    // Measure footer bars separately (in column-footer for stacked)
-                    const footerBarsContainer = footer ? footer.querySelector('.stacked-footer-bars') : null;
-                    const footerBarsHeight = footerBarsContainer ? footerBarsContainer.offsetHeight : 0;
+                const headerHeight = header ? header.offsetHeight : 0;
+                const footerHeight = footer ? footer.offsetHeight : 0;
+                // For both collapsed types, don't include content height (column-inner is hidden via CSS)
+                const contentHeight = (isVerticallyFolded || isHorizontallyFolded) ? 0 : (content ? content.scrollHeight : 0);
 
-                    // DEBUG: Check if bars exist and their heights
-                    const headerBarsContainer = header ? header.querySelector('.header-bars-container') : null;
-                    const headerBarCount = headerBarsContainer ? headerBarsContainer.children.length : 0;
-                    const footerBarCount = footerBarsContainer ? footerBarsContainer.children.length : 0;
-                    console.log(`[kanban.stacked-columns-DEBUG] Column ${idx}: ${headerBarCount} header-bars, ${footerBarCount} footer-bars (${footerBarsHeight}px)`);
+                // Measure footer bars separately (in column-footer for stacked)
+                const footerBarsContainer = footer ? footer.querySelector('.stacked-footer-bars') : null;
+                const footerBarsHeight = footerBarsContainer ? footerBarsContainer.offsetHeight : 0;
 
-                    const totalHeight = headerHeight + footerHeight + contentHeight;
-                    console.log(`[kanban.stacked-columns] Column ${idx}: header=${headerHeight}px, footer=${footerHeight}px (includes ${footerBarsHeight}px bars), content=${contentHeight}px, total=${totalHeight}px`);
+                // DEBUG: Check if bars exist and their heights
+                const headerBarsContainer = header ? header.querySelector('.header-bars-container') : null;
+                const headerBarCount = headerBarsContainer ? headerBarsContainer.children.length : 0;
+                const footerBarCount = footerBarsContainer ? footerBarsContainer.children.length : 0;
+                const statusLabel = isVerticallyFolded ? 'COLLAPSED-VERTICAL' : (isHorizontallyFolded ? 'COLLAPSED-HORIZONTAL' : 'expanded');
+                console.log(`[kanban.stacked-columns-DEBUG] Column ${idx} (${statusLabel}): ${headerBarCount} header-bars, ${footerBarCount} footer-bars (${footerBarsHeight}px)`);
 
-                    columnData.push({
-                        col,
-                        index: idx,
-                        header,
-                        footer,
-                        headerHeight,
-                        footerHeight,
-                        contentHeight,
-                        totalHeight,
-                        footerBarsContainer,
-                        footerBarsHeight,
-                        isExpanded: true
-                    });
-                } else {
-                    columnData.push({
-                        col,
-                        index: idx,
-                        isExpanded: false,
-                        totalHeight: 0,
-                        headerHeight: 0,
-                        footerHeight: 0
-                    });
-                }
+                const totalHeight = headerHeight + footerHeight + contentHeight;
+                console.log(`[kanban.stacked-columns] Column ${idx} (${statusLabel}): header=${headerHeight}px, footer=${footerHeight}px (includes ${footerBarsHeight}px bars), content=${contentHeight}px, total=${totalHeight}px`);
+
+                columnData.push({
+                    col,
+                    index: idx,
+                    header,
+                    footer,
+                    headerHeight,
+                    footerHeight,
+                    contentHeight,
+                    totalHeight,
+                    footerBarsContainer,
+                    footerBarsHeight,
+                    isVerticallyFolded,
+                    isHorizontallyFolded
+                });
             });
 
-            // Filter to only expanded columns
-            const expandedColumns = columnData.filter(data => data.isExpanded);
+            // All columns stay in the stack - both collapsed types just have contentHeight=0
+            const expandedColumns = columnData;
 
-            // Third pass: Calculate all sticky positions - BOTH top and bottom
+            // Third pass: Calculate all sticky positions - BOTH top and bottom (ONLY for expanded columns)
             // Step 1a: Calculate top positions for headers and footers (stacked from top)
             let cumulativeStickyTop = 0;
             const positions = expandedColumns.map((data, expandedIdx) => {
@@ -2198,8 +2196,9 @@ function applyStackedColumnStyles() {
                 cumulativePadding += pos.totalHeight + gapPx;
             });
 
-            // Step 4: Apply all calculated positions
-            positions.forEach(({ col, index, header, footer, headerHeight, headerTop, footerTop, headerBottom, footerBottom, contentPadding, zIndex }) => {
+            // Step 4: Apply all calculated positions to ALL columns
+            positions.forEach(({ col, index, header, footer, headerHeight, headerTop, footerTop, headerBottom, footerBottom, contentPadding, zIndex, isVerticallyFolded, isHorizontallyFolded }) => {
+                const isCollapsed = isVerticallyFolded || isHorizontallyFolded;
                 // Store calculated positions on the column element
                 col.dataset.headerTop = headerTop;
                 col.dataset.footerTop = footerTop;
@@ -2362,20 +2361,25 @@ window.setupStackedColumnScrollHandler = setupStackedColumnScrollHandler;
 function toggleTaskCollapse(taskId) {
     const task = document.querySelector(`[data-task-id="${taskId}"]`);
     const toggle = task.querySelector('.task-collapse-toggle');
-    
+
     task.classList.toggle('collapsed');
     toggle.classList.toggle('rotated');
-    
+
     // Ensure state variables are initialized
     if (!window.collapsedTasks) {window.collapsedTasks = new Set();}
-    
+
     // Store state
     if (task.classList.contains('collapsed')) {
         window.collapsedTasks.add(taskId);
     } else {
         window.collapsedTasks.delete(taskId);
     }
-    
+
+    // Recalculate stacked column heights after collapse/expand
+    if (typeof window.applyStackedColumnStyles === 'function') {
+        window.applyStackedColumnStyles();
+    }
+
     // Save state immediately
     if (window.saveCurrentFoldingState) {
         window.saveCurrentFoldingState();

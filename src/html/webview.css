@@ -575,14 +575,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
   margin: 0 var(--whitespace) var(--whitespace) var(--whitespace);
 }
 
-.kanban-full-height-column.collapsed .column-inner {
-  overflow: visible;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  height: auto;
-  min-height: auto;
-}
 
 .header-bars-container,
 .footer-bars-container {
@@ -625,17 +617,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex-shrink: 0;
 }
 
-.kanban-full-height-column.collapsed {
-  /* Use natural sizing for collapsed columns */
-  overflow: visible;
-  /* min-height: auto;
-  height: auto; */
-  width: min-content;
-  position: sticky;
-  top: 0;
-  align-self: flex-start;
-  z-index: 5;
-}
 
 /* Column header */
 .column-header {
@@ -680,19 +661,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	border-bottom: 0.5px solid var(--vscode-panel-border);
 }
 
-.kanban-full-height-column.collapsed .column-header {
-  flex-direction: column;
-  /* border: 0.5px solid var(--vscode-panel-border); */
-  border-radius: 4px 4px 0px 0px;
-  align-items: center;
-  flex: none;
-  display: flex;
-  min-height: 0;
-  box-sizing: border-box;
-  position: sticky;
-  top: 0px;
-  background-color: var(--vscode-editor-background);
-}
 
 /* Column title section */
 .column-title-section {
@@ -714,16 +682,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex-direction: column;
 }
 
-.kanban-full-height-column.collapsed .column-title-section {
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  margin: 0;
-}
 
 /* Column title */
 .column-title,
@@ -817,26 +775,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   color: var(--vscode-errorForeground, #f48771) !important;
 }
 
-.kanban-full-height-column.collapsed .column-title {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* min-height: 100px; */
-  flex: 1;
-  width: 100%;
-  padding: 5px 0;
-  margin: 0;
-  gap: 4px;
-  white-space: nowrap;
-}
 
-.kanban-full-height-column.collapsed .column-title,
-.kanban-full-height-column.collapsed .column-title * {
-  min-width: 0;
-  width: 100%;
-}
 
 /* Left side controls (drag handle, collapse toggle) */
 .column-left-controls {
@@ -862,26 +801,13 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex-shrink: 0;
 }
 
-.kanban-full-height-column.collapsed .column-controls {
-  flex-direction: column;
-  gap: var(--whitespace);
-  margin-top: auto;
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
 
 /* Tasks container must allow the children to be overflow visible! */
 .tasks-container {
   overflow: visible;
 }
 
-.kanban-full-height-column.collapsed .column-content {
-  display: none !important;
-}
 
-.kanban-full-height-column.collapsed .fold-all-btn {
-  display: none !important;
-}
 
 /* Task items */
 .task-item {
@@ -922,7 +848,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.task-item.collapsed .task-description-container {
+.task-item.collapsed-vertical .task-description-container {
   display: none;
 }
 
@@ -1002,9 +928,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
   transform: rotate(0deg);
 }
 
-.kanban-full-height-column.collapsed .collapse-toggle {
-  margin: 1px 2px auto;
-}
 
 .task-collapse-toggle {
   cursor: pointer;
@@ -1184,9 +1107,6 @@ body.section-height-limited .task-section figure img {
   min-width: 0;
 }
 
-.kanban-full-height-column.collapsed .column-title-edit {
-  display: none !important;
-}
 
 .task-title-edit {
   font-size: 14px;
@@ -1283,9 +1203,6 @@ body.vscode-high-contrast-light .task-count {
   color: var(--vscode-foreground);
 }
 
-.kanban-full-height-column.collapsed .task-count {
-  writing-mode: horizontal-tb;
-}
 
 
 /* Fold buttons */
@@ -1361,9 +1278,6 @@ body.vscode-high-contrast-light .task-count {
   opacity: 0.8;
 }
 
-.kanban-full-height-column.collapsed .fold-all-btn {
-  writing-mode: horizontal-tb;
-}
 
 
 /* File control buttons */
@@ -1830,35 +1744,39 @@ button.file-bar-menu-item {
 	height: 100%;
 }
 
-/* All expanded columns overlay in same grid cell */
-.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) {
+/* All columns in grid */
+.kanban-column-stack .kanban-full-height-column {
   grid-row: 1;
   grid-column: 1;
   align-self: start;
+}
+
+/* Only expanded columns overlay with pointer-events */
+.kanban-column-stack .kanban-full-height-column {
   pointer-events: none;
 }
 
 /* Re-enable pointer events on interactive child elements */
-.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-header,
-.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-footer,
-.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-inner {
+.kanban-column-stack .kanban-full-height-column .column-header,
+.kanban-column-stack .kanban-full-height-column .column-footer,
+.kanban-column-stack .kanban-full-height-column .column-inner {
   pointer-events: auto;
 }
 
 /* Add background to column-inner to hide content from columns below */
-.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-inner {
+.kanban-column-stack .kanban-full-height-column .column-inner {
   background: var(--vscode-editor-background);
 }
 
 /* Margin spacer above column-header with background (top/bottom set dynamically by JavaScript) */
-.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-margin {
+.kanban-column-stack .kanban-full-height-column .column-margin {
   position: sticky;
   background: var(--vscode-editor-background);
   height: var(--whitespace);
 }
 
 /* Sticky headers at bottom with dynamic offsets (set by JavaScript inline styles) */
-.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-header {
+.kanban-column-stack .kanban-full-height-column .column-header {
   position: sticky;
   background: var(--vscode-editor-background);
   z-index: 100;
@@ -1866,15 +1784,21 @@ button.file-bar-menu-item {
 }
 
 /* Sticky footers at bottom with dynamic offsets (set by JavaScript inline styles) */
-.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-footer {
+.kanban-column-stack .kanban-full-height-column .column-footer {
   position: sticky;
   background: var(--vscode-editor-background);
   z-index: 100;
   /* bottom value is set dynamically by applyStackedColumnStyles() */
 }
 
+/* Hide column-inner when collapsed (both vertical and horizontal) */
+.kanban-column-stack .kanban-full-height-column.collapsed-vertical .column-inner,
+.kanban-column-stack .kanban-full-height-column.collapsed-horizontal .column-inner {
+  display: none !important;
+}
+
 /* Visual separation - add padding to content of stacked columns */
-.kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal):nth-child(n+2) .column-inner {
+.kanban-column-stack .kanban-full-height-column:nth-child(n+2) .column-inner {
   padding-top: var(--whitespace);
 }
 
@@ -1892,12 +1816,12 @@ button.file-bar-menu-item {
 }
 
 /* Vertically folded columns in a stack should not use sticky positioning when grouped horizontally */
-.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed {
+.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical {
   position: relative !important;
 }
 
-.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed .column-header,
-.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed .column-footer {
+.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical .column-header,
+.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical .column-footer {
   position: relative !important;
   top: auto !important;
   bottom: auto !important;
@@ -2409,11 +2333,6 @@ button.file-bar-menu-item {
 }
 
 /* Row tags */
-.kanban-full-height-column.collapsed .column-title .column-row-tag {
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-  border-radius: 3px;
-}
 
 /* Drag and drop styles */
 .task-item.dragging {
@@ -2902,11 +2821,6 @@ blockquote {
   content: none !important;
 }
 
-.kanban-full-height-column.collapsed .column-title .kanban-tag {
-  margin: 4px 0px;
-  padding: 2px 0px;
-  min-height: unset;
-}
 
 /* h1 .kanban-tag,
 h2 .kanban-tag {
@@ -2922,16 +2836,16 @@ h6 .kanban-tag {
   position: relative;
 }
 
-.collapsed .column-title h1 .kanban-tag,
-.collapsed .column-title h2 .kanban-tag {
+.collapsed-vertical .column-title h1 .kanban-tag,
+.collapsed-vertical .column-title h2 .kanban-tag {
   left: -4px;
   position: relative;
 }
 
-.collapsed h3 .kanban-tag,
-.collapsed h4 .kanban-tag,
-.collapsed h5 .kanban-tag,
-.collapsed h6 .kanban-tag {
+.collapsed-vertical h3 .kanban-tag,
+.collapsed-vertical h4 .kanban-tag,
+.collapsed-vertical h5 .kanban-tag,
+.collapsed-vertical h6 .kanban-tag {
   left: -2px;
   position: relative;
 } */
@@ -3005,35 +2919,13 @@ h6 .kanban-tag {
 }
 
 /* Collapsed state - bars stay in containers */
-/* .kanban-full-height-column.collapsed .header-bar,
-.kanban-full-height-column.collapsed .footer-bar {
-  writing-mode: horizontal-tb !important;
-  transform: none !important;
-  font-size: 9px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  width: 100% !important;
-  position: relative !important;
-} */
+/* .kanban-full-height-column.collapsed-vertical .header-bar,
 
 /* Only bars with labels get the 20px height in collapsed state */
-.kanban-full-height-column.collapsed .header-bar::after:not(:empty),
-.kanban-full-height-column.collapsed .footer-bar::after:not(:empty) {
-  padding: 0 2px !important;
-}
 
 /* Keep original heights for bars without labels - heights set by inline styles from tag configuration */
 
 /* For bars with text content, ensure they have enough height */
-.kanban-full-height-column.collapsed .header-bar:has(::after),
-.kanban-full-height-column.collapsed .footer-bar:has(::after) {
-  min-height: 20px !important;
-  padding: 0 2px !important;
-}
 
 .kanban-full-height-column::before,
 .kanban-full-height-column::after,
@@ -3077,97 +2969,18 @@ h6 .kanban-tag {
   pointer-events: none;
 }
 
-.kanban-full-height-column.collapsed .header-bar,
-.kanban-full-height-column.collapsed .footer-bar {
-  writing-mode: horizontal-tb !important;
-  transform: none !important;
-  height: 20px !important;
-  font-size: 9px !important;
-  padding: 0 2px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-	/* border-radius: 0px 0px 4px 4px; */
-  /* white-space: nowrap !important; */
-}
 
-.kanban-full-height-column.collapsed .header-bar::after,
-.kanban-full-height-column.collapsed .footer-bar::after {
-  font-size: 8px !important;
-  letter-spacing: -0.5px !important;
-  /* white-space: nowrap !important; */
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  max-width: 100%;
-  display: block;
-}
 
-.kanban-full-height-column.collapsed .column-title:empty::before {
-  content: '\200B';
-  display: inline-block;
-  width: 1px;
-  /* height: 100px; */
-}
 
 .kanban-full-height-column.collapsed.has-header-bar {
   min-height: 200px;
 }
 
-.kanban-full-height-column.collapsed .header-bars-container {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  flex-shrink: 0;
-  margin: 0;
-}
 
-.kanban-full-height-column.collapsed .header-bar {
-  position: relative !important;
-  top: auto !important;
-  left: 0 !important;
-  right: 0 !important;
-  width: 100% !important;
-  margin: 0;
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
 
-.kanban-full-height-column.collapsed .column-title:empty::before {
-  content: '\200B';
-  display: block;
-  min-height: 60px;
-}
 
-.kanban-full-height-column.collapsed .column-footer .footer-bars-container {
-  display: flex;
-  flex-direction: column-reverse;
-  width: 100%;
-  flex-shrink: 0;
-  margin: 0;
-}
 
-.kanban-full-height-column.collapsed .footer-bar {
-  position: relative !important;
-  bottom: auto !important;
-  left: 0 !important;
-  right: 0 !important;
-  width: 100% !important;
-  margin: 0;
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
 
-.kanban-full-height-column.collapsed .header-bar::after,
-.kanban-full-height-column.collapsed .footer-bar::after {
-  font-size: 8px !important;
-  letter-spacing: -0.5px !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  max-width: 100%;
-  display: block;
-}
 
 /* Custom (user-added) tags styling */
 .donut-menu-tag-chip.custom-tag {
@@ -3600,21 +3413,6 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 .markdown-content abbr::after { margin-left: 1px; }
 
 /* Collapsed state adjustments */
-.kanban-full-height-column.collapsed .column-title h1::before,
-.kanban-full-height-column.collapsed .column-title h2::before,
-.kanban-full-height-column.collapsed .column-title h3::before,
-.kanban-full-height-column.collapsed .column-title h4::before,
-.kanban-full-height-column.collapsed .column-title h5::before,
-.kanban-full-height-column.collapsed .column-title h6::before,
-.collapsed .markdown-content h1::before,
-.collapsed .markdown-content h2::before,
-.collapsed .markdown-content h3::before,
-.collapsed .markdown-content h4::before,
-.collapsed .markdown-content h5::before,
-.collapsed .markdown-content h6::before {
-  margin-right: 0 !important;
-  margin-bottom: 4px !important;
-}
 
 /* Column width is now handled via --column-width CSS variable set from baseOptions */
 /* This allows all width values (px and vw) to be defined in one place: baseOptions.columnWidth */
@@ -4021,161 +3819,3 @@ figcaption {
    ======================================== */
 
 /* Horizontal fold: thin bar with normal text orientation, stays in stack */
-.kanban-full-height-column.collapsed-horizontal {
-  width: 100% !important;
-  min-width: var(--column-width) !important;
-  max-width: var(--column-width) !important;
-  height: 50px !important;
-  min-height: 50px !important;
-  max-height: 50px !important;
-  position: relative !important;
-  top: auto !important;
-  overflow: hidden;
-  align-self: stretch;
-  z-index: 1;
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-inner {
-  overflow: visible;
-  flex: none;
-  display: flex;
-  flex-direction: row !important;
-  height: 50px !important;
-  min-height: 50px !important;
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-header {
-  flex-direction: row !important;
-  border-radius: 4px;
-  align-items: center;
-  justify-content: space-between;
-  flex: none;
-  display: flex;
-  min-height: 0;
-  box-sizing: border-box;
-  position: relative !important;
-  top: auto !important;
-  background-color: var(--vscode-editor-background);
-  height: 100%;
-  width: 100%;
-  padding: 0 var(--whitespace-div2);
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-title-section {
-  flex-direction: row !important;
-  gap: 8px;
-  align-items: center;
-  height: 100%;
-  flex: 1;
-  display: flex;
-  justify-content: flex-start;
-  margin: 0;
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-title {
-  writing-mode: horizontal-tb !important;
-  transform: none !important;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex: 1;
-  padding: 0 8px;
-  margin: 0;
-  gap: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-title,
-.kanban-full-height-column.collapsed-horizontal .column-title * {
-  min-width: 0;
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-controls {
-  flex-direction: row !important;
-  gap: 8px;
-  margin: 0;
-  flex-shrink: 0;
-  box-sizing: border-box;
-  align-items: center;
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-content {
-  display: none !important;
-}
-
-.kanban-full-height-column.collapsed-horizontal .fold-all-btn {
-  display: none !important;
-}
-
-.kanban-full-height-column.collapsed-horizontal .collapse-toggle {
-  margin: 0;
-}
-
-.kanban-full-height-column.collapsed-horizontal .task-count {
-  writing-mode: horizontal-tb !important;
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-title-edit {
-  display: none !important;
-}
-
-/* Header/footer bars in horizontal fold mode */
-.kanban-full-height-column.collapsed-horizontal .header-bar,
-.kanban-full-height-column.collapsed-horizontal .footer-bar {
-  position: static !important;
-  writing-mode: horizontal-tb !important;
-  transform: none !important;
-  display: inline-block !important;
-  height: auto !important;
-  width: auto !important;
-  padding: 2px 4px !important;
-  margin: 0 2px !important;
-  font-size: 9px !important;
-}
-
-.kanban-full-height-column.collapsed-horizontal .header-bars-container,
-.kanban-full-height-column.collapsed-horizontal .footer-bars-container {
-  display: flex;
-  flex-direction: row !important;
-  width: auto !important;
-  flex-shrink: 0;
-  margin: 0;
-  gap: 4px;
-}
-
-.kanban-full-height-column.collapsed-horizontal .header-bar::after,
-.kanban-full-height-column.collapsed-horizontal .footer-bar::after {
-  font-size: 8px !important;
-}
-
-/* Don't apply special width constraints for horizontal fold */
-.kanban-full-height-column.collapsed-horizontal.has-header-label,
-.kanban-full-height-column.collapsed-horizontal.has-footer-label,
-.kanban-full-height-column.collapsed-horizontal.has-header-label.has-footer-label {
-  width: 100% !important;
-  min-width: var(--column-width) !important;
-  max-width: var(--column-width) !important;
-}
-
-/* Column span classes don't apply in horizontal fold */
-.kanban-full-height-column.collapsed-horizontal.column-span-2,
-.kanban-full-height-column.collapsed-horizontal.column-span-3,
-.kanban-full-height-column.collapsed-horizontal.column-span-4 {
-  width: 100% !important;
-  min-width: var(--column-width) !important;
-  max-width: var(--column-width) !important;
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-title .column-row-tag {
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-  border-radius: 3px;
-}
-
-.kanban-full-height-column.collapsed-horizontal .column-title .kanban-tag {
-  margin: 0 2px;
-  padding: 2px 4px;
-  min-height: unset;
-}
