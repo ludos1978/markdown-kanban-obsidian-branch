@@ -563,6 +563,11 @@ function toggleAllColumns() {
     // Update the global fold button appearance
     updateGlobalColumnFoldButton();
 
+    // Recalculate stacked column heights after bulk fold/unfold
+    if (typeof window.applyStackedColumnStyles === 'function') {
+        window.applyStackedColumnStyles();
+    }
+
     // Save state immediately
     if (window.saveCurrentFoldingState) {
         window.saveCurrentFoldingState();
@@ -1499,24 +1504,24 @@ function toggleAllTasksInColumn(columnId) {
         const taskId = taskElement.getAttribute('data-task-id');
         const isCollapsed = taskElement.classList.contains('collapsed');
 
-        // Only toggle if state needs to change
+        // Only toggle if state needs to change (skip recalculation for bulk operation)
         if (shouldCollapse && !isCollapsed) {
-            toggleTaskCollapse(taskId);
+            toggleTaskCollapse(taskId, true);
         } else if (!shouldCollapse && isCollapsed) {
-            toggleTaskCollapse(taskId);
+            toggleTaskCollapse(taskId, true);
         }
     });
-    
-    // Remember this manual state
-    window.columnFoldStates.set(columnId, shouldCollapse ? 'fold-collapsed' : 'fold-expanded');
-    
-    // Update the fold button appearance
-    updateFoldAllButton(columnId);
 
-    // Recalculate stacked column heights after fold/unfold
+    // Recalculate once after all tasks are toggled
     if (typeof window.applyStackedColumnStyles === 'function') {
         window.applyStackedColumnStyles();
     }
+
+    // Remember this manual state
+    window.columnFoldStates.set(columnId, shouldCollapse ? 'fold-collapsed' : 'fold-expanded');
+
+    // Update the fold button appearance
+    updateFoldAllButton(columnId);
 
     // Save state immediately
     if (window.saveCurrentFoldingState) {
@@ -2358,7 +2363,7 @@ window.setupStackedColumnScrollHandler = setupStackedColumnScrollHandler;
  * @param {string} taskId - ID of task to toggle
  * Side effects: Updates collapsedTasks set, DOM classes
  */
-function toggleTaskCollapse(taskId) {
+function toggleTaskCollapse(taskId, skipRecalculation = false) {
     const task = document.querySelector(`[data-task-id="${taskId}"]`);
     const toggle = task.querySelector('.task-collapse-toggle');
 
@@ -2375,8 +2380,8 @@ function toggleTaskCollapse(taskId) {
         window.collapsedTasks.delete(taskId);
     }
 
-    // Recalculate stacked column heights after collapse/expand
-    if (typeof window.applyStackedColumnStyles === 'function') {
+    // Recalculate stacked column heights after collapse/expand (unless skipped for bulk operations)
+    if (!skipRecalculation && typeof window.applyStackedColumnStyles === 'function') {
         window.applyStackedColumnStyles();
     }
 

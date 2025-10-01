@@ -848,7 +848,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.task-item.collapsed-vertical .task-description-container {
+.task-item.collapsed .task-description-container {
   display: none;
 }
 
