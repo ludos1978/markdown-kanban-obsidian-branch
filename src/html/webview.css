@@ -1820,32 +1820,30 @@ button.file-bar-menu-item {
 .kanban-column-stack {
   display: grid;
   grid-template: 1fr / 1fr;
-  min-height: 100%;
   position: relative;
 }
 
-/* All expanded columns overlay in same grid cell with full viewport height */
+/* All expanded columns overlay in same grid cell */
 .kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) {
   grid-row: 1;
   grid-column: 1;
-  min-height: 100%; /* CRITICAL: Full height so sticky works across entire scroll */
   align-self: start;
 }
 
-/* Sticky headers at top with dynamic offsets (set by JavaScript) */
+/* Sticky headers at bottom with dynamic offsets (set by JavaScript inline styles) */
 .kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-header {
   position: sticky;
   background: var(--vscode-editor-background);
   z-index: 100;
-  /* top value is set dynamically by applyStackedColumnStyles() */
+  /* bottom value is set dynamically by applyStackedColumnStyles() */
 }
 
-/* Sticky footers at top with dynamic offsets (set by JavaScript, positioned after headers) */
+/* Sticky footers at bottom with dynamic offsets (set by JavaScript inline styles) */
 .kanban-column-stack .kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal) .column-footer {
   position: sticky;
   background: var(--vscode-editor-background);
   z-index: 100;
-  /* top value is set dynamically by applyStackedColumnStyles() */
+  /* bottom value is set dynamically by applyStackedColumnStyles() */
 }
 
 /* Visual separation - add padding to content of stacked columns */

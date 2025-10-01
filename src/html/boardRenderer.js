@@ -2152,69 +2152,67 @@ function applyStackedColumnStyles() {
             // Filter to only expanded columns
             const expandedColumns = columnData.filter(data => data.isExpanded);
 
-            // Third pass: Calculate all sticky positions first, then apply them
-            // Step 1: Calculate positions for headers and footers
-            let cumulativeStickyTop = 0;
-            const positions = expandedColumns.map((data, expandedIdx) => {
-                const headerTop = cumulativeStickyTop;
-                cumulativeStickyTop += data.headerHeight;
-
-                const footerTop = cumulativeStickyTop;  // Footer right after header
-                cumulativeStickyTop += data.footerHeight + gapPx;  // Add footer height + gap for next column
-
-                return {
-                    ...data,
-                    headerTop,
-                    footerTop,
-                    zIndex: 100 + (expandedColumns.length - expandedIdx)
-                };
-            });
-
-            // Step 2: Calculate footer bottom positions (stacked from bottom, reverse order)
-            let cumulativeBottom = 0;
+            // Third pass: Calculate all sticky positions from BOTTOM upwards
+            // Step 1: Calculate positions for footers and headers (stacked from bottom)
+            // Iterate BACKWARDS: LAST column (highest index) gets bottom=0 (closest to viewport bottom)
+            // FIRST column (index 0) gets largest bottom offset (furthest from viewport bottom)
+            let cumulativeStickyBottom = 0;
+            const positions = [];
             for (let i = expandedColumns.length - 1; i >= 0; i--) {
-                positions[i].footerBottom = cumulativeBottom;
-                cumulativeBottom += positions[i].footerHeight + gapPx;
+                const data = expandedColumns[i];
+                const expandedIdx = i;
+
+                const footerBottom = cumulativeStickyBottom;
+                cumulativeStickyBottom += data.footerHeight;
+
+                const headerBottom = cumulativeStickyBottom;  // Header right after footer
+                cumulativeStickyBottom += data.headerHeight + gapPx;  // Add header height + gap for next column
+
+                positions[i] = {
+                    ...data,
+                    headerBottom,
+                    footerBottom,
+                    zIndex: 1000000 + (expandedColumns.length - expandedIdx)
+                };
             }
 
-            // Step 3: Calculate padding for content (accounts for full column heights)
+            // Step 3: Calculate padding for column content (creates vertical stacking without stretching column element)
             let cumulativePadding = 0;
             positions.forEach((pos, idx) => {
-                pos.paddingTop = idx > 0 ? cumulativePadding : 0;
+                pos.contentPadding = idx > 0 ? cumulativePadding : 0;
                 cumulativePadding += pos.totalHeight + gapPx;
             });
 
             // Step 4: Apply all calculated positions and setup observers
-            positions.forEach(({ col, index, header, footer, headerTop, footerTop, footerBottom, paddingTop, zIndex }) => {
+            positions.forEach(({ col, index, header, footer, headerBottom, footerBottom, contentPadding, zIndex }) => {
                 // Store calculated positions on the column element for scroll handler
-                col.dataset.headerTop = headerTop;
-                col.dataset.footerTop = footerTop;
+                col.dataset.headerBottom = headerBottom;
                 col.dataset.footerBottom = footerBottom;
                 col.dataset.zIndex = zIndex;
 
-                // Initially position header+footer sticky at top
+                // Initially position header+footer sticky at BOTTOM
                 if (header) {
                     header.style.position = 'sticky';
-                    header.style.top = `${headerTop}px`;
-                    header.style.bottom = '';
+                    header.style.bottom = `${headerBottom}px`;
+                    header.style.top = 'auto';
                     header.style.zIndex = zIndex;
                 }
 
                 if (footer) {
                     footer.style.position = 'sticky';
-                    footer.style.top = `${footerTop}px`;
-                    footer.style.bottom = '';
+                    footer.style.bottom = `${footerBottom}px`;
+                    footer.style.top = 'auto';
                     footer.style.zIndex = zIndex;
                 }
 
-                console.log(`[kanban.stacked-columns] Column ${index}: header top=${headerTop}px, footer top=${footerTop}px, footer bottom=${footerBottom}px, margin-top=${paddingTop}px`);
+                console.log(`[DEBUG-STACK] Initial setup - Column ${index}: headerBottom=${headerBottom}px, footerBottom=${footerBottom}px, contentPadding=${contentPadding}px`);
 
-                // Apply margin to column
-                col.style.marginTop = paddingTop > 0 ? `${paddingTop}px` : '';
+                // Apply padding to column-inner to push content down (not column element itself)
+                const columnInner = col.querySelector('.column-inner');
+                if (columnInner) {
+                    columnInner.style.paddingTop = contentPadding > 0 ? `${contentPadding}px` : '';
+                }
             });
-
-            // Step 5: Setup scroll handler to ensure all headers are always visible
-            setupStackedColumnScrollHandler(expandedColumns);
         }
     });
 }
@@ -2241,62 +2239,76 @@ function setupStackedColumnScrollHandler(columnsData) {
         const viewportHeight = window.innerHeight;
         const viewportBottom = scrollY + viewportHeight;
 
-        window.stackedColumnsData.forEach(({ col }) => {
+        console.log(`\n[DEBUG-STACK] === SCROLL EVENT ===`);
+        console.log(`[DEBUG-STACK] scrollY=${scrollY.toFixed(0)}, viewportHeight=${viewportHeight.toFixed(0)}, viewportBottom=${viewportBottom.toFixed(0)}`);
+
+        window.stackedColumnsData.forEach(({ col, headerHeight, footerHeight, totalHeight }, idx) => {
             const header = col.querySelector('.column-header');
             const footer = col.querySelector('.column-footer');
+            const columnInner = col.querySelector('.column-inner');
+
             if (!header || !footer) return;
 
-            const headerTop = parseFloat(col.dataset.headerTop || 0);
-            const footerTop = parseFloat(col.dataset.footerTop || 0);
+            const headerBottom = parseFloat(col.dataset.headerBottom || 0);
             const footerBottom = parseFloat(col.dataset.footerBottom || 0);
             const zIndex = parseInt(col.dataset.zIndex || 100);
             const colIndex = col.dataset.columnIndex;
 
-            // Calculate where the header would be if it was sticking to top
-            // This is the CUMULATIVE height of all headers+footers above this one
-            const whereHeaderWouldStickToTop = headerTop;
+            const rect = col.getBoundingClientRect();
+            const headerRect = header.getBoundingClientRect();
+            const columnInnerPadding = columnInner ? parseFloat(window.getComputedStyle(columnInner).paddingTop) : 0;
 
-            // If this position is below the viewport bottom, header should stick to bottom instead
-            const isCompletelyBelowViewport = whereHeaderWouldStickToTop > viewportBottom;
+            console.log(`\n[DEBUG-STACK] --- Column ${colIndex} ---`);
+            console.log(`[DEBUG-STACK]   Stored values: headerBottom=${headerBottom}, footerBottom=${footerBottom}`);
+            console.log(`[DEBUG-STACK]   Heights: headerHeight=${headerHeight}, footerHeight=${footerHeight}, totalHeight=${totalHeight}`);
+            console.log(`[DEBUG-STACK]   Column rect: top=${rect.top.toFixed(0)}, bottom=${rect.bottom.toFixed(0)}, height=${rect.height.toFixed(0)}`);
+            console.log(`[DEBUG-STACK]   Header rect: top=${headerRect.top.toFixed(0)}, bottom=${headerRect.bottom.toFixed(0)}`);
+            console.log(`[DEBUG-STACK]   Column-inner paddingTop=${columnInnerPadding.toFixed(0)}`);
 
-            console.log(`[kanban.stacked-scroll] Column ${colIndex}: headerTop=${headerTop.toFixed(0)}, scrollY=${scrollY.toFixed(0)}, viewportBottom=${viewportBottom.toFixed(0)}, isBelow=${isCompletelyBelowViewport}`);
+            // Calculate: header would be ABOVE viewport top when sticky at bottom
+            // headerRect.bottom is where the header currently is (accounting for sticky behavior)
+            // If header is ABOVE the viewport top, switch to fixed top positioning
+            const headerWouldBeAbove = headerRect.bottom < 0;
 
-            if (isCompletelyBelowViewport) {
-                // Column is completely below viewport - use FIXED positioning at BOTTOM
-                const headerBottom = footerBottom + footer.offsetHeight;
+            console.log(`[DEBUG-STACK]   Calculation: headerRect.bottom=${headerRect.bottom.toFixed(0)}`);
+            console.log(`[DEBUG-STACK]   Decision: headerAbove=${headerWouldBeAbove} (${headerRect.bottom.toFixed(0)} < 0)`);
+
+            if (headerWouldBeAbove) {
+                // Column is above viewport - use FIXED positioning at TOP
+                const footerTop = headerHeight;
 
                 header.style.position = 'fixed';
-                header.style.top = '';
-                header.style.bottom = `${headerBottom}px`;
+                header.style.top = '0px';
+                header.style.bottom = '';
                 header.style.left = rect.left + 'px';
-                header.style.right = '0';
+                header.style.width = rect.width + 'px';
                 header.style.zIndex = zIndex;
 
                 footer.style.position = 'fixed';
-                footer.style.top = '';
-                footer.style.bottom = `${footerBottom}px`;
+                footer.style.top = `${footerTop}px`;
+                footer.style.bottom = '';
                 footer.style.left = rect.left + 'px';
-                footer.style.right = '0';
+                footer.style.width = rect.width + 'px';
                 footer.style.zIndex = zIndex;
 
-                console.log(`[kanban.stacked-scroll] Column ${colIndex} BELOW viewport - FIXED at BOTTOM (bottom=${footerBottom})`);
+                console.log(`[DEBUG-STACK]   >>> ABOVE viewport - FIXED at TOP (top=0)`);
             } else {
-                // Column is visible or above viewport - use STICKY at TOP
+                // Column is visible or below viewport - use STICKY at BOTTOM
                 header.style.position = 'sticky';
-                header.style.top = `${headerTop}px`;
-                header.style.bottom = '';
+                header.style.bottom = `${headerBottom}px`;
+                header.style.top = '';
                 header.style.left = '';
                 header.style.right = '';
                 header.style.zIndex = zIndex;
 
                 footer.style.position = 'sticky';
-                footer.style.top = `${footerTop}px`;
-                footer.style.bottom = '';
+                footer.style.bottom = `${footerBottom}px`;
+                footer.style.top = '';
                 footer.style.left = '';
                 footer.style.right = '';
                 footer.style.zIndex = zIndex;
 
-                console.log(`[kanban.stacked-scroll] Column ${colIndex} VISIBLE/ABOVE - STICKY at TOP (top=${headerTop})`);
+                console.log(`[DEBUG-STACK]   >>> VISIBLE/BELOW - STICKY at BOTTOM (bottom=${footerBottom})`);
             }
         });
     };
