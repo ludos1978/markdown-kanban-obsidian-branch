@@ -2087,9 +2087,13 @@ function applyStackedColumnStyles() {
             const computedStyle = getComputedStyle(stack);
             const gapPx = parseFloat(computedStyle.getPropertyValue('--whitespace')) || 8;
 
-            // First pass: reset all padding to get accurate natural heights
+            // First pass: reset all padding/margins to get accurate natural heights
             columns.forEach(col => {
                 col.style.paddingTop = '';
+                const columnOffset = col.querySelector('.column-offset');
+                if (columnOffset) {
+                    columnOffset.style.marginTop = '';
+                }
             });
 
             // Force a reflow to ensure padding reset takes effect

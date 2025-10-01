@@ -1809,9 +1809,14 @@ function setupColumnDragAndDrop() {
             
             // NEW CACHE SYSTEM: Mark as unsaved
             if (typeof markUnsavedChanges === 'function') {
-                markUnsavedChanges(); 
+                markUnsavedChanges();
             }
-            
+
+            // Recalculate stacked column styles after drag
+            if (typeof window.applyStackedColumnStyles === 'function') {
+                window.applyStackedColumnStyles();
+            }
+
             // Reset drag state
             dragState.draggedColumn = null;
             dragState.draggedColumnId = null;
@@ -1843,18 +1848,36 @@ function setupColumnDragAndDrop() {
             // Only move if it's a different position than last time
             if (dragState.lastDropTarget !== targetElement) {
                 dragState.lastDropTarget = targetElement;
-                
+
                 if (insertBefore) {
                     // Only move if not already there
                     if (dragState.draggedColumn.nextSibling !== column) {
                         column.parentNode.insertBefore(dragState.draggedColumn, column);
+
+                        // Recalculate stack positioning after DOM reorder
+                        const stackContainer = column.closest('.kanban-column-stack');
+                        if (stackContainer && typeof window.applyStackedColumnStyles === 'function') {
+                            window.applyStackedColumnStyles();
+                        }
                     }
                 } else {
                     // Only move if not already there
                     if (targetElement && dragState.draggedColumn.nextSibling !== targetElement) {
                         column.parentNode.insertBefore(dragState.draggedColumn, targetElement);
+
+                        // Recalculate stack positioning after DOM reorder
+                        const stackContainer = column.closest('.kanban-column-stack');
+                        if (stackContainer && typeof window.applyStackedColumnStyles === 'function') {
+                            window.applyStackedColumnStyles();
+                        }
                     } else if (!targetElement && dragState.draggedColumn !== column.parentNode.lastElementChild) {
                         column.parentNode.appendChild(dragState.draggedColumn);
+
+                        // Recalculate stack positioning after DOM reorder
+                        const stackContainer = column.closest('.kanban-column-stack');
+                        if (stackContainer && typeof window.applyStackedColumnStyles === 'function') {
+                            window.applyStackedColumnStyles();
+                        }
                     }
                 }
             }
