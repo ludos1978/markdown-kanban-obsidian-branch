@@ -323,10 +323,18 @@ class TaskEditor {
         // Show edit element, hide display
         if (displayElement) {displayElement.style.display = 'none';}
         editElement.style.display = 'block';
-        
+
         // Auto-resize if textarea
         this.autoResize(editElement);
-        
+
+        // For column title editing, recalculate stacked column positions after resize
+        if (type === 'column-title' && typeof window.applyStackedColumnStyles === 'function') {
+            // Use requestAnimationFrame to ensure the resize has taken effect
+            requestAnimationFrame(() => {
+                window.applyStackedColumnStyles();
+            });
+        }
+
         // Focus and position cursor
         editElement.focus();
 
@@ -358,7 +366,15 @@ class TaskEditor {
         // This was the bug: resetting to null made every save think it was a new field
 
         // Set up input handler for auto-resize
-        editElement.oninput = () => this.autoResize(editElement);
+        editElement.oninput = () => {
+            this.autoResize(editElement);
+            // For column title editing, recalculate stacked column positions after resize
+            if (type === 'column-title' && typeof window.applyStackedColumnStyles === 'function') {
+                requestAnimationFrame(() => {
+                    window.applyStackedColumnStyles();
+                });
+            }
+        };
         
         // Set up blur handler (but it won't fire during transitions)
         editElement.onblur = (e) => {
@@ -880,10 +896,17 @@ class TaskEditor {
         
         // Hide edit element
         element.style.display = 'none';
-        
+
         // Show display element
         if (displayElement) {
             displayElement.style.display = 'block';
+        }
+
+        // For column title editing, recalculate stacked column positions after closing
+        if (type === 'column-title' && typeof window.applyStackedColumnStyles === 'function') {
+            requestAnimationFrame(() => {
+                window.applyStackedColumnStyles();
+            });
         }
 
         // Focus the card after editing ends
