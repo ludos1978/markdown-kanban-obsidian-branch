@@ -2982,12 +2982,14 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
     }
 
     // Find existing corner badges container or create one
-    let badgesContainer = element.querySelector('.corner-badges-container');
+    // For columns, append to column-header; for tasks, append to element
+    const targetContainer = elementType === 'column' ? element.querySelector('.column-header') || element : element;
+    let badgesContainer = targetContainer.querySelector('.corner-badges-container');
     if (!badgesContainer) {
         badgesContainer = document.createElement('div');
         badgesContainer.className = 'corner-badges-container';
         badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 9;';
-        element.appendChild(badgesContainer);
+        targetContainer.appendChild(badgesContainer);
         // Ensure parent has relative positioning
         // if (!element.style.position || element.style.position === 'static') {
         //     element.style.position = 'relative';
@@ -3385,7 +3387,9 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             badgesContainer.className = 'corner-badges-container';
             badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
             badgesContainer.innerHTML = badgesHtml;
-            element.appendChild(badgesContainer);
+            // For columns, append to column-header; for tasks, append to element
+            const targetContainer = elementType === 'column' ? element.querySelector('.column-header') || element : element;
+            targetContainer.appendChild(badgesContainer);
         }
     }
     

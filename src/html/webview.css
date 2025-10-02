@@ -1806,7 +1806,7 @@ button.file-bar-menu-item {
 }
 
 .column-drop-zone {
-  min-width: 20px;
+  min-width: 10px;
   height: 100%;
   flex-shrink: 0;
   background: transparent;
@@ -1814,7 +1814,7 @@ button.file-bar-menu-item {
 }
 
 .column-drop-zone.drag-over {
-  min-width: 100px;
+  /* min-width: 100px; */
   background: var(--vscode-editor-selectionBackground);
   border: 2px dashed var(--vscode-editor-selectionForeground);
   border-radius: 4px;
@@ -2207,7 +2207,7 @@ button.file-bar-menu-item {
   position: relative;
   transition: all 0.2s;
   display: flex;
-  gap: var(--whitespace);
+  gap: 0px;
   align-items: flex-start;
 	padding: var(--whitespace);
   width: 100%;
