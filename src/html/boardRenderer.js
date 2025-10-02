@@ -1283,8 +1283,11 @@ function renderBoard() {
                         // Add the current stacked column to the stack
                         currentStackContainer.appendChild(columnElement);
                     } else {
-                        // Regular column - add to row and reset stack container
-                        rowContainer.appendChild(columnElement);
+                        // Regular column - wrap in its own stack container
+                        const stackContainer = document.createElement('div');
+                        stackContainer.className = 'kanban-column-stack';
+                        stackContainer.appendChild(columnElement);
+                        rowContainer.appendChild(stackContainer);
                         currentStackContainer = null;
                         lastColumnElement = columnElement;
                     }
@@ -1331,8 +1334,11 @@ function renderBoard() {
                 // Add the current stacked column to the stack
                 currentStackContainer.appendChild(columnElement);
             } else {
-                // Regular column - add to board and reset stack container
-                boardElement.appendChild(columnElement);
+                // Regular column - wrap in its own stack container
+                const stackContainer = document.createElement('div');
+                stackContainer.className = 'kanban-column-stack';
+                stackContainer.appendChild(columnElement);
+                boardElement.appendChild(stackContainer);
                 currentStackContainer = null;
                 lastColumnElement = columnElement;
             }
