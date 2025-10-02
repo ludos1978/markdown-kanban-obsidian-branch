@@ -1880,7 +1880,7 @@ function setupColumnDragAndDrop() {
         });
     });
 
-    // Add dragover handler to stack containers to allow dropping at the end
+    // Add dragover handler to stack containers to allow dropping at the end vertically
     const stacks = document.querySelectorAll('.kanban-column-stack');
     stacks.forEach(stack => {
         stack.addEventListener('dragover', e => {
@@ -1888,24 +1888,116 @@ function setupColumnDragAndDrop() {
 
             e.preventDefault();
 
-            // Check if mouse is below all columns
-            const columns = Array.from(stack.querySelectorAll('.kanban-full-height-column:not(.collapsed):not(.collapsed-horizontal)'));
+            // Check if mouse is below all columns (vertical stacking)
+            const columns = Array.from(stack.querySelectorAll('.kanban-full-height-column'));
             if (columns.length === 0) {return;}
 
             const lastColumn = columns[columns.length - 1];
             const lastRect = lastColumn.getBoundingClientRect();
 
-            // If mouse is below the last column, append to end
-            if (e.clientY > lastRect.bottom || e.clientX > lastRect.right) {
-                if (dragState.draggedColumn !== stack.lastElementChild) {
-                    stack.appendChild(dragState.draggedColumn);
+            // Only handle vertical drops below the last column
+            if (e.clientY > lastRect.bottom) {
+                const targetKey = 'stack-bottom-' + Math.random();
+                if (dragState.lastDropTarget !== targetKey) {
+                    dragState.lastDropTarget = targetKey;
 
-                    // Recalculate stack positioning after DOM reorder
+                    if (dragState.draggedColumn !== stack.lastElementChild) {
+                        stack.appendChild(dragState.draggedColumn);
+
+                        if (typeof window.applyStackedColumnStyles === 'function') {
+                            window.applyStackedColumnStyles();
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    // Debug: Check if drop zones exist
+    console.log('[dragDrop] Drop zones found:', document.querySelectorAll('.column-drop-zone').length);
+
+    // Add dragover handlers specifically to drop zones (direct target only, no bubbling)
+    document.addEventListener('dragover', (e) => {
+        if (!dragState.draggedColumn) {return;}
+
+        // ONLY handle if the direct target is a drop zone (not a child element)
+        if (!e.target.classList.contains('column-drop-zone')) {
+            // Clear any previous drag-over states
+            document.querySelectorAll('.column-drop-zone.drag-over').forEach(dz => {
+                dz.classList.remove('drag-over');
+            });
+            return;
+        }
+
+        const dropZone = e.target;
+        console.log('[dragDrop] DROP ZONE HIT');
+        e.preventDefault();
+
+        // Add visual feedback
+        document.querySelectorAll('.column-drop-zone.drag-over').forEach(dz => {
+            if (dz !== dropZone) {dz.classList.remove('drag-over');}
+        });
+        dropZone.classList.add('drag-over');
+
+        // The drop zone is inside a drop-zone-stack container
+        const dropZoneStack = dropZone.parentNode;
+        const rowOrBoard = dropZoneStack.parentNode;
+        const dropZoneStackIndex = Array.from(rowOrBoard.children).indexOf(dropZoneStack);
+        const targetKey = 'dropzone-' + dropZoneStackIndex;
+
+        if (dragState.lastDropTarget !== targetKey) {
+            dragState.lastDropTarget = targetKey;
+
+            // Insert the column before or after the drop zone stack
+            if (dropZone.classList.contains('column-drop-zone-before')) {
+                // Insert before the first column stack (which is right after this drop zone stack)
+                const nextElement = dropZoneStack.nextElementSibling;
+                if (nextElement && dragState.draggedColumn !== nextElement) {
+                    rowOrBoard.insertBefore(dragState.draggedColumn, nextElement);
+
                     if (typeof window.applyStackedColumnStyles === 'function') {
                         window.applyStackedColumnStyles();
                     }
                 }
+            } else if (dropZone.classList.contains('column-drop-zone-between')) {
+                // Insert after this drop zone stack (before the next element)
+                const nextElement = dropZoneStack.nextElementSibling;
+                if (nextElement && dragState.draggedColumn !== nextElement) {
+                    rowOrBoard.insertBefore(dragState.draggedColumn, nextElement);
+
+                    if (typeof window.applyStackedColumnStyles === 'function') {
+                        window.applyStackedColumnStyles();
+                    }
+                }
+            } else if (dropZone.classList.contains('column-drop-zone-after')) {
+                // Insert after this drop zone stack (before add button if it exists)
+                const addBtn = rowOrBoard.querySelector('.add-column-btn');
+                if (addBtn) {
+                    if (dragState.draggedColumn.nextSibling !== addBtn) {
+                        rowOrBoard.insertBefore(dragState.draggedColumn, addBtn);
+
+                        if (typeof window.applyStackedColumnStyles === 'function') {
+                            window.applyStackedColumnStyles();
+                        }
+                    }
+                } else {
+                    // No add button, append to end
+                    if (dragState.draggedColumn !== rowOrBoard.lastElementChild) {
+                        rowOrBoard.appendChild(dragState.draggedColumn);
+
+                        if (typeof window.applyStackedColumnStyles === 'function') {
+                            window.applyStackedColumnStyles();
+                        }
+                    }
+                }
             }
+        }
+    });
+
+    // Clean up drag-over state on dragend
+    document.addEventListener('dragend', () => {
+        document.querySelectorAll('.column-drop-zone.drag-over').forEach(dz => {
+            dz.classList.remove('drag-over');
         });
     });
 }

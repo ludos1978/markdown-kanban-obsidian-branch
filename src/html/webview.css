@@ -1797,6 +1797,23 @@ button.file-bar-menu-item {
   display: none !important;
 }
 
+/* Column drop zones for horizontal positioning */
+.column-drop-zone {
+  min-width: 50px;
+  height: 100%;
+  flex-shrink: 0;
+  background: red !important; /* Temporary: highly visible drop zones for debugging */
+  border: 2px solid yellow !important;
+  transition: min-width 0.2s ease;
+}
+
+.column-drop-zone.drag-over {
+  min-width: 100px;
+  background: var(--vscode-editor-selectionBackground);
+  border: 2px dashed var(--vscode-editor-selectionForeground);
+  border-radius: 4px;
+}
+
 /* Visual separation - add padding to content of stacked columns */
 .kanban-column-stack .kanban-full-height-column:nth-child(n+2) .column-inner {
   padding-top: var(--whitespace);
