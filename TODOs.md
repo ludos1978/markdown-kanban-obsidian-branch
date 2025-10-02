@@ -4,13 +4,17 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] On start drag fix the tags of the source stack (where we took the column from). On end drag fix the tags of the destination stack (where we put the column)
+  
+
+
 - Corrected Summary of Implementation:
 CSS Changes:
 - Grid overlay structure: All stacked columns overlay in single grid cell
 - Full viewport height: Each column min-height: 100vh so sticky works across entire scroll
 - Sticky headers: Position sticky at top with cumulative offsets (0px, 29px, 58px...)
 - Sticky footers: Position sticky at bottom with cumulative offsets (58px, 29px, 0px...)
-- Drag & drop compatible: All handlers preserved on original elements
+- Drag&drop compatible: All handlers preserved on original elements
 JavaScript #stack Tag Logic:
 - Drop between stacked columns or at the end → Adds #stack to dropped column
 - Drop as first in stack → Removes #stack from dropped column, adds #stack to next column
