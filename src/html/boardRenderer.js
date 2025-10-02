@@ -1238,10 +1238,62 @@ function renderBoard() {
         return;
     }
 
+    /**
+     * Removes empty kanban-column-stack containers and adds drop zones between remaining stacks/columns
+     */
+    function cleanupStacksAndAddDropZones(rowContainer) {
+        // 1. Remove all empty kanban-column-stack elements
+        const allStacks = rowContainer.querySelectorAll('.kanban-column-stack');
+        allStacks.forEach(stack => {
+            const columns = stack.querySelectorAll('.kanban-full-height-column');
+            if (columns.length === 0) {
+                stack.remove();
+                console.log('[kanban.cleanup] Removed empty stack');
+            }
+        });
+
+        // 2. Get all remaining children (stacks and single columns)
+        const children = Array.from(rowContainer.children).filter(child =>
+            child.classList.contains('kanban-column-stack') ||
+            child.classList.contains('kanban-full-height-column')
+        );
+
+        if (children.length === 0) return;
+
+        // 3. Insert drop zones before, between, and after stacks/columns
+        // Insert before first element
+        const firstDropZoneStack = createDropZoneStack('before');
+        rowContainer.insertBefore(firstDropZoneStack, children[0]);
+
+        // Insert between elements
+        for (let i = 0; i < children.length - 1; i++) {
+            const betweenDropZoneStack = createDropZoneStack('between');
+            children[i].parentNode.insertBefore(betweenDropZoneStack, children[i].nextSibling);
+        }
+
+        // Insert after last element
+        const lastDropZoneStack = createDropZoneStack('after');
+        children[children.length - 1].parentNode.insertBefore(lastDropZoneStack, children[children.length - 1].nextSibling);
+    }
+
+    /**
+     * Creates a drop zone stack wrapper with a drop zone inside
+     */
+    function createDropZoneStack(position) {
+        const dropZoneStack = document.createElement('div');
+        dropZoneStack.className = 'kanban-column-stack column-drop-zone-stack';
+
+        const dropZone = document.createElement('div');
+        dropZone.className = `column-drop-zone column-drop-zone-${position}`;
+
+        dropZoneStack.appendChild(dropZone);
+        return dropZoneStack;
+    }
+
     // Detect number of rows from the board
     const detectedRows = detectRowsFromBoard(window.currentBoard);
     const numRows = Math.max(currentLayoutRows, detectedRows);
-    
+
     // Always use row containers (even for single row)
     boardElement.classList.add('multi-row');
 
@@ -1260,7 +1312,6 @@ function renderBoard() {
             // Add columns for this row with stacking support
             let currentStackContainer = null;
             let lastColumnElement = null;
-            let isFirstColumn = true;
 
             window.currentBoard.columns.forEach((column, index) => {
                 const columnRow = getColumnRow(column.title);
@@ -1283,21 +1334,6 @@ function renderBoard() {
                         // Add the current stacked column to the stack
                         currentStackContainer.appendChild(columnElement);
                     } else {
-                        // Add empty drop zone stack before/between
-                        const dropZoneStack = document.createElement('div');
-                        dropZoneStack.className = 'kanban-column-stack column-drop-zone-stack';
-
-                        const dropZone = document.createElement('div');
-                        if (isFirstColumn) {
-                            dropZone.className = 'column-drop-zone column-drop-zone-before';
-                            isFirstColumn = false;
-                        } else {
-                            dropZone.className = 'column-drop-zone column-drop-zone-between';
-                        }
-
-                        dropZoneStack.appendChild(dropZone);
-                        rowContainer.appendChild(dropZoneStack);
-
                         // Regular column - wrap in its own stack container
                         const stackContainer = document.createElement('div');
                         stackContainer.className = 'kanban-column-stack';
@@ -1309,18 +1345,9 @@ function renderBoard() {
                 }
             });
 
-            // Add empty drop zone stack after last column
-            if (!isFirstColumn) {
-                const dropZoneStack = document.createElement('div');
-                dropZoneStack.className = 'kanban-column-stack column-drop-zone-stack';
+            // Clean up empty stacks and add drop zones
+            cleanupStacksAndAddDropZones(rowContainer);
 
-                const dropZone = document.createElement('div');
-                dropZone.className = 'column-drop-zone column-drop-zone-after';
-
-                dropZoneStack.appendChild(dropZone);
-                rowContainer.appendChild(dropZoneStack);
-            }
-            
             // Add the "Add Column" button to each row
             const addColumnBtn = document.createElement('button');
             addColumnBtn.className = 'add-column-btn multi-row-add-btn'; // Add the multi-row-add-btn class

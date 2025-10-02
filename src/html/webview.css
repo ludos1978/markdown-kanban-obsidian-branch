@@ -1153,6 +1153,7 @@ body.section-height-limited .task-section figure img {
   border-radius: 6px;
   padding: 16px 8px;  /* Adjust padding for vertical text */
   font-size: 14px;
+	margin-top: var(--whitespace);
   cursor: pointer;
   transition: background-color 0.2s;
   align-self: flex-start;
@@ -2209,7 +2210,7 @@ button.file-bar-menu-item {
   display: flex;
   gap: 0px;
   align-items: flex-start;
-	padding: var(--whitespace);
+	/* padding: var(--whitespace); */
   width: 100%;
   box-sizing: border-box;
 	
