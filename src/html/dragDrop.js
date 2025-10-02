@@ -1948,48 +1948,38 @@ function setupColumnDragAndDrop() {
         if (dragState.lastDropTarget !== targetKey) {
             dragState.lastDropTarget = targetKey;
 
-            // Insert the column before or after the drop zone stack
-            if (dropZone.classList.contains('column-drop-zone-before')) {
-                // Insert before the first column stack (which is right after this drop zone stack)
-                const nextElement = dropZoneStack.nextElementSibling;
-                if (nextElement && dragState.draggedColumn !== nextElement) {
-                    rowOrBoard.insertBefore(dragState.draggedColumn, nextElement);
+            // Extract column from its current stack container
+            const currentStack = dragState.draggedColumn.parentNode;
+            if (currentStack && currentStack.classList.contains('kanban-column-stack')) {
+                currentStack.removeChild(dragState.draggedColumn);
+            }
 
-                    if (typeof window.applyStackedColumnStyles === 'function') {
-                        window.applyStackedColumnStyles();
-                    }
-                }
-            } else if (dropZone.classList.contains('column-drop-zone-between')) {
-                // Insert after this drop zone stack (before the next element)
-                const nextElement = dropZoneStack.nextElementSibling;
-                if (nextElement && dragState.draggedColumn !== nextElement) {
-                    rowOrBoard.insertBefore(dragState.draggedColumn, nextElement);
+            // Create new stack container for the column
+            const newStack = document.createElement('div');
+            newStack.className = 'kanban-column-stack';
+            newStack.appendChild(dragState.draggedColumn);
 
-                    if (typeof window.applyStackedColumnStyles === 'function') {
-                        window.applyStackedColumnStyles();
-                    }
+            // Insert new stack at the correct position
+            if (dropZone.classList.contains('column-drop-zone-before') || dropZone.classList.contains('column-drop-zone-between')) {
+                // Insert right after the drop-zone-stack
+                const nextElement = dropZoneStack.nextElementSibling;
+                if (nextElement) {
+                    rowOrBoard.insertBefore(newStack, nextElement);
+                } else {
+                    rowOrBoard.appendChild(newStack);
                 }
             } else if (dropZone.classList.contains('column-drop-zone-after')) {
-                // Insert after this drop zone stack (before add button if it exists)
+                // Insert before add button or at end
                 const addBtn = rowOrBoard.querySelector('.add-column-btn');
                 if (addBtn) {
-                    if (dragState.draggedColumn.nextSibling !== addBtn) {
-                        rowOrBoard.insertBefore(dragState.draggedColumn, addBtn);
-
-                        if (typeof window.applyStackedColumnStyles === 'function') {
-                            window.applyStackedColumnStyles();
-                        }
-                    }
+                    rowOrBoard.insertBefore(newStack, addBtn);
                 } else {
-                    // No add button, append to end
-                    if (dragState.draggedColumn !== rowOrBoard.lastElementChild) {
-                        rowOrBoard.appendChild(dragState.draggedColumn);
-
-                        if (typeof window.applyStackedColumnStyles === 'function') {
-                            window.applyStackedColumnStyles();
-                        }
-                    }
+                    rowOrBoard.appendChild(newStack);
                 }
+            }
+
+            if (typeof window.applyStackedColumnStyles === 'function') {
+                window.applyStackedColumnStyles();
             }
         }
     });
