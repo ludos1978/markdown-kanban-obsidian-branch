@@ -1242,12 +1242,11 @@ function renderBoard() {
     const detectedRows = detectRowsFromBoard(window.currentBoard);
     const numRows = Math.max(currentLayoutRows, detectedRows);
     
-    // Apply multi-row class if needed
-    if (numRows > 1) {
-        boardElement.classList.add('multi-row');
-        
-        // Create row containers
-        for (let row = 1; row <= numRows; row++) {
+    // Always use row containers (even for single row)
+    boardElement.classList.add('multi-row');
+
+    // Create row containers
+    for (let row = 1; row <= numRows; row++) {
             const rowContainer = document.createElement('div');
             rowContainer.className = 'kanban-row';
             rowContainer.setAttribute('data-row-number', row);
@@ -1333,79 +1332,9 @@ function renderBoard() {
             const dropZoneSpacer = document.createElement('div');
             dropZoneSpacer.className = 'row-drop-zone-spacer';
             rowContainer.appendChild(dropZoneSpacer);
-            
+
             boardElement.appendChild(rowContainer);
         }
-    } else {
-        // Single row layout with stacking support
-        boardElement.classList.remove('multi-row');
-
-        let currentStackContainer = null;
-        let lastColumnElement = null;
-        let isFirstColumn = true;
-
-        window.currentBoard.columns.forEach((column, index) => {
-            const columnElement = createColumnElement(column, index);
-            const isStacked = /#stack\b/i.test(column.title);
-
-            if (isStacked && lastColumnElement) {
-                // This column should be stacked below the previous one
-                if (!currentStackContainer) {
-                    // Create a new stack container and move the previous column into it
-                    currentStackContainer = document.createElement('div');
-                    currentStackContainer.className = 'kanban-column-stack';
-
-                    // Replace the previous column with the stack container
-                    lastColumnElement.parentNode.replaceChild(currentStackContainer, lastColumnElement);
-                    currentStackContainer.appendChild(lastColumnElement);
-                }
-
-                // Add the current stacked column to the stack
-                currentStackContainer.appendChild(columnElement);
-            } else {
-                // Add empty drop zone stack before/between
-                const dropZoneStack = document.createElement('div');
-                dropZoneStack.className = 'kanban-column-stack column-drop-zone-stack';
-
-                const dropZone = document.createElement('div');
-                if (isFirstColumn) {
-                    dropZone.className = 'column-drop-zone column-drop-zone-before';
-                    isFirstColumn = false;
-                } else {
-                    dropZone.className = 'column-drop-zone column-drop-zone-between';
-                }
-
-                dropZoneStack.appendChild(dropZone);
-                boardElement.appendChild(dropZoneStack);
-
-                // Regular column - wrap in its own stack container
-                const stackContainer = document.createElement('div');
-                stackContainer.className = 'kanban-column-stack';
-                stackContainer.appendChild(columnElement);
-                boardElement.appendChild(stackContainer);
-                currentStackContainer = null;
-                lastColumnElement = columnElement;
-            }
-        });
-
-        // Add empty drop zone stack after last column
-        if (!isFirstColumn) {
-            const dropZoneStack = document.createElement('div');
-            dropZoneStack.className = 'kanban-column-stack column-drop-zone-stack';
-
-            const dropZone = document.createElement('div');
-            dropZone.className = 'column-drop-zone column-drop-zone-after';
-
-            dropZoneStack.appendChild(dropZone);
-            boardElement.appendChild(dropZoneStack);
-        }
-
-        const addColumnBtn = document.createElement('button');
-        addColumnBtn.className = 'add-column-btn';
-        addColumnBtn.textContent = '+ Add Column';
-        addColumnBtn.onclick = () => addColumn(1); // Default to row 1 for single row layout
-        boardElement.appendChild(addColumnBtn);
-    }
 
     // Apply folding states after rendering
     setTimeout(() => {

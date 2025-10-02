@@ -1798,13 +1798,19 @@ button.file-bar-menu-item {
 }
 
 /* Column drop zones for horizontal positioning */
-.column-drop-zone {
-  min-width: 50px;
+.column-drop-zone-stack {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   flex-shrink: 0;
-  background: red !important; /* Temporary: highly visible drop zones for debugging */
-  border: 2px solid yellow !important;
-  transition: min-width 0.2s ease;
+}
+
+.column-drop-zone {
+  min-width: 20px;
+  height: 100%;
+  flex-shrink: 0;
+  background: transparent;
+  transition: min-width 0.2s ease, background 0.2s ease;
 }
 
 .column-drop-zone.drag-over {

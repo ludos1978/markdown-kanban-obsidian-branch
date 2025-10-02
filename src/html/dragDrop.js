@@ -1019,75 +1019,24 @@ function restoreTaskPosition() {
 function setupRowDragAndDrop() {
     const boardElement = document.getElementById('kanban-board');
     const rows = boardElement.querySelectorAll('.kanban-row');
-    
+
     rows.forEach(row => {
-        row.addEventListener('dragover', e => {
-            // Only handle dragover for column dragging, let external drags bubble up  
-            if (!dragState.draggedColumn || dragState.draggedClipboardCard || dragState.draggedEmptyCard) {return;}
-            
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Visual feedback (this is cheap, just adding a class)
-            if (!row.classList.contains('drag-over')) {
-                row.classList.add('drag-over');
-            }
-            
-            // Find insertion point in this row
-            const columnsInRow = Array.from(row.querySelectorAll('.kanban-full-height-column:not(.dragging)'));
-            const mouseX = e.clientX;
-            
-            let targetPosition = null;
-            for (const col of columnsInRow) {
-                const rect = col.getBoundingClientRect();
-                if (mouseX < rect.left + rect.width / 2) {
-                    targetPosition = col;
-                    break;
-                }
-            }
-            
-            // Default to end position if not found
-            if (!targetPosition) {
-                const addBtn = row.querySelector('.add-column-btn');
-                targetPosition = addBtn || null;
-            }
-            
-            // Only move if position changed
-            if (dragState.lastRowDropTarget !== targetPosition || dragState.lastRow !== row) {
-                dragState.lastRowDropTarget = targetPosition;
-                dragState.lastRow = row;
-                
-                // Move the dragged column to this position
-                if (targetPosition) {
-                    if (dragState.draggedColumn.nextSibling !== targetPosition) {
-                        row.insertBefore(dragState.draggedColumn, targetPosition);
-                    }
-                } else {
-                    if (dragState.draggedColumn.parentNode !== row || 
-                        dragState.draggedColumn !== row.lastElementChild) {
-                        row.appendChild(dragState.draggedColumn);
-                    }
-                }
-                
-                // Update the row attribute
-                const rowNumber = parseInt(row.getAttribute('data-row-number') || '1');
-                dragState.draggedColumn.setAttribute('data-row', rowNumber);
-            }
-        });
-        
+        // Row dragover is now handled by drop zones only
+        // This prevents columns from being inserted directly into rows
+
         row.addEventListener('dragleave', e => {
             if (!row.contains(e.relatedTarget)) {
                 row.classList.remove('drag-over');
             }
         });
-        
+
         row.addEventListener('drop', e => {
             // Only handle drops for column dragging, let external drops bubble up
             if (dragState.draggedColumn && !dragState.draggedClipboardCard && !dragState.draggedEmptyCard) {
                 e.preventDefault();
                 e.stopPropagation();
                 row.classList.remove('drag-over');
-                
+
                 // Clear the row tracking
                 dragState.lastRowDropTarget = null;
                 dragState.lastRow = null;
@@ -1823,24 +1772,40 @@ function setupColumnDragAndDrop() {
 
         column.addEventListener('dragover', e => {
             if (!dragState.draggedColumn || dragState.draggedColumn === column) {return;}
-            
+
+            // Only allow vertical reordering within stacks that have 2+ columns
+            const draggedStack = dragState.draggedColumn.parentNode;
+            const targetStack = column.parentNode;
+
+            // Must be in same stack AND stack must have 2+ columns
+            if (!draggedStack || !targetStack ||
+                !draggedStack.classList.contains('kanban-column-stack') ||
+                draggedStack !== targetStack) {
+                return; // Let drop zones handle horizontal positioning
+            }
+
+            const columnsInStack = Array.from(targetStack.querySelectorAll('.kanban-full-height-column'));
+            if (columnsInStack.length < 2) {
+                return; // Single column stack - no vertical reordering
+            }
+
             e.preventDefault();
-            
+
             const rect = column.getBoundingClientRect();
-            const midpoint = rect.left + rect.width / 2;
-            
-            // Determine target position
+            const midpoint = rect.top + rect.height / 2;
+
+            // Determine target position (vertical)
             let targetElement;
             let insertBefore = false;
-            
-            if (e.clientX < midpoint) {
+
+            if (e.clientY < midpoint) {
                 targetElement = column;
                 insertBefore = true;
             } else {
                 targetElement = column.nextSibling;
                 insertBefore = false;
             }
-            
+
             // Only move if it's a different position than last time
             if (dragState.lastDropTarget !== targetElement) {
                 dragState.lastDropTarget = targetElement;
@@ -1848,30 +1813,24 @@ function setupColumnDragAndDrop() {
                 if (insertBefore) {
                     // Only move if not already there
                     if (dragState.draggedColumn.nextSibling !== column) {
-                        column.parentNode.insertBefore(dragState.draggedColumn, column);
+                        targetStack.insertBefore(dragState.draggedColumn, column);
 
-                        // Recalculate stack positioning after DOM reorder
-                        const stackContainer = column.closest('.kanban-column-stack');
-                        if (stackContainer && typeof window.applyStackedColumnStyles === 'function') {
+                        if (typeof window.applyStackedColumnStyles === 'function') {
                             window.applyStackedColumnStyles();
                         }
                     }
                 } else {
                     // Only move if not already there
                     if (targetElement && dragState.draggedColumn.nextSibling !== targetElement) {
-                        column.parentNode.insertBefore(dragState.draggedColumn, targetElement);
+                        targetStack.insertBefore(dragState.draggedColumn, targetElement);
 
-                        // Recalculate stack positioning after DOM reorder
-                        const stackContainer = column.closest('.kanban-column-stack');
-                        if (stackContainer && typeof window.applyStackedColumnStyles === 'function') {
+                        if (typeof window.applyStackedColumnStyles === 'function') {
                             window.applyStackedColumnStyles();
                         }
-                    } else if (!targetElement && dragState.draggedColumn !== column.parentNode.lastElementChild) {
-                        column.parentNode.appendChild(dragState.draggedColumn);
+                    } else if (!targetElement && dragState.draggedColumn !== targetStack.lastElementChild) {
+                        targetStack.appendChild(dragState.draggedColumn);
 
-                        // Recalculate stack positioning after DOM reorder
-                        const stackContainer = column.closest('.kanban-column-stack');
-                        if (stackContainer && typeof window.applyStackedColumnStyles === 'function') {
+                        if (typeof window.applyStackedColumnStyles === 'function') {
                             window.applyStackedColumnStyles();
                         }
                     }
@@ -1948,38 +1907,52 @@ function setupColumnDragAndDrop() {
         if (dragState.lastDropTarget !== targetKey) {
             dragState.lastDropTarget = targetKey;
 
-            // Extract column from its current stack container
-            const currentStack = dragState.draggedColumn.parentNode;
-            if (currentStack && currentStack.classList.contains('kanban-column-stack')) {
-                currentStack.removeChild(dragState.draggedColumn);
-            }
+            // Find the target stack container to insert into
+            let targetStack = null;
 
-            // Create new stack container for the column
-            const newStack = document.createElement('div');
-            newStack.className = 'kanban-column-stack';
-            newStack.appendChild(dragState.draggedColumn);
-
-            // Insert new stack at the correct position
-            if (dropZone.classList.contains('column-drop-zone-before') || dropZone.classList.contains('column-drop-zone-between')) {
-                // Insert right after the drop-zone-stack
+            if (dropZone.classList.contains('column-drop-zone-before')) {
+                // Drop before first column - insert into the column stack right after this drop zone
                 const nextElement = dropZoneStack.nextElementSibling;
-                if (nextElement) {
-                    rowOrBoard.insertBefore(newStack, nextElement);
-                } else {
-                    rowOrBoard.appendChild(newStack);
+                if (nextElement && nextElement.classList.contains('kanban-column-stack') &&
+                    !nextElement.classList.contains('column-drop-zone-stack')) {
+                    targetStack = nextElement;
+                }
+            } else if (dropZone.classList.contains('column-drop-zone-between')) {
+                // Drop between columns - insert into the column stack BEFORE this drop zone (to the left)
+                let prevElement = dropZoneStack.previousElementSibling;
+                while (prevElement) {
+                    if (prevElement.classList.contains('kanban-column-stack') &&
+                        !prevElement.classList.contains('column-drop-zone-stack')) {
+                        targetStack = prevElement;
+                        break;
+                    }
+                    prevElement = prevElement.previousElementSibling;
                 }
             } else if (dropZone.classList.contains('column-drop-zone-after')) {
-                // Insert before add button or at end
-                const addBtn = rowOrBoard.querySelector('.add-column-btn');
-                if (addBtn) {
-                    rowOrBoard.insertBefore(newStack, addBtn);
-                } else {
-                    rowOrBoard.appendChild(newStack);
+                // Drop after last column - insert into the column stack before this drop zone (to the left)
+                let prevElement = dropZoneStack.previousElementSibling;
+                while (prevElement) {
+                    if (prevElement.classList.contains('kanban-column-stack') &&
+                        !prevElement.classList.contains('column-drop-zone-stack')) {
+                        targetStack = prevElement;
+                        break;
+                    }
+                    prevElement = prevElement.previousElementSibling;
                 }
             }
 
-            if (typeof window.applyStackedColumnStyles === 'function') {
-                window.applyStackedColumnStyles();
+            // Insert column into target stack if found
+            if (targetStack && dragState.draggedColumn.parentNode !== targetStack) {
+                // For "before", insert at beginning. For "between" and "after", append to end
+                if (dropZone.classList.contains('column-drop-zone-before')) {
+                    targetStack.insertBefore(dragState.draggedColumn, targetStack.firstChild);
+                } else {
+                    targetStack.appendChild(dragState.draggedColumn);
+                }
+
+                if (typeof window.applyStackedColumnStyles === 'function') {
+                    window.applyStackedColumnStyles();
+                }
             }
         }
     });

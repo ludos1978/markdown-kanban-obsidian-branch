@@ -39,3 +39,5 @@
 - allways think, for every time we try to recolve an unfixed problem think even harder.
 - never implement any mock code. allways fully implement it, in the most simple way.
 - after working on a problem and verifying that it's solved, check if any of the changes are obsolete or unneeded and remove these changes if it's so.
+- Do not assume, rather ask if something is required to implement a feature or change
+- If we worked on a problem which was not successfully solved, analyze what might have gone wrong and dont repeat the error.
