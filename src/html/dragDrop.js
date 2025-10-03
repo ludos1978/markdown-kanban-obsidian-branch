@@ -1195,7 +1195,7 @@ function setupTaskDragAndDrop() {
             }
 
             // Add dragging class now (delayed from dragstart to avoid layout shift)
-            if (dragState.draggedTask && !dragState.draggedTask.classList.contains('dragging')) {
+            if (!dragState.draggedTask.classList.contains('dragging')) {
                 dragState.draggedTask.classList.add('dragging', 'drag-preview');
             }
             
@@ -1277,7 +1277,6 @@ function setupTaskDragHandle(handle) {
     });
 
     handle.addEventListener('dragend', e => {
-
         const taskItem = e.target && e.target.closest ? e.target.closest('.task-item') : null;
         if (taskItem) {
             // Clean up drag state FIRST
@@ -2104,42 +2103,51 @@ function setupColumnDragAndDrop() {
         });
     });
 
-    // Add dragover handler to stack containers to allow dropping at the end vertically
-    const stacks = document.querySelectorAll('.kanban-column-stack');
-    stacks.forEach(stack => {
-        stack.addEventListener('dragover', e => {
-            if (!dragState.draggedColumn) {return;}
+    // Add dragover handler to allow dropping below the last column in a stack
+    // Use event delegation on document to handle dynamically created stacks
+    document.addEventListener('dragover', e => {
+        if (!dragState.draggedColumn) {return;}
 
-            e.preventDefault();
+        // Check if hovering over a stack (but not over a column or drop zone)
+        const stack = e.target.closest('.kanban-column-stack');
+        if (!stack || stack.classList.contains('column-drop-zone-stack')) {return;}
 
-            // Check if mouse is below all columns (vertical stacking)
-            const columns = Array.from(stack.querySelectorAll('.kanban-full-height-column'));
-            if (columns.length === 0) {return;}
+        // Don't interfere if directly over a column or drop zone
+        if (e.target.classList.contains('kanban-full-height-column') ||
+            e.target.closest('.kanban-full-height-column') ||
+            e.target.classList.contains('column-drop-zone')) {
+            return;
+        }
 
-            const lastColumn = columns[columns.length - 1];
-            const lastRect = lastColumn.getBoundingClientRect();
+        e.preventDefault();
 
-            // Only handle vertical drops below the last column
-            if (e.clientY > lastRect.bottom) {
-                const targetKey = 'stack-bottom-' + Math.random();
-                if (dragState.lastDropTarget !== targetKey) {
-                    dragState.lastDropTarget = targetKey;
+        // Check if mouse is below all columns (vertical stacking)
+        const columns = Array.from(stack.querySelectorAll('.kanban-full-height-column'));
+        if (columns.length === 0) {return;}
 
-                    if (dragState.draggedColumn !== stack.lastElementChild) {
-                        stack.appendChild(dragState.draggedColumn);
+        const lastColumn = columns[columns.length - 1];
+        const lastRect = lastColumn.getBoundingClientRect();
 
-                        // Schedule style update if not already pending
-                        if (!dragState.styleUpdatePending && typeof window.applyStackedColumnStyles === 'function') {
-                            dragState.styleUpdatePending = true;
-                            requestAnimationFrame(() => {
-                                window.applyStackedColumnStyles();
-                                dragState.styleUpdatePending = false;
-                            });
-                        }
+        // Only handle vertical drops below the last column
+        if (e.clientY > lastRect.bottom) {
+            const targetKey = 'stack-bottom-' + Array.from(stack.children).indexOf(dragState.draggedColumn);
+            if (dragState.lastDropTarget !== targetKey) {
+                dragState.lastDropTarget = targetKey;
+
+                if (dragState.draggedColumn !== stack.lastElementChild) {
+                    stack.appendChild(dragState.draggedColumn);
+
+                    // Schedule style update if not already pending
+                    if (!dragState.styleUpdatePending && typeof window.applyStackedColumnStyles === 'function') {
+                        dragState.styleUpdatePending = true;
+                        requestAnimationFrame(() => {
+                            window.applyStackedColumnStyles();
+                            dragState.styleUpdatePending = false;
+                        });
                     }
                 }
             }
-        });
+        }
     });
 
     // Add dragover handlers specifically to drop zones - visual feedback only
