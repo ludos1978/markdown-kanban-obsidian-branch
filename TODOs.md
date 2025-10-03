@@ -4,11 +4,14 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] disable the vertical column folding mode
-- [ ] columns without tasks can end up being with not enought height. when rows are limited ine height.
+- [ ] if i delete a task recalculate the full stacks heights reuse the existing function for that
+- [ ] make sure that in columns the "column-header.header-bars-container" contains the "header-bar" and "column-footer.footer-bars-container" contains the "footer-bar" in all circumstances.
+
+
+- [x] disable the vertical column folding mode
 - the title when inserting of a columninclude should only show thae filename included and he remainder of the contents. 
 
-- [ ] On start drag fix the tags of the source stack (where we took the column from). On end drag fix the tags of the destination stack (where we put the column)
+- [x] On start drag fix the tags of the source stack (where we took the column from). On end drag fix the tags of the destination stack (where we put the column)
   
 - Corrected Summary of Implementation:
 CSS Changes:
@@ -29,13 +32,13 @@ Content scrolls naturally as before
 
 - [x] When moving a task into a folded column while pressing alt, the column should not unfold as it usually does.
 
-- [ ] Columns that are in a "vertical stack" have a #stack tag or the next column has a #stack tag. Add a feature to make the columns fold horizontally, but keep the vertical folding function available. An column in a "vertical stack" stack should by default folds to horizontal folding state, a column in outside a stack should fold to vertical fold state. If <alt> is pressed while pressing the fold button again, the horizontal/vertical folding should switch. when pressing <alt> while it's unfolded, fold to the not-default-state. When <alt> is not pressed a folded column unfolds.
+- [x] Columns that are in a "vertical stack" have a #stack tag or the next column has a #stack tag. Add a feature to make the columns fold horizontally, but keep the vertical folding function available. An column in a "vertical stack" stack should by default folds to horizontal folding state, a column in outside a stack should fold to vertical fold state. If <alt> is pressed while pressing the fold button again, the horizontal/vertical folding should switch. when pressing <alt> while it's unfolded, fold to the not-default-state. When <alt> is not pressed a folded column unfolds.
 
 - [x] Export and pack of the kanban does not generate the default folder name it should export into (based on the filename of the main kanban file combined with the date-time like "YYYYMMDD-HHmm").
 
-- [ ] if multiple columns are in a vertical stack. can you make all the sticky headers to stick, eighter at the top or the bottom? so if 3 columns are above each other, allways show the headers of all columns. it's to be able to drop items into all rows at all the time.
+- [x] if multiple columns are in a vertical stack. can you make all the sticky headers to stick, eighter at the top or the bottom? so if 3 columns are above each other, allways show the headers of all columns. it's to be able to drop items into all rows at all the time.
 
-- [ ] vertically folded columns should allways be next to each other, even if they have the #stack tag.
+- [x] vertically folded columns should allways be next to each other, even if they have the #stack tag.
 
 - [x] it still converts this
 
