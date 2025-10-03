@@ -419,24 +419,10 @@ export class MessageHandler {
                 }
                 break;
             case 'editTaskTitle':
-                // console.log(`[MessageHandler Debug] editTaskTitle received:`, {
-                //     taskId: message.taskId,
-                //     columnId: message.columnId,
-                //     title: message.title
-                // });
-
                 // Check if this might be a task include file change
                 const currentBoardForTask = this._getCurrentBoard();
                 const targetColumn = currentBoardForTask?.columns.find(col => col.id === message.columnId);
                 const task = targetColumn?.tasks.find(t => t.id === message.taskId);
-
-                // console.log(`[MessageHandler Debug] Task before edit:`, {
-                //     taskId: message.taskId,
-                //     columnId: message.columnId,
-                //     currentTitle: task?.title,
-                //     includeMode: task?.includeMode,
-                //     oldIncludeFiles: oldTaskIncludeFiles
-                // });
 
                 // Check if the new title contains task include syntax
                 const hasTaskIncludeMatches = message.title.match(/!!!taskinclude\(([^)]+)\)!!!/g);

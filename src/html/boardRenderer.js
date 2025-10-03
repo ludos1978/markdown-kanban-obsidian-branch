@@ -1248,7 +1248,6 @@ function renderBoard() {
             const columns = stack.querySelectorAll('.kanban-full-height-column');
             if (columns.length === 0) {
                 stack.remove();
-                console.log('[kanban.cleanup] Removed empty stack');
             }
         });
 
@@ -2055,8 +2054,6 @@ function toggleColumnCollapse(columnId, event) {
     }, 10);
 }
 
-// Removed handleColumnBarsOnToggle - no longer needed since we keep same HTML structure
-
 /**
  * Apply special styling and positioning for stacked columns
  * Purpose:
@@ -2129,16 +2126,7 @@ function applyStackedColumnStyles() {
                 // Measure footer bars separately (in column-footer for stacked)
                 const footerBarsContainer = footer ? footer.querySelector('.stacked-footer-bars') : null;
                 const footerBarsHeight = footerBarsContainer ? footerBarsContainer.offsetHeight : 0;
-
-                // DEBUG: Check if bars exist and their heights
-                const headerBarsContainer = header ? header.querySelector('.header-bars-container') : null;
-                const headerBarCount = headerBarsContainer ? headerBarsContainer.children.length : 0;
-                const footerBarCount = footerBarsContainer ? footerBarsContainer.children.length : 0;
-                const statusLabel = isVerticallyFolded ? 'COLLAPSED-VERTICAL' : (isHorizontallyFolded ? 'COLLAPSED-HORIZONTAL' : 'expanded');
-                console.log(`[kanban.stacked-columns-DEBUG] Column ${idx} (${statusLabel}): ${headerBarCount} header-bars, ${footerBarCount} footer-bars (${footerBarsHeight}px)`);
-
                 const totalHeight = headerHeight + footerHeight + contentHeight;
-                console.log(`[kanban.stacked-columns] Column ${idx} (${statusLabel}): header=${headerHeight}px, footer=${footerHeight}px (includes ${footerBarsHeight}px bars), content=${contentHeight}px, total=${totalHeight}px`);
 
                 columnData.push({
                     col,
@@ -2224,8 +2212,6 @@ function applyStackedColumnStyles() {
                     footer.style.zIndex = zIndex;
                 }
 
-                console.log(`[DEBUG-STACK] Initial setup - Column ${index}: headerTop=${headerTop}px, footerTop=${footerTop}px, headerBottom=${headerBottom}px, footerBottom=${footerBottom}px, contentPadding=${contentPadding}px`);
-
                 // Apply margin to column-offset to push column content down
                 const columnOffset = col.querySelector('.column-offset');
                 if (columnOffset) {
@@ -2269,9 +2255,6 @@ function setupStackedColumnScrollHandler(columnsData) {
         const viewportHeight = window.innerHeight;
         const viewportBottom = scrollY + viewportHeight;
 
-        console.log(`\n[DEBUG-STACK] === SCROLL EVENT ===`);
-        console.log(`[DEBUG-STACK] scrollY=${scrollY.toFixed(0)}, viewportHeight=${viewportHeight.toFixed(0)}, viewportBottom=${viewportBottom.toFixed(0)}`);
-
         window.stackedColumnsData.forEach(({ col, headerHeight, footerHeight, totalHeight }, idx) => {
             const header = col.querySelector('.column-header');
             const footer = col.querySelector('.column-footer');
@@ -2288,20 +2271,10 @@ function setupStackedColumnScrollHandler(columnsData) {
             const headerRect = header.getBoundingClientRect();
             const columnInnerPadding = columnInner ? parseFloat(window.getComputedStyle(columnInner).paddingTop) : 0;
 
-            console.log(`\n[DEBUG-STACK] --- Column ${colIndex} ---`);
-            console.log(`[DEBUG-STACK]   Stored values: headerBottom=${headerBottom}, footerBottom=${footerBottom}`);
-            console.log(`[DEBUG-STACK]   Heights: headerHeight=${headerHeight}, footerHeight=${footerHeight}, totalHeight=${totalHeight}`);
-            console.log(`[DEBUG-STACK]   Column rect: top=${rect.top.toFixed(0)}, bottom=${rect.bottom.toFixed(0)}, height=${rect.height.toFixed(0)}`);
-            console.log(`[DEBUG-STACK]   Header rect: top=${headerRect.top.toFixed(0)}, bottom=${headerRect.bottom.toFixed(0)}`);
-            console.log(`[DEBUG-STACK]   Column-inner paddingTop=${columnInnerPadding.toFixed(0)}`);
-
             // Calculate: header would be ABOVE viewport top when sticky at bottom
             // headerRect.bottom is where the header currently is (accounting for sticky behavior)
             // If header is ABOVE the viewport top, switch to fixed top positioning
             const headerWouldBeAbove = headerRect.bottom < 0;
-
-            console.log(`[DEBUG-STACK]   Calculation: headerRect.bottom=${headerRect.bottom.toFixed(0)}`);
-            console.log(`[DEBUG-STACK]   Decision: headerAbove=${headerWouldBeAbove} (${headerRect.bottom.toFixed(0)} < 0)`);
 
             if (headerWouldBeAbove) {
                 // Column is above viewport - use FIXED positioning at TOP
@@ -2320,8 +2293,6 @@ function setupStackedColumnScrollHandler(columnsData) {
                 footer.style.left = rect.left + 'px';
                 footer.style.width = rect.width + 'px';
                 footer.style.zIndex = zIndex;
-
-                console.log(`[DEBUG-STACK]   >>> ABOVE viewport - FIXED at TOP (top=0)`);
             } else {
                 // Column is visible or below viewport - use STICKY at BOTTOM
                 header.style.position = 'sticky';
@@ -2337,8 +2308,6 @@ function setupStackedColumnScrollHandler(columnsData) {
                 footer.style.left = '';
                 footer.style.right = '';
                 footer.style.zIndex = zIndex;
-
-                console.log(`[DEBUG-STACK]   >>> VISIBLE/BELOW - STICKY at BOTTOM (bottom=${footerBottom})`);
             }
         });
     };
@@ -3321,11 +3290,4 @@ window.getUserAddedTags = getUserAddedTags;
 // Expose section wrapping function for taskEditor
 window.wrapTaskSections = wrapTaskSections;
 
-// window.handleColumnBarsOnToggle = handleColumnBarsOnToggle; // Removed - no longer needed
 window.handleLinkOrImageOpen = handleLinkOrImageOpen;
-
-// Function to calculate and apply row heights based on tallest column
-// Removed calculateAndApplyRowHeights and calculateRowHeight functions
-// Height management is now handled by:
-// 1. CSS flexbox for 'auto' mode (natural layout)
-// 2. applyRowHeight() for user-defined heights (vh, px, em)

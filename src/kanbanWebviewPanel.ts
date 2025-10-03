@@ -1181,7 +1181,6 @@ export class KanbanWebviewPanel {
     private _setupEventListeners() {
         // Handle panel disposal - check for unsaved changes first
         this._panel.onDidDispose(async () => {
-            console.trace(`[KANBAN_CLOSE_DEBUG] onDidDispose call stack`);
             await this._handlePanelClose();
         }, null, this._disposables);
 
@@ -2038,8 +2037,6 @@ export class KanbanWebviewPanel {
     }
 
     public async dispose() {
-        console.trace(`[KANBAN_CLOSE_DEBUG] dispose() call stack`);
-
         // Clear unsaved changes flag and prevent closing flags
         this._hasUnsavedChanges = false;
         this._isClosingPrevented = false;

@@ -1580,18 +1580,14 @@ function setupDragAndDrop() {
  */
 function cleanupEmptyStack(stack) {
     if (!stack || !stack.classList.contains('kanban-column-stack')) {
-        console.log('[dragDrop-CLEANUP] Stack is null or not a kanban-column-stack');
         return;
     }
 
     // Check if stack is empty (no columns)
     const hasColumns = stack.querySelectorAll('.kanban-full-height-column').length > 0;
     if (hasColumns || stack.classList.contains('column-drop-zone-stack')) {
-        console.log('[dragDrop-CLEANUP] Stack still has columns or is a drop zone, keeping it');
         return; // Stack still has columns or is a drop zone, don't remove
     }
-
-    console.log('[dragDrop-CLEANUP] Stack is empty, removing it and adjacent drop zone');
 
     // Find the drop zone to the right of this stack
     const nextSibling = stack.nextSibling;
@@ -1602,7 +1598,6 @@ function cleanupEmptyStack(stack) {
     // Remove the adjacent drop zone if it exists
     if (nextSibling && nextSibling.classList &&
         nextSibling.classList.contains('column-drop-zone-stack')) {
-        console.log('[dragDrop-CLEANUP] Removed adjacent drop zone');
         nextSibling.remove();
     }
 }
@@ -1701,7 +1696,6 @@ function updateColumnTitleDisplay(columnId) {
         const rowIndicator = titleElement.querySelector('.column-row-tag');
         const rowIndicatorHtml = rowIndicator ? rowIndicator.outerHTML : '';
         titleElement.innerHTML = renderedTitle + rowIndicatorHtml;
-        console.log(`[dragDrop-updateTitle] Updated title display for ${columnId}: "${column.title}"`);
     } else {
         console.warn('[dragDrop-updateTitle] Title element not found for:', columnId);
     }
@@ -1741,8 +1735,6 @@ function setupColumnDragAndDrop() {
 
             // Find the original position in the data model
             const originalIndex = currentBoard.columns.findIndex(c => c.id === columnId);
-
-            console.log('[dragDrop-DRAGSTART] Dragging column:', columnId);
 
             // Store drag state including original parent stack
             dragState.draggedColumn = columnElement;
@@ -1820,7 +1812,6 @@ function setupColumnDragAndDrop() {
 
             // Process pending drop zone if hovering over one (only for column drags)
             if (dragState.pendingDropZone && dragState.draggedColumn) {
-                console.log('[dragDrop-DRAGEND] Processing pending drop zone');
                 const dropZone = dragState.pendingDropZone;
                 const dropZoneStack = dropZone.parentNode;
 
@@ -1844,8 +1835,6 @@ function setupColumnDragAndDrop() {
 
                         // Recreate drop zones
                         cleanupAndRecreateDropZones(rowOrBoard);
-
-                        console.log('[dragDrop-DRAGEND] Column moved to new stack via drop zone');
                     }
                 }
 
@@ -2213,7 +2202,6 @@ function setupColumnDragAndDrop() {
 
         // Store the drop zone for processing on dragend
         dragState.pendingDropZone = dropZone;
-        console.log('[dragDrop-DROPZONE] Hovering over drop zone, will move on dragend');
     });
 
     // Clean up drag-over state on dragend
