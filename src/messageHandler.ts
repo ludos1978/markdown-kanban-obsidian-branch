@@ -441,10 +441,7 @@ export class MessageHandler {
                 // Check if the new title contains task include syntax
                 const hasTaskIncludeMatches = message.title.match(/!!!taskinclude\(([^)]+)\)!!!/g);
 
-                console.log('[MessageHandler.editTaskTitle] title:', message.title, 'hasMatches:', !!hasTaskIncludeMatches);
-
                 if (hasTaskIncludeMatches) {
-                    console.log('[MessageHandler] Task include syntax detected');
 
                     // Check if this task currently has unsaved changes
                     if (task && task.includeMode && task.includeFiles && task.includeFiles.length > 0) {

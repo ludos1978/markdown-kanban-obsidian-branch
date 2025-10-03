@@ -1400,13 +1400,8 @@ function renderBoard() {
 
     // Inject header/footer bars after DOM is rendered
     // This adds the actual bar elements to the DOM
-    console.log('[kanban.renderBoard] About to call injectStackableBars, typeof:', typeof injectStackableBars);
     if (typeof injectStackableBars === 'function') {
-        console.log('[kanban.renderBoard] Calling injectStackableBars NOW');
         injectStackableBars();
-        console.log('[kanban.renderBoard] injectStackableBars returned');
-    } else {
-        console.log('[kanban.renderBoard] injectStackableBars is NOT a function!');
     }
 
     // Apply stacked column styles AFTER bars are injected
@@ -1836,14 +1831,6 @@ function createTaskElement(task, columnId, taskIndex) {
 
     // Extract primary tag for styling (first non-special tag)
     const primaryTag = window.extractFirstTag ? window.extractFirstTag(task.title) : null;
-
-    // Debug logging for taskinclude tag issues
-    if (task.title && task.title.includes('!!!taskinclude')) {
-        console.log('[boardRenderer.createTaskElement] Task with taskinclude:', task.title);
-        console.log('[boardRenderer.createTaskElement] primaryTag:', primaryTag);
-        console.log('[boardRenderer.createTaskElement] allTags:', allTags);
-    }
-
     const tagAttribute = (primaryTag && !primaryTag.startsWith('row') && !primaryTag.startsWith('gather_') && !primaryTag.startsWith('span'))
         ? ` data-task-tag="${primaryTag}"`
         : '';
@@ -2984,8 +2971,6 @@ function generateTagStyles() {
 // Function to inject header, footer bars, and border text after render
 // Modified injectStackableBars function
 function injectStackableBars(targetElement = null) {
-    console.log('[kanban.injectStackableBars] START - targetElement:', targetElement ? 'specific element' : 'all elements');
-
     let elementsToProcess;
     if (targetElement) {
         // Always process the target element (even without data-all-tags) to clean up existing bars
@@ -2994,16 +2979,12 @@ function injectStackableBars(targetElement = null) {
         elementsToProcess = document.querySelectorAll('[data-all-tags]');
     }
 
-    console.log('[kanban.injectStackableBars] Found', elementsToProcess.length, 'elements to process');
-
     elementsToProcess.forEach((element, idx) => {
         const allTagsAttr = element.getAttribute('data-all-tags');
         let tags = allTagsAttr ? allTagsAttr.split(' ').filter(tag => tag.trim()) : [];
         const isColumn = element.classList.contains('kanban-full-height-column');
         const isCollapsed = isColumn && element.classList.contains('collapsed');
         const isStacked = isColumn && element.closest('.kanban-column-stack');
-
-        console.log(`[kanban.injectStackableBars] Element ${idx}: isColumn=${isColumn}, isStacked=${isStacked}, tags=[${tags.join(', ')}]`);
 
         // Filter out tags that are only in description for task elements
         if (!isColumn) { // This is a task element
@@ -3018,13 +2999,8 @@ function injectStackableBars(targetElement = null) {
                     }
                 });
 
-                console.log('[kanban.injectStackableBars] Task tags before filter:', tags);
-                console.log('[kanban.injectStackableBars] Description tags:', Array.from(descriptionTags));
-
                 // Only use tags that are NOT in description for card-level styling
                 tags = tags.filter(tag => !descriptionTags.has(tag));
-
-                console.log('[kanban.injectStackableBars] Task tags after filter:', tags);
             }
         }
         
@@ -3079,7 +3055,6 @@ function injectStackableBars(targetElement = null) {
                     }, 0)}px`;
                 }
 
-                console.log(`[kanban.injectStackableBars] Creating header bar for tag "${tag}", height=${config.headerBar.height}, label=${config.headerBar.label}`);
                 headerBars.push(headerBar);
                 if (config.headerBar.label) {hasHeaderLabel = true;}
             }
@@ -3117,7 +3092,6 @@ function injectStackableBars(targetElement = null) {
                 columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
                 element.classList.add('has-header-bar');
                 if (hasHeaderLabel) {element.classList.add('has-header-label');}
-                console.log(`[kanban.injectStackableBars] Inserted ${headerBars.length} header bars into COLLAPSED column header`);
             }
 
             // Create and append footer container to column-footer (not column-inner)
@@ -3135,77 +3109,59 @@ function injectStackableBars(targetElement = null) {
             element.style.paddingBottom = '';
 
         } else {
-            // For non-collapsed elements, use column-header and column-footer
-            const columnHeader = element.querySelector('.column-header');
-            const columnFooter = element.querySelector('.column-footer');
-            const isInStack = element.closest('.kanban-column-stack') !== null;
+            // For non-collapsed columns, use column-header and column-footer
+            if (isColumn) {
+                const columnHeader = element.querySelector('.column-header');
+                const columnFooter = element.querySelector('.column-footer');
+                const isInStack = element.closest('.kanban-column-stack') !== null;
 
-            if (columnHeader) {
-                // Create and insert header container at the beginning of column-header
-                if (headerBars.length > 0) {
+                if (columnHeader && headerBars.length > 0) {
+                    // Create and insert header container at the beginning of column-header
                     const headerContainer = document.createElement('div');
                     headerContainer.className = 'header-bars-container';
                     headerBars.forEach(bar => headerContainer.appendChild(bar));
                     columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
-                    console.log(`[kanban.injectStackableBars] Inserted ${headerBars.length} header bars into column header`);
+                    element.classList.add('has-header-bar');
+                    if (hasHeaderLabel) {element.classList.add('has-header-label');}
                 }
-            }
 
-            // Footer bars always go in column-footer, but stacked ones get special class
-            if (columnFooter && footerBars.length > 0) {
-                const footerContainer = document.createElement('div');
-                footerContainer.className = 'footer-bars-container';
-                if (isInStack) {
-                    footerContainer.classList.add('stacked-footer-bars');
+                // Footer bars always go in column-footer, but stacked ones get special class
+                if (columnFooter && footerBars.length > 0) {
+                    const footerContainer = document.createElement('div');
+                    footerContainer.className = 'footer-bars-container';
+                    if (isInStack) {
+                        footerContainer.classList.add('stacked-footer-bars');
+                    }
+                    footerBars.forEach(bar => footerContainer.appendChild(bar));
+                    columnFooter.appendChild(footerContainer);
+                    element.classList.add('has-footer-bar');
+                    if (hasFooterLabel) {element.classList.add('has-footer-label');}
                 }
-                footerBars.forEach(bar => footerContainer.appendChild(bar));
-                columnFooter.appendChild(footerContainer);
-                element.classList.add('has-footer-bar');
-                if (hasFooterLabel) {element.classList.add('has-footer-label');}
-                console.log(`[kanban.injectStackableBars] Inserted ${footerBars.length} footer bars into column-footer${isInStack ? ' (stacked)' : ''}`);
-            } 
-						
-						// For task items, use appendChild and rely on CSS flexbox order
-						if (element.classList.contains('task-item')) {
-								// Create header container and append (CSS order: -1 will position it first)
-								if (headerBars.length > 0) {
-										const headerContainer = document.createElement('div');
-										headerContainer.className = 'header-bars-container';
-										headerBars.forEach(bar => headerContainer.appendChild(bar));
-										element.appendChild(headerContainer);
-								}
+            } else {
+                // For non-column elements (tasks), use appendChild and rely on CSS flexbox order
+                if (headerBars.length > 0) {
+                    const headerContainer = document.createElement('div');
+                    headerContainer.className = 'header-bars-container';
+                    headerBars.forEach(bar => headerContainer.appendChild(bar));
+                    element.appendChild(headerContainer);
+                    element.classList.add('has-header-bar');
+                    if (hasHeaderLabel) {element.classList.add('has-header-label');}
+                }
 
-								// Create footer container and append at the end
-								if (footerBars.length > 0) {
-										const footerContainer = document.createElement('div');
-										footerContainer.className = 'footer-bars-container';
-										footerBars.forEach(bar => footerContainer.appendChild(bar));
-										element.appendChild(footerContainer);
-								}
-						} else {
-								// Fallback for other elements
-								headerBars.forEach(bar => element.appendChild(bar));
-								footerBars.forEach(bar => element.appendChild(bar));
-						}
-            
-            // Set CSS classes for header bars (no padding needed with flex layout)
-            if (headerBars.length > 0) {
-                element.classList.add('has-header-bar');
-                if (hasHeaderLabel) {element.classList.add('has-header-label');}
-            }
-            
-            // Set CSS classes for footer bars (no padding needed with flex layout)
-            if (footerBars.length > 0) {
-                element.classList.add('has-footer-bar');
-                if (hasFooterLabel) {element.classList.add('has-footer-label');}
+                if (footerBars.length > 0) {
+                    const footerContainer = document.createElement('div');
+                    footerContainer.className = 'footer-bars-container';
+                    footerBars.forEach(bar => footerContainer.appendChild(bar));
+                    element.appendChild(footerContainer);
+                    element.classList.add('has-footer-bar');
+                    if (hasFooterLabel) {element.classList.add('has-footer-label');}
+                }
             }
         }
     });
 
     // Force a full reflow to ensure all bars are laid out
     void document.body.offsetHeight;
-
-    console.log('[kanban.injectStackableBars] END - bars injected, applyStackedColumnStyles will be called from renderBoard');
 }
 
 // Helper function to check if dark theme
