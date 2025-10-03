@@ -13,6 +13,11 @@
   --task-focus-color: gray;
   --task-hover-color: var(--vscode-focusBorder);
   --section-focus-color: gray;
+
+  /* Compact view - smaller fonts and padding when content outside viewport */
+  --compact-font-size: 0.85em;
+  --compact-padding-scale: 0.7;
+  --compact-visibility-threshold: 0.3; /* Apply when < 30% visible */
 }
 
 * {
@@ -533,6 +538,27 @@ body.small-card-fonts .task-title-container .markdown-content img {
   display: flex;
   flex-direction: column;
   padding: 0;
+}
+
+/* Make fonts smaller and padding smaller when content (detected via column-inner) is outside viewport */
+.kanban-full-height-column.compact-view {
+  font-size: var(--compact-font-size);
+}
+
+/* .kanban-full-height-column.compact-view .column-header {
+  padding: calc(var(--whitespace) * var(--compact-padding-scale));
+} */
+
+/* .kanban-full-height-column.compact-view .column-footer {
+  padding-top: calc(var(--whitespace) * var(--compact-padding-scale));
+} */
+
+/* .kanban-full-height-column.compact-view .task-item {
+  padding: calc(var(--whitespace) * var(--compact-padding-scale));
+} */
+
+.kanban-full-height-column.compact-view .column-footer {
+  padding-top: calc(var(--whitespace) * var(--compact-padding-scale));
 }
 
 .column-inner {

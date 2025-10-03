@@ -1435,6 +1435,9 @@ function renderBoard() {
             window.applyColumnWidth(window.currentColumnWidth, true); // Skip render to prevent loop
         }
     }, 50);
+
+    // Setup compact view detection for ALL columns
+    setupCompactViewHandler();
 }
 
 function getFoldAllButtonState(columnId) {
@@ -2254,6 +2257,7 @@ function setupStackedColumnScrollHandler(columnsData) {
         const scrollY = window.scrollY || window.pageYOffset;
         const viewportHeight = window.innerHeight;
         const viewportBottom = scrollY + viewportHeight;
+        const viewportTop = scrollY;
 
         window.stackedColumnsData.forEach(({ col, headerHeight, footerHeight, totalHeight }, idx) => {
             const header = col.querySelector('.column-header');
@@ -2309,6 +2313,30 @@ function setupStackedColumnScrollHandler(columnsData) {
                 footer.style.right = '';
                 footer.style.zIndex = zIndex;
             }
+
+            // Compact view - detect column-inner visibility and apply scale
+            if (columnInner) {
+                const innerRect = columnInner.getBoundingClientRect();
+                const innerTop = innerRect.top;
+                const innerBottom = innerRect.bottom;
+                const innerHeight = innerRect.height;
+
+                // Calculate how much of column-inner is visible in viewport
+                const visibleTop = Math.max(innerTop, viewportTop);
+                const visibleBottom = Math.min(innerBottom, viewportBottom);
+                const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+                const visibilityRatio = innerHeight > 0 ? visibleHeight / innerHeight : 1;
+
+                // Get threshold from CSS variable
+                const threshold = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--compact-visibility-threshold')) || 0.3;
+
+                // Apply compact-view class when less than threshold is visible
+                if (visibilityRatio < threshold && innerHeight > 0) {
+                    col.classList.add('compact-view');
+                } else {
+                    col.classList.remove('compact-view');
+                }
+            }
         });
     };
 
@@ -2322,6 +2350,64 @@ function setupStackedColumnScrollHandler(columnsData) {
     scrollHandler();
 }
 window.setupStackedColumnScrollHandler = setupStackedColumnScrollHandler;
+
+/**
+ * Setup compact view handler for ALL columns (not just stacked)
+ * Detects when column-inner is mostly outside viewport and adds compact-view class
+ */
+function setupCompactViewHandler() {
+    // Remove existing handler if any
+    if (window.compactViewScrollHandler) {
+        window.removeEventListener('scroll', window.compactViewScrollHandler, true);
+    }
+
+    const scrollHandler = () => {
+        const scrollY = window.scrollY || window.pageYOffset;
+        const viewportHeight = window.innerHeight;
+        const viewportBottom = scrollY + viewportHeight;
+        const viewportTop = scrollY;
+
+        // Get ALL columns on the board
+        const allColumns = document.querySelectorAll('.kanban-full-height-column');
+
+        allColumns.forEach(col => {
+            const columnInner = col.querySelector('.column-inner');
+
+            if (!columnInner) return;
+
+            const innerRect = columnInner.getBoundingClientRect();
+            const innerTop = innerRect.top;
+            const innerBottom = innerRect.bottom;
+            const innerHeight = innerRect.height;
+
+            // Calculate how much of column-inner is visible in viewport
+            const visibleTop = Math.max(innerTop, viewportTop);
+            const visibleBottom = Math.min(innerBottom, viewportBottom);
+            const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+            const visibilityRatio = innerHeight > 0 ? visibleHeight / innerHeight : 1;
+
+            // Get threshold from CSS variable
+            const threshold = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--compact-visibility-threshold')) || 0.3;
+
+            // Apply compact-view class when less than threshold is visible
+            if (visibilityRatio < threshold && innerHeight > 0) {
+                col.classList.add('compact-view');
+            } else {
+                col.classList.remove('compact-view');
+            }
+        });
+    };
+
+    // Store handler reference
+    window.compactViewScrollHandler = scrollHandler;
+
+    // Attach scroll listener
+    window.addEventListener('scroll', scrollHandler, true);
+
+    // Run once immediately
+    scrollHandler();
+}
+window.setupCompactViewHandler = setupCompactViewHandler;
 
 /**
  * Toggles a task between collapsed and expanded states
