@@ -2090,10 +2090,6 @@ function applyStackedColumnStyles() {
             // At least one column is expanded or horizontally folded - display vertically
             stack.classList.remove('all-vertical-folded');
 
-            // Calculate padding-top for each column to create space for previous columns
-            const computedStyle = getComputedStyle(stack);
-            const gapPx = parseFloat(computedStyle.getPropertyValue('--whitespace')) || 8;
-
             // First pass: reset all padding/margins to get accurate natural heights
             columns.forEach(col => {
                 col.style.paddingTop = '';
@@ -2129,6 +2125,11 @@ function applyStackedColumnStyles() {
                 // Measure footer bars separately (in column-footer for stacked)
                 const footerBarsContainer = footer ? footer.querySelector('.stacked-footer-bars') : null;
                 const footerBarsHeight = footerBarsContainer ? footerBarsContainer.offsetHeight : 0;
+
+                // Measure THIS column's margin height (accounts for individual compact-view state)
+                const columnMargin = col.querySelector('.column-margin');
+                const marginHeight = columnMargin ? columnMargin.offsetHeight : 4;
+
                 const totalHeight = headerHeight + footerHeight + contentHeight;
 
                 columnData.push({
@@ -2142,6 +2143,7 @@ function applyStackedColumnStyles() {
                     totalHeight,
                     footerBarsContainer,
                     footerBarsHeight,
+                    marginHeight,
                     isVerticallyFolded,
                     isHorizontallyFolded
                 });
@@ -2158,7 +2160,7 @@ function applyStackedColumnStyles() {
                 cumulativeStickyTop += data.headerHeight;
 
                 const footerTop = cumulativeStickyTop;  // Footer right after header
-                cumulativeStickyTop += data.footerHeight + gapPx;  // Add footer height + gap for next column
+                cumulativeStickyTop += data.footerHeight + data.marginHeight;  // Add footer height + THIS column's margin
 
                 return {
                     ...data,
@@ -2177,7 +2179,7 @@ function applyStackedColumnStyles() {
                 cumulativeFromBottom += positions[i].footerHeight;
 
                 const headerBottom = cumulativeFromBottom;  // Header right after footer
-                cumulativeFromBottom += positions[i].headerHeight + gapPx;  // Add header height + gap for next column
+                cumulativeFromBottom += positions[i].headerHeight + positions[i].marginHeight;  // Add header height + THIS column's margin
 
                 positions[i].headerBottom = headerBottom;
                 positions[i].footerBottom = footerBottom;
@@ -2187,11 +2189,11 @@ function applyStackedColumnStyles() {
             let cumulativePadding = 0;
             positions.forEach((pos, idx) => {
                 pos.contentPadding = idx > 0 ? cumulativePadding : 0;
-                cumulativePadding += pos.totalHeight + gapPx;
+                cumulativePadding += pos.totalHeight + pos.marginHeight;
             });
 
             // Step 4: Apply all calculated positions to ALL columns
-            positions.forEach(({ col, index, header, footer, headerHeight, headerTop, footerTop, headerBottom, footerBottom, contentPadding, zIndex, isVerticallyFolded, isHorizontallyFolded }) => {
+            positions.forEach(({ col, index, header, footer, headerHeight, headerTop, footerTop, headerBottom, footerBottom, contentPadding, zIndex, marginHeight, isVerticallyFolded, isHorizontallyFolded }) => {
                 const isCollapsed = isVerticallyFolded || isHorizontallyFolded;
                 // Store calculated positions on the column element
                 col.dataset.headerTop = headerTop;
@@ -2221,10 +2223,10 @@ function applyStackedColumnStyles() {
                     columnOffset.style.marginTop = contentPadding > 0 ? `${contentPadding}px` : '';
                 }
 
-                // Set column-margin top and bottom same as header, but --whitespace smaller
+                // Set column-margin top and bottom same as header, but using THIS column's marginHeight
                 const columnMargin = col.querySelector('.column-margin');
                 if (columnMargin) {
-                    const marginTop = Math.max(0, headerTop - gapPx);
+                    const marginTop = Math.max(0, headerTop - marginHeight);
                     const marginBottom = headerBottom + headerHeight;
                     columnMargin.style.position = 'sticky';
                     columnMargin.style.top = `${marginTop}px`;
@@ -2361,11 +2363,13 @@ function setupCompactViewHandler() {
         window.removeEventListener('scroll', window.compactViewScrollHandler, true);
     }
 
-    const scrollHandler = () => {
-        const scrollY = window.scrollY || window.pageYOffset;
+    // Clear any existing debounce timer
+    if (window.compactViewDebounceTimer) {
+        clearTimeout(window.compactViewDebounceTimer);
+    }
+
+    const calculateCompactView = () => {
         const viewportHeight = window.innerHeight;
-        const viewportBottom = scrollY + viewportHeight;
-        const viewportTop = scrollY;
 
         // Get ALL columns on the board
         const allColumns = document.querySelectorAll('.kanban-full-height-column');
@@ -2378,24 +2382,46 @@ function setupCompactViewHandler() {
             const innerRect = columnInner.getBoundingClientRect();
             const innerTop = innerRect.top;
             const innerBottom = innerRect.bottom;
-            const innerHeight = innerRect.height;
 
-            // Calculate how much of column-inner is visible in viewport
-            const visibleTop = Math.max(innerTop, viewportTop);
-            const visibleBottom = Math.min(innerBottom, viewportBottom);
-            const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-            const visibilityRatio = innerHeight > 0 ? visibleHeight / innerHeight : 1;
+            // Check if column-inner is COMPLETELY outside the viewport
+            // getBoundingClientRect() is relative to viewport: 0 = top of screen, viewportHeight = bottom of screen
+            // Compact view only when entire bounding box is out of view
+            const isCompletelyAbove = innerBottom <= 0;
+            const isCompletelyBelow = innerTop >= viewportHeight;
+            const isCompletelyOutside = isCompletelyAbove || isCompletelyBelow;
 
-            // Get threshold from CSS variable
-            const threshold = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--compact-visibility-threshold')) || 0.3;
+            // Track if compact state changed
+            const wasCompact = col.classList.contains('compact-view');
+            const shouldBeCompact = isCompletelyOutside;
 
             // Apply compact-view class when less than threshold is visible
-            if (visibilityRatio < threshold && innerHeight > 0) {
+            if (shouldBeCompact) {
                 col.classList.add('compact-view');
             } else {
                 col.classList.remove('compact-view');
             }
+
+            // If compact state changed and column is in a stack, recalculate positions
+            if (wasCompact !== shouldBeCompact) {
+                const stack = col.closest('.kanban-column-stack');
+                if (stack && typeof window.applyStackedColumnStyles === 'function') {
+                    // Recalculate sticky positions for the stack
+                    requestAnimationFrame(() => {
+                        window.applyStackedColumnStyles();
+                    });
+                }
+            }
         });
+    };
+
+    const scrollHandler = () => {
+        // Clear existing timer
+        if (window.compactViewDebounceTimer) {
+            clearTimeout(window.compactViewDebounceTimer);
+        }
+
+        // Set new timer with 100ms debounce
+        window.compactViewDebounceTimer = setTimeout(calculateCompactView, 100);
     };
 
     // Store handler reference
@@ -2404,8 +2430,8 @@ function setupCompactViewHandler() {
     // Attach scroll listener
     window.addEventListener('scroll', scrollHandler, true);
 
-    // Run once immediately
-    scrollHandler();
+    // Run once immediately (no debounce for initial calculation)
+    calculateCompactView();
 }
 window.setupCompactViewHandler = setupCompactViewHandler;
 

@@ -16,8 +16,9 @@
 
   /* Compact view - smaller fonts and padding when content outside viewport */
   --compact-font-size: 0.85em;
-  --compact-padding-scale: 0.7;
   --compact-visibility-threshold: 0.3; /* Apply when < 30% visible */
+  --compact-column-footer-padding: var(--whitespace-div4);
+  --compact-column-margin-height: var(--whitespace-div4);
 }
 
 * {
@@ -558,7 +559,20 @@ body.small-card-fonts .task-title-container .markdown-content img {
 } */
 
 .kanban-full-height-column.compact-view .column-footer {
-  padding-top: calc(var(--whitespace) * var(--compact-padding-scale));
+  padding-top: var(--compact-column-footer-padding);
+}
+
+.kanban-full-height-column.compact-view .column-margin {
+  height: var(--compact-column-margin-height);
+}
+
+.kanban-full-height-column.compact-view .column-title-section {
+	padding: var(--whitespace-div4) var(--whitespace-div4) 0 var(--whitespace-div4);
+	gap: var(--whitespace-div4);
+}
+
+.kanban-column-stack .kanban-full-height-column.compact-view .column-margin {
+	height: var(--whitespace-div4);
 }
 
 .column-inner {
@@ -1235,7 +1249,7 @@ body.section-height-limited .task-section figure img {
   border: 1px solid var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
   border-radius: 4px;
-  padding: 3px 6px 3px 6px;
+  /* padding: 3px 6px 3px 6px; */
   font-size: 12px;
   font-weight: 500;
   display: flex;

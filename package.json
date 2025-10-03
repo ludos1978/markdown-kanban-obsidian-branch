@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -94,8 +94,8 @@
         },
         "markdown-kanban.columnBorder": {
           "type": "string",
-          "default": "0.5px solid var(--vscode-panel-border)",
-          "description": "Complete border style for columns (e.g., '0.5px solid var(--vscode-panel-border)', '1px dashed red', 'none'). Full CSS border shorthand supported."
+          "default": "1px solid var(--vscode-panel-border)",
+          "description": "Complete border style for columns (e.g., '1px solid var(--vscode-panel-border)', '1px dashed red', 'none'). Full CSS border shorthand supported."
         },
         "markdown-kanban.taskBorder": {
           "type": "string",
