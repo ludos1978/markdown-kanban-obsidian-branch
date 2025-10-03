@@ -4,10 +4,12 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] disable the vertical column folding mode
+- [ ] columns without tasks can end up being with not enought height. when rows are limited ine height.
+- the title when inserting of a columninclude should only show thae filename included and he remainder of the contents. 
+
 - [ ] On start drag fix the tags of the source stack (where we took the column from). On end drag fix the tags of the destination stack (where we put the column)
   
-
-
 - Corrected Summary of Implementation:
 CSS Changes:
 - Grid overlay structure: All stacked columns overlay in single grid cell

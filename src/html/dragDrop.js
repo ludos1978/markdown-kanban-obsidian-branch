@@ -1691,6 +1691,12 @@ function setupColumnDragAndDrop() {
             // Visual feedback
             columnElement.classList.add('dragging', 'drag-preview');
 
+            // Add column-drag-active class to row for layout adjustments
+            const row = columnElement.closest('.kanban-row');
+            if (row) {
+                row.classList.add('column-drag-active');
+            }
+
             // FIX SOURCE STACK TAGS: Update tags for remaining columns in source stack
             const sourceStack = columnElement.closest('.kanban-column-stack');
             console.log('[dragDrop-DRAGSTART] Source stack:', sourceStack?.className);
@@ -1786,7 +1792,7 @@ function setupColumnDragAndDrop() {
                 col.classList.remove('drag-over', 'drag-transitioning');
             });
             document.querySelectorAll('.kanban-row').forEach(row => {
-                row.classList.remove('drag-over');
+                row.classList.remove('drag-over', 'column-drag-active');
             });
 
             // Calculate target position based on where the column is in the DOM now

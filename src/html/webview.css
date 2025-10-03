@@ -816,6 +816,19 @@ body.small-card-fonts .task-title-container .markdown-content img {
   overflow: visible;
 }
 
+/* When dragging a task, make task items 70% width with centered layout */
+.kanban-full-height-column:has(.task-item.dragging) .tasks-container,
+.kanban-full-height-column.drag-over .tasks-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.kanban-full-height-column:has(.task-item.dragging) .task-item,
+.kanban-full-height-column.drag-over .task-item {
+  width: 70%;
+}
+
 
 
 /* Task items */
@@ -1828,8 +1841,21 @@ button.file-bar-menu-item {
   height: 100%;
   flex-shrink: 0;
   background: transparent;
-  transition: min-width 0.2s ease, background 0.2s ease;
+  transition: min-width 0.2s ease, background 0.2s ease, width 0.2s ease;
 }
+
+/* TEST: During column drag - apply width changes with transform instead of width property */
+/* .kanban-row.column-drag-active .column-drop-zone-stack {
+  flex: 0 0 15%;
+}
+
+.kanban-row.column-drag-active .column-drop-zone {
+  width: 100%;
+}
+
+.kanban-row.column-drag-active .kanban-column-stack:not(.column-drop-zone-stack) {
+  flex: 0 0 70%;
+} */
 
 .column-drop-zone.drag-over {
   /* min-width: 100px; */
@@ -2444,8 +2470,8 @@ button.file-bar-menu-item {
   content: '';
   position: absolute;
   top: -4px;
-  left: 10%;
-  right: 10%;
+  left: 0;
+  right: 0;
   height: 3px;
   background-color: var(--vscode-focusBorder);
   border-radius: 2px;
@@ -2456,8 +2482,8 @@ button.file-bar-menu-item {
   content: '';
   position: absolute;
   bottom: -4px;
-  left: 10%;
-  right: 10%;
+  left: 0;
+  right: 0;
   height: 3px;
   background-color: var(--vscode-focusBorder);
   border-radius: 2px;
