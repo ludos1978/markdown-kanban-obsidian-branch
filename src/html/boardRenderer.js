@@ -1326,8 +1326,9 @@ function renderBoard() {
                             currentStackContainer = document.createElement('div');
                             currentStackContainer.className = 'kanban-column-stack';
 
-                            // Replace the previous column with the stack container
-                            lastColumnElement.parentNode.replaceChild(currentStackContainer, lastColumnElement);
+                            // Replace the previous column's wrapper with the stack container
+                            const lastWrapper = lastColumnElement.parentNode;
+                            lastWrapper.parentNode.replaceChild(currentStackContainer, lastWrapper);
                             currentStackContainer.appendChild(lastColumnElement);
                         }
 
