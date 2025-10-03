@@ -1528,6 +1528,34 @@ function setupDragAndDrop() {
 }
 
 /**
+ * Cleans up an empty stack and its adjacent drop zone during drag
+ * @param {HTMLElement} stack - The stack that might be empty
+ */
+function cleanupEmptyStack(stack) {
+    if (!stack || !stack.classList.contains('kanban-column-stack')) {
+        return;
+    }
+
+    // Check if stack is empty (no columns)
+    const hasColumns = stack.querySelectorAll('.kanban-full-height-column').length > 0;
+    if (hasColumns || stack.classList.contains('column-drop-zone-stack')) {
+        return; // Stack still has columns or is a drop zone, don't remove
+    }
+
+    // Find the drop zone to the right of this stack
+    const nextSibling = stack.nextSibling;
+
+    // Remove the empty stack
+    stack.remove();
+
+    // Remove the adjacent drop zone if it exists
+    if (nextSibling && nextSibling.classList &&
+        nextSibling.classList.contains('column-drop-zone-stack')) {
+        nextSibling.remove();
+    }
+}
+
+/**
  * Cleans up and recreates drop zones in a row or board
  * Removes consecutive empty stacks and ensures drop zones before/between/after content stacks
  */
@@ -1691,11 +1719,8 @@ function setupColumnDragAndDrop() {
             // Visual feedback
             columnElement.classList.add('dragging', 'drag-preview');
 
-            // Add column-drag-active class to row for layout adjustments
-            const row = columnElement.closest('.kanban-row');
-            if (row) {
-                row.classList.add('column-drag-active');
-            }
+            // DON'T add column-drag-active here - it causes layout shift that cancels drag
+            // It will be added on first dragover event instead
 
             // FIX SOURCE STACK TAGS: Update tags for remaining columns in source stack
             const sourceStack = columnElement.closest('.kanban-column-stack');
@@ -1733,8 +1758,8 @@ function setupColumnDragAndDrop() {
                                 currentCol.title = currentCol.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
                             }
                         }
-                        // Update the visual display
-                        updateColumnTitleDisplay(colId);
+                        // DELAY: Update visual display after dragstart to avoid canceling drag
+                        setTimeout(() => updateColumnTitleDisplay(colId), 50);
                     } else {
                         // Other columns - ensure they have #stack tag
                         console.log(`[dragDrop-DRAGSTART] Source stack column ${idx} (${colId}): ensuring #stack`);
@@ -1752,8 +1777,8 @@ function setupColumnDragAndDrop() {
                                 currentCol.title = currentCol.title.trim() + ' #stack';
                             }
                         }
-                        // Update the visual display
-                        updateColumnTitleDisplay(colId);
+                        // DELAY: Update visual display after dragstart to avoid canceling drag
+                        setTimeout(() => updateColumnTitleDisplay(colId), 50);
                     }
                 });
             }
@@ -1980,6 +2005,12 @@ function setupColumnDragAndDrop() {
 
             e.preventDefault();
 
+            // Add column-drag-active class on first dragover (drag is now established)
+            const row = dragState.draggedColumn.closest('.kanban-row');
+            if (row && !row.classList.contains('column-drag-active')) {
+                row.classList.add('column-drag-active');
+            }
+
             const draggedStack = dragState.draggedColumn.parentNode;
             const targetStack = column.parentNode;
 
@@ -2014,7 +2045,11 @@ function setupColumnDragAndDrop() {
                 if (insertBefore) {
                     // Only move if not already there
                     if (dragState.draggedColumn.nextSibling !== column) {
+                        const oldStack = dragState.draggedColumn.parentNode;
                         targetStack.insertBefore(dragState.draggedColumn, column);
+
+                        // Clean up empty stack and its drop zone
+                        cleanupEmptyStack(oldStack);
 
                         // Schedule style update if not already pending
                         if (!dragState.styleUpdatePending && typeof window.applyStackedColumnStyles === 'function') {
@@ -2028,7 +2063,11 @@ function setupColumnDragAndDrop() {
                 } else {
                     // Only move if not already there
                     if (targetElement && dragState.draggedColumn.nextSibling !== targetElement) {
+                        const oldStack = dragState.draggedColumn.parentNode;
                         targetStack.insertBefore(dragState.draggedColumn, targetElement);
+
+                        // Clean up empty stack and its drop zone
+                        cleanupEmptyStack(oldStack);
 
                         // Schedule style update if not already pending
                         if (!dragState.styleUpdatePending && typeof window.applyStackedColumnStyles === 'function') {
@@ -2039,7 +2078,11 @@ function setupColumnDragAndDrop() {
                             });
                         }
                     } else if (!targetElement && dragState.draggedColumn !== targetStack.lastElementChild) {
+                        const oldStack = dragState.draggedColumn.parentNode;
                         targetStack.appendChild(dragState.draggedColumn);
+
+                        // Clean up empty stack and its drop zone
+                        cleanupEmptyStack(oldStack);
 
                         // Schedule style update if not already pending
                         if (!dragState.styleUpdatePending && typeof window.applyStackedColumnStyles === 'function') {
