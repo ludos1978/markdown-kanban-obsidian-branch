@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.13.39",
+  "version": "0.13.40",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -91,6 +91,16 @@
           "description": "The amount of whitespace-padding to use in the Kanban board (e.g., '4px', '8px', '2px')",
           "pattern": "^\\d+(\\.\\d+)?(px|em|rem)$",
           "patternErrorMessage": "Please enter a valid CSS size value (e.g., '4px', '0.5em', '1rem')"
+        },
+        "markdown-kanban.columnBorder": {
+          "type": "string",
+          "default": "0.5px solid var(--vscode-panel-border)",
+          "description": "Complete border style for columns (e.g., '0.5px solid var(--vscode-panel-border)', '1px dashed red', 'none'). Full CSS border shorthand supported."
+        },
+        "markdown-kanban.taskBorder": {
+          "type": "string",
+          "default": "1px solid var(--vscode-panel-border)",
+          "description": "Complete border style for task cards (e.g., '1px solid var(--vscode-panel-border)', '2px dotted blue', 'none'). Full CSS border shorthand supported."
         },
         "markdown-kanban.maxRowHeight": {
           "type": "number",

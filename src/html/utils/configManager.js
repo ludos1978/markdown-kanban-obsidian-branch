@@ -26,6 +26,8 @@ class ConfigManager {
             fontSize: 'medium',
             fontFamily: 'default',
             columnWidth: 'auto',
+            columnBorder: '0.5px solid var(--vscode-panel-border)',
+            taskBorder: '1px solid var(--vscode-panel-border)',
             layoutRows: 1,
             rowHeight: 'auto',
             layoutPreset: 'default',

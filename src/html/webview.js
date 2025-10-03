@@ -1513,6 +1513,11 @@ function applyWhitespace(spacing) {
     if (typeof updateWhitespace === 'function') {
         updateWhitespace(spacing);
     }
+
+    // Update border styles
+    if (typeof updateBorderStyles === 'function') {
+        updateBorderStyles();
+    }
 }
 
 function setWhitespace(spacing) {
@@ -3575,8 +3580,21 @@ function updateWhitespace(value) {
     if (!isNaN(value)) {
         value = value + 'px';
     }
-    
+
     document.documentElement.style.setProperty('--whitespace', value);
+}
+
+function updateBorderStyles() {
+    const configManager = window.configManager;
+    if (!configManager) return;
+
+    // Get complete border style configurations
+    const columnBorder = configManager.getConfig('columnBorder', '0.5px solid var(--vscode-panel-border)');
+    const taskBorder = configManager.getConfig('taskBorder', '1px solid var(--vscode-panel-border)');
+
+    // Apply CSS variables
+    document.documentElement.style.setProperty('--column-border', columnBorder);
+    document.documentElement.style.setProperty('--task-border', taskBorder);
 }
 
 function calculateTaskDescriptionHeight() {
