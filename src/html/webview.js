@@ -2661,6 +2661,13 @@ window.addEventListener('message', event => {
                             window.renderBoard();
                         }
                     }
+
+                    // Recalculate stacked column heights after include content update
+                    if (typeof window.applyStackedColumnStyles === 'function') {
+                        requestAnimationFrame(() => {
+                            window.applyStackedColumnStyles();
+                        });
+                    }
                 }
             } else {
                 console.warn('[Frontend] No cached board available for updateColumnContent');
@@ -2701,6 +2708,13 @@ window.addEventListener('message', event => {
                         if (typeof window.renderBoard === 'function') {
                             window.renderBoard();
                         }
+                    }
+
+                    // Recalculate stacked column heights after task include content update
+                    if (typeof window.applyStackedColumnStyles === 'function') {
+                        requestAnimationFrame(() => {
+                            window.applyStackedColumnStyles();
+                        });
                     }
                 }
             }
