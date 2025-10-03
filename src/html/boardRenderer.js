@@ -2023,20 +2023,47 @@ function toggleColumnCollapse(columnId, event) {
     const isCurrentlyCollapsed = column.classList.contains('collapsed-vertical') ||
                                   column.classList.contains('collapsed-horizontal');
 
+    // Determine if column is in a stack (has #stack tag or next column has #stack tag)
+    const columnData = window.currentBoard?.columns.find(c => c.id === columnId);
+    const columnIndex = window.currentBoard?.columns.findIndex(c => c.id === columnId);
+    const nextColumn = columnIndex >= 0 ? window.currentBoard?.columns[columnIndex + 1] : null;
+    const isInStack = columnData?.tags?.includes('stack') || nextColumn?.tags?.includes('stack');
+
+    // Default fold mode: horizontal for stacked columns, vertical for non-stacked
+    const defaultFoldMode = isInStack ? 'horizontal' : 'vertical';
+
     if (isCurrentlyCollapsed) {
-        // Currently collapsed - unfold
-        column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
-        toggle.classList.remove('rotated');
-        window.collapsedColumns.delete(columnId);
-        window.columnFoldModes.delete(columnId);
+        const currentMode = column.classList.contains('collapsed-vertical') ? 'vertical' : 'horizontal';
+
+        if (event && event.altKey) {
+            // Alt+click while collapsed: switch fold direction
+            const newMode = currentMode === 'vertical' ? 'horizontal' : 'vertical';
+            column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
+            column.classList.add(`collapsed-${newMode}`);
+            window.columnFoldModes.set(columnId, newMode);
+            // Stay collapsed, just rotated differently
+        } else {
+            // Regular click while collapsed: unfold
+            column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
+            toggle.classList.remove('rotated');
+            window.collapsedColumns.delete(columnId);
+            window.columnFoldModes.delete(columnId);
+        }
     } else {
-        // Currently unfolded - fold horizontally (vertical mode disabled)
-        column.classList.add('collapsed-horizontal');
+        // Currently unfolded - fold with mode based on Alt key
+        let foldMode;
+        if (event && event.altKey) {
+            // Alt+click while unfolded: fold to non-default mode
+            foldMode = defaultFoldMode === 'vertical' ? 'horizontal' : 'vertical';
+        } else {
+            // Regular click: fold to default mode
+            foldMode = defaultFoldMode;
+        }
+
+        column.classList.add(`collapsed-${foldMode}`);
         toggle.classList.add('rotated');
         window.collapsedColumns.add(columnId);
-        window.columnFoldModes.set(columnId, 'horizontal');
-
-        // CSS handles hiding via display: none on collapsed column-inner
+        window.columnFoldModes.set(columnId, foldMode);
     }
 
     // Save state immediately

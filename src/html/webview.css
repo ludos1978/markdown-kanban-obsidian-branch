@@ -592,7 +592,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 .column-footer {
-	padding-top: var(--whitespace);
+	padding-top: var(--whitespace-div2);
 	position: sticky;
 	/* top: 28px; */
 	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
@@ -607,7 +607,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   /* This contains the actual visual column with border and background */
   display: flex;
   flex-direction: column;
-  padding: var(--whitespace)  var(--whitespace) 0 var(--whitespace);
+  padding: var(--whitespace-div2)  var(--whitespace-div2) 0 var(--whitespace-div2);
   flex: 0 0 auto;
   background-color: var(--vscode-editor-background);
   /* border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4); */
@@ -657,7 +657,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
   order: 999;
   flex-shrink: 0;
 }
-
 
 /* Column header */
 .column-header {
@@ -864,7 +863,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   border: var(--task-border, 1px solid var(--vscode-panel-border));
   border-radius: 4px;
 	gap: var(--whitespace-div2);
-  margin-bottom: var(--whitespace);
+  margin-bottom: var(--whitespace-div2);
   min-height: var(--task-height);
   transition: all 0.2s ease;
   position: relative;
@@ -885,7 +884,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 .task-item:not(:has(.footer-bars-container)) {
-	padding-bottom: var(--whitespace);
+	padding-bottom: var(--whitespace-div2);
 }
 
 .task-item:last-child {
@@ -1864,7 +1863,7 @@ button.file-bar-menu-item {
 }
 
 .column-drop-zone {
-  min-width: 10px;
+  min-width: var(--whitespace);
   height: 100%;
   flex-shrink: 0;
   background: transparent;
