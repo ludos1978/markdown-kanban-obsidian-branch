@@ -666,12 +666,21 @@ body.small-card-fonts .task-title-container .markdown-content img {
 .column-title-section {
   padding: var(--whitespace-div2) var(--whitespace-div2) 0 var(--whitespace-div2);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--whitespace-div2);;
   flex: 1;
   min-width: 0;
   margin-top: 0;
   width: -webkit-fill-available;
+}
+
+/* Align control elements (icons/buttons) with the title baseline */
+.column-title-section > .drag-handle,
+.column-title-section > .collapse-toggle,
+.column-title-section > .task-count,
+.column-title-section > .collapsed-add-task-btn,
+.column-title-section > .donut-menu {
+  margin-top: 2px; /* Align with title text baseline */
 }
 
 /* Title container that should expand to fill available space */
@@ -855,7 +864,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 /* Task header */
 .task-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 	padding-left: 8px;
 	padding-right: 8px;
@@ -864,6 +873,13 @@ body.small-card-fonts .task-title-container .markdown-content img {
   margin-left: 0;
   order: 1;
   flex-shrink: 0;
+}
+
+/* Align task header controls with title baseline */
+.task-header > .task-drag-handle,
+.task-header > .task-collapse-toggle,
+.task-header > .task-menu-container {
+  margin-top: 2px; /* Align with title text baseline */
 }
 
 /* Drag handles */
@@ -1113,8 +1129,9 @@ body.section-height-limited .task-section figure img {
   line-height: 1.4;
   word-break: break-word;
   padding: 2px 4px;
-  resize: vertical;
-  height: 20px;
+  resize: none;
+  min-height: 20px;
+  width: 100%;
   /* width: var(--task-title-width); */
 }
 

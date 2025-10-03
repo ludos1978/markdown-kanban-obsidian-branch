@@ -327,12 +327,20 @@ class TaskEditor {
         // Auto-resize if textarea
         this.autoResize(editElement);
 
-        // For column title editing, recalculate stacked column positions after resize
-        if (type === 'column-title' && typeof window.applyStackedColumnStyles === 'function') {
-            // Use requestAnimationFrame to ensure the resize has taken effect
-            requestAnimationFrame(() => {
-                window.applyStackedColumnStyles();
-            });
+        // For editing in stacked columns, recalculate positions after resize
+        // (column title, task title, or task description changes can affect stack layout)
+        if (typeof window.applyStackedColumnStyles === 'function') {
+            const stack = containerElement.closest('.kanban-column-stack');
+            if (stack && stack.querySelectorAll('.kanban-full-height-column').length > 1) {
+                // Only recalc if we're in an actual stack (more than 1 column)
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        console.log('[taskEditor] Recalculating stack positions on edit start');
+                        void stack.offsetHeight;
+                        window.applyStackedColumnStyles();
+                    });
+                });
+            }
         }
 
         // Focus and position cursor
@@ -366,13 +374,54 @@ class TaskEditor {
         // This was the bug: resetting to null made every save think it was a new field
 
         // Set up input handler for auto-resize
+        let recalcTimeout = null;
+        let lastRecalcTime = 0;
+        const MIN_DELAY_BETWEEN_RECALC = 300; // Minimum 300ms delay between recalculations
+
         editElement.oninput = () => {
             this.autoResize(editElement);
-            // For column title editing, recalculate stacked column positions after resize
-            if (type === 'column-title' && typeof window.applyStackedColumnStyles === 'function') {
-                requestAnimationFrame(() => {
-                    window.applyStackedColumnStyles();
-                });
+            // For editing in stacked columns, recalculate positions after resize
+            // Throttle with minimum 300ms delay between recalculations
+            if (typeof window.applyStackedColumnStyles === 'function') {
+                const stack = containerElement.closest('.kanban-column-stack');
+                if (stack && stack.querySelectorAll('.kanban-full-height-column').length > 1) {
+                    // Only recalc if we're in an actual stack (more than 1 column)
+                    const now = Date.now();
+                    const timeSinceLastRecalc = now - lastRecalcTime;
+
+                    if (timeSinceLastRecalc >= MIN_DELAY_BETWEEN_RECALC) {
+                        // Enough time has passed, execute immediately
+                        if (recalcTimeout) {
+                            clearTimeout(recalcTimeout);
+                            recalcTimeout = null;
+                        }
+                        lastRecalcTime = now;
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                console.log('[taskEditor] Recalculating stack positions during edit (immediate)');
+                                void stack.offsetHeight;
+                                window.applyStackedColumnStyles();
+                            });
+                        });
+                    } else {
+                        // Too soon, schedule for later (after minimum delay)
+                        if (recalcTimeout) {
+                            clearTimeout(recalcTimeout);
+                        }
+                        const delay = MIN_DELAY_BETWEEN_RECALC - timeSinceLastRecalc;
+                        recalcTimeout = setTimeout(() => {
+                            lastRecalcTime = Date.now();
+                            requestAnimationFrame(() => {
+                                requestAnimationFrame(() => {
+                                    console.log('[taskEditor] Recalculating stack positions during edit (delayed)');
+                                    void stack.offsetHeight;
+                                    window.applyStackedColumnStyles();
+                                });
+                            });
+                            recalcTimeout = null;
+                        }, delay);
+                    }
+                }
             }
         };
         
@@ -902,11 +951,21 @@ class TaskEditor {
             displayElement.style.display = 'block';
         }
 
-        // For column title editing, recalculate stacked column positions after closing
-        if (type === 'column-title' && typeof window.applyStackedColumnStyles === 'function') {
-            requestAnimationFrame(() => {
-                window.applyStackedColumnStyles();
-            });
+        // For editing in stacked columns, recalculate positions after closing
+        if (typeof window.applyStackedColumnStyles === 'function') {
+            const col = element.closest('.kanban-full-height-column');
+            if (col) {
+                const stack = col.closest('.kanban-column-stack');
+                if (stack && stack.querySelectorAll('.kanban-full-height-column').length > 1) {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            console.log('[taskEditor] Recalculating stack positions after closing edit');
+                            void stack.offsetHeight;
+                            window.applyStackedColumnStyles();
+                        });
+                    });
+                }
+            }
         }
 
         // Focus the card after editing ends
