@@ -1533,14 +1533,18 @@ function setupDragAndDrop() {
  */
 function cleanupEmptyStack(stack) {
     if (!stack || !stack.classList.contains('kanban-column-stack')) {
+        console.log('[dragDrop-CLEANUP] Stack is null or not a kanban-column-stack');
         return;
     }
 
     // Check if stack is empty (no columns)
     const hasColumns = stack.querySelectorAll('.kanban-full-height-column').length > 0;
     if (hasColumns || stack.classList.contains('column-drop-zone-stack')) {
+        console.log('[dragDrop-CLEANUP] Stack still has columns or is a drop zone, keeping it');
         return; // Stack still has columns or is a drop zone, don't remove
     }
+
+    console.log('[dragDrop-CLEANUP] Stack is empty, removing it and adjacent drop zone');
 
     // Find the drop zone to the right of this stack
     const nextSibling = stack.nextSibling;
@@ -1551,6 +1555,7 @@ function cleanupEmptyStack(stack) {
     // Remove the adjacent drop zone if it exists
     if (nextSibling && nextSibling.classList &&
         nextSibling.classList.contains('column-drop-zone-stack')) {
+        console.log('[dragDrop-CLEANUP] Removed adjacent drop zone');
         nextSibling.remove();
     }
 }
@@ -1560,8 +1565,6 @@ function cleanupEmptyStack(stack) {
  * Removes consecutive empty stacks and ensures drop zones before/between/after content stacks
  */
 function cleanupAndRecreateDropZones(container) {
-    console.log('[dragDrop] Cleaning up and recreating drop zones');
-
     // Get all stacks
     const allStacks = Array.from(container.children).filter(child =>
         child.classList.contains('kanban-column-stack')
@@ -1582,7 +1585,6 @@ function cleanupAndRecreateDropZones(container) {
 
     // Remove all existing drop-zone stacks
     dropZoneStacks.forEach(stack => {
-        console.log('[dragDrop] Removing old drop-zone stack');
         stack.remove();
     });
 
@@ -1591,13 +1593,11 @@ function cleanupAndRecreateDropZones(container) {
         // Before first
         const dropZoneBefore = createDropZoneStack('column-drop-zone-before');
         container.insertBefore(dropZoneBefore, contentStacks[0]);
-        console.log('[dragDrop] Created drop zone before first stack');
 
         // Between each
         for (let i = 0; i < contentStacks.length - 1; i++) {
             const dropZoneBetween = createDropZoneStack('column-drop-zone-between');
             container.insertBefore(dropZoneBetween, contentStacks[i].nextSibling);
-            console.log('[dragDrop] Created drop zone between stacks');
         }
 
         // After last
@@ -1608,7 +1608,6 @@ function cleanupAndRecreateDropZones(container) {
         } else {
             container.appendChild(dropZoneAfter);
         }
-        console.log('[dragDrop] Created drop zone after last stack');
     }
 }
 
@@ -1696,12 +1695,7 @@ function setupColumnDragAndDrop() {
             // Find the original position in the data model
             const originalIndex = currentBoard.columns.findIndex(c => c.id === columnId);
 
-            // DEBUG: Check column title in data model
-            const columnInCache = window.cachedBoard?.columns.find(c => c.id === columnId);
-            const columnInCurrent = window.currentBoard?.columns.find(c => c.id === columnId);
             console.log('[dragDrop-DRAGSTART] Dragging column:', columnId);
-            console.log('[dragDrop-DRAGSTART] cachedBoard title:', columnInCache?.title);
-            console.log('[dragDrop-DRAGSTART] currentBoard title:', columnInCurrent?.title);
 
             // Store drag state including original parent stack
             dragState.draggedColumn = columnElement;
@@ -1724,7 +1718,6 @@ function setupColumnDragAndDrop() {
 
             // FIX SOURCE STACK TAGS: Update tags for remaining columns in source stack
             const sourceStack = columnElement.closest('.kanban-column-stack');
-            console.log('[dragDrop-DRAGSTART] Source stack:', sourceStack?.className);
             if (sourceStack) {
                 // Get ALL columns in this stack, but EXCLUDE columns from nested stacks
                 const allColumnsInStack = Array.from(sourceStack.querySelectorAll('.kanban-full-height-column'));
@@ -1733,23 +1726,15 @@ function setupColumnDragAndDrop() {
                     return col !== columnElement && col.closest('.kanban-column-stack') === sourceStack;
                 });
 
-                console.log('[dragDrop-DRAGSTART] Fixing source stack tags, remaining columns:', columnsInSourceStack.length);
-                columnsInSourceStack.forEach((col, idx) => {
-                    console.log(`[dragDrop-DRAGSTART]   Column ${idx}: ${col.getAttribute('data-column-id')}`);
-                });
-
                 columnsInSourceStack.forEach((col, idx) => {
                     const colId = col.getAttribute('data-column-id');
 
                     if (idx === 0) {
                         // First remaining column - remove #stack tag
-                        console.log(`[dragDrop-DRAGSTART] Source stack first column (${colId}): removing #stack`);
                         if (window.cachedBoard) {
                             const cachedCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (cachedCol) {
-                                const oldTitle = cachedCol.title;
                                 cachedCol.title = cachedCol.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
-                                console.log(`[dragDrop-DRAGSTART]   "${oldTitle}" -> "${cachedCol.title}"`);
                             }
                         }
                         if (window.currentBoard) {
@@ -1762,13 +1747,10 @@ function setupColumnDragAndDrop() {
                         setTimeout(() => updateColumnTitleDisplay(colId), 50);
                     } else {
                         // Other columns - ensure they have #stack tag
-                        console.log(`[dragDrop-DRAGSTART] Source stack column ${idx} (${colId}): ensuring #stack`);
                         if (window.cachedBoard) {
                             const cachedCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (cachedCol && !/#stack\b/i.test(cachedCol.title)) {
-                                const oldTitle = cachedCol.title;
                                 cachedCol.title = cachedCol.title.trim() + ' #stack';
-                                console.log(`[dragDrop-DRAGSTART]   "${oldTitle}" -> "${cachedCol.title}"`);
                             }
                         }
                         if (window.currentBoard) {
@@ -1786,30 +1768,54 @@ function setupColumnDragAndDrop() {
         });
 
         dragHandle.addEventListener('dragend', e => {
-            console.log('[dragDrop-DRAGEND] === DRAGEND EVENT FIRED ===');
-
             const columnElement = column;
             const columnId = dragState.draggedColumnId;
-            console.log('[dragDrop-DRAGEND] Column ID:', columnId);
+
+            // Process pending drop zone if hovering over one
+            if (dragState.pendingDropZone) {
+                console.log('[dragDrop-DRAGEND] Processing pending drop zone');
+                const dropZone = dragState.pendingDropZone;
+                const dropZoneStack = dropZone.parentNode;
+
+                if (dropZoneStack && dropZoneStack.parentNode) {
+                    const rowOrBoard = dropZoneStack.parentNode;
+                    const currentStack = dragState.draggedColumn.parentNode;
+
+                    if (currentStack && currentStack.classList.contains('kanban-column-stack')) {
+                        // Extract column from current stack
+                        currentStack.removeChild(dragState.draggedColumn);
+                        cleanupEmptyStack(currentStack);
+
+                        // Remove drop zone element
+                        if (dropZone.parentNode === dropZoneStack) {
+                            dropZoneStack.removeChild(dropZone);
+                        }
+
+                        // Convert drop zone stack to regular stack
+                        dropZoneStack.classList.remove('column-drop-zone-stack');
+                        dropZoneStack.appendChild(dragState.draggedColumn);
+
+                        // Recreate drop zones
+                        cleanupAndRecreateDropZones(rowOrBoard);
+
+                        console.log('[dragDrop-DRAGEND] Column moved to new stack via drop zone');
+                    }
+                }
+
+                dragState.pendingDropZone = null;
+            }
 
             // Clean up any duplicate or orphaned elements in the DOM before processing
-            // During dragover, we might have created temporary structures
-            console.log('[dragDrop-DRAGEND] Cleaning up DOM before tag updates');
             const allColumnsForCleanup = document.querySelectorAll('.kanban-full-height-column');
-            console.log('[dragDrop-DRAGEND] Total columns found:', allColumnsForCleanup.length);
             const seenColumnIds = new Set();
-            let duplicatesRemoved = 0;
             allColumnsForCleanup.forEach(col => {
                 const colId = col.getAttribute('data-column-id');
                 if (seenColumnIds.has(colId)) {
-                    console.log('[dragDrop-DRAGEND] Removing duplicate column element:', colId);
                     col.remove();
-                    duplicatesRemoved++;
                 } else {
                     seenColumnIds.add(colId);
                 }
             });
-            console.log('[dragDrop-DRAGEND] Duplicates removed:', duplicatesRemoved);
 
             // Clean up visual feedback
             columnElement.classList.remove('dragging', 'drag-preview');
@@ -1817,7 +1823,7 @@ function setupColumnDragAndDrop() {
                 col.classList.remove('drag-over', 'drag-transitioning');
             });
             document.querySelectorAll('.kanban-row').forEach(row => {
-                row.classList.remove('drag-over', 'column-drag-active');
+                row.classList.remove('drag-over');
             });
 
             // Calculate target position based on where the column is in the DOM now
@@ -1875,7 +1881,6 @@ function setupColumnDragAndDrop() {
 
             // FIX DESTINATION STACK TAGS: Update tags for all columns in destination stack
             const destinationStack = columnElement.closest('.kanban-column-stack');
-            console.log('[dragDrop-DRAGEND] Destination stack:', destinationStack?.className);
             if (destinationStack) {
                 // Get ALL columns in this stack, but EXCLUDE columns from nested stacks
                 const allColumnsInStack = Array.from(destinationStack.querySelectorAll('.kanban-full-height-column'));
@@ -1884,23 +1889,15 @@ function setupColumnDragAndDrop() {
                     return col.closest('.kanban-column-stack') === destinationStack;
                 });
 
-                console.log('[dragDrop-DRAGEND] Fixing destination stack tags, total columns:', columnsInDestStack.length);
-                columnsInDestStack.forEach((col, idx) => {
-                    console.log(`[dragDrop-DRAGEND]   Column ${idx}: ${col.getAttribute('data-column-id')}`);
-                });
-
                 columnsInDestStack.forEach((col, idx) => {
                     const colId = col.getAttribute('data-column-id');
 
                     if (idx === 0) {
                         // First column - remove #stack tag
-                        console.log(`[dragDrop-DRAGEND] Dest stack first column (${colId}): removing #stack`);
                         if (window.cachedBoard) {
                             const cachedCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (cachedCol) {
-                                const oldTitle = cachedCol.title;
                                 cachedCol.title = cachedCol.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
-                                console.log(`[dragDrop-DRAGEND]   "${oldTitle}" -> "${cachedCol.title}"`);
                             }
                         }
                         if (window.currentBoard) {
@@ -1913,13 +1910,10 @@ function setupColumnDragAndDrop() {
                         updateColumnTitleDisplay(colId);
                     } else {
                         // Other columns - ensure they have #stack tag
-                        console.log(`[dragDrop-DRAGEND] Dest stack column ${idx} (${colId}): ensuring #stack`);
                         if (window.cachedBoard) {
                             const cachedCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (cachedCol && !/#stack\b/i.test(cachedCol.title)) {
-                                const oldTitle = cachedCol.title;
                                 cachedCol.title = cachedCol.title.trim() + ' #stack';
-                                console.log(`[dragDrop-DRAGEND]   "${oldTitle}" -> "${cachedCol.title}"`);
                             }
                         }
                         if (window.currentBoard) {
@@ -2003,13 +1997,12 @@ function setupColumnDragAndDrop() {
         column.addEventListener('dragover', e => {
             if (!dragState.draggedColumn || dragState.draggedColumn === column) {return;}
 
-            e.preventDefault();
-
-            // Add column-drag-active class on first dragover (drag is now established)
-            const row = dragState.draggedColumn.closest('.kanban-row');
-            if (row && !row.classList.contains('column-drag-active')) {
-                row.classList.add('column-drag-active');
+            // Don't handle if we're currently over a drop zone - let the drop zone handle it
+            if (dragState.lastDropZone) {
+                return;
             }
+
+            e.preventDefault();
 
             const draggedStack = dragState.draggedColumn.parentNode;
             const targetStack = column.parentNode;
@@ -2136,10 +2129,7 @@ function setupColumnDragAndDrop() {
         });
     });
 
-    // Debug: Check if drop zones exist
-    console.log('[dragDrop] Drop zones found:', document.querySelectorAll('.column-drop-zone').length);
-
-    // Add dragover handlers specifically to drop zones (direct target only, no bubbling)
+    // Add dragover handlers specifically to drop zones - visual feedback only
     document.addEventListener('dragover', (e) => {
         if (!dragState.draggedColumn) {return;}
 
@@ -2149,78 +2139,22 @@ function setupColumnDragAndDrop() {
             document.querySelectorAll('.column-drop-zone.drag-over').forEach(dz => {
                 dz.classList.remove('drag-over');
             });
+            dragState.pendingDropZone = null;
             return;
         }
 
         const dropZone = e.target;
-        console.log('[dragDrop] DROP ZONE HIT');
         e.preventDefault();
 
-        // Get parent references FIRST before any modifications
-        const dropZoneStack = dropZone.parentNode;
-        if (!dropZoneStack) {
-            console.log('[dragDrop] Drop zone has no parent - was already processed');
-            return;
-        }
-        const rowOrBoard = dropZoneStack.parentNode;
-        if (!rowOrBoard) {
-            console.log('[dragDrop] Drop zone stack has no parent');
-            return;
-        }
-
-        // Add visual feedback
+        // Add visual feedback only - don't move anything yet
         document.querySelectorAll('.column-drop-zone.drag-over').forEach(dz => {
             if (dz !== dropZone) {dz.classList.remove('drag-over');}
         });
         dropZone.classList.add('drag-over');
-        const dropZoneStackIndex = Array.from(rowOrBoard.children).indexOf(dropZoneStack);
-        const targetKey = 'dropzone-' + dropZoneStackIndex;
 
-        if (dragState.lastDropTarget !== targetKey) {
-            dragState.lastDropTarget = targetKey;
-
-            console.log('[dragDrop] Drop zone type:', dropZone.className);
-
-            // Get the column's current stack
-            const currentStack = dragState.draggedColumn.parentNode;
-            if (!currentStack || !currentStack.classList.contains('kanban-column-stack')) {
-                console.error('[dragDrop] Column not in a stack');
-                return;
-            }
-
-            const columnsInStack = currentStack.querySelectorAll('.kanban-full-height-column').length;
-            console.log('[dragDrop] Current stack has columns:', columnsInStack);
-
-            // Extract column from current stack
-            currentStack.removeChild(dragState.draggedColumn);
-            console.log('[dragDrop] Extracted column from current stack');
-
-            // Remove the drop zone element from the drop-zone stack
-            if (dropZone.parentNode === dropZoneStack) {
-                dropZoneStack.removeChild(dropZone);
-                console.log('[dragDrop] Removed drop zone from stack');
-            }
-
-            // Remove the column-drop-zone-stack class since it now has content
-            dropZoneStack.classList.remove('column-drop-zone-stack');
-            console.log('[dragDrop] Removed column-drop-zone-stack class');
-
-            // Insert column into the (now regular) stack
-            dropZoneStack.appendChild(dragState.draggedColumn);
-            console.log('[dragDrop] Inserted column into stack');
-
-            // Clean up and recreate drop zones
-            cleanupAndRecreateDropZones(rowOrBoard);
-
-            // Schedule style update if not already pending
-            if (!dragState.styleUpdatePending && typeof window.applyStackedColumnStyles === 'function') {
-                dragState.styleUpdatePending = true;
-                requestAnimationFrame(() => {
-                    window.applyStackedColumnStyles();
-                    dragState.styleUpdatePending = false;
-                });
-            }
-        }
+        // Store the drop zone for processing on dragend
+        dragState.pendingDropZone = dropZone;
+        console.log('[dragDrop-DROPZONE] Hovering over drop zone, will move on dragend');
     });
 
     // Clean up drag-over state on dragend

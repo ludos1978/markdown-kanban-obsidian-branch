@@ -1844,29 +1844,11 @@ button.file-bar-menu-item {
   transition: min-width 0.15s ease 0.1s, background 0.2s ease, width 0.15s ease 0.1s;
 }
 
-/* During column drag - only scale neighboring columns when hovering over a drop zone */
-/* When a drop zone is active, scale its adjacent column stacks */
+/* Visual feedback for drop zones - no scaling */
 .column-drop-zone.drag-over {
-  min-width: 120px;
-  flex: 0 0 120px;
   background: var(--vscode-editor-selectionBackground);
   border: 2px dashed var(--vscode-editor-selectionForeground);
   border-radius: 4px;
-  transition: min-width 0.2s ease, flex 0.2s ease;
-}
-
-/* Scale the column stack immediately BEFORE the active drop zone */
-.column-drop-zone.drag-over + .kanban-column-stack:not(.column-drop-zone-stack) {
-  transform: scaleX(0.7);
-  transform-origin: right center;
-  transition: transform 0.2s ease;
-}
-
-/* Scale the column stack immediately AFTER the active drop zone (via adjacent sibling of parent) */
-.kanban-column-stack.column-drop-zone-stack:has(.column-drop-zone.drag-over) + .kanban-column-stack:not(.column-drop-zone-stack) {
-  transform: scaleX(0.7);
-  transform-origin: left center;
-  transition: transform 0.2s ease;
 }
 
 /* Visual separation - add padding to content of stacked columns */
