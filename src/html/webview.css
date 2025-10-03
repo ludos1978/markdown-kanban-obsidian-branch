@@ -816,17 +816,11 @@ body.small-card-fonts .task-title-container .markdown-content img {
   overflow: visible;
 }
 
-/* When dragging a task, make task items 70% width with centered layout */
-.kanban-full-height-column:has(.task-item.dragging) .tasks-container,
+/* Task drag visual feedback - keep layout unchanged */
 .kanban-full-height-column.drag-over .tasks-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.kanban-full-height-column:has(.task-item.dragging) .task-item,
-.kanban-full-height-column.drag-over .task-item {
-  width: 70%;
 }
 
 
@@ -1851,10 +1845,10 @@ button.file-bar-menu-item {
   border-radius: 4px;
 }
 
-/* Visual separation - add padding to content of stacked columns */
+/* Visual separation - add padding to content of stacked columns
 .kanban-column-stack .kanban-full-height-column:nth-child(n+2) .column-inner {
   padding-top: var(--whitespace);
-}
+} */
 
 /* When all columns in a stack are vertically folded (.collapsed), display them horizontally */
 .kanban-column-stack.all-vertical-folded {
@@ -2957,9 +2951,9 @@ h6 .kanban-tag {
 	border-radius: 4px 4px 0px 0px;
 }
 
-.footer-bar:last-of-type {
+/* .footer-bar:last-of-type {
 	border-radius: 0px 0px 4px 4px;
-}
+} */
 
 /* Footer bars styling when in column-footer */
 .column-footer > .footer-bars-container {

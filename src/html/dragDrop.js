@@ -1178,6 +1178,7 @@ function setupTaskDragAndDrop() {
 
         // Keep the existing tasks container specific handling for precise placement
         tasksContainer.addEventListener('dragover', e => {
+            console.log('[dragDrop-TASK] Dragover on tasks container');
             e.preventDefault();
 
             // Update Alt key state during drag (user might press/release Alt mid-drag)
@@ -1190,7 +1191,16 @@ function setupTaskDragAndDrop() {
                 e.stopPropagation(); // Prevent column-level handler from interfering
             }
 
-            if (!dragState.draggedTask) {return;}
+            console.log('[dragDrop-TASK] draggedTask:', dragState.draggedTask);
+            if (!dragState.draggedTask) {
+                console.log('[dragDrop-TASK] No dragged task, exiting');
+                return;
+            }
+
+            // Add dragging class now (delayed from dragstart to avoid layout shift)
+            if (dragState.draggedTask && !dragState.draggedTask.classList.contains('dragging')) {
+                dragState.draggedTask.classList.add('dragging', 'drag-preview');
+            }
             
             // Remove any column-level visual feedback when over tasks
             columnElement.classList.remove('drag-over-append');
@@ -1240,16 +1250,21 @@ function setupTaskDragAndDrop() {
 }
 
 function setupTaskDragHandle(handle) {
-
+    console.log('[dragDrop-SETUP] Setting up task drag handle:', handle);
     handle.draggable = true;
-    
+
     handle.addEventListener('dragstart', e => {
+        console.log('[dragDrop-TASK] Task dragstart fired');
+
         const taskItem = e.target && e.target.closest ? e.target.closest('.task-item') : null;
+        console.log('[dragDrop-TASK] Found task item:', taskItem);
+
         if (taskItem) {
             e.stopPropagation();
             const taskId = taskItem.dataset.taskId;
             const columnId = taskItem.dataset.columnId;
-            
+            console.log('[dragDrop-TASK] Task ID:', taskId, 'Column ID:', columnId);
+
             // Store original position
             dragState.draggedTask = taskItem;
             dragState.originalTaskParent = taskItem.parentNode;
@@ -1257,20 +1272,23 @@ function setupTaskDragHandle(handle) {
             dragState.originalTaskIndex = Array.from(dragState.originalTaskParent.children).indexOf(taskItem);
             dragState.isDragging = true; // IMPORTANT: Set this BEFORE setting data
             dragState.altKeyPressed = e.altKey; // Track Alt key state from the start
-            
+
             // Set multiple data formats
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', `kanban-task:${taskId}`); // Add prefix
             e.dataTransfer.setData('application/kanban-task', taskId);
             e.dataTransfer.setData('application/x-kanban-task', taskId); // Fallback
-            
-            // Make the task semi-transparent
-            taskItem.classList.add('dragging', 'drag-preview');
-            
+
+            // DON'T add dragging class here - causes layout shift that cancels drag
+            // Will be added on first dragover event instead
+            console.log('[dragDrop-TASK] Task drag initialized successfully');
+        } else {
+            console.log('[dragDrop-TASK] ERROR: Could not find task item');
         }
     });
 
     handle.addEventListener('dragend', e => {
+        console.log('[dragDrop-TASK] Task dragend fired');
 
         const taskItem = e.target && e.target.closest ? e.target.closest('.task-item') : null;
         if (taskItem) {
@@ -1382,6 +1400,16 @@ function setupTaskDragHandle(handle) {
                     if (typeof markUnsavedChanges === 'function') {
                         markUnsavedChanges();
                     }
+                }
+
+                // Recalculate stacked column styles after task drag (same as after column drag)
+                // This recalculates heights based on column top offsets
+                console.log('[dragDrop-HEIGHT] Task moved, recalculating column heights for:', originalColumnId, finalColumnId);
+                if (typeof window.applyStackedColumnStyles === 'function') {
+                    requestAnimationFrame(() => {
+                        window.applyStackedColumnStyles();
+                        console.log('[dragDrop-HEIGHT] Column heights recalculated via applyStackedColumnStyles');
+                    });
                 }
             }
             
@@ -1771,8 +1799,8 @@ function setupColumnDragAndDrop() {
             const columnElement = column;
             const columnId = dragState.draggedColumnId;
 
-            // Process pending drop zone if hovering over one
-            if (dragState.pendingDropZone) {
+            // Process pending drop zone if hovering over one (only for column drags)
+            if (dragState.pendingDropZone && dragState.draggedColumn) {
                 console.log('[dragDrop-DRAGEND] Processing pending drop zone');
                 const dropZone = dragState.pendingDropZone;
                 const dropZoneStack = dropZone.parentNode;
@@ -1998,7 +2026,7 @@ function setupColumnDragAndDrop() {
             if (!dragState.draggedColumn || dragState.draggedColumn === column) {return;}
 
             // Don't handle if we're currently over a drop zone - let the drop zone handle it
-            if (dragState.lastDropZone) {
+            if (dragState.pendingDropZone) {
                 return;
             }
 
@@ -2131,8 +2159,6 @@ function setupColumnDragAndDrop() {
 
     // Add dragover handlers specifically to drop zones - visual feedback only
     document.addEventListener('dragover', (e) => {
-        if (!dragState.draggedColumn) {return;}
-
         // ONLY handle if the direct target is a drop zone (not a child element)
         if (!e.target.classList.contains('column-drop-zone')) {
             // Clear any previous drag-over states
@@ -2140,6 +2166,11 @@ function setupColumnDragAndDrop() {
                 dz.classList.remove('drag-over');
             });
             dragState.pendingDropZone = null;
+            return;
+        }
+
+        // Only handle drop zones for column drags, not task drags
+        if (!dragState.draggedColumn) {
             return;
         }
 
