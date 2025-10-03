@@ -1378,6 +1378,41 @@ function setupTaskDragHandle(handle) {
                                         updateColumnEmptyState(finalColumnId);
                                     }
                                 }
+
+                                // Update the task element's onclick handlers to reference the new columnId
+                                if (originalColumnId !== finalColumnId) {
+                                    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                                    if (taskElement) {
+                                        const taskItem = taskElement.closest('.task-item');
+                                        if (taskItem) {
+                                            // Update task-title-container onclick
+                                            const titleContainer = taskItem.querySelector('.task-title-container');
+                                            if (titleContainer) {
+                                                const oldOnclick = titleContainer.getAttribute('onclick');
+                                                if (oldOnclick) {
+                                                    const newOnclick = oldOnclick.replace(
+                                                        `'${originalColumnId}'`,
+                                                        `'${finalColumnId}'`
+                                                    );
+                                                    titleContainer.setAttribute('onclick', newOnclick);
+                                                }
+                                            }
+
+                                            // Update task-description onclick
+                                            const descContainer = taskItem.querySelector('.task-description');
+                                            if (descContainer) {
+                                                const oldOnclick = descContainer.getAttribute('onclick');
+                                                if (oldOnclick) {
+                                                    const newOnclick = oldOnclick.replace(
+                                                        `'${originalColumnId}'`,
+                                                        `'${finalColumnId}'`
+                                                    );
+                                                    descContainer.setAttribute('onclick', newOnclick);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
 

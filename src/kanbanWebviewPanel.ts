@@ -2631,11 +2631,8 @@ export class KanbanWebviewPanel {
             const includeFile = column.includeFiles[0];
             const absolutePath = path.resolve(basePath, includeFile);
 
-            console.log('[kanban.saveColumnIncludeChanges] Attempting to save column:', column.id, 'to file:', includeFile);
-
             // Check if the file exists - if not, this might be a new file path that hasn't been loaded yet
             if (!fs.existsSync(absolutePath)) {
-                console.log('[kanban.saveColumnIncludeChanges] File does not exist:', absolutePath);
                 return false;
             }
 
@@ -2644,15 +2641,12 @@ export class KanbanWebviewPanel {
             const unifiedIncludeFile = this._includeFiles.get(normalizedPath) || this._includeFiles.get(includeFile);
 
             if (!unifiedIncludeFile) {
-                console.log('[kanban.saveColumnIncludeChanges] No unified include file found for:', includeFile);
                 return false;
             }
 
             // CRITICAL FIX: Check if the column's tasks actually came from this file's baseline
             // This prevents saving old file's tasks to a new file after changing the include path
             const baselineTasks = PresentationParser.parseMarkdownToTasks(unifiedIncludeFile.baseline);
-
-            console.log('[kanban.saveColumnIncludeChanges] Baseline tasks:', baselineTasks.length, 'Column tasks:', column.tasks.length);
 
             // Check overlap between baseline and current column tasks
             let baselineOverlapCount = 0;
@@ -2673,12 +2667,9 @@ export class KanbanWebviewPanel {
                 ? baselineOverlapCount / Math.min(baselineTasks.length, column.tasks.length)
                 : 0;
 
-            console.log('[kanban.saveColumnIncludeChanges] Baseline overlap:', baselineOverlapCount, 'ratio:', baselineOverlapRatio.toFixed(2));
-
             // If there's NO overlap with the baseline, the tasks came from a different file
             // This happens when include file path is changed but new content hasn't loaded yet
             if (baselineTasks.length > 0 && column.tasks.length > 0 && baselineOverlapRatio < 0.3) {
-                console.log('[kanban.saveColumnIncludeChanges] BLOCKED - Tasks do not match this file\'s baseline (likely from different file)');
                 return false;
             }
 
@@ -2711,8 +2702,6 @@ export class KanbanWebviewPanel {
                 // If most tasks overlap, it's likely legitimate editing
                 const overlapRatio = overlapCount / Math.min(currentFileTasks.length, column.tasks.length);
                 hasContentOverlap = overlapRatio >= 0.5; // At least 50% overlap
-
-                console.log('[kanban.saveColumnIncludeChanges] Overlap analysis - count:', overlapCount, 'ratio:', overlapRatio.toFixed(2), 'taskCountDiff:', taskCountDifference);
             }
 
             // Only block save if there's a big count difference AND no content overlap
@@ -2720,7 +2709,6 @@ export class KanbanWebviewPanel {
             const isLikelyFilePathChange = taskCountDifference > 2 && !hasContentOverlap;
 
             if (isLikelyFilePathChange) {
-                console.log('[kanban.saveColumnIncludeChanges] BLOCKED - Likely file path change detected');
                 return false;
             }
 
@@ -2888,8 +2876,6 @@ export class KanbanWebviewPanel {
         const normalizedPath = includeFile.startsWith('./') ? includeFile : './' + includeFile;
         const unifiedIncludeFile = this._includeFiles.get(includeFile) || this._includeFiles.get(normalizedPath);
 
-        console.log('[kanban.checkTaskIncludeUnsavedChanges] Task:', task.id, 'File:', includeFile, 'Has unsaved:', unifiedIncludeFile?.hasUnsavedChanges);
-
         // Check if this file has unsaved changes using unified system
         return unifiedIncludeFile?.hasUnsavedChanges === true;
     }
@@ -2906,8 +2892,6 @@ export class KanbanWebviewPanel {
         // Try both with and without ./ prefix for path normalization
         const normalizedPath = includeFile.startsWith('./') ? includeFile : './' + includeFile;
         const unifiedIncludeFile = this._includeFiles.get(includeFile) || this._includeFiles.get(normalizedPath);
-
-        console.log('[kanban.checkColumnIncludeUnsavedChanges] Column:', column.id, 'File:', includeFile, 'Has unsaved:', unifiedIncludeFile?.hasUnsavedChanges);
 
         // Check if this file has unsaved changes using unified system
         return unifiedIncludeFile?.hasUnsavedChanges === true;
@@ -3330,7 +3314,6 @@ export class KanbanWebviewPanel {
         // Get the relative path for unified system lookup
         const currentDocument = this._fileManager.getDocument();
         if (!currentDocument) {
-            console.log('[kanban.handleIncludeFileConflict] No current document');
             return;
         }
 
@@ -3342,12 +3325,9 @@ export class KanbanWebviewPanel {
             relativePath = './' + relativePath;
         }
 
-        console.log('[kanban.handleIncludeFileConflict] Processing:', relativePath, 'type:', changeType);
-
         // Get the include file from unified system
         const includeFile = this._includeFiles.get(relativePath);
         if (!includeFile) {
-            console.log('[kanban.handleIncludeFileConflict] No include file found for:', relativePath);
             return;
         }
 
@@ -3355,24 +3335,18 @@ export class KanbanWebviewPanel {
         // But only for column/task includes which can be edited internally
         // Regular includes should always update since they're read-only
         if (this._isUpdatingFromPanel && (includeFile.type === 'column' || includeFile.type === 'task')) {
-            console.log('[kanban.handleIncludeFileConflict] Skipping - updating from panel');
             return;
         }
 
         // Capture the unsaved changes flag BEFORE any file operations
         let hasUnsavedIncludeChanges = includeFile.hasUnsavedChanges;
 
-        console.log('[kanban.handleIncludeFileConflict] hasUnsavedIncludeChanges:', hasUnsavedIncludeChanges);
-
         // Check if the external file has actually changed BEFORE loading it (for automatic reload decision)
         const hasExternalChangesBeforeLoad = this.hasExternalChanges(relativePath);
-
-        console.log('[kanban.handleIncludeFileConflict] hasExternalChangesBeforeLoad:', hasExternalChangesBeforeLoad);
 
         // CASE 1: No unsaved changes + external changes = Auto-reload immediately (no dialog)
         // This is the normal case for include files since they "cannot be modified internally"
         if (!hasUnsavedIncludeChanges && hasExternalChangesBeforeLoad) {
-            console.log('[kanban.handleIncludeFileConflict] Auto-reloading include file');
             // Safe auto-reload: update internal content to match external file
             await this.updateIncludeFile(filePath, includeFile.type === 'column', includeFile.type === 'task', true);
             return;
@@ -3734,11 +3708,8 @@ export class KanbanWebviewPanel {
      */
     private async handleExternalFileChange(event: import('./externalFileWatcher').FileChangeEvent): Promise<void> {
         try {
-            console.log('[kanban.handleExternalFileChange] Event received:', event.path, 'type:', event.fileType, 'change:', event.changeType);
-
             // Check if this panel is affected by the change
             if (!event.panels.includes(this)) {
-                console.log('[kanban.handleExternalFileChange] Panel not affected');
                 return;
             }
 
@@ -3747,8 +3718,6 @@ export class KanbanWebviewPanel {
                 // Check if this is a column include file or inline include file
                 const isColumnInclude = await this.isColumnIncludeFile(event.path);
                 const isTaskInclude = await this.isTaskIncludeFile(event.path);
-
-                console.log('[kanban.handleExternalFileChange] isColumnInclude:', isColumnInclude, 'isTaskInclude:', isTaskInclude);
 
                 if (isColumnInclude || isTaskInclude) {
                     // This is a column or task include file - handle conflict resolution

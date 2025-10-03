@@ -2940,9 +2940,9 @@ h6 .kanban-tag {
   transition: all 0.2s ease;
 }
 
-.header-bar:first-of-type {
+/* .header-bar:first-of-type {
 	border-radius: 4px 4px 0px 0px;
-}
+} */
 
 /* .footer-bar:last-of-type {
 	border-radius: 0px 0px 4px 4px;

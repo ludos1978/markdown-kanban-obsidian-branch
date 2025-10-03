@@ -357,8 +357,8 @@ function extractFirstTag(text) {
         return null;
     }
 
-    // Use boardRenderer.js compatible regex with exclusions
-    const re = /#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
+    // Use boardRenderer.js compatible regex with exclusions for layout tags
+    const re = /#(?!row\d+\b)(?!span\d+\b)(?!stack\b)([a-zA-Z0-9_-]+(?:[=|><][a-zA-Z0-9_-]+)*)/g;
     let m;
     while ((m = re.exec(text)) !== null) {
         const raw = m[1];
@@ -680,8 +680,8 @@ function applyFoldingStates() {
 function getActiveTagsInTitle(text) {
     if (!text || typeof text !== 'string') {return [];}
     // Match all tags - for gather tags, include the full expression until next space
-    // Skip row tags and span tags
-    const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
+    // Skip layout tags: row, span, and stack
+    const matches = text.match(/#(?!row\d+\b)(?!span\d+\b)(?!stack\b)([a-zA-Z0-9_-]+(?:[&|=><][a-zA-Z0-9_-]+)*)/g) || [];
     return matches.map(tag => {
         const fullTag = tag.substring(1);
         // For gather tags, keep the full expression
@@ -1400,8 +1400,13 @@ function renderBoard() {
 
     // Inject header/footer bars after DOM is rendered
     // This adds the actual bar elements to the DOM
+    console.log('[kanban.renderBoard] About to call injectStackableBars, typeof:', typeof injectStackableBars);
     if (typeof injectStackableBars === 'function') {
+        console.log('[kanban.renderBoard] Calling injectStackableBars NOW');
         injectStackableBars();
+        console.log('[kanban.renderBoard] injectStackableBars returned');
+    } else {
+        console.log('[kanban.renderBoard] injectStackableBars is NOT a function!');
     }
 
     // Apply stacked column styles AFTER bars are injected
@@ -1831,6 +1836,14 @@ function createTaskElement(task, columnId, taskIndex) {
 
     // Extract primary tag for styling (first non-special tag)
     const primaryTag = window.extractFirstTag ? window.extractFirstTag(task.title) : null;
+
+    // Debug logging for taskinclude tag issues
+    if (task.title && task.title.includes('!!!taskinclude')) {
+        console.log('[boardRenderer.createTaskElement] Task with taskinclude:', task.title);
+        console.log('[boardRenderer.createTaskElement] primaryTag:', primaryTag);
+        console.log('[boardRenderer.createTaskElement] allTags:', allTags);
+    }
+
     const tagAttribute = (primaryTag && !primaryTag.startsWith('row') && !primaryTag.startsWith('gather_') && !primaryTag.startsWith('span'))
         ? ` data-task-tag="${primaryTag}"`
         : '';
@@ -1998,7 +2011,8 @@ function isInVerticalStack(columnId) {
  * @returns {string} 'horizontal' or 'vertical'
  */
 function getDefaultFoldMode(columnId) {
-    return isInVerticalStack(columnId) ? 'horizontal' : 'vertical';
+    // Vertical folding disabled - always use horizontal folding
+    return 'horizontal';
 }
 
 /**
@@ -2019,40 +2033,19 @@ function toggleColumnCollapse(columnId, event) {
 
     const isCurrentlyCollapsed = column.classList.contains('collapsed-vertical') ||
                                   column.classList.contains('collapsed-horizontal');
-    const altPressed = event?.altKey || false;
-    const defaultMode = getDefaultFoldMode(columnId);
-    const currentMode = window.columnFoldModes.get(columnId);
 
     if (isCurrentlyCollapsed) {
-        // Currently collapsed
-        if (altPressed) {
-            // Alt+click on folded column: switch fold mode (stay folded)
-            const newMode = currentMode === 'vertical' ? 'horizontal' : 'vertical';
-            column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
-            if (newMode === 'vertical') {
-                column.classList.add('collapsed');
-            } else {
-                column.classList.add('collapsed-horizontal');
-            }
-            window.columnFoldModes.set(columnId, newMode);
-        } else {
-            // Normal click on folded column: unfold
-            column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
-            toggle.classList.remove('rotated');
-            window.collapsedColumns.delete(columnId);
-            window.columnFoldModes.delete(columnId);
-        }
+        // Currently collapsed - unfold
+        column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
+        toggle.classList.remove('rotated');
+        window.collapsedColumns.delete(columnId);
+        window.columnFoldModes.delete(columnId);
     } else {
-        // Currently unfolded
-        const targetMode = altPressed ? (defaultMode === 'vertical' ? 'horizontal' : 'vertical') : defaultMode;
-        if (targetMode === 'vertical') {
-            column.classList.add('collapsed-vertical');
-        } else {
-            column.classList.add('collapsed-horizontal');
-        }
+        // Currently unfolded - fold horizontally (vertical mode disabled)
+        column.classList.add('collapsed-horizontal');
         toggle.classList.add('rotated');
         window.collapsedColumns.add(columnId);
-        window.columnFoldModes.set(columnId, targetMode);
+        window.columnFoldModes.set(columnId, 'horizontal');
 
         // CSS handles hiding via display: none on collapsed column-inner
     }
@@ -3025,8 +3018,13 @@ function injectStackableBars(targetElement = null) {
                     }
                 });
 
+                console.log('[kanban.injectStackableBars] Task tags before filter:', tags);
+                console.log('[kanban.injectStackableBars] Description tags:', Array.from(descriptionTags));
+
                 // Only use tags that are NOT in description for card-level styling
                 tags = tags.filter(tag => !descriptionTags.has(tag));
+
+                console.log('[kanban.injectStackableBars] Task tags after filter:', tags);
             }
         }
         

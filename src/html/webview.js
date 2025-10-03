@@ -2662,6 +2662,13 @@ window.addEventListener('message', event => {
                         }
                     }
 
+                    // Inject header/footer bars after rendering
+                    if (typeof window.injectStackableBars === 'function') {
+                        requestAnimationFrame(() => {
+                            window.injectStackableBars();
+                        });
+                    }
+
                     // Recalculate stacked column heights after include content update
                     if (typeof window.applyStackedColumnStyles === 'function') {
                         requestAnimationFrame(() => {
@@ -2708,6 +2715,13 @@ window.addEventListener('message', event => {
                         if (typeof window.renderBoard === 'function') {
                             window.renderBoard();
                         }
+                    }
+
+                    // Inject header/footer bars after rendering
+                    if (typeof window.injectStackableBars === 'function') {
+                        requestAnimationFrame(() => {
+                            window.injectStackableBars();
+                        });
                     }
 
                     // Recalculate stacked column heights after task include content update
