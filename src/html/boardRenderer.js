@@ -1659,11 +1659,10 @@ function createColumnElement(column, columnIndex) {
         // Create a clickable link that handles Alt+click to open file
         const linkHtml = `<span class="columninclude-link" data-file-path="${escapeHtml(fileName)}" onclick="handleColumnIncludeClick(event, '${escapeHtml(fileName)}')" title="Alt+click to open file">${escapeHtml(baseFileName)}</span>`;
 
-        // Combine with any additional title content (after removing include syntax)
-        let additionalTitle = column.displayTitle || '';
-        if (!additionalTitle && column.title) {
-            additionalTitle = column.title.replace(/!!!columninclude\([^)]+\)!!!/g, '').trim();
-        }
+        // Use displayTitle from backend (which already has include syntax removed)
+        // If displayTitle is the filename without extension, don't show it again
+        const fileNameWithoutExt = baseFileName.replace(/\.[^/.]+$/, '');
+        const additionalTitle = (column.displayTitle && column.displayTitle !== fileNameWithoutExt) ? column.displayTitle : '';
 
         if (additionalTitle) {
             renderedTitle = `${linkHtml} ${renderMarkdown(additionalTitle)}`;
