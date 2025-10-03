@@ -1178,7 +1178,6 @@ function setupTaskDragAndDrop() {
 
         // Keep the existing tasks container specific handling for precise placement
         tasksContainer.addEventListener('dragover', e => {
-            console.log('[dragDrop-TASK] Dragover on tasks container');
             e.preventDefault();
 
             // Update Alt key state during drag (user might press/release Alt mid-drag)
@@ -1191,9 +1190,7 @@ function setupTaskDragAndDrop() {
                 e.stopPropagation(); // Prevent column-level handler from interfering
             }
 
-            console.log('[dragDrop-TASK] draggedTask:', dragState.draggedTask);
             if (!dragState.draggedTask) {
-                console.log('[dragDrop-TASK] No dragged task, exiting');
                 return;
             }
 
@@ -1250,20 +1247,15 @@ function setupTaskDragAndDrop() {
 }
 
 function setupTaskDragHandle(handle) {
-    console.log('[dragDrop-SETUP] Setting up task drag handle:', handle);
     handle.draggable = true;
 
     handle.addEventListener('dragstart', e => {
-        console.log('[dragDrop-TASK] Task dragstart fired');
-
         const taskItem = e.target && e.target.closest ? e.target.closest('.task-item') : null;
-        console.log('[dragDrop-TASK] Found task item:', taskItem);
 
         if (taskItem) {
             e.stopPropagation();
             const taskId = taskItem.dataset.taskId;
             const columnId = taskItem.dataset.columnId;
-            console.log('[dragDrop-TASK] Task ID:', taskId, 'Column ID:', columnId);
 
             // Store original position
             dragState.draggedTask = taskItem;
@@ -1281,14 +1273,10 @@ function setupTaskDragHandle(handle) {
 
             // DON'T add dragging class here - causes layout shift that cancels drag
             // Will be added on first dragover event instead
-            console.log('[dragDrop-TASK] Task drag initialized successfully');
-        } else {
-            console.log('[dragDrop-TASK] ERROR: Could not find task item');
         }
     });
 
     handle.addEventListener('dragend', e => {
-        console.log('[dragDrop-TASK] Task dragend fired');
 
         const taskItem = e.target && e.target.closest ? e.target.closest('.task-item') : null;
         if (taskItem) {
@@ -1403,12 +1391,9 @@ function setupTaskDragHandle(handle) {
                 }
 
                 // Recalculate stacked column styles after task drag (same as after column drag)
-                // This recalculates heights based on column top offsets
-                console.log('[dragDrop-HEIGHT] Task moved, recalculating column heights for:', originalColumnId, finalColumnId);
                 if (typeof window.applyStackedColumnStyles === 'function') {
                     requestAnimationFrame(() => {
                         window.applyStackedColumnStyles();
-                        console.log('[dragDrop-HEIGHT] Column heights recalculated via applyStackedColumnStyles');
                     });
                 }
             }

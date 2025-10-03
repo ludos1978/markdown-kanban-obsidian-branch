@@ -666,7 +666,8 @@ body.small-card-fonts .task-title-container .markdown-content img {
 .column-title-section {
   padding: var(--whitespace-div2) var(--whitespace-div2) 0 var(--whitespace-div2);
   display: flex;
-  align-items: flex-start;
+  /* align-items: flex-start; */
+	align-items: center;
   gap: var(--whitespace-div2);;
   flex: 1;
   min-width: 0;
