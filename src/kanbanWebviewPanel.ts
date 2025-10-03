@@ -3274,6 +3274,7 @@ export class KanbanWebviewPanel {
         // Get the relative path for unified system lookup
         const currentDocument = this._fileManager.getDocument();
         if (!currentDocument) {
+            console.log('[kanban.handleIncludeFileConflict] No current document');
             return;
         }
 
@@ -3285,9 +3286,12 @@ export class KanbanWebviewPanel {
             relativePath = './' + relativePath;
         }
 
+        console.log('[kanban.handleIncludeFileConflict] Processing:', relativePath, 'type:', changeType);
+
         // Get the include file from unified system
         const includeFile = this._includeFiles.get(relativePath);
         if (!includeFile) {
+            console.log('[kanban.handleIncludeFileConflict] No include file found for:', relativePath);
             return;
         }
 
@@ -3295,21 +3299,24 @@ export class KanbanWebviewPanel {
         // But only for column/task includes which can be edited internally
         // Regular includes should always update since they're read-only
         if (this._isUpdatingFromPanel && (includeFile.type === 'column' || includeFile.type === 'task')) {
+            console.log('[kanban.handleIncludeFileConflict] Skipping - updating from panel');
             return;
         }
 
         // Capture the unsaved changes flag BEFORE any file operations
         let hasUnsavedIncludeChanges = includeFile.hasUnsavedChanges;
 
-        if (hasUnsavedIncludeChanges) {
-        }
+        console.log('[kanban.handleIncludeFileConflict] hasUnsavedIncludeChanges:', hasUnsavedIncludeChanges);
 
         // Check if the external file has actually changed BEFORE loading it (for automatic reload decision)
         const hasExternalChangesBeforeLoad = this.hasExternalChanges(relativePath);
 
+        console.log('[kanban.handleIncludeFileConflict] hasExternalChangesBeforeLoad:', hasExternalChangesBeforeLoad);
+
         // CASE 1: No unsaved changes + external changes = Auto-reload immediately (no dialog)
         // This is the normal case for include files since they "cannot be modified internally"
         if (!hasUnsavedIncludeChanges && hasExternalChangesBeforeLoad) {
+            console.log('[kanban.handleIncludeFileConflict] Auto-reloading include file');
             // Safe auto-reload: update internal content to match external file
             await this.updateIncludeFile(filePath, includeFile.type === 'column', includeFile.type === 'task', true);
             return;
@@ -3671,9 +3678,11 @@ export class KanbanWebviewPanel {
      */
     private async handleExternalFileChange(event: import('./externalFileWatcher').FileChangeEvent): Promise<void> {
         try {
+            console.log('[kanban.handleExternalFileChange] Event received:', event.path, 'type:', event.fileType, 'change:', event.changeType);
 
             // Check if this panel is affected by the change
             if (!event.panels.includes(this)) {
+                console.log('[kanban.handleExternalFileChange] Panel not affected');
                 return;
             }
 
@@ -3682,6 +3691,8 @@ export class KanbanWebviewPanel {
                 // Check if this is a column include file or inline include file
                 const isColumnInclude = await this.isColumnIncludeFile(event.path);
                 const isTaskInclude = await this.isTaskIncludeFile(event.path);
+
+                console.log('[kanban.handleExternalFileChange] isColumnInclude:', isColumnInclude, 'isTaskInclude:', isTaskInclude);
 
                 if (isColumnInclude || isTaskInclude) {
                     // This is a column or task include file - handle conflict resolution
