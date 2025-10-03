@@ -2631,8 +2631,54 @@ export class KanbanWebviewPanel {
             const includeFile = column.includeFiles[0];
             const absolutePath = path.resolve(basePath, includeFile);
 
+            console.log('[kanban.saveColumnIncludeChanges] Attempting to save column:', column.id, 'to file:', includeFile);
+
             // Check if the file exists - if not, this might be a new file path that hasn't been loaded yet
             if (!fs.existsSync(absolutePath)) {
+                console.log('[kanban.saveColumnIncludeChanges] File does not exist:', absolutePath);
+                return false;
+            }
+
+            // CRITICAL: Check if the unified system has this include file and if it matches the column
+            const normalizedPath = includeFile.startsWith('./') ? includeFile : './' + includeFile;
+            const unifiedIncludeFile = this._includeFiles.get(normalizedPath) || this._includeFiles.get(includeFile);
+
+            if (!unifiedIncludeFile) {
+                console.log('[kanban.saveColumnIncludeChanges] No unified include file found for:', includeFile);
+                return false;
+            }
+
+            // CRITICAL FIX: Check if the column's tasks actually came from this file's baseline
+            // This prevents saving old file's tasks to a new file after changing the include path
+            const baselineTasks = PresentationParser.parseMarkdownToTasks(unifiedIncludeFile.baseline);
+
+            console.log('[kanban.saveColumnIncludeChanges] Baseline tasks:', baselineTasks.length, 'Column tasks:', column.tasks.length);
+
+            // Check overlap between baseline and current column tasks
+            let baselineOverlapCount = 0;
+            if (baselineTasks.length > 0 && column.tasks.length > 0) {
+                for (const baselineTask of baselineTasks) {
+                    for (const columnTask of column.tasks) {
+                        if (baselineTask.title === columnTask.title ||
+                            baselineTask.title.includes(columnTask.title) ||
+                            columnTask.title.includes(baselineTask.title)) {
+                            baselineOverlapCount++;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const baselineOverlapRatio = baselineTasks.length > 0
+                ? baselineOverlapCount / Math.min(baselineTasks.length, column.tasks.length)
+                : 0;
+
+            console.log('[kanban.saveColumnIncludeChanges] Baseline overlap:', baselineOverlapCount, 'ratio:', baselineOverlapRatio.toFixed(2));
+
+            // If there's NO overlap with the baseline, the tasks came from a different file
+            // This happens when include file path is changed but new content hasn't loaded yet
+            if (baselineTasks.length > 0 && column.tasks.length > 0 && baselineOverlapRatio < 0.3) {
+                console.log('[kanban.saveColumnIncludeChanges] BLOCKED - Tasks do not match this file\'s baseline (likely from different file)');
                 return false;
             }
 
@@ -2665,6 +2711,8 @@ export class KanbanWebviewPanel {
                 // If most tasks overlap, it's likely legitimate editing
                 const overlapRatio = overlapCount / Math.min(currentFileTasks.length, column.tasks.length);
                 hasContentOverlap = overlapRatio >= 0.5; // At least 50% overlap
+
+                console.log('[kanban.saveColumnIncludeChanges] Overlap analysis - count:', overlapCount, 'ratio:', overlapRatio.toFixed(2), 'taskCountDiff:', taskCountDifference);
             }
 
             // Only block save if there's a big count difference AND no content overlap
@@ -2672,6 +2720,7 @@ export class KanbanWebviewPanel {
             const isLikelyFilePathChange = taskCountDifference > 2 && !hasContentOverlap;
 
             if (isLikelyFilePathChange) {
+                console.log('[kanban.saveColumnIncludeChanges] BLOCKED - Likely file path change detected');
                 return false;
             }
 
@@ -2703,8 +2752,7 @@ export class KanbanWebviewPanel {
             // Write to file
             fs.writeFileSync(absolutePath, presentationContent, 'utf8');
 
-            // Update unified system tracking
-            const unifiedIncludeFile = this._includeFiles.get(includeFile);
+            // Update unified system tracking (reuse the variable we already found)
             if (unifiedIncludeFile) {
                 unifiedIncludeFile.content = presentationContent;
                 unifiedIncludeFile.baseline = presentationContent;
@@ -2836,7 +2884,11 @@ export class KanbanWebviewPanel {
         }
 
         const includeFile = task.includeFiles[0];
-        const unifiedIncludeFile = this._includeFiles.get(includeFile);
+        // Try both with and without ./ prefix for path normalization
+        const normalizedPath = includeFile.startsWith('./') ? includeFile : './' + includeFile;
+        const unifiedIncludeFile = this._includeFiles.get(includeFile) || this._includeFiles.get(normalizedPath);
+
+        console.log('[kanban.checkTaskIncludeUnsavedChanges] Task:', task.id, 'File:', includeFile, 'Has unsaved:', unifiedIncludeFile?.hasUnsavedChanges);
 
         // Check if this file has unsaved changes using unified system
         return unifiedIncludeFile?.hasUnsavedChanges === true;
@@ -2851,7 +2903,11 @@ export class KanbanWebviewPanel {
         }
 
         const includeFile = column.includeFiles[0];
-        const unifiedIncludeFile = this._includeFiles.get(includeFile);
+        // Try both with and without ./ prefix for path normalization
+        const normalizedPath = includeFile.startsWith('./') ? includeFile : './' + includeFile;
+        const unifiedIncludeFile = this._includeFiles.get(includeFile) || this._includeFiles.get(normalizedPath);
+
+        console.log('[kanban.checkColumnIncludeUnsavedChanges] Column:', column.id, 'File:', includeFile, 'Has unsaved:', unifiedIncludeFile?.hasUnsavedChanges);
 
         // Check if this file has unsaved changes using unified system
         return unifiedIncludeFile?.hasUnsavedChanges === true;
