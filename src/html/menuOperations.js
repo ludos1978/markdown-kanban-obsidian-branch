@@ -3288,12 +3288,18 @@ function updateAllVisualTagElements(element, allTags, elementType) {
     
     // 1. CLEAN UP - Remove visual elements only from column-title and column-footer areas
     if (elementType === 'column') {
-        // For columns: clean up only within column-title and column-footer (never column-inner)
+        // For columns: clean up only within column-header and column-footer (never column-inner)
 
-        const columnHeader = element.querySelector('.column-title');
+        const columnHeader = element.querySelector('.column-header');
         if (columnHeader) {
-            // Remove all visual tag elements from column-title
-            columnHeader.querySelectorAll('.header-bar, .header-bars-container, .corner-badges-container').forEach(el => el.remove());
+            // Remove all visual tag elements from column-header
+            columnHeader.querySelectorAll('.header-bar, .header-bars-container').forEach(el => el.remove());
+        }
+
+        const columnTitle = element.querySelector('.column-title');
+        if (columnTitle) {
+            // Remove corner badges from column-title
+            columnTitle.querySelectorAll('.corner-badges-container').forEach(el => el.remove());
         }
 
         const columnFooter = element.querySelector('.column-footer');
@@ -3429,8 +3435,8 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         }
     });
 
-    // Always try to add header-bars-container to column-title (regardless of collapsed state)
-    const columnHeader = element.querySelector('.column-title');
+    // Always try to add header-bars-container to column-header (regardless of collapsed state)
+    const columnHeader = element.querySelector('.column-header');
     if (columnHeader && headerBars.length > 0) {
         const headerContainer = document.createElement('div');
         headerContainer.className = 'header-bars-container';
@@ -3438,7 +3444,7 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         // Header container should be first child, so insert at the beginning
         columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
     } else if (headerBars.length > 0) {
-        // Fallback: add directly to element if no column-title found
+        // Fallback: add directly to element if no column-header found
         const headerContainer = document.createElement('div');
         headerContainer.className = 'header-bars-container';
         headerBars.forEach(bar => headerContainer.appendChild(bar));

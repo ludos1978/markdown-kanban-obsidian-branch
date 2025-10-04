@@ -1685,12 +1685,14 @@ function createColumnElement(column, columnIndex) {
     const columnRow = getColumnRow(column.title);
     const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
-		// the column-title MUST be outside the column-inner to be able to be sticky over the full height!!!
+		// the column-header and column-title MUST be outside the column-inner to be able to be sticky over the full height!!!
     columnDiv.innerHTML = `
 				<div class="column-offset"></div>
 				<div class="column-margin"></div>
-				<div class="column-title">
+				<div class="column-header">
 						${headerBarsHtml || ''}
+				</div>
+				<div class="column-title">
 						${cornerBadgesHtml}
 						<div class="column-title-section">
 								<span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
@@ -2219,7 +2221,11 @@ function recalculateStackHeights(stackElement = null) {
             stack.classList.add('all-vertical-folded');
             // Reset header positions since they're not stacked
             columns.forEach(col => {
+                const columnHeader = col.querySelector('.column-header');
                 const header = col.querySelector('.column-title');
+                if (columnHeader) {
+                    columnHeader.style.top = '';
+                }
                 if (header) {
                     header.style.top = '';
                 }
@@ -2246,14 +2252,17 @@ function recalculateStackHeights(stackElement = null) {
                 const isVerticallyFolded = col.classList.contains('collapsed-vertical');
                 const isHorizontallyFolded = col.classList.contains('collapsed-horizontal');
 
+                const columnHeader = col.querySelector('.column-header');
                 const header = col.querySelector('.column-title');
                 const footer = col.querySelector('.column-footer');
                 const content = col.querySelector('.column-inner');
 
                 // Force reflow on each header to ensure bars are included in measurement
+                if (columnHeader) {void columnHeader.offsetHeight;}
                 if (header) {void header.offsetHeight;}
                 if (footer) {void footer.offsetHeight;}
 
+                const columnHeaderHeight = columnHeader ? columnHeader.offsetHeight : 0;
                 const headerHeight = header ? header.offsetHeight : 0;
                 const footerHeight = footer ? footer.offsetHeight : 0;
                 const contentHeight = (isVerticallyFolded || isHorizontallyFolded) ? 0 : (content ? content.scrollHeight : 0);
@@ -2264,13 +2273,15 @@ function recalculateStackHeights(stackElement = null) {
                 const columnMargin = col.querySelector('.column-margin');
                 const marginHeight = columnMargin ? columnMargin.offsetHeight : 4;
 
-                const totalHeight = headerHeight + footerHeight + contentHeight;
+                const totalHeight = columnHeaderHeight + headerHeight + footerHeight + contentHeight;
 
                 columnData.push({
                     col,
                     index: idx,
+                    columnHeader,
                     header,
                     footer,
+                    columnHeaderHeight,
                     headerHeight,
                     footerHeight,
                     contentHeight,
@@ -2288,6 +2299,9 @@ function recalculateStackHeights(stackElement = null) {
             // Third pass: Calculate all sticky positions
             let cumulativeStickyTop = 0;
             const positions = expandedColumns.map((data, expandedIdx) => {
+                const columnHeaderTop = cumulativeStickyTop;
+                cumulativeStickyTop += data.columnHeaderHeight;
+
                 const headerTop = cumulativeStickyTop;
                 cumulativeStickyTop += data.headerHeight;
 
@@ -2296,6 +2310,7 @@ function recalculateStackHeights(stackElement = null) {
 
                 return {
                     ...data,
+                    columnHeaderTop,
                     headerTop,
                     footerTop,
                     zIndex: 1000000 + (expandedColumns.length - expandedIdx)
@@ -2309,8 +2324,12 @@ function recalculateStackHeights(stackElement = null) {
                 cumulativeFromBottom += positions[i].footerHeight;
 
                 const headerBottom = cumulativeFromBottom;
-                cumulativeFromBottom += positions[i].headerHeight + positions[i].marginHeight;
+                cumulativeFromBottom += positions[i].headerHeight;
 
+                const columnHeaderBottom = cumulativeFromBottom;
+                cumulativeFromBottom += positions[i].columnHeaderHeight + positions[i].marginHeight;
+
+                positions[i].columnHeaderBottom = columnHeaderBottom;
                 positions[i].headerBottom = headerBottom;
                 positions[i].footerBottom = footerBottom;
             }
@@ -2323,12 +2342,21 @@ function recalculateStackHeights(stackElement = null) {
             });
 
             // Apply all calculated positions
-            positions.forEach(({ col, index, header, footer, headerHeight, headerTop, footerTop, headerBottom, footerBottom, contentPadding, zIndex, marginHeight, isVerticallyFolded, isHorizontallyFolded }) => {
+            positions.forEach(({ col, index, columnHeader, header, footer, columnHeaderHeight, headerHeight, columnHeaderTop, headerTop, footerTop, columnHeaderBottom, headerBottom, footerBottom, contentPadding, zIndex, marginHeight, isVerticallyFolded, isHorizontallyFolded }) => {
+                col.dataset.columnHeaderTop = columnHeaderTop;
                 col.dataset.headerTop = headerTop;
                 col.dataset.footerTop = footerTop;
+                col.dataset.columnHeaderBottom = columnHeaderBottom;
                 col.dataset.headerBottom = headerBottom;
                 col.dataset.footerBottom = footerBottom;
                 col.dataset.zIndex = zIndex;
+
+                if (columnHeader) {
+                    columnHeader.style.position = 'sticky';
+                    columnHeader.style.top = `${columnHeaderTop}px`;
+                    columnHeader.style.bottom = `${columnHeaderBottom}px`;
+                    columnHeader.style.zIndex = zIndex + 1;
+                }
 
                 if (header) {
                     header.style.position = 'sticky';
@@ -2351,8 +2379,8 @@ function recalculateStackHeights(stackElement = null) {
 
                 const columnMargin = col.querySelector('.column-margin');
                 if (columnMargin) {
-                    const marginTop = Math.max(0, headerTop - marginHeight);
-                    const marginBottom = headerBottom + headerHeight;
+                    const marginTop = Math.max(0, columnHeaderTop - marginHeight);
+                    const marginBottom = columnHeaderBottom + columnHeaderHeight;
                     columnMargin.style.position = 'sticky';
                     columnMargin.style.top = `${marginTop}px`;
                     columnMargin.style.bottom = `${marginBottom}px`;
@@ -3215,8 +3243,8 @@ function injectStackableBars(targetElement = null) {
         
         // Remove existing bars/containers - only from appropriate areas
         if (isColumn) {
-            // For columns: only remove from column-title and column-footer, not from nested task cards
-            const columnHeader = element.querySelector('.column-title');
+            // For columns: only remove from column-header and column-footer, not from nested task cards
+            const columnHeader = element.querySelector('.column-header');
             if (columnHeader) {
                 columnHeader.querySelectorAll('.header-bar, .header-bars-container').forEach(el => el.remove());
             }
@@ -3290,10 +3318,10 @@ function injectStackableBars(targetElement = null) {
         // Handle collapsed columns with flex containers
         if (isCollapsed) {
             // Find the header and footer elements to insert bars into
-						const columnHeader = element.querySelector('.column-title');
+						const columnHeader = element.querySelector('.column-header');
 						const columnFooter = element.querySelector('.column-footer');
 
-            // Create and insert header container at the beginning of column-title
+            // Create and insert header container at the beginning of column-header
             if (headerBars.length > 0 && columnHeader) {
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
@@ -3318,14 +3346,14 @@ function injectStackableBars(targetElement = null) {
             element.style.paddingBottom = '';
 
         } else {
-            // For non-collapsed columns, use column-title and column-footer
+            // For non-collapsed columns, use column-header and column-footer
             if (isColumn) {
-                const columnHeader = element.querySelector('.column-title');
+                const columnHeader = element.querySelector('.column-header');
                 const columnFooter = element.querySelector('.column-footer');
                 const isInStack = element.closest('.kanban-column-stack') !== null;
 
                 if (columnHeader && headerBars.length > 0) {
-                    // Create and insert header container at the beginning of column-title
+                    // Create and insert header container at the beginning of column-header
                     const headerContainer = document.createElement('div');
                     headerContainer.className = 'header-bars-container';
                     headerBars.forEach(bar => headerContainer.appendChild(bar));

@@ -663,6 +663,13 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex-shrink: 0;
 }
 
+/* Column header - receives tag-based header bars, can be styled/faded independently */
+.column-header {
+  position: sticky;
+  z-index: 11;
+  background-color: var(--vscode-editor-background);
+}
+
 /* Column title */
 .column-title {
   display: flex;
@@ -698,11 +705,12 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	background: black;
 } */
 
-.column-title:not(:has(.header-bars-container):has(.header-bar)) {
+/* Add top border to column-title when there are no header bars in column-header */
+.column-header {
 	border-top: 0.5px solid var(--vscode-panel-border);
 }
 
-.column-footer:not(:has(.footer-bars-container):has(.footer-bar)) {
+.column-footer {
 	border-bottom: 0.5px solid var(--vscode-panel-border);
 }
 
@@ -1824,6 +1832,7 @@ button.file-bar-menu-item {
 }
 
 /* Re-enable pointer events on interactive child elements */
+.kanban-column-stack .kanban-full-height-column .column-header,
 .kanban-column-stack .kanban-full-height-column .column-title,
 .kanban-column-stack .kanban-full-height-column .column-footer,
 .kanban-column-stack .kanban-full-height-column .column-inner {
@@ -1842,7 +1851,8 @@ button.file-bar-menu-item {
   height: var(--whitespace);
 }
 
-/* Sticky headers at bottom with dynamic offsets (set by JavaScript inline styles) */
+/* Sticky headers and titles at bottom with dynamic offsets (set by JavaScript inline styles) */
+.kanban-column-stack .kanban-full-height-column .column-header,
 .kanban-column-stack .kanban-full-height-column .column-title {
   position: sticky;
   background: var(--vscode-editor-background);
