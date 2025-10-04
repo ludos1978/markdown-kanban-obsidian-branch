@@ -2245,7 +2245,7 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     }
     
     // Update title display
-    const titleElement = columnElement.querySelector('.column-title');
+    const titleElement = columnElement.querySelector('.column-title-text');
     if (titleElement) {
         const displayTitle = newTitle.replace(/#row\d+/gi, '').trim();
         const renderedTitle = displayTitle ? 
@@ -2982,8 +2982,8 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
     }
 
     // Find existing corner badges container or create one
-    // For columns, append to column-header; for tasks, append to element
-    const targetContainer = elementType === 'column' ? element.querySelector('.column-header') || element : element;
+    // For columns, append to column-title; for tasks, append to element
+    const targetContainer = elementType === 'column' ? element.querySelector('.column-title') || element : element;
     let badgesContainer = targetContainer.querySelector('.corner-badges-container');
     if (!badgesContainer) {
         badgesContainer = document.createElement('div');
@@ -3286,13 +3286,13 @@ function updateVisualTagState(element, allTags, elementType, isCollapsed) {
 // Comprehensive function to update ALL visual tag elements immediately
 function updateAllVisualTagElements(element, allTags, elementType) {
     
-    // 1. CLEAN UP - Remove visual elements only from column-header and column-footer areas
+    // 1. CLEAN UP - Remove visual elements only from column-title and column-footer areas
     if (elementType === 'column') {
-        // For columns: clean up only within column-header and column-footer (never column-inner)
+        // For columns: clean up only within column-title and column-footer (never column-inner)
 
-        const columnHeader = element.querySelector('.column-header');
+        const columnHeader = element.querySelector('.column-title');
         if (columnHeader) {
-            // Remove all visual tag elements from column-header
+            // Remove all visual tag elements from column-title
             columnHeader.querySelectorAll('.header-bar, .header-bars-container, .corner-badges-container').forEach(el => el.remove());
         }
 
@@ -3387,8 +3387,8 @@ function updateAllVisualTagElements(element, allTags, elementType) {
             badgesContainer.className = 'corner-badges-container';
             badgesContainer.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
             badgesContainer.innerHTML = badgesHtml;
-            // For columns, append to column-header; for tasks, append to element
-            const targetContainer = elementType === 'column' ? element.querySelector('.column-header') || element : element;
+            // For columns, append to column-title; for tasks, append to element
+            const targetContainer = elementType === 'column' ? element.querySelector('.column-title') || element : element;
             targetContainer.appendChild(badgesContainer);
         }
     }
@@ -3429,8 +3429,8 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         }
     });
 
-    // Always try to add header-bars-container to column-header (regardless of collapsed state)
-    const columnHeader = element.querySelector('.column-header');
+    // Always try to add header-bars-container to column-title (regardless of collapsed state)
+    const columnHeader = element.querySelector('.column-title');
     if (columnHeader && headerBars.length > 0) {
         const headerContainer = document.createElement('div');
         headerContainer.className = 'header-bars-container';
@@ -3438,7 +3438,7 @@ function updateAllVisualTagElements(element, allTags, elementType) {
         // Header container should be first child, so insert at the beginning
         columnHeader.insertBefore(headerContainer, columnHeader.firstChild);
     } else if (headerBars.length > 0) {
-        // Fallback: add directly to element if no column-header found
+        // Fallback: add directly to element if no column-title found
         const headerContainer = document.createElement('div');
         headerContainer.className = 'header-bars-container';
         headerBars.forEach(bar => headerContainer.appendChild(bar));

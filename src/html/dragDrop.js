@@ -1703,7 +1703,7 @@ function updateColumnTitleDisplay(columnId) {
     const renderedTitle = displayTitle ? window.renderMarkdown(displayTitle) : '';
 
     // Update the column title DOM element
-    const titleElement = columnElement.querySelector('.column-title.markdown-content');
+    const titleElement = columnElement.querySelector('.column-title-text.markdown-content');
     if (titleElement) {
         // Preserve row indicator if it exists
         const rowIndicator = titleElement.querySelector('.column-row-tag');
@@ -1996,7 +1996,7 @@ function setupColumnDragAndDrop() {
             }
 
             // Update the visual display
-            const titleElement = columnElement.querySelector('.column-title');
+            const titleElement = columnElement.querySelector('.column-title-text');
             if (titleElement && window.cachedBoard) {
                 const columnData = window.cachedBoard.columns.find(col => col.id === columnId);
                 if (columnData) {

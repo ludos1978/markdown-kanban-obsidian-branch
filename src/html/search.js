@@ -216,7 +216,7 @@ class KanbanSearch {
             const isCurrent = index === this.currentResultIndex;
             
             if (result.type === 'column') {
-                const columnElement = document.querySelector(`[data-column-id="${result.columnId}"] .column-title`);
+                const columnElement = document.querySelector(`[data-column-id="${result.columnId}"] .column-title-text`);
                 if (columnElement) {
                     this.highlightElement(columnElement, isCurrent);
                 }
@@ -249,7 +249,7 @@ class KanbanSearch {
         const result = this.searchResults[this.currentResultIndex];
         
         if (result.type === 'column') {
-            const columnElement = document.querySelector(`[data-column-id="${result.columnId}"] .column-title`);
+            const columnElement = document.querySelector(`[data-column-id="${result.columnId}"] .column-title-text`);
             if (columnElement) {
                 columnElement.classList.add('search-current-match');
             }

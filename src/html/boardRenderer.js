@@ -156,8 +156,8 @@ function ensureTagStyleExists(tagName) {
             const columnBg = interpolateColor(editorBg, bgDark, 0.15);
             const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
             
-            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-header,
-.kanban-full-height-column[data-all-tags~="${tagName}"] .column-header {
+            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-title,
+.kanban-full-height-column[data-all-tags~="${tagName}"] .column-title {
     background-color: ${columnBg} !important;
 }
 .kanban-full-height-column[data-column-tag="${tagName}"] .column-content,
@@ -168,8 +168,8 @@ function ensureTagStyleExists(tagName) {
 .kanban-full-height-column[data-all-tags~="${tagName}"] .column-footer {
     background-color: ${columnBg} !important;
 }
-.kanban-full-height-column.collapsed[data-column-tag="${tagName}"] .column-header,
-.kanban-full-height-column.collapsed[data-all-tags~="${tagName}"] .column-header {
+.kanban-full-height-column.collapsed[data-column-tag="${tagName}"] .column-title,
+.kanban-full-height-column.collapsed[data-all-tags~="${tagName}"] .column-title {
     background-color: ${columnCollapsedBg} !important;
 }
 .kanban-full-height-column.collapsed[data-column-tag="${tagName}"] .column-footer,
@@ -205,7 +205,7 @@ function ensureTagStyleExists(tagName) {
         const borderStyle = tagConfig.border.style || 'solid';
         
         if (tagConfig.border.position === 'left') {
-            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-header {
+            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-title {
                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }
 .kanban-full-height-column[data-column-tag="${tagName}"] .column-content {
@@ -215,7 +215,7 @@ function ensureTagStyleExists(tagName) {
                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }\n`;
         } else {
-            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-header {
+            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-title {
                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }
 .kanban-full-height-column[data-column-tag="${tagName}"] .column-content {
@@ -1685,18 +1685,18 @@ function createColumnElement(column, columnIndex) {
     const columnRow = getColumnRow(column.title);
     const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
-		// the column-header MUST be outside the column-inner to be able to be sticky over the full height!!!
+		// the column-title MUST be outside the column-inner to be able to be sticky over the full height!!!
     columnDiv.innerHTML = `
 				<div class="column-offset"></div>
 				<div class="column-margin"></div>
-				<div class="column-header">
+				<div class="column-title">
 						${headerBarsHtml || ''}
 						${cornerBadgesHtml}
 						<div class="column-title-section">
 								<span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
 								<span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" data-column-id="${column.id}">▶</span>
 								<div class="column-title-container">
-										<div class="column-title markdown-content" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
+										<div class="column-title-text markdown-content" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
 										<textarea class="column-title-edit"
 																data-column-id="${column.id}"
 																style="display: none;">${escapeHtml(editTitle)}</textarea>
@@ -2219,7 +2219,7 @@ function recalculateStackHeights(stackElement = null) {
             stack.classList.add('all-vertical-folded');
             // Reset header positions since they're not stacked
             columns.forEach(col => {
-                const header = col.querySelector('.column-header');
+                const header = col.querySelector('.column-title');
                 if (header) {
                     header.style.top = '';
                 }
@@ -2246,7 +2246,7 @@ function recalculateStackHeights(stackElement = null) {
                 const isVerticallyFolded = col.classList.contains('collapsed-vertical');
                 const isHorizontallyFolded = col.classList.contains('collapsed-horizontal');
 
-                const header = col.querySelector('.column-header');
+                const header = col.querySelector('.column-title');
                 const footer = col.querySelector('.column-footer');
                 const content = col.querySelector('.column-inner');
 
@@ -2390,7 +2390,7 @@ function setupStackedColumnScrollHandler(columnsData) {
         const viewportTop = scrollY;
 
         window.stackedColumnsData.forEach(({ col, headerHeight, footerHeight, totalHeight }, idx) => {
-            const header = col.querySelector('.column-header');
+            const header = col.querySelector('.column-title');
             const footer = col.querySelector('.column-footer');
             const columnInner = col.querySelector('.column-inner');
 
@@ -2859,7 +2859,7 @@ function generateTagStyles() {
                 const columnBg = interpolateColor(editorBg, bgDark, 0.15);
                 
                 // Default column header background
-                styles += `.kanban-full-height-column:not([data-column-tag]) .column-header {
+                styles += `.kanban-full-height-column:not([data-column-tag]) .column-title {
                     background-color: ${columnBg} !important;
                 }\n`;
 
@@ -2876,7 +2876,7 @@ function generateTagStyles() {
                 const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
 
                 // Default collapsed column header background
-                styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-header {
+                styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-title {
                     background-color: ${columnCollapsedBg} !important;
                 }\n`;
 
@@ -2949,7 +2949,7 @@ function generateTagStyles() {
                     const columnBg = interpolateColor(editorBg, bgDark, 0.15);
                     
                     // Column header background
-                    styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
+                    styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-title {
                         background-color: ${columnBg} !important;
                     }\n`;
 
@@ -2967,7 +2967,7 @@ function generateTagStyles() {
                     const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
 
                     // Collapsed column header background
-                    styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-header {
+                    styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-title {
                         background-color: ${columnCollapsedBg} !important;
                     }\n`;
 
@@ -2998,7 +2998,7 @@ function generateTagStyles() {
                         
                         if (config.border.position === 'left') {
                             // Use data-column-tag for left border on all column parts
-                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-title {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
                             styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-inner {
@@ -3017,7 +3017,7 @@ function generateTagStyles() {
                                 border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-bottom: none !important;
                             }\n
-														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
+														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-title {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-top: ${borderWidth} ${borderStyle} ${borderColor} !important;
@@ -3215,8 +3215,8 @@ function injectStackableBars(targetElement = null) {
         
         // Remove existing bars/containers - only from appropriate areas
         if (isColumn) {
-            // For columns: only remove from column-header and column-footer, not from nested task cards
-            const columnHeader = element.querySelector('.column-header');
+            // For columns: only remove from column-title and column-footer, not from nested task cards
+            const columnHeader = element.querySelector('.column-title');
             if (columnHeader) {
                 columnHeader.querySelectorAll('.header-bar, .header-bars-container').forEach(el => el.remove());
             }
@@ -3290,10 +3290,10 @@ function injectStackableBars(targetElement = null) {
         // Handle collapsed columns with flex containers
         if (isCollapsed) {
             // Find the header and footer elements to insert bars into
-						const columnHeader = element.querySelector('.column-header');
+						const columnHeader = element.querySelector('.column-title');
 						const columnFooter = element.querySelector('.column-footer');
 
-            // Create and insert header container at the beginning of column-header
+            // Create and insert header container at the beginning of column-title
             if (headerBars.length > 0 && columnHeader) {
                 const headerContainer = document.createElement('div');
                 headerContainer.className = 'header-bars-container';
@@ -3318,14 +3318,14 @@ function injectStackableBars(targetElement = null) {
             element.style.paddingBottom = '';
 
         } else {
-            // For non-collapsed columns, use column-header and column-footer
+            // For non-collapsed columns, use column-title and column-footer
             if (isColumn) {
-                const columnHeader = element.querySelector('.column-header');
+                const columnHeader = element.querySelector('.column-title');
                 const columnFooter = element.querySelector('.column-footer');
                 const isInStack = element.closest('.kanban-column-stack') !== null;
 
                 if (columnHeader && headerBars.length > 0) {
-                    // Create and insert header container at the beginning of column-header
+                    // Create and insert header container at the beginning of column-title
                     const headerContainer = document.createElement('div');
                     headerContainer.className = 'header-bars-container';
                     headerBars.forEach(bar => headerContainer.appendChild(bar));

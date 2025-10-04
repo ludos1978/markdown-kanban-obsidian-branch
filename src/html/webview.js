@@ -1674,7 +1674,7 @@ function updateColumnRowTag(columnId, newRow) {
         columnElement.setAttribute('data-row', newRow);
         
         // Update the displayed title
-        const titleElement = columnElement.querySelector('.column-title');
+        const titleElement = columnElement.querySelector('.column-title-text');
         if (titleElement) {
             const displayTitle = column.title.replace(/#row\d+/gi, '').trim();
             const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';

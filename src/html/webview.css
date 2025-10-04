@@ -546,7 +546,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   font-size: var(--compact-font-size);
 }
 
-/* .kanban-full-height-column.compact-view .column-header {
+/* .kanban-full-height-column.compact-view .column-title {
   padding: calc(var(--whitespace) * var(--compact-padding-scale));
 } */
 
@@ -663,8 +663,8 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex-shrink: 0;
 }
 
-/* Column header */
-.column-header {
+/* Column title */
+.column-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -682,7 +682,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 /* .kanban-full-height-column::before,
-.column-header::before {
+.column-title::before {
 	content: '';
 	position: sticky;
 	top: 0px;
@@ -698,13 +698,13 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	background: black;
 } */
 
-/* .column-header:not(:has(.header-bars-container):has(.header-bar)) {
+.column-title:not(:has(.header-bars-container):has(.header-bar)) {
 	border-top: 0.5px solid var(--vscode-panel-border);
 }
 
 .column-footer:not(:has(.footer-bars-container):has(.footer-bar)) {
 	border-bottom: 0.5px solid var(--vscode-panel-border);
-} */
+}
 
 
 /* Column title section */
@@ -738,9 +738,9 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 
-/* Column title */
-.column-title,
-.column-title * {
+/* Column title text */
+.column-title-text,
+.column-title-text * {
   color: var(--vscode-foreground);
   cursor: pointer;
   border-radius: 3px;
@@ -753,7 +753,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex: 1;
 }
 
-.column-title:hover {
+.column-title-text:hover {
   background-color: var(--vscode-list-hoverBackground);
 }
 
@@ -1110,7 +1110,7 @@ body.section-height-limited .task-section figure img {
 
 
 /* CSS-based placeholders for empty display elements */
-.column-title:empty::before {
+.column-title-text:empty::before {
   content: "Add title...";
   color: var(--vscode-descriptionForeground);
   font-style: italic;
@@ -1824,7 +1824,7 @@ button.file-bar-menu-item {
 }
 
 /* Re-enable pointer events on interactive child elements */
-.kanban-column-stack .kanban-full-height-column .column-header,
+.kanban-column-stack .kanban-full-height-column .column-title,
 .kanban-column-stack .kanban-full-height-column .column-footer,
 .kanban-column-stack .kanban-full-height-column .column-inner {
   pointer-events: auto;
@@ -1835,7 +1835,7 @@ button.file-bar-menu-item {
   background: var(--vscode-editor-background);
 }
 
-/* Margin spacer above column-header with background (top/bottom set dynamically by JavaScript) */
+/* Margin spacer above column-title with background (top/bottom set dynamically by JavaScript) */
 .kanban-column-stack .kanban-full-height-column .column-margin {
   position: sticky;
   background: var(--vscode-editor-background);
@@ -1843,7 +1843,7 @@ button.file-bar-menu-item {
 }
 
 /* Sticky headers at bottom with dynamic offsets (set by JavaScript inline styles) */
-.kanban-column-stack .kanban-full-height-column .column-header {
+.kanban-column-stack .kanban-full-height-column .column-title {
   position: sticky;
   background: var(--vscode-editor-background);
   z-index: 100;
@@ -1881,7 +1881,7 @@ button.file-bar-menu-item {
 }
 
 /* Vertical fold: rotate text vertically */
-.kanban-full-height-column.collapsed-vertical .column-title {
+.kanban-full-height-column.collapsed-vertical .column-title-text {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   display: flex;
@@ -1895,8 +1895,13 @@ button.file-bar-menu-item {
   white-space: nowrap;
 }
 
+/* .kanban-full-height-column.collapsed-vertical .column-title-text {
+  width: auto;
+  display: inline;
+} */
+
 /* Horizontal fold: keep text horizontal but narrow */
-.kanban-full-height-column.collapsed-horizontal .column-title {
+.kanban-full-height-column.collapsed-horizontal .column-title-text {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1907,6 +1912,11 @@ button.file-bar-menu-item {
   gap: 4px;
   white-space: nowrap;
 }
+
+/* .kanban-full-height-column.collapsed-horizontal .column-title-text {
+  width: auto;
+  display: inline;
+} */
 
 /* Collapse toggle positioning for collapsed columns */
 /* .kanban-full-height-column.collapsed-vertical .collapse-toggle,
@@ -1966,7 +1976,7 @@ button.file-bar-menu-item {
   position: relative !important;
 }
 
-.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical .column-header,
+.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical .column-title,
 .kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical .column-footer {
   position: relative !important;
   top: auto !important;
@@ -2474,7 +2484,7 @@ button.file-bar-menu-item {
     transparent 100%);
 }
 
-.column-title:not(:has(.column-row-tag)) {
+.column-title-text:not(:has(.column-row-tag)) {
   min-height: inherit;
 }
 
@@ -2490,7 +2500,7 @@ button.file-bar-menu-item {
   transform: scale(0.95);
 }
 
-.kanban-full-height-column.drag-over .column-header,
+.kanban-full-height-column.drag-over .column-title,
 .kanban-full-height-column.drag-over .column-content {
   position: relative;
   background-color: var(--vscode-list-hoverBackground);
@@ -2569,7 +2579,7 @@ button.file-bar-menu-item {
   z-index: 10;
 }
 
-.kanban-full-height-column.drag-over .column-header::before {
+.kanban-full-height-column.drag-over .column-title::before {
   content: '';
   position: absolute;
   left: -4px;
@@ -2601,13 +2611,13 @@ button.file-bar-menu-item {
 }
 
 /* Visual feedback when dragging over column header/areas outside tasks */
-.kanban-full-height-column.drag-over-append .column-header {
+.kanban-full-height-column.drag-over-append .column-title {
   background-color: var(--vscode-list-hoverBackground) !important;
   border-bottom: 3px solid var(--vscode-focusBorder);
   position: sticky;
 }
 
-.kanban-full-height-column.drag-over-append .column-header::after {
+.kanban-full-height-column.drag-over-append .column-title::after {
   content: 'Drop to add at end';
   position: absolute;
   bottom: -18px;
@@ -2624,7 +2634,7 @@ button.file-bar-menu-item {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
-.kanban-full-height-column.external-drag-over .column-header,
+.kanban-full-height-column.external-drag-over .column-title,
 .kanban-full-height-column.external-drag-over .column-content {
   background-color: var(--vscode-list-hoverBackground);
   border: 2px dashed var(--vscode-focusBorder);
@@ -2938,7 +2948,7 @@ blockquote {
   transition: padding 0.2s ease;
 }
 
-.column-title .kanban-tag,
+.column-title-text .kanban-tag,
 .task-title-display .kanban-tag {
   vertical-align: middle;
   display: unset;
@@ -3601,13 +3611,13 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 /* Note: Sticky header disabling for large fonts removed - now controlled manually via burger menu */
 
 /* Disable sticky header for tall task minimum heights */
-body.tall-task-height .column-header {
+body.tall-task-height .column-title {
   position: relative !important;
   top: auto !important;
 }
 
 /* Disable sticky header when manually disabled by user */
-body.sticky-headers-disabled .column-header {
+body.sticky-headers-disabled .column-title {
   position: relative !important;
   top: auto !important;
 }

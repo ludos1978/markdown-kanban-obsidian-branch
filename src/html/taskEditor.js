@@ -286,7 +286,7 @@ class TaskEditor {
             editElement = containerElement.querySelector('.task-description-edit');
         } else if (type === 'column-title') {
             containerElement = element.closest('.kanban-full-height-column') || element;
-            displayElement = containerElement.querySelector('.column-title');
+            displayElement = containerElement.querySelector('.column-title-text');
             editElement = containerElement.querySelector('.column-title-edit');
         }
 
