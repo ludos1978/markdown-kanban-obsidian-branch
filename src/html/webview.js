@@ -163,6 +163,12 @@ const baseOptions = {
         { label: "Enabled", value: "enabled", css: true, description: "Headers stick to top when scrolling" },
         { label: "Disabled", value: "disabled", css: false, description: "Headers scroll with content" }
     ],
+    // Sticky stack mode options
+    stickyStackMode: [
+        { label: "Full Stack", value: "full", css: "full", description: "Header, title, footer & margin all sticky" },
+        { label: "Title Only", value: "titleonly", css: "titleonly", description: "Only title sticky (default)" },
+        { label: "None", value: "none", css: "none", description: "Nothing sticky in stacks" }
+    ],
     // Tag visibility options
     tagVisibility: [
         { label: "All Tags", value: "all", description: "Show all tags including #span, #row, and @ tags" },
@@ -239,7 +245,7 @@ const menuConfig = {
 
 // Generate menu configurations from base options
 // Simple generator for most menu types
-['columnWidth', 'cardHeight', 'sectionMaxHeight', 'rowHeight', 'whitespace', 'fontSize', 'layoutRows', 'stickyHeaders', 'tagVisibility', 'imageFill', 'arrowKeyFocusScroll'].forEach(key => {
+['columnWidth', 'cardHeight', 'sectionMaxHeight', 'rowHeight', 'whitespace', 'fontSize', 'layoutRows', 'stickyHeaders', 'stickyStackMode', 'tagVisibility', 'imageFill', 'arrowKeyFocusScroll'].forEach(key => {
     if (baseOptions[key]) {
         menuConfig[key] = baseOptions[key].map(option => {
             const result = {
@@ -285,6 +291,8 @@ function getCurrentSettingValue(configKey) {
             return window.currentRowHeight || 'auto';
         case 'stickyHeaders':
             return window.currentStickyHeaders || 'enabled';
+        case 'stickyStackMode':
+            return window.currentStickyStackMode || 'titleonly';
         case 'tagVisibility':
             return window.currentTagVisibility || 'allexcludinglayout';
         case 'exportTagVisibility':
@@ -310,6 +318,7 @@ function updateAllMenuIndicators() {
         { selector: '[data-menu="layoutRows"]', config: 'layoutRows', function: 'setLayoutRows' },
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
         { selector: '[data-menu="stickyHeaders"]', config: 'stickyHeaders', function: 'setStickyHeaders' },
+        { selector: '[data-menu="stickyStackMode"]', config: 'stickyStackMode', function: 'setStickyStackMode' },
         { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
         { selector: '[data-menu="exportTagVisibility"]', config: 'exportTagVisibility', function: 'setExportTagVisibility' },
         { selector: '[data-menu="imageFill"]', config: 'imageFill', function: 'setImageFill' }
@@ -1353,6 +1362,37 @@ function setStickyHeaders(setting) {
     document.querySelectorAll('.file-bar-menu').forEach(m => {
         m.classList.remove('active');
     });
+}
+
+// Sticky stack elements functionality
+// Sticky stack mode functionality
+let currentStickyStackMode = 'titleonly';
+
+function applyStickyStackMode(mode) {
+    currentStickyStackMode = mode;
+    window.currentStickyStackMode = mode;
+
+    // Remove all mode classes
+    document.body.classList.remove('sticky-stack-mode-full', 'sticky-stack-mode-titleonly', 'sticky-stack-mode-none');
+
+    // Add the appropriate class
+    document.body.classList.add(`sticky-stack-mode-${mode}`);
+}
+
+function setStickyStackMode(mode) {
+    applyStickyStackMode(mode);
+    vscode.postMessage({
+        type: 'setPreference',
+        key: 'stickyStackMode',
+        value: mode
+    });
+    updateAllMenuIndicators();
+    document.querySelectorAll('.file-bar-menu').forEach(m => m.classList.remove('active'));
+
+    // Recalculate stack positions with new mode
+    if (typeof window.applyStackedColumnStyles === 'function') {
+        window.applyStackedColumnStyles();
+    }
 }
 
 // Tag visibility functionality
@@ -2409,6 +2449,13 @@ window.addEventListener('message', event => {
                     applyStickyHeaders(message.stickyHeaders);
                 } else {
                     applyStickyHeaders('enabled'); // Default fallback
+                }
+
+                // Update sticky stack mode with value from configuration
+                if (message.stickyStackMode) {
+                    applyStickyStackMode(message.stickyStackMode);
+                } else {
+                    applyStickyStackMode('titleonly'); // Default fallback
                 }
 
                 // Update tag visibility with the value from configuration
@@ -4041,6 +4088,9 @@ function applyLayoutPreset(presetKey) {
                 break;
             case 'stickyHeaders':
                 setStickyHeaders(value);
+                break;
+            case 'stickyStackMode':
+                setStickyStackMode(value);
                 break;
             case 'tagVisibility':
                 setTagVisibility(value);

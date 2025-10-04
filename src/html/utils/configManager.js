@@ -32,6 +32,7 @@ class ConfigManager {
             rowHeight: 'auto',
             layoutPreset: 'default',
             stickyHeaders: false,
+            stickyStackMode: 'titleonly',
             tagVisibility: 'visible',
             exportTagVisibility: true,
             imageFill: 'contain',
@@ -149,7 +150,8 @@ class ConfigManager {
             maxRowHeight: this.getConfig('maxRowHeight'),
             layoutPreset: this.getConfig('layoutPreset'),
             layoutPresets: this.getConfig('layoutPresets'),
-            stickyHeaders: this.getConfig('stickyHeaders')
+            stickyHeaders: this.getConfig('stickyHeaders'),
+            stickyStackMode: this.getConfig('stickyStackMode')
         };
     }
 

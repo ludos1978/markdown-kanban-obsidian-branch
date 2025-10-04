@@ -714,7 +714,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	border-bottom: 0.5px solid var(--vscode-panel-border);
 }
 
-
 /* Column title section */
 .column-title-section {
   padding: var(--whitespace-div2) var(--whitespace-div2) 0 var(--whitespace-div2);
@@ -1866,6 +1865,36 @@ button.file-bar-menu-item {
   background: var(--vscode-editor-background);
   z-index: 100;
   /* bottom value is set dynamically by applyStackedColumnStyles() */
+}
+
+/* Stack sticky mode: titleonly - only title is sticky */
+body.sticky-stack-mode-titleonly .kanban-column-stack .kanban-full-height-column .column-header {
+  position: relative !important;
+}
+
+body.sticky-stack-mode-titleonly .kanban-column-stack .kanban-full-height-column .column-footer {
+  position: relative !important;
+}
+
+body.sticky-stack-mode-titleonly .kanban-column-stack .kanban-full-height-column .column-margin {
+  position: relative !important;
+}
+
+/* Stack sticky mode: none - nothing is sticky */
+body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .column-header {
+  position: relative !important;
+}
+
+body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .column-title {
+  position: relative !important;
+}
+
+body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .column-footer {
+  position: relative !important;
+}
+
+body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .column-margin {
+  position: relative !important;
 }
 
 /* Base styling for collapsed columns */

@@ -2296,20 +2296,43 @@ function recalculateStackHeights(stackElement = null) {
 
             const expandedColumns = columnData;
 
-            // Third pass: Calculate all sticky positions
+            // Get current sticky stack mode
+            const stickyMode = window.currentStickyStackMode || 'titleonly';
+            const isFullMode = stickyMode === 'full';
+            const isTitleOnlyMode = stickyMode === 'titleonly';
+            const isNoneMode = stickyMode === 'none';
+
+            // Third pass: Calculate all sticky positions based on mode
+            // Note: HTML order is: margin, column-header, column-title, column-inner, column-footer
             let cumulativeStickyTop = 0;
             const positions = expandedColumns.map((data, expandedIdx) => {
+                // Margin comes first in HTML
+                const marginTop = cumulativeStickyTop;
+                if (isFullMode) {
+                    cumulativeStickyTop += data.marginHeight;
+                }
+
+                // Then column-header
                 const columnHeaderTop = cumulativeStickyTop;
-                cumulativeStickyTop += data.columnHeaderHeight;
+                if (isFullMode) {
+                    cumulativeStickyTop += data.columnHeaderHeight;
+                }
 
+                // Then column-title
                 const headerTop = cumulativeStickyTop;
-                cumulativeStickyTop += data.headerHeight;
+                if (!isNoneMode) {
+                    cumulativeStickyTop += data.headerHeight;
+                }
 
+                // Then column-footer
                 const footerTop = cumulativeStickyTop;
-                cumulativeStickyTop += data.footerHeight + data.marginHeight;
+                if (isFullMode) {
+                    cumulativeStickyTop += data.footerHeight;
+                }
 
                 return {
                     ...data,
+                    marginTop,
                     columnHeaderTop,
                     headerTop,
                     footerTop,
@@ -2317,18 +2340,35 @@ function recalculateStackHeights(stackElement = null) {
                 };
             });
 
-            // Calculate bottom positions
+            // Calculate bottom positions based on mode
+            // Bottom to top order: footer, column-inner, column-title, column-header, margin
             let cumulativeFromBottom = 0;
             for (let i = expandedColumns.length - 1; i >= 0; i--) {
+                // Footer is at the bottom
                 const footerBottom = cumulativeFromBottom;
-                cumulativeFromBottom += positions[i].footerHeight;
+                if (isFullMode) {
+                    cumulativeFromBottom += positions[i].footerHeight;
+                }
 
+                // Then column-title
                 const headerBottom = cumulativeFromBottom;
-                cumulativeFromBottom += positions[i].headerHeight;
+                if (!isNoneMode) {
+                    cumulativeFromBottom += positions[i].headerHeight;
+                }
 
+                // Then column-header
                 const columnHeaderBottom = cumulativeFromBottom;
-                cumulativeFromBottom += positions[i].columnHeaderHeight + positions[i].marginHeight;
+                if (isFullMode) {
+                    cumulativeFromBottom += positions[i].columnHeaderHeight;
+                }
 
+                // Margin is at the top (furthest from bottom)
+                const marginBottom = cumulativeFromBottom;
+                if (isFullMode) {
+                    cumulativeFromBottom += positions[i].marginHeight;
+                }
+
+                positions[i].marginBottom = marginBottom;
                 positions[i].columnHeaderBottom = columnHeaderBottom;
                 positions[i].headerBottom = headerBottom;
                 positions[i].footerBottom = footerBottom;
@@ -2342,7 +2382,7 @@ function recalculateStackHeights(stackElement = null) {
             });
 
             // Apply all calculated positions
-            positions.forEach(({ col, index, columnHeader, header, footer, columnHeaderHeight, headerHeight, columnHeaderTop, headerTop, footerTop, columnHeaderBottom, headerBottom, footerBottom, contentPadding, zIndex, marginHeight, isVerticallyFolded, isHorizontallyFolded }) => {
+            positions.forEach(({ col, index, columnHeader, header, footer, columnHeaderHeight, headerHeight, marginTop, columnHeaderTop, headerTop, footerTop, marginBottom, columnHeaderBottom, headerBottom, footerBottom, contentPadding, zIndex, marginHeight, isVerticallyFolded, isHorizontallyFolded }) => {
                 col.dataset.columnHeaderTop = columnHeaderTop;
                 col.dataset.headerTop = headerTop;
                 col.dataset.footerTop = footerTop;
@@ -2379,8 +2419,7 @@ function recalculateStackHeights(stackElement = null) {
 
                 const columnMargin = col.querySelector('.column-margin');
                 if (columnMargin) {
-                    const marginTop = Math.max(0, columnHeaderTop - marginHeight);
-                    const marginBottom = columnHeaderBottom + columnHeaderHeight;
+                    // Use pre-calculated margin positions
                     columnMargin.style.position = 'sticky';
                     columnMargin.style.top = `${marginTop}px`;
                     columnMargin.style.bottom = `${marginBottom}px`;
