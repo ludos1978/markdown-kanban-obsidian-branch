@@ -1908,6 +1908,10 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   z-index: 5;
 }
 
+.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical {
+	width: min-content;
+}
+
 /* Collapsed column inner content */
 .kanban-full-height-column.collapsed-vertical .column-inner,
 .kanban-full-height-column.collapsed-horizontal .column-inner {

@@ -2002,8 +2002,29 @@ function isInVerticalStack(columnId) {
  * @returns {string} 'horizontal' or 'vertical'
  */
 function getDefaultFoldMode(columnId) {
-    // Vertical folding disabled - always use horizontal folding
-    return 'horizontal';
+    const column = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
+    if (!column) {
+        return 'horizontal'; // Fallback
+    }
+
+    // Check if column is in a stack
+    const isInStack = column.closest('.kanban-column-stack') !== null;
+    let defaultFoldMode = 'vertical'; // Default for non-stacked columns
+
+    if (isInStack) {
+        const stackElement = column.closest('.kanban-column-stack');
+        if (stackElement) {
+            const columnsInStack = stackElement.querySelectorAll('.kanban-full-height-column').length;
+            // Multiple columns in stack: horizontal folding
+            // Single column in stack: vertical folding
+            defaultFoldMode = columnsInStack > 1 ? 'horizontal' : 'vertical';
+        } else {
+            // Fallback: if no stack element found, use horizontal for safety
+            defaultFoldMode = 'horizontal';
+        }
+    }
+
+    return defaultFoldMode;
 }
 
 /**
