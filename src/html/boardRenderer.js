@@ -2127,7 +2127,21 @@ function toggleColumnCollapse(columnId, event) {
  * Used by: After any column fold/unfold operation, board rendering
  * Side effects: Adds/removes CSS classes, sets inline styles for header positions
  */
+/**
+ * Legacy function - calls both enforcement and height recalculation
+ * For new code, use enforceFoldModesForStacks() and recalculateStackHeights() separately
+ */
 function applyStackedColumnStyles() {
+    enforceFoldModesForStacks();
+    recalculateStackHeights();
+}
+window.applyStackedColumnStyles = applyStackedColumnStyles;
+
+/**
+ * DEPRECATED - DO NOT USE - keeping for reference only
+ * Use enforceFoldModesForStacks() and recalculateStackHeights() instead
+ */
+function _old_applyStackedColumnStyles() {
     const stacks = document.querySelectorAll('.kanban-column-stack');
 
     stacks.forEach(stack => {
@@ -2150,7 +2164,52 @@ function applyStackedColumnStyles() {
             });
         }
 
-        // Check if all columns in stack are vertically folded (.collapsed-vertical)
+        // ... old code removed, see _old_applyStackedColumnStyles for reference ...
+    });
+}
+
+/**
+ * Enforce horizontal folding for multi-column stacks
+ * ONLY call when column structure changes (add/remove from stack, column fold/unfold)
+ * @param {HTMLElement} stackElement - Specific stack to enforce, or null for all stacks
+ */
+function enforceFoldModesForStacks(stackElement = null) {
+    const stacks = stackElement ? [stackElement] : document.querySelectorAll('.kanban-column-stack');
+
+    stacks.forEach(stack => {
+        const columns = Array.from(stack.querySelectorAll('.kanban-full-height-column'));
+
+        // ENFORCE: Multi-column stacks ONLY allow horizontal folding
+        if (columns.length > 1) {
+            columns.forEach(col => {
+                if (col.classList.contains('collapsed-vertical')) {
+                    // Convert any vertically-folded columns to horizontal
+                    col.classList.remove('collapsed-vertical');
+                    col.classList.add('collapsed-horizontal');
+
+                    // Update stored fold mode
+                    const columnId = col.getAttribute('data-column-id');
+                    if (columnId && window.columnFoldModes) {
+                        window.columnFoldModes.set(columnId, 'horizontal');
+                    }
+                }
+            });
+        }
+    });
+}
+
+/**
+ * Recalculate stack heights and positions WITHOUT fold mode enforcement
+ * Call this for most events (task moves, task folds, etc.)
+ * @param {HTMLElement} stackElement - Specific stack to recalc, or null for all stacks
+ */
+function recalculateStackHeights(stackElement = null) {
+    const stacks = stackElement ? [stackElement] : document.querySelectorAll('.kanban-column-stack');
+
+    stacks.forEach(stack => {
+        const columns = Array.from(stack.querySelectorAll('.kanban-full-height-column'));
+
+        // Check if all columns in stack are vertically folded
         const allVerticalFolded = columns.length > 0 && columns.every(col =>
             col.classList.contains('collapsed-vertical')
         );
@@ -2181,8 +2240,7 @@ function applyStackedColumnStyles() {
             // Force a reflow to ensure padding reset takes effect
             void stack.offsetHeight;
 
-            // Second pass: measure actual content heights (header + content + footer)
-            // Store all measurements for later use (INCLUDING collapsed columns)
+            // Second pass: measure actual content heights
             const columnData = [];
             columns.forEach((col, idx) => {
                 const isVerticallyFolded = col.classList.contains('collapsed-vertical');
@@ -2198,14 +2256,11 @@ function applyStackedColumnStyles() {
 
                 const headerHeight = header ? header.offsetHeight : 0;
                 const footerHeight = footer ? footer.offsetHeight : 0;
-                // For both collapsed types, don't include content height (column-inner is hidden via CSS)
                 const contentHeight = (isVerticallyFolded || isHorizontallyFolded) ? 0 : (content ? content.scrollHeight : 0);
 
-                // Measure footer bars separately (in column-footer for stacked)
                 const footerBarsContainer = footer ? footer.querySelector('.stacked-footer-bars') : null;
                 const footerBarsHeight = footerBarsContainer ? footerBarsContainer.offsetHeight : 0;
 
-                // Measure THIS column's margin height (accounts for individual compact-view state)
                 const columnMargin = col.querySelector('.column-margin');
                 const marginHeight = columnMargin ? columnMargin.offsetHeight : 4;
 
@@ -2228,18 +2283,16 @@ function applyStackedColumnStyles() {
                 });
             });
 
-            // All columns stay in the stack - both collapsed types just have contentHeight=0
             const expandedColumns = columnData;
 
-            // Third pass: Calculate all sticky positions - BOTH top and bottom (ONLY for expanded columns)
-            // Step 1a: Calculate top positions for headers and footers (stacked from top)
+            // Third pass: Calculate all sticky positions
             let cumulativeStickyTop = 0;
             const positions = expandedColumns.map((data, expandedIdx) => {
                 const headerTop = cumulativeStickyTop;
                 cumulativeStickyTop += data.headerHeight;
 
-                const footerTop = cumulativeStickyTop;  // Footer right after header
-                cumulativeStickyTop += data.footerHeight + data.marginHeight;  // Add footer height + THIS column's margin
+                const footerTop = cumulativeStickyTop;
+                cumulativeStickyTop += data.footerHeight + data.marginHeight;
 
                 return {
                     ...data,
@@ -2249,39 +2302,34 @@ function applyStackedColumnStyles() {
                 };
             });
 
-            // Step 1b: Calculate bottom positions (stacked from bottom upwards)
-            // Iterate BACKWARDS: LAST column (highest index) gets bottom=0 (closest to viewport bottom)
-            // FIRST column (index 0) gets largest bottom offset (furthest from viewport bottom)
+            // Calculate bottom positions
             let cumulativeFromBottom = 0;
             for (let i = expandedColumns.length - 1; i >= 0; i--) {
                 const footerBottom = cumulativeFromBottom;
                 cumulativeFromBottom += positions[i].footerHeight;
 
-                const headerBottom = cumulativeFromBottom;  // Header right after footer
-                cumulativeFromBottom += positions[i].headerHeight + positions[i].marginHeight;  // Add header height + THIS column's margin
+                const headerBottom = cumulativeFromBottom;
+                cumulativeFromBottom += positions[i].headerHeight + positions[i].marginHeight;
 
                 positions[i].headerBottom = headerBottom;
                 positions[i].footerBottom = footerBottom;
             }
 
-            // Step 3: Calculate padding for column content (creates vertical stacking without stretching column element)
+            // Calculate padding
             let cumulativePadding = 0;
             positions.forEach((pos, idx) => {
                 pos.contentPadding = idx > 0 ? cumulativePadding : 0;
                 cumulativePadding += pos.totalHeight + pos.marginHeight;
             });
 
-            // Step 4: Apply all calculated positions to ALL columns
+            // Apply all calculated positions
             positions.forEach(({ col, index, header, footer, headerHeight, headerTop, footerTop, headerBottom, footerBottom, contentPadding, zIndex, marginHeight, isVerticallyFolded, isHorizontallyFolded }) => {
-                const isCollapsed = isVerticallyFolded || isHorizontallyFolded;
-                // Store calculated positions on the column element
                 col.dataset.headerTop = headerTop;
                 col.dataset.footerTop = footerTop;
                 col.dataset.headerBottom = headerBottom;
                 col.dataset.footerBottom = footerBottom;
                 col.dataset.zIndex = zIndex;
 
-                // Position header+footer sticky with BOTH top AND bottom
                 if (header) {
                     header.style.position = 'sticky';
                     header.style.top = `${headerTop}px`;
@@ -2296,13 +2344,11 @@ function applyStackedColumnStyles() {
                     footer.style.zIndex = zIndex;
                 }
 
-                // Apply margin to column-offset to push column content down
                 const columnOffset = col.querySelector('.column-offset');
                 if (columnOffset) {
                     columnOffset.style.marginTop = contentPadding > 0 ? `${contentPadding}px` : '';
                 }
 
-                // Set column-margin top and bottom same as header, but using THIS column's marginHeight
                 const columnMargin = col.querySelector('.column-margin');
                 if (columnMargin) {
                     const marginTop = Math.max(0, headerTop - marginHeight);
@@ -2316,7 +2362,10 @@ function applyStackedColumnStyles() {
         }
     });
 }
-window.applyStackedColumnStyles = applyStackedColumnStyles;
+
+// Export new functions
+window.enforceFoldModesForStacks = enforceFoldModesForStacks;
+window.recalculateStackHeights = recalculateStackHeights;
 
 /**
  * Setup scroll handler to keep all column headers visible at all times

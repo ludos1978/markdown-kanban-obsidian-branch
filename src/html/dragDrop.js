@@ -1424,12 +1424,25 @@ function setupTaskDragHandle(handle) {
                     }
                 }
 
-                // Recalculate stacked column styles after task drag (same as after column drag)
-                if (typeof window.applyStackedColumnStyles === 'function') {
+                // OPTIMIZED: Only recalculate stack heights if columns are in stacks (NO fold enforcement needed)
+                if (originalColumnId !== finalColumnId && typeof window.recalculateStackHeights === 'function') {
+                    // Cross-column move: check if either column is in a stack
                     requestAnimationFrame(() => {
-                        window.applyStackedColumnStyles();
+                        const originalCol = originalColumnElement;
+                        const finalCol = finalColumnElement;
+
+                        const originalStack = originalCol?.closest('.kanban-column-stack');
+                        const finalStack = finalCol?.closest('.kanban-column-stack');
+
+                        if (originalStack) {
+                            window.recalculateStackHeights(originalStack);
+                        }
+                        if (finalStack && finalStack !== originalStack) {
+                            window.recalculateStackHeights(finalStack);
+                        }
                     });
                 }
+                // Same-column move: NO recalculation needed at all!
             }
             
             // At the very end:
