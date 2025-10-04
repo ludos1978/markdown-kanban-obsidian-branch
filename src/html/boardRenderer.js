@@ -2391,25 +2391,47 @@ function recalculateStackHeights(stackElement = null) {
                 col.dataset.footerBottom = footerBottom;
                 col.dataset.zIndex = zIndex;
 
+                // Only apply sticky positioning and values to elements that are sticky in this mode
                 if (columnHeader) {
-                    columnHeader.style.position = 'sticky';
-                    columnHeader.style.top = `${columnHeaderTop}px`;
-                    columnHeader.style.bottom = `${columnHeaderBottom}px`;
-                    columnHeader.style.zIndex = zIndex + 1;
+                    if (isFullMode) {
+                        columnHeader.style.position = 'sticky';
+                        columnHeader.style.top = `${columnHeaderTop}px`;
+                        columnHeader.style.bottom = `${columnHeaderBottom}px`;
+                        columnHeader.style.zIndex = zIndex + 1;
+                    } else {
+                        columnHeader.style.position = '';
+                        columnHeader.style.top = '';
+                        columnHeader.style.bottom = '';
+                        columnHeader.style.zIndex = '';
+                    }
                 }
 
                 if (header) {
-                    header.style.position = 'sticky';
-                    header.style.top = `${headerTop}px`;
-                    header.style.bottom = `${headerBottom}px`;
-                    header.style.zIndex = zIndex;
+                    if (!isNoneMode) {
+                        header.style.position = 'sticky';
+                        header.style.top = `${headerTop}px`;
+                        header.style.bottom = `${headerBottom}px`;
+                        header.style.zIndex = zIndex;
+                    } else {
+                        header.style.position = '';
+                        header.style.top = '';
+                        header.style.bottom = '';
+                        header.style.zIndex = '';
+                    }
                 }
 
                 if (footer) {
-                    footer.style.position = 'sticky';
-                    footer.style.top = `${footerTop}px`;
-                    footer.style.bottom = `${footerBottom}px`;
-                    footer.style.zIndex = zIndex;
+                    if (isFullMode) {
+                        footer.style.position = 'sticky';
+                        footer.style.top = `${footerTop}px`;
+                        footer.style.bottom = `${footerBottom}px`;
+                        footer.style.zIndex = zIndex;
+                    } else {
+                        footer.style.position = '';
+                        footer.style.top = '';
+                        footer.style.bottom = '';
+                        footer.style.zIndex = '';
+                    }
                 }
 
                 const columnOffset = col.querySelector('.column-offset');
@@ -2419,11 +2441,17 @@ function recalculateStackHeights(stackElement = null) {
 
                 const columnMargin = col.querySelector('.column-margin');
                 if (columnMargin) {
-                    // Use pre-calculated margin positions
-                    columnMargin.style.position = 'sticky';
-                    columnMargin.style.top = `${marginTop}px`;
-                    columnMargin.style.bottom = `${marginBottom}px`;
-                    columnMargin.style.zIndex = zIndex;
+                    if (isFullMode) {
+                        columnMargin.style.position = 'sticky';
+                        columnMargin.style.top = `${marginTop}px`;
+                        columnMargin.style.bottom = `${marginBottom}px`;
+                        columnMargin.style.zIndex = zIndex;
+                    } else {
+                        columnMargin.style.position = '';
+                        columnMargin.style.top = '';
+                        columnMargin.style.bottom = '';
+                        columnMargin.style.zIndex = '';
+                    }
                 }
             });
         }

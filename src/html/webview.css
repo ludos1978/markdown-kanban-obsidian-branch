@@ -1901,7 +1901,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .kanban-full-height-column.collapsed-vertical,
 .kanban-full-height-column.collapsed-horizontal {
   overflow: visible;
-  width: min-content;
+  /* width: min-content; */
   position: sticky;
   top: 0;
   align-self: flex-start;
