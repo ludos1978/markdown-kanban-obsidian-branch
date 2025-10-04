@@ -571,6 +571,11 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	gap: var(--whitespace-div4);
 }
 
+.kanban-full-height-column.collapsed-vertical .column-title-section {
+	flex-direction: column !important;
+	align-items: center;
+}
+
 .kanban-column-stack .kanban-full-height-column.compact-view .column-margin {
 	height: var(--whitespace-div4);
 }
@@ -1254,6 +1259,11 @@ body.section-height-limited .task-section figure img {
   display: flex;
 }
 
+.kanban-full-height-column.collapsed-vertical .task-count,
+.kanban-full-height-column.collapsed-horizontal .task-count {
+	display: none;
+}
+
 /* Fix task count color in light mode */
 body.vscode-light .task-count,
 body.vscode-high-contrast-light .task-count {
@@ -1848,7 +1858,63 @@ button.file-bar-menu-item {
   /* bottom value is set dynamically by applyStackedColumnStyles() */
 }
 
-/* Hide column-inner when collapsed (both vertical and horizontal) */
+/* Base styling for collapsed columns */
+.kanban-full-height-column.collapsed-vertical,
+.kanban-full-height-column.collapsed-horizontal {
+  overflow: visible;
+  width: min-content;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  z-index: 5;
+}
+
+/* Collapsed column inner content */
+.kanban-full-height-column.collapsed-vertical .column-inner,
+.kanban-full-height-column.collapsed-horizontal .column-inner {
+  overflow: visible;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: auto;
+}
+
+/* Vertical fold: rotate text vertically */
+.kanban-full-height-column.collapsed-vertical .column-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+  padding: 5px 0;
+  margin: 0;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* Horizontal fold: keep text horizontal but narrow */
+.kanban-full-height-column.collapsed-horizontal .column-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+  padding: 0 5px;
+  margin: 0;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* Collapse toggle positioning for collapsed columns */
+/* .kanban-full-height-column.collapsed-vertical .collapse-toggle,
+.kanban-full-height-column.collapsed-horizontal .collapse-toggle {
+  margin: 1px 2px auto;
+} */
+
+/* Hide column-inner when collapsed in stacks */
 .kanban-column-stack .kanban-full-height-column.collapsed-vertical .column-inner,
 .kanban-column-stack .kanban-full-height-column.collapsed-horizontal .column-inner {
   display: none !important;
@@ -2993,8 +3059,8 @@ h6 .kanban-tag {
   border-top: none;
 }
 
-.kanban-full-height-column:not(.collapsed) .header-bar,
-.kanban-full-height-column:not(.collapsed) .footer-bar {
+.kanban-full-height-column:not(.collapsed-vertical):not(.collapsed-horizontal) .header-bar,
+.kanban-full-height-column:not(.collapsed-vertical):not(.collapsed-horizontal) .footer-bar {
   position: relative;
 }
 
@@ -3021,25 +3087,29 @@ h6 .kanban-tag {
 
 /* Collapsed column bars - padding set dynamically by JavaScript */
 
-.kanban-full-height-column.collapsed.has-footer-bar .column-controls {
+.kanban-full-height-column.collapsed-vertical.has-footer-bar .column-controls,
+.kanban-full-height-column.collapsed-horizontal.has-footer-bar .column-controls {
   margin-bottom: 4px;
 }
 
 
-.kanban-full-height-column.collapsed.has-header-label,
-.kanban-full-height-column.collapsed.has-footer-label {
+.kanban-full-height-column.collapsed-vertical.has-header-label,
+.kanban-full-height-column.collapsed-horizontal.has-header-label,
+.kanban-full-height-column.collapsed-vertical.has-footer-label,
+.kanban-full-height-column.collapsed-horizontal.has-footer-label {
   width: 60px !important;
   min-width: 60px !important;
   max-width: 60px !important;
 }
 
-.kanban-full-height-column.collapsed.has-header-label.has-footer-label {
+.kanban-full-height-column.collapsed-vertical.has-header-label.has-footer-label,
+.kanban-full-height-column.collapsed-horizontal.has-header-label.has-footer-label {
   width: 80px !important;
   min-width: 80px !important;
   max-width: 80px !important;
 }
 
-.kanban-full-height-column:not(.collapsed) .column-content {
+.kanban-full-height-column:not(.collapsed-vertical):not(.collapsed-horizontal) .column-content {
   margin: 0;
 }
 
@@ -3052,7 +3122,8 @@ h6 .kanban-tag {
 
 
 
-.kanban-full-height-column.collapsed.has-header-bar {
+.kanban-full-height-column.collapsed-vertical.has-header-bar,
+.kanban-full-height-column.collapsed-horizontal.has-header-bar {
   min-height: 200px;
 }
 
@@ -3514,9 +3585,12 @@ body.vscode-high-contrast-light .collapsed-add-task-btn:hover {
 }
 
 /* Collapsed span columns should use normal collapsed width */
-.kanban-full-height-column.collapsed.column-span-2,
-.kanban-full-height-column.collapsed.column-span-3,
-.kanban-full-height-column.collapsed.column-span-4 {
+.kanban-full-height-column.collapsed-vertical.column-span-2,
+.kanban-full-height-column.collapsed-horizontal.column-span-2,
+.kanban-full-height-column.collapsed-vertical.column-span-3,
+.kanban-full-height-column.collapsed-horizontal.column-span-3,
+.kanban-full-height-column.collapsed-vertical.column-span-4,
+.kanban-full-height-column.collapsed-horizontal.column-span-4 {
   width: var(--collapsed-column-width) !important;
   min-width: var(--collapsed-column-width) !important;
   max-width: var(--collapsed-column-width) !important;

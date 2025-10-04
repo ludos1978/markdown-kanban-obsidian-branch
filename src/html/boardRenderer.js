@@ -1961,7 +1961,7 @@ window.toggleAllColumns = toggleAllColumns;
  */
 function isColumnCollapsed(columnElement) {
     return columnElement && (
-        columnElement.classList.contains('collapsed') ||
+        columnElement.classList.contains('collapsed-vertical') ||
         columnElement.classList.contains('collapsed-horizontal')
     );
 }
@@ -2013,8 +2013,17 @@ function getDefaultFoldMode(columnId) {
  * Side effects: Updates collapsedColumns set, columnFoldModes map, DOM classes
  */
 function toggleColumnCollapse(columnId, event) {
-    const column = document.querySelector(`[data-column-id="${columnId}"]`);
+    const column = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
+    if (!column) {
+        console.error('[kanban.toggleColumnCollapse] Column element not found', {columnId});
+        return;
+    }
+
     const toggle = column.querySelector('.collapse-toggle');
+    if (!toggle) {
+        console.error('[kanban.toggleColumnCollapse] Collapse toggle not found in column', {columnId});
+        return;
+    }
 
     // Ensure state variables are initialized
     if (!window.collapsedColumns) {window.collapsedColumns = new Set();}
@@ -2029,19 +2038,45 @@ function toggleColumnCollapse(columnId, event) {
     const nextColumn = columnIndex >= 0 ? window.currentBoard?.columns[columnIndex + 1] : null;
     const isInStack = columnData?.tags?.includes('stack') || nextColumn?.tags?.includes('stack');
 
-    // Default fold mode: horizontal for stacked columns, vertical for non-stacked
-    const defaultFoldMode = isInStack ? 'horizontal' : 'vertical';
+    // Determine default fold mode based on number of columns in stack
+    let defaultFoldMode = 'vertical'; // Default for non-stacked columns
+    let forceHorizontal = false; // Flag to enforce horizontal folding in multi-column stacks
+
+    if (isInStack) {
+        // Get the actual stack container this column is in
+        const stackElement = column ? column.closest('.kanban-column-stack') : null;
+        if (stackElement) {
+            const columnsInStack = stackElement.querySelectorAll('.kanban-full-height-column').length;
+            // Multiple columns in stack: ONLY allow horizontal folding
+            if (columnsInStack > 1) {
+                defaultFoldMode = 'horizontal';
+                forceHorizontal = true;
+            } else {
+                // Single column in stack: vertical is allowed
+                defaultFoldMode = 'vertical';
+            }
+        } else {
+            // Fallback: if no stack element found, use horizontal for safety
+            defaultFoldMode = 'horizontal';
+        }
+    }
 
     if (isCurrentlyCollapsed) {
         const currentMode = column.classList.contains('collapsed-vertical') ? 'vertical' : 'horizontal';
 
-        if (event && event.altKey) {
-            // Alt+click while collapsed: switch fold direction
+        if (event && event.altKey && !forceHorizontal) {
+            // Alt+click while collapsed: switch fold direction (only if not forced horizontal)
             const newMode = currentMode === 'vertical' ? 'horizontal' : 'vertical';
             column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
             column.classList.add(`collapsed-${newMode}`);
             window.columnFoldModes.set(columnId, newMode);
             // Stay collapsed, just rotated differently
+        } else if (forceHorizontal && currentMode === 'vertical') {
+            // Force conversion from vertical to horizontal if in multi-column stack
+            column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
+            column.classList.add('collapsed-horizontal');
+            window.columnFoldModes.set(columnId, 'horizontal');
+            // Stay collapsed, just changed to horizontal
         } else {
             // Regular click while collapsed: unfold
             column.classList.remove('collapsed-vertical', 'collapsed-horizontal');
@@ -2052,11 +2087,11 @@ function toggleColumnCollapse(columnId, event) {
     } else {
         // Currently unfolded - fold with mode based on Alt key
         let foldMode;
-        if (event && event.altKey) {
-            // Alt+click while unfolded: fold to non-default mode
+        if (event && event.altKey && !forceHorizontal) {
+            // Alt+click while unfolded: fold to non-default mode (only if not forced horizontal)
             foldMode = defaultFoldMode === 'vertical' ? 'horizontal' : 'vertical';
         } else {
-            // Regular click: fold to default mode
+            // Regular click: fold to default mode (or forced mode)
             foldMode = defaultFoldMode;
         }
 
@@ -2097,6 +2132,23 @@ function applyStackedColumnStyles() {
 
     stacks.forEach(stack => {
         const columns = Array.from(stack.querySelectorAll('.kanban-full-height-column'));
+
+        // ENFORCE: Multi-column stacks ONLY allow horizontal folding
+        if (columns.length > 1) {
+            columns.forEach(col => {
+                if (col.classList.contains('collapsed-vertical')) {
+                    // Convert any vertically-folded columns to horizontal
+                    col.classList.remove('collapsed-vertical');
+                    col.classList.add('collapsed-horizontal');
+
+                    // Update stored fold mode
+                    const columnId = col.getAttribute('data-column-id');
+                    if (columnId && window.columnFoldModes) {
+                        window.columnFoldModes.set(columnId, 'horizontal');
+                    }
+                }
+            });
+        }
 
         // Check if all columns in stack are vertically folded (.collapsed-vertical)
         const allVerticalFolded = columns.length > 0 && columns.every(col =>
@@ -2634,7 +2686,7 @@ function handleColumnTitleClick(event, columnId) {
     event.stopPropagation();
 
     const column = document.querySelector(`[data-column-id="${columnId}"]`);
-    if (column && column.classList.contains('collapsed')) {
+    if (column && isColumnCollapsed(column)) {
         // Unfold the column first
         toggleColumnCollapse(columnId);
         // Use a short delay to allow the unfold animation to start, then enter edit mode
@@ -3091,7 +3143,7 @@ function injectStackableBars(targetElement = null) {
         const allTagsAttr = element.getAttribute('data-all-tags');
         let tags = allTagsAttr ? allTagsAttr.split(' ').filter(tag => tag.trim()) : [];
         const isColumn = element.classList.contains('kanban-full-height-column');
-        const isCollapsed = isColumn && element.classList.contains('collapsed');
+        const isCollapsed = isColumn && isColumnCollapsed(element);
         const isStacked = isColumn && element.closest('.kanban-column-stack');
 
         // Filter out tags that are only in description for task elements

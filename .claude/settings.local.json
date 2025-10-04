@@ -36,7 +36,8 @@
       "mcp__ide__getDiagnostics",
       "Bash(npx tsc:*)",
       "Bash(npx jest:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

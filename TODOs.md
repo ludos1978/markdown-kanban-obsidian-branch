@@ -4,9 +4,14 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] if i delete a task recalculate the full stacks heights reuse the existing function for that
-- [ ] make sure that in columns the "column-header.header-bars-container" contains the "header-bar" and "column-footer.footer-bars-container" contains the "footer-bar" in all circumstances.
+- [ ] a horzontally folded column with a tag header doesnt add the tag above outside above, but overlaying above the normal header. this is one of the broken examples : TO ADD AN EXMAPLE
 
+- [ ] after i moved away a card from a column i cant fold it anymore
+
+- [ ] lets make columns vertical folding working again. a column that is alone in a stack should by default fold as vertical. if there are multiple columns in a stack the folding should be horizontal. by pressing alt+fold-button the column switches between horizontal and vertical folding. all the functions and styles should be available already.
+- [ ] if i delete a task recalculate the full stacks heights reuse the existing function for that
+
+- [x] make sure that in columns the "column-header.header-bars-container" contains the "header-bar" and "column-footer.footer-bars-container" contains the "footer-bar" in all circumstances.
 
 - [x] disable the vertical column folding mode
 - the title when inserting of a columninclude should only show thae filename included and he remainder of the contents. 
