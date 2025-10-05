@@ -686,6 +686,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Column title */
 .column-title {
+	transform: translateZ(0.1px);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1800,6 +1801,7 @@ button.file-bar-menu-item {
 }
 
 .kanban-column-stack {
+	transform-style: preserve-3d;
   display: grid;
   grid-template: 1fr / 1fr;
   position: relative;
@@ -1808,6 +1810,8 @@ button.file-bar-menu-item {
 
 /* All columns in grid */
 .kanban-column-stack .kanban-full-height-column {
+	transform-style: preserve-3d;
+	perspective: 1000px;
   grid-row: 1;
   grid-column: 1;
   align-self: start;
@@ -1893,7 +1897,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   position: sticky;
   top: 0;
   align-self: flex-start;
-  z-index: 5;
+  /* z-index: 5; */
 }
 
 .kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical {
