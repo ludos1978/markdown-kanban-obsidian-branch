@@ -738,13 +738,13 @@ function insertColumnAfter(columnId) {
 
 function moveColumnLeft(columnId) {
     if (!currentBoard?.columns) {return;}
-    
+
     // Flush pending tag changes before moving
     if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
         (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)) {
         flushPendingTagChanges();
     }
-    
+
     const index = currentBoard.columns.findIndex(c => c.id === columnId);
     if (index > 0) {
         const column = currentBoard.columns[index];
@@ -755,24 +755,29 @@ function moveColumnLeft(columnId) {
             newPosition: index - 1,
             newRow: currentRow
         });
-        
+
         // Close all menus
         document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
-        
+
         // Update button state to show unsaved changes
         updateRefreshButtonState('unsaved', 1);
+
+        // Recalculate stack positions after column move
+        if (typeof window.applyStackedColumnStyles === 'function') {
+            requestAnimationFrame(() => window.applyStackedColumnStyles());
+        }
     }
 }
 
 function moveColumnRight(columnId) {
     if (!currentBoard?.columns) {return;}
-    
+
     // Flush pending tag changes before moving
     if ((window.pendingTaskChanges && window.pendingTaskChanges.size > 0) ||
         (window.pendingColumnChanges && window.pendingColumnChanges.size > 0)) {
         flushPendingTagChanges();
     }
-    
+
     const index = currentBoard.columns.findIndex(c => c.id === columnId);
     if (index < currentBoard.columns.length - 1) {
         const column = currentBoard.columns[index];
@@ -783,12 +788,17 @@ function moveColumnRight(columnId) {
             newPosition: index + 1,
             newRow: currentRow
         });
-        
+
         // Close all menus
         document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
-        
+
         // Update button state to show unsaved changes
         updateRefreshButtonState('unsaved', 1);
+
+        // Recalculate stack positions after column move
+        if (typeof window.applyStackedColumnStyles === 'function') {
+            requestAnimationFrame(() => window.applyStackedColumnStyles());
+        }
     }
 }
 

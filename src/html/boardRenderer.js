@@ -2323,6 +2323,7 @@ function recalculateStackHeights(stackElement = null) {
                 });
             });
 
+            // All columns (including horizontally folded) are included in stacking calculations
             const expandedColumns = columnData;
 
             // Get current sticky stack mode
@@ -2428,7 +2429,7 @@ function recalculateStackHeights(stackElement = null) {
                         columnHeader.style.bottom = `${columnHeaderBottom}px`;
                         columnHeader.style.zIndex = zIndex + 1;
                     } else {
-                        columnHeader.style.position = '';
+                        columnHeader.style.position = 'relative';
                         columnHeader.style.top = '';
                         columnHeader.style.bottom = '';
                         columnHeader.style.zIndex = '';
@@ -2483,6 +2484,14 @@ function recalculateStackHeights(stackElement = null) {
                     }
                 }
             });
+
+            // Update scroll handler data with all columns (including horizontally folded)
+            window.stackedColumnsData = positions.map(pos => ({
+                col: pos.col,
+                headerHeight: pos.headerHeight,
+                footerHeight: pos.footerHeight,
+                totalHeight: pos.totalHeight
+            }));
         }
     });
 }
@@ -2529,12 +2538,35 @@ function setupStackedColumnScrollHandler(columnsData) {
             const headerRect = header.getBoundingClientRect();
             const columnInnerPadding = columnInner ? parseFloat(window.getComputedStyle(columnInner).paddingTop) : 0;
 
+            // Check when column-inner (the non-sticky content area) is out of viewport
+            // For folded columns, inner has no/zero height, so it's immediately "above"
+            const innerRect = columnInner ? columnInner.getBoundingClientRect() : null;
+            const innerCompletelyAbove = innerRect && innerRect.bottom < 0;
+
             // Calculate: header would be ABOVE viewport top when sticky at bottom
             // headerRect.bottom is where the header currently is (accounting for sticky behavior)
             // If header is ABOVE the viewport top, switch to fixed top positioning
             const headerWouldBeAbove = headerRect.bottom < 0;
 
-            if (headerWouldBeAbove) {
+            if (innerCompletelyAbove) {
+                // Column inner is completely above viewport - revert to normal sticky positioning
+                // This lets the header naturally scroll out of view
+                header.style.position = 'sticky';
+                header.style.bottom = `${headerBottom}px`;
+                header.style.top = '';
+                header.style.left = '';
+                header.style.right = '';
+                header.style.width = '';
+                header.style.zIndex = zIndex;
+
+                footer.style.position = 'sticky';
+                footer.style.bottom = `${footerBottom}px`;
+                footer.style.top = '';
+                footer.style.left = '';
+                footer.style.right = '';
+                footer.style.width = '';
+                footer.style.zIndex = zIndex;
+            } else if (headerWouldBeAbove) {
                 // Column is above viewport - use FIXED positioning at TOP
                 const footerTop = headerHeight;
 

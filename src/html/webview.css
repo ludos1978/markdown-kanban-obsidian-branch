@@ -584,42 +584,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	height: var(--whitespace-div4);
 }
 
-.column-inner {
-  /* This is the scrollable container for sticky positioning */
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  /* overflow-y: auto; */ /* must be disabled for sticky childs to work */
-	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
-	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
-	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
-	/* border-radius: 0px 0px 4px 4px; */
-  overflow-x: visible;
-  /* min-height: 100%; */
-	max-height: min-content;
-  background-color: transparent;
-}
-
-.column-header {
-	/* padding-bottom: var(--whitespace-div4); */
-	position: sticky;
-	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
-	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
-	border-top: var(--column-border, 0.5px solid var(--vscode-panel-border));
-	border-radius: 4px 4px 0px 0px;
-}
-
-.column-footer {
-	padding-top: var(--whitespace-div2);
-	position: sticky;
-	/* top: 28px; */
-	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
-	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
-	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
-	border-bottom: var(--column-border, 0.5px solid var(--vscode-panel-border));
-	border-radius: 0px 0px 4px 4px;
-}
-
 /* .column-inner :not(has) */
 
 .column-content {
@@ -679,6 +643,16 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Column header - receives tag-based header bars, can be styled/faded independently */
 .column-header {
+	/* padding-bottom: var(--whitespace-div4); */
+	position: sticky;
+	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-top: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-radius: 4px 4px 0px 0px;
+}
+
+.column-header {
+	transform: translateZ(0.2px);
   position: sticky;
   z-index: 11;
   background-color: var(--vscode-editor-background);
@@ -686,7 +660,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Column title */
 .column-title {
-	transform: translateZ(0.1px);
+	transform: translateZ(0.3px);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -701,6 +675,35 @@ body.small-card-fonts .task-title-container .markdown-content img {
   /* border-bottom: 0.5px solid var(--vscode-panel-border); */
   margin-bottom: 0;
   flex-direction: column;
+}
+
+.column-inner {
+  /* This is the scrollable container for sticky positioning */
+	transform: translateZ(0.1px);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* overflow-y: auto; */ /* must be disabled for sticky childs to work */
+	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
+	/* border-radius: 0px 0px 4px 4px; */
+  overflow-x: visible;
+  /* min-height: 100%; */
+	max-height: min-content;
+  background-color: transparent;
+}
+
+.column-footer {
+	transform: translateZ(0.2px);
+	padding-top: var(--whitespace-div2);
+	position: sticky;
+	/* top: 28px; */
+	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
+	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-bottom: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-radius: 0px 0px 4px 4px;
 }
 
 /* Column title section */
@@ -1816,6 +1819,7 @@ button.file-bar-menu-item {
   grid-column: 1;
   align-self: start;
 }
+
 
 /* Only expanded columns overlay with pointer-events */
 .kanban-column-stack .kanban-full-height-column {
@@ -3168,10 +3172,10 @@ h6 .kanban-tag {
 
 
 
-.kanban-full-height-column.collapsed-vertical.has-header-bar,
+/* .kanban-full-height-column.collapsed-vertical.has-header-bar,
 .kanban-full-height-column.collapsed-horizontal.has-header-bar {
   min-height: 200px;
-}
+} */
 
 
 
