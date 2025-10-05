@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.14.3",
+  "version": "0.14.4",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -2040,6 +2040,21 @@
           "enumDescriptions": [
             "Column headers stick to top when scrolling",
             "Column headers scroll normally with content"
+          ]
+        },
+        "markdown-kanban.stickyStackMode": {
+          "type": "string",
+          "default": "titleonly",
+          "description": "Control sticky positioning behavior in column stacks",
+          "enum": [
+            "full",
+            "titleonly",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Header, title, footer & margin all sticky (original behavior)",
+            "Only title sticky (default)",
+            "Nothing sticky in stacks"
           ]
         },
         "markdown-kanban.tagVisibility": {

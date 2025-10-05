@@ -4,7 +4,10 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] a horizontally folded column with a tag header doesnt add the tag above outside above, but overlaying above the normal header. this is one of the broken examples : TO ADD AN EXMAPLE
+- [ ] when restoring kanban views all views restore one kanban file. not individual files they contained before.
+
+
+- [x] a horizontally folded column with a tag header doesnt add the tag above outside above, but overlaying above the normal header. this is one of the broken examples : TO ADD AN EXMAPLE
 
 
 

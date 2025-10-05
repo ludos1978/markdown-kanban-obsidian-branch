@@ -562,6 +562,10 @@ body.small-card-fonts .task-title-container .markdown-content img {
   padding-top: var(--compact-column-footer-padding);
 }
 
+.kanban-full-height-column.compact-view .column-header {
+  padding-bottom: var(--compact-column-footer-padding);
+}
+
 .kanban-full-height-column.compact-view .column-margin {
   height: var(--compact-column-margin-height);
 }
@@ -596,6 +600,15 @@ body.small-card-fonts .task-title-container .markdown-content img {
   background-color: transparent;
 }
 
+.column-header {
+	/* padding-bottom: var(--whitespace-div4); */
+	position: sticky;
+	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-top: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-radius: 4px 4px 0px 0px;
+}
+
 .column-footer {
 	padding-top: var(--whitespace-div2);
 	position: sticky;
@@ -603,6 +616,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
 	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
 	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-bottom: var(--column-border, 0.5px solid var(--vscode-panel-border));
 	border-radius: 0px 0px 4px 4px;
 }
 
@@ -612,7 +626,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   /* This contains the actual visual column with border and background */
   display: flex;
   flex-direction: column;
-  padding: var(--whitespace-div2)  var(--whitespace-div2) 0 var(--whitespace-div2);
+  padding: var(--whitespace-div4)  var(--whitespace-div2) 0 var(--whitespace-div2);
   flex: 0 0 auto;
   background-color: var(--vscode-editor-background);
   /* border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4); */
@@ -680,7 +694,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   /* top: var(--whitespace-div2); */
   z-index: 10;
   background-color: var(--vscode-editor-background);
-	border-radius: 4px 4px 0px 0px;
+	/* border-radius: 4px 4px 0px 0px; */
 	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
 	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
   /* border-bottom: 0.5px solid var(--vscode-panel-border); */
@@ -688,35 +702,9 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex-direction: column;
 }
 
-/* .kanban-full-height-column::before,
-.column-title::before {
-	content: '';
-	position: sticky;
-	top: 0px;
-	left: 0;
-	right: 0;
-	height: var(--whitespace);
-	background-color: var(--vscode-editor-background);
-	z-index: 11;
-} */
-
-/* .column-offset {
-	height: var(--whitespace);
-	background: black;
-} */
-
-/* Add top border to column-title when there are no header bars in column-header */
-.column-header {
-	border-top: 0.5px solid var(--vscode-panel-border);
-}
-
-.column-footer {
-	border-bottom: 0.5px solid var(--vscode-panel-border);
-}
-
 /* Column title section */
 .column-title-section {
-  padding: var(--whitespace-div2) var(--whitespace-div2) 0 var(--whitespace-div2);
+  padding: 0 var(--whitespace-div2);
   display: flex;
   /* align-items: flex-start; */
 	align-items: center;
@@ -3092,6 +3080,7 @@ h6 .kanban-tag {
 /* Header and footer bars */
 .header-bar,
 .footer-bar {
+	position: relative;
   width: 100%;
   flex-shrink: 0;
   pointer-events: none;
@@ -3140,23 +3129,23 @@ h6 .kanban-tag {
 
 /* Collapsed column bars - padding set dynamically by JavaScript */
 
-.kanban-full-height-column.collapsed-vertical.has-footer-bar .column-controls,
-.kanban-full-height-column.collapsed-horizontal.has-footer-bar .column-controls {
+/* .kanban-full-height-column.collapsed-horizontal.has-footer-bar .column-controls  */
+.kanban-full-height-column.collapsed-vertical.has-footer-bar .column-controls {
   margin-bottom: 4px;
 }
 
+/* .kanban-full-height-column.collapsed-horizontal.has-footer-label,
+.kanban-full-height-column.collapsed-horizontal.has-header-label, */
 
 .kanban-full-height-column.collapsed-vertical.has-header-label,
-.kanban-full-height-column.collapsed-horizontal.has-header-label,
-.kanban-full-height-column.collapsed-vertical.has-footer-label,
-.kanban-full-height-column.collapsed-horizontal.has-footer-label {
+.kanban-full-height-column.collapsed-vertical.has-footer-label {
   width: 60px !important;
   min-width: 60px !important;
   max-width: 60px !important;
 }
 
-.kanban-full-height-column.collapsed-vertical.has-header-label.has-footer-label,
-.kanban-full-height-column.collapsed-horizontal.has-header-label.has-footer-label {
+/* .kanban-full-height-column.collapsed-horizontal.has-header-label.has-footer-label, */
+.kanban-full-height-column.collapsed-vertical.has-header-label.has-footer-label {
   width: 80px !important;
   min-width: 80px !important;
   max-width: 80px !important;

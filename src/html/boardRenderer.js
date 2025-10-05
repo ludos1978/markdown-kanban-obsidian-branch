@@ -156,7 +156,11 @@ function ensureTagStyleExists(tagName) {
             const columnBg = interpolateColor(editorBg, bgDark, 0.15);
             const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
             
-            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-title,
+            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-header,
+.kanban-full-height-column[data-all-tags~="${tagName}"] .column-header {
+    background-color: ${columnBg} !important;
+}
+.kanban-full-height-column[data-column-tag="${tagName}"] .column-title,
 .kanban-full-height-column[data-all-tags~="${tagName}"] .column-title {
     background-color: ${columnBg} !important;
 }
@@ -167,6 +171,10 @@ function ensureTagStyleExists(tagName) {
 .kanban-full-height-column[data-column-tag="${tagName}"] .column-footer,
 .kanban-full-height-column[data-all-tags~="${tagName}"] .column-footer {
     background-color: ${columnBg} !important;
+}
+.kanban-full-height-column.collapsed[data-column-tag="${tagName}"] .column-header,
+.kanban-full-height-column.collapsed[data-all-tags~="${tagName}"] .column-header {
+    background-color: ${columnCollapsedBg} !important;
 }
 .kanban-full-height-column.collapsed[data-column-tag="${tagName}"] .column-title,
 .kanban-full-height-column.collapsed[data-all-tags~="${tagName}"] .column-title {
@@ -283,7 +291,7 @@ function ensureTagStyleExists(tagName) {
         
         // Use relative positioning to work with flex layout (like original system)
         newStyles += `.header-bar-${tagName.toLowerCase()} {
-            position: relative;
+            /* position: relative; */
             width: 100%;
             height: ${headerHeight};
             background-color: ${headerColor} !important;
@@ -307,7 +315,7 @@ function ensureTagStyleExists(tagName) {
         
         // Collapsed state styles
         newStyles += `.kanban-full-height-column.collapsed .header-bar-${tagName.toLowerCase()} {
-            position: relative !important;
+            /* position: relative !important; */
             width: 100% !important;
             height: ${headerText ? '20px' : headerHeight} !important;
             writing-mode: horizontal-tb !important;
@@ -2973,8 +2981,12 @@ function generateTagStyles() {
                 const bgDark = columnColors.backgroundDark || columnColors.background;
                 
                 const columnBg = interpolateColor(editorBg, bgDark, 0.15);
-                
+
                 // Default column header background
+                styles += `.kanban-full-height-column:not([data-column-tag]) .column-header {
+                    background-color: ${columnBg} !important;
+                }\n`;
+
                 styles += `.kanban-full-height-column:not([data-column-tag]) .column-title {
                     background-color: ${columnBg} !important;
                 }\n`;
@@ -2992,6 +3004,10 @@ function generateTagStyles() {
                 const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
 
                 // Default collapsed column header background
+                styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-header {
+                    background-color: ${columnCollapsedBg} !important;
+                }\n`;
+
                 styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-title {
                     background-color: ${columnCollapsedBg} !important;
                 }\n`;
@@ -3065,6 +3081,10 @@ function generateTagStyles() {
                     const columnBg = interpolateColor(editorBg, bgDark, 0.15);
                     
                     // Column header background
+                    styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
+                        background-color: ${columnBg} !important;
+                    }\n`;
+
                     styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-title {
                         background-color: ${columnBg} !important;
                     }\n`;
@@ -3083,6 +3103,10 @@ function generateTagStyles() {
                     const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
 
                     // Collapsed column header background
+                    styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-header {
+                        background-color: ${columnCollapsedBg} !important;
+                    }\n`;
+
                     styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-title {
                         background-color: ${columnCollapsedBg} !important;
                     }\n`;
@@ -3114,6 +3138,9 @@ function generateTagStyles() {
                         
                         if (config.border.position === 'left') {
                             // Use data-column-tag for left border on all column parts
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n`;
                             styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-title {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n`;
@@ -3128,15 +3155,19 @@ function generateTagStyles() {
                             }\n`;
                         } else {
                             // Full border split the border for top and bottom part
-                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-inner {
+                            styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                                border-bottom: none !important;
                             }\n
 														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-title {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-top: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                            }\n
+														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-inner {
+                                border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-bottom: none !important;
                             }\n
 														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-footer {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
@@ -3158,7 +3189,7 @@ function generateTagStyles() {
                         
                         // Create a unique class for this header bar - always solid color
                         styles += `.header-bar-${lowerTagName} {
-                            position: absolute;
+                            /* position: absolute; */
                             left: 0;
                             right: 0;
                             height: ${headerHeight};
@@ -3201,7 +3232,7 @@ function generateTagStyles() {
                         
                         // Create a unique class for this footer bar
                         styles += `.footer-bar-${lowerTagName} {
-                            position: absolute;
+                            /* position: absolute; */
                             left: 0;
                             right: 0;
                             height: ${footerHeight};
