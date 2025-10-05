@@ -1864,12 +1864,18 @@ function updateDocumentUri(newUri) {
         if (currentDocumentUri) {
             saveCurrentFoldingState();
         }
-        
+
         currentDocumentUri = newUri;
-        
+
+        // Save state for VSCode webview panel serialization
+        // This ensures each panel remembers which file it's displaying when VSCode restarts
+        if (vscode && vscode.setState && currentDocumentUri) {
+            vscode.setState({ documentUri: currentDocumentUri });
+        }
+
         // Try to restore state for the new document
         const hadSavedState = restoreFoldingState();
-        
+
         // If no saved state exists and board is ready, apply defaults for new document
         if (!hadSavedState && window.currentBoard && window.currentBoard.columns) {
             applyDefaultFoldingToNewDocument();

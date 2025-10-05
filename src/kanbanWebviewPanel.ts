@@ -179,6 +179,9 @@ export class KanbanWebviewPanel {
         }
     }
 
+    // Static set to track document URIs being revived to prevent duplicates
+    private static _revivedUris: Set<string> = new Set();
+
     public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext, state?: any) {
         // ENHANCED: Set comprehensive permissions on revive
         const localResourceRoots = [extensionUri];
@@ -203,25 +206,42 @@ export class KanbanWebviewPanel {
         let documentUri = state?.documentUri;
 
         if (!documentUri) {
-            // Fallback: Look for recent panel states in workspace
+            // Fallback: Look for panel states in workspace that haven't been revived yet
             const allKeys = context.globalState.keys();
-            const panelKeys = allKeys.filter(key => key.startsWith('kanban_panel_'));
+            // Look for both old kanban_panel_* keys and new kanban_doc_* keys
+            const panelKeys = allKeys.filter(key => key.startsWith('kanban_panel_') || key.startsWith('kanban_doc_'));
 
             if (panelKeys.length > 0) {
-                // Find the most recently accessed panel
-                let mostRecentUri = null;
-                let mostRecentTime = 0;
+                // Find available panel states, prioritizing recent ones
+                const availableStates: Array<{ uri: string; time: number }> = [];
 
                 for (const key of panelKeys) {
                     const panelState = context.globalState.get(key) as any;
-                    if (panelState?.documentUri && panelState?.lastAccessed > mostRecentTime) {
-                        mostRecentTime = panelState.lastAccessed;
-                        mostRecentUri = panelState.documentUri;
+                    if (panelState?.documentUri && !KanbanWebviewPanel._revivedUris.has(panelState.documentUri)) {
+                        availableStates.push({
+                            uri: panelState.documentUri,
+                            time: panelState.lastAccessed || 0
+                        });
                     }
                 }
 
-                documentUri = mostRecentUri;
+                // Sort by most recent and use the first available
+                if (availableStates.length > 0) {
+                    availableStates.sort((a, b) => b.time - a.time);
+                    documentUri = availableStates[0].uri;
+                    // Mark this URI as revived to prevent other panels from using it
+                    KanbanWebviewPanel._revivedUris.add(documentUri);
+
+                    // Clear the revival tracking after a short delay (panels should be revived quickly)
+                    setTimeout(() => {
+                        KanbanWebviewPanel._revivedUris.clear();
+                    }, 5000);
+                }
             }
+        } else {
+            // State was provided by webview serialization - this is the preferred path
+            // Mark as revived to prevent fallback logic from using it
+            KanbanWebviewPanel._revivedUris.add(documentUri);
         }
 
 
@@ -1311,9 +1331,12 @@ export class KanbanWebviewPanel {
         });
 
         // Also store in VSCode's global state for persistence across restarts
-        this._context.globalState.update(`kanban_panel_${this._panelId}`, {
+        // Use documentUri hash as stable key so panels can find their state after restart
+        const stableKey = `kanban_doc_${Buffer.from(document.uri.toString()).toString('base64').replace(/[^a-zA-Z0-9]/g, '_')}`;
+        this._context.globalState.update(stableKey, {
             documentUri: document.uri.toString(),
-            lastAccessed: Date.now()
+            lastAccessed: Date.now(),
+            panelId: this._panelId  // Store for cleanup but don't use for lookup
         });
         
         // Ensure file watcher is always set up for the current document
