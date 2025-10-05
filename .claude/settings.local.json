@@ -37,7 +37,8 @@
       "Bash(npx tsc:*)",
       "Bash(npx jest:*)",
       "Bash(cat:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(open tests/kanban-multirow-small.md)"
     ],
     "deny": [],
     "ask": []

@@ -5,6 +5,7 @@ kanban-plugin: board
 ## Open Bugs
 
 - [ ] when restoring kanban views all views restore one kanban file. not individual files they contained before.
+- [ ] move the corner-badges-container into the column-header div verify that all css is corrected for the new location. ultrathink
 
 
 - [x] a horizontally folded column with a tag header doesnt add the tag above outside above, but overlaying above the normal header. this is one of the broken examples : TO ADD AN EXMAPLE

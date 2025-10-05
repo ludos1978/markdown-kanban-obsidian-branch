@@ -2010,17 +2010,8 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   min-height: auto;
 }
 
-/* Vertically folded columns in a stack should not use sticky positioning when grouped horizontally */
-.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical {
-  position: relative !important;
-}
-
-.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical .column-title,
-.kanban-column-stack.all-vertical-folded .kanban-full-height-column.collapsed-vertical .column-footer {
-  position: relative !important;
-  top: auto !important;
-  bottom: auto !important;
-}
+/* Vertically folded columns use sticky positioning based on sticky stack mode setting */
+/* Removed position: relative override to allow JavaScript sticky positioning control */
 
 .task-menu-container {
   z-index: 9;
@@ -3176,10 +3167,6 @@ h6 .kanban-tag {
 .kanban-full-height-column.collapsed-horizontal.has-header-bar {
   min-height: 200px;
 } */
-
-
-
-
 
 
 

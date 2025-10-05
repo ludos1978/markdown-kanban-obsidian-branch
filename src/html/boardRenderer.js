@@ -2248,17 +2248,6 @@ function recalculateStackHeights(stackElement = null) {
         if (allVerticalFolded) {
             // All columns vertically folded - display horizontally
             stack.classList.add('all-vertical-folded');
-            // Reset header positions since they're not stacked
-            columns.forEach(col => {
-                const columnHeader = col.querySelector('.column-header');
-                const header = col.querySelector('.column-title');
-                if (columnHeader) {
-                    columnHeader.style.top = '';
-                }
-                if (header) {
-                    header.style.top = '';
-                }
-            });
         } else {
             // At least one column is expanded or horizontally folded - display vertically
             stack.classList.remove('all-vertical-folded');
@@ -2323,7 +2312,7 @@ function recalculateStackHeights(stackElement = null) {
                 });
             });
 
-            // All columns (including horizontally folded) are included in stacking calculations
+            // All columns (including both horizontally and vertically folded) are included in stacking calculations
             const expandedColumns = columnData;
 
             // Get current sticky stack mode
@@ -2420,6 +2409,17 @@ function recalculateStackHeights(stackElement = null) {
                 col.dataset.headerBottom = headerBottom;
                 col.dataset.footerBottom = footerBottom;
                 col.dataset.zIndex = zIndex;
+
+                // Store content area boundaries (absolute positions from top of page)
+                // Content starts at bottom of header, ends at top of footer
+                if (header && footer) {
+                    const headerRect = header.getBoundingClientRect();
+                    const footerRect = footer.getBoundingClientRect();
+                    const scrollY = window.scrollY || window.pageYOffset;
+
+                    col.dataset.contentAreaTop = scrollY + headerRect.bottom;
+                    col.dataset.contentAreaBottom = scrollY + footerRect.top;
+                }
 
                 // Only apply sticky positioning and values to elements that are sticky in this mode
                 if (columnHeader) {
@@ -2535,15 +2535,15 @@ function setupStackedColumnScrollHandler(columnsData) {
             const colIndex = col.dataset.columnIndex;
 
             const rect = col.getBoundingClientRect();
-            const headerRect = header.getBoundingClientRect();
             const columnInnerPadding = columnInner ? parseFloat(window.getComputedStyle(columnInner).paddingTop) : 0;
 
-            // Calculate: header would be ABOVE viewport top when sticky at bottom
-            // headerRect.bottom is where the header currently is (accounting for sticky behavior)
-            // If header is ABOVE the viewport top, switch to fixed top positioning
-            const headerWouldBeAbove = headerRect.bottom < 0;
+            // Check if content area (between title bottom and footer top) is still within viewport
+            // Use stored absolute positions from when layout was calculated
+            const contentAreaTop = parseFloat(col.dataset.contentAreaTop || 0);
+            const contentAreaBottom = parseFloat(col.dataset.contentAreaBottom || 0);
+            const contentStillInView = contentAreaBottom >= viewportTop;
 
-            if (headerWouldBeAbove) {
+            if (!contentStillInView) {
                 // Column is above viewport - use FIXED positioning at TOP
                 const footerTop = headerHeight;
 
@@ -2594,11 +2594,12 @@ function setupStackedColumnScrollHandler(columnsData) {
                 const threshold = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--compact-visibility-threshold')) || 0.3;
 
                 // Apply compact-view class when less than threshold is visible
-                if (visibilityRatio < threshold && innerHeight > 0) {
-                    col.classList.add('compact-view');
-                } else {
-                    col.classList.remove('compact-view');
-                }
+                // DISABLED
+                // if (visibilityRatio < threshold && innerHeight > 0) {
+                //     col.classList.add('compact-view');
+                // } else {
+                //     col.classList.remove('compact-view');
+                // }
             }
         });
     };
@@ -2656,11 +2657,12 @@ function setupCompactViewHandler() {
             const shouldBeCompact = isCompletelyOutside;
 
             // Apply compact-view class when less than threshold is visible
-            if (shouldBeCompact) {
-                col.classList.add('compact-view');
-            } else {
-                col.classList.remove('compact-view');
-            }
+            // DISABLED
+            // if (shouldBeCompact) {
+            //     col.classList.add('compact-view');
+            // } else {
+            //     col.classList.remove('compact-view');
+            // }
 
             // If compact state changed and column is in a stack, recalculate positions
             if (wasCompact !== shouldBeCompact) {
