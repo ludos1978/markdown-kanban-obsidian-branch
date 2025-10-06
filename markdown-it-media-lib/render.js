@@ -7,15 +7,12 @@ function renderMedia(tokens, index, options, env, renderer) {
   const token = tokens[index];
   const attrs = renderer.renderAttrs(token);
 
-  // Add performance and error-handling attributes for video/audio elements
+  // Add performance attributes for video/audio elements
   let extraAttrs = '';
   if (token.tag === 'video' || token.tag === 'audio') {
-    // Only load metadata initially (not the full file) - prevents memory issues
-    extraAttrs += ' preload="metadata"';
-    // Prevent autoplay to avoid unwanted loading
-    extraAttrs += ' autoplay="false"';
-    // Add error recovery attributes
-    extraAttrs += ' onerror="this.dataset.loadFailed=\'true\';this.classList.add(\'media-load-failed\');"';
+    // Do not load ANYTHING until user clicks play - prevents memory issues with large files
+    extraAttrs += ' preload="none"';
+    // Note: Error handling is done via addEventListener in webview.js (CSP-compliant)
   }
 
   const open = `<${token.tag}${attrs}${extraAttrs}>`;

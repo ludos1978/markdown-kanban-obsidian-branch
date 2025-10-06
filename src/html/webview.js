@@ -1891,95 +1891,59 @@ document.addEventListener('DOMContentLoaded', () => {
     // Populate dynamic menus
     populateDynamicMenus();
 
-    // Handle image loading errors silently to reduce console noise
-    function addImageErrorHandlers() {
-        const images = document.querySelectorAll('img');
-        images.forEach(img => {
-            if (!img.hasAttribute('data-error-handled')) {
-                img.addEventListener('error', function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    // Silently handle image loading errors
-                    this.style.display = 'inline-block';
-                    this.style.maxWidth = '200px';
-                    this.style.width = 'auto';
-                    this.style.height = 'auto';
-                });
-                img.setAttribute('data-error-handled', 'true');
-            }
-        });
-    }
+    // ========================================================================
+    // EVENT DELEGATION for error handling - prevents listener leaks!
+    // Uses only 2 listeners total (instead of hundreds) via event bubbling
+    // ========================================================================
 
-    // Add error handlers on page load and when DOM changes
-    addImageErrorHandlers();
-
-    // Handle video/audio loading errors to prevent retries and memory issues
     const failedMediaUrls = new Set();
 
-    function addMediaErrorHandlers() {
-        const mediaElements = document.querySelectorAll('video, audio');
-        mediaElements.forEach(media => {
-            if (!media.hasAttribute('data-error-handled')) {
-                media.addEventListener('error', function(e) {
-                    const src = this.src || this.querySelector('source')?.src;
+    // Single delegated listener for ALL image errors (capture phase)
+    document.addEventListener('error', function(e) {
+        const target = e.target;
 
-                    // Add to failed cache to prevent retries
-                    if (src) {
-                        failedMediaUrls.add(src);
-                    }
+        // Handle image errors
+        if (target.tagName === 'IMG' && !target.dataset.errorHandled) {
+            target.dataset.errorHandled = 'true';
+            e.stopPropagation();
+            e.preventDefault();
 
-                    // Mark as failed
-                    this.dataset.loadFailed = 'true';
-                    this.classList.add('media-load-failed');
-
-                    // Stop propagation to prevent console spam
-                    e.stopPropagation();
-                    e.preventDefault();
-
-                    // Log once for debugging
-                    if (!this.dataset.errorLogged) {
-                        console.warn('[Kanban Media] Failed to load:', src);
-                        this.dataset.errorLogged = 'true';
-                    }
-                }, true);
-                media.setAttribute('data-error-handled', 'true');
-            }
-        });
-    }
-
-    addMediaErrorHandlers();
-
-    // Monitor for new images and media being added dynamically
-    const observer = new MutationObserver((mutations) => {
-        let hasNewImages = false;
-        let hasNewMedia = false;
-        mutations.forEach((mutation) => {
-            if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.tagName === 'IMG' || node.querySelector('img')) {
-                            hasNewImages = true;
-                        }
-                        if (node.tagName === 'VIDEO' || node.tagName === 'AUDIO' ||
-                            node.querySelector('video, audio')) {
-                            hasNewMedia = true;
-                        }
-                    }
-                });
-            }
-        });
-        if (hasNewImages) {
-            addImageErrorHandlers();
+            // Silently handle image loading errors
+            target.style.display = 'inline-block';
+            target.style.maxWidth = '200px';
+            target.style.width = 'auto';
+            target.style.height = 'auto';
         }
-        if (hasNewMedia) {
-            addMediaErrorHandlers();
-        }
-    });
 
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+        // Handle video/audio errors
+        else if ((target.tagName === 'VIDEO' || target.tagName === 'AUDIO') &&
+                 !target.dataset.errorHandled) {
+
+            target.dataset.errorHandled = 'true';
+            const src = target.src || target.querySelector('source')?.src;
+
+            // Add to failed cache to prevent retries
+            if (src) {
+                failedMediaUrls.add(src);
+            }
+
+            // Mark as failed
+            target.dataset.loadFailed = 'true';
+            target.classList.add('media-load-failed');
+
+            // Stop propagation to prevent console spam
+            e.stopPropagation();
+            e.preventDefault();
+
+            // Log once for debugging
+            if (!target.dataset.errorLogged) {
+                console.warn('[Kanban Media] Failed to load:', src);
+                target.dataset.errorLogged = 'true';
+            }
+        }
+    }, true); // Use capture phase to catch errors before they bubble
+
+    // No MutationObserver needed! Event delegation handles dynamic content automatically
     
     // Update clipboard content when window gets focus
     window.addEventListener('focus', async () => {

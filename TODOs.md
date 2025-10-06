@@ -8,6 +8,8 @@ kanban-plugin: board
 - [ ] Failed to update stickyStackMode preference: CodeExpectedError: In Arbeitsbereichseinstellungen kann nicht geschrieben werden, weil markdown-kanban.stickyStackMode keine registrierte Konfiguration ist.
 - [x] pressing alt on an image should open the file externally if it's found, othervise the replacement file search should be activated. but it currently doesnt. the code should be in the codebase already, but it currently doesnt seem to be active.
 
+- [ ] modifying a columntitle with a !!!columninclude()!!! does not set the title correctly according to the rule: link to filename that is clickable included with the rest of the title and tags
+
 - [x] when restoring kanban views all views restore one kanban file. not individual files they contained before.
 - [ ] move the corner-badges-container into the column-header div verify that all css is corrected for the new location. ultrathink
 
