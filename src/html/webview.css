@@ -652,7 +652,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 .column-header {
-	transform: translateZ(0.2px);
+	transform: translateZ(0.02px);
   position: sticky;
   z-index: 11;
   background-color: var(--vscode-editor-background);
@@ -660,7 +660,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Column title */
 .column-title {
-	transform: translateZ(0.3px);
+	transform: translateZ(0.03px);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -679,7 +679,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .column-inner {
   /* This is the scrollable container for sticky positioning */
-	transform: translateZ(0.1px);
+	transform: translateZ(0.01px);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -695,7 +695,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 .column-footer {
-	transform: translateZ(0.2px);
+	transform: translateZ(0.02px);
 	padding-top: var(--whitespace-div2);
 	position: sticky;
 	/* top: 28px; */
@@ -4010,3 +4010,52 @@ figcaption {
    ======================================== */
 
 /* Horizontal fold: thin bar with normal text orientation, stays in stack */
+
+/* ========================================
+   Media Loading Error States
+   ======================================== */
+
+/* Style for media elements that failed to load */
+video.media-load-failed,
+audio.media-load-failed {
+    opacity: 0.5;
+    filter: grayscale(100%);
+    border: 2px dashed var(--vscode-inputValidation-errorBorder, #f48771);
+    background: var(--vscode-inputValidation-errorBackground, rgba(244, 135, 113, 0.1));
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* Add a subtle warning icon using ::before pseudo-element */
+video.media-load-failed::before,
+audio.media-load-failed::before {
+    content: "⚠️ Media failed to load";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--vscode-inputValidation-errorForeground, #f48771);
+    font-size: 14px;
+    text-align: center;
+    background: var(--vscode-editor-background);
+    padding: 10px;
+    border-radius: 4px;
+    z-index: 1;
+}
+
+/* Ensure media elements in tasks are styled appropriately */
+.task-description-display video,
+.task-description-display audio {
+    max-width: 100%;
+    border-radius: 4px;
+    margin: 8px 0;
+}
+
+/* Controls styling for video/audio elements */
+video::-webkit-media-controls-panel,
+audio::-webkit-media-controls-panel {
+    background-color: var(--vscode-editor-background);
+}

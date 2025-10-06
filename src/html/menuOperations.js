@@ -2992,8 +2992,8 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
     }
 
     // Find existing corner badges container or create one
-    // For columns, append to column-title; for tasks, append to element
-    const targetContainer = elementType === 'column' ? element.querySelector('.column-title') || element : element;
+    // For columns, append to column-header; for tasks, append to element
+    const targetContainer = elementType === 'column' ? element.querySelector('.column-header') || element : element;
     let badgesContainer = targetContainer.querySelector('.corner-badges-container');
     if (!badgesContainer) {
         badgesContainer = document.createElement('div');
@@ -3302,14 +3302,14 @@ function updateAllVisualTagElements(element, allTags, elementType) {
 
         const columnHeader = element.querySelector('.column-header');
         if (columnHeader) {
-            // Remove all visual tag elements from column-header
-            columnHeader.querySelectorAll('.header-bar, .header-bars-container').forEach(el => el.remove());
+            // Remove all visual tag elements from column-header (including corner badges)
+            columnHeader.querySelectorAll('.header-bar, .header-bars-container, .corner-badges-container').forEach(el => el.remove());
         }
 
         const columnTitle = element.querySelector('.column-title');
         if (columnTitle) {
-            // Remove corner badges from column-title
-            columnTitle.querySelectorAll('.corner-badges-container').forEach(el => el.remove());
+            // Column title no longer contains corner badges (moved to column-header)
+            // Keep this selector for backward compatibility if needed
         }
 
         const columnFooter = element.querySelector('.column-footer');

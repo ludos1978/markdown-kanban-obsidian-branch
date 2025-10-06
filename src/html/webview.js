@@ -1913,9 +1913,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add error handlers on page load and when DOM changes
     addImageErrorHandlers();
 
-    // Monitor for new images being added dynamically
+    // Handle video/audio loading errors to prevent retries and memory issues
+    const failedMediaUrls = new Set();
+
+    function addMediaErrorHandlers() {
+        const mediaElements = document.querySelectorAll('video, audio');
+        mediaElements.forEach(media => {
+            if (!media.hasAttribute('data-error-handled')) {
+                media.addEventListener('error', function(e) {
+                    const src = this.src || this.querySelector('source')?.src;
+
+                    // Add to failed cache to prevent retries
+                    if (src) {
+                        failedMediaUrls.add(src);
+                    }
+
+                    // Mark as failed
+                    this.dataset.loadFailed = 'true';
+                    this.classList.add('media-load-failed');
+
+                    // Stop propagation to prevent console spam
+                    e.stopPropagation();
+                    e.preventDefault();
+
+                    // Log once for debugging
+                    if (!this.dataset.errorLogged) {
+                        console.warn('[Kanban Media] Failed to load:', src);
+                        this.dataset.errorLogged = 'true';
+                    }
+                }, true);
+                media.setAttribute('data-error-handled', 'true');
+            }
+        });
+    }
+
+    addMediaErrorHandlers();
+
+    // Monitor for new images and media being added dynamically
     const observer = new MutationObserver((mutations) => {
         let hasNewImages = false;
+        let hasNewMedia = false;
         mutations.forEach((mutation) => {
             if (mutation.type === 'childList') {
                 mutation.addedNodes.forEach((node) => {
@@ -1923,12 +1960,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (node.tagName === 'IMG' || node.querySelector('img')) {
                             hasNewImages = true;
                         }
+                        if (node.tagName === 'VIDEO' || node.tagName === 'AUDIO' ||
+                            node.querySelector('video, audio')) {
+                            hasNewMedia = true;
+                        }
                     }
                 });
             }
         });
         if (hasNewImages) {
             addImageErrorHandlers();
+        }
+        if (hasNewMedia) {
+            addMediaErrorHandlers();
         }
     });
 
