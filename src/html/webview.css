@@ -4015,36 +4015,8 @@ figcaption {
    Media Loading Error States
    ======================================== */
 
-/* Style for media elements that failed to load */
-video.media-load-failed,
-audio.media-load-failed {
-    opacity: 0.5;
-    filter: grayscale(100%);
-    border: 2px dashed var(--vscode-inputValidation-errorBorder, #f48771);
-    background: var(--vscode-inputValidation-errorBackground, rgba(244, 135, 113, 0.1));
-    min-height: 100px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-/* Add a subtle warning icon using ::before pseudo-element */
-video.media-load-failed::before,
-audio.media-load-failed::before {
-    content: "⚠️ Media failed to load";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: var(--vscode-inputValidation-errorForeground, #f48771);
-    font-size: 14px;
-    text-align: center;
-    background: var(--vscode-editor-background);
-    padding: 10px;
-    border-radius: 4px;
-    z-index: 1;
-}
+/* Error handling done in JS (webview.js) to prevent listener leaks and console spam.
+   No visual styling - videos fail silently like before. */
 
 /* Ensure media elements in tasks are styled appropriately */
 .task-description-display video,

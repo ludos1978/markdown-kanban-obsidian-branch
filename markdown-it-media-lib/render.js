@@ -10,8 +10,10 @@ function renderMedia(tokens, index, options, env, renderer) {
   // Add performance attributes for video/audio elements
   let extraAttrs = '';
   if (token.tag === 'video' || token.tag === 'audio') {
-    // Do not load ANYTHING until user clicks play - prevents memory issues with large files
-    extraAttrs += ' preload="none"';
+    // Load metadata only (duration, dimensions) but not content - allows playback when user clicks
+    extraAttrs += ' preload="metadata"';
+    // Add controls so users can play/pause/seek
+    extraAttrs += ' controls';
     // Note: Error handling is done via addEventListener in webview.js (CSP-compliant)
   }
 

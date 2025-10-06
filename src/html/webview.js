@@ -1915,31 +1915,36 @@ document.addEventListener('DOMContentLoaded', () => {
             target.style.height = 'auto';
         }
 
-        // Handle video/audio errors
-        else if ((target.tagName === 'VIDEO' || target.tagName === 'AUDIO') &&
-                 !target.dataset.errorHandled) {
-
-            target.dataset.errorHandled = 'true';
+        // Handle video/audio errors - but only mark as failed after 2nd error
+        // First error might be premature (vscode-resource:// not ready yet)
+        else if ((target.tagName === 'VIDEO' || target.tagName === 'AUDIO')) {
             const src = target.src || target.querySelector('source')?.src;
 
-            // Add to failed cache to prevent retries
-            if (src) {
-                failedMediaUrls.add(src);
-            }
+            // Count errors for this element
+            const errorCount = parseInt(target.dataset.errorCount || '0') + 1;
+            target.dataset.errorCount = errorCount.toString();
 
-            // Mark as failed
-            target.dataset.loadFailed = 'true';
-            target.classList.add('media-load-failed');
+            // Only mark as failed after 2nd error (first might be premature)
+            if (errorCount >= 2 && !target.dataset.loadFailed) {
+                // Add to failed cache
+                if (src) {
+                    failedMediaUrls.add(src);
+                }
+
+                // Mark as failed
+                target.dataset.loadFailed = 'true';
+                target.classList.add('media-load-failed');
+
+                // Log once
+                if (!target.dataset.errorLogged) {
+                    console.warn('[Kanban Media] Failed to load after retries:', src);
+                    target.dataset.errorLogged = 'true';
+                }
+            }
 
             // Stop propagation to prevent console spam
             e.stopPropagation();
             e.preventDefault();
-
-            // Log once for debugging
-            if (!target.dataset.errorLogged) {
-                console.warn('[Kanban Media] Failed to load:', src);
-                target.dataset.errorLogged = 'true';
-            }
         }
     }, true); // Use capture phase to catch errors before they bubble
 
