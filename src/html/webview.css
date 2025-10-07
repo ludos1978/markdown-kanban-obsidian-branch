@@ -741,7 +741,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	border-radius: 0px 0px 4px 4px;
 }
 
-
 /* Column title section */
 .column-title-section {
   padding: 0 var(--whitespace-div2); /* left & right */
@@ -763,7 +762,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex-direction: column; */
 }
 
-
 /* Align control elements (icons/buttons) with the title baseline */
 .column-title-section > .drag-handle,
 .column-title-section > .collapse-toggle,
@@ -772,7 +770,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
 .column-title-section > .donut-menu {
   margin-top: 2px; /* Align with title text baseline */
 }
-
 
 /* Column title text */
 .column-title-text,
@@ -1262,7 +1259,7 @@ body.section-height-limited .task-section figure img {
   border-radius: 6px;
   padding: 16px 8px;  /* Adjust padding for vertical text */
   font-size: 14px;
-	margin-top: var(--whitespace);
+	margin-top: var(--whitespace-div2);
   cursor: pointer;
   transition: background-color 0.2s;
   align-self: flex-start;

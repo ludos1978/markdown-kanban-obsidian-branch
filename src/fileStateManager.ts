@@ -103,7 +103,6 @@ export class FileStateManager {
             state.backend.hasFileSystemChanges = true;
             state.backend.lastModified = new Date();
             this.updateComputedState(state);
-            console.log(`[FileStateManager] File system change detected: ${path}`);
         }
     }
 
@@ -116,7 +115,6 @@ export class FileStateManager {
             state.backend.isDirtyInEditor = isDirty;
             state.backend.documentVersion = version;
             this.updateComputedState(state);
-            console.log(`[FileStateManager] Editor change detected: ${path}, dirty=${isDirty}, version=${version}`);
         }
     }
 
@@ -131,7 +129,6 @@ export class FileStateManager {
                 state.frontend.content = content;
             }
             this.updateComputedState(state);
-            console.log(`[FileStateManager] Frontend change detected: ${path}, hasChanges=${hasChanges}`);
         }
     }
 
@@ -147,7 +144,6 @@ export class FileStateManager {
             state.backend.hasFileSystemChanges = false;
             state.backend.isDirtyInEditor = false;
             this.updateComputedState(state);
-            console.log(`[FileStateManager] File saved: ${path}`);
         }
     }
 

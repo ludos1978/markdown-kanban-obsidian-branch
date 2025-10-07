@@ -517,7 +517,6 @@ class TaskEditor {
                 // Only recalc if we're in an actual stack (more than 1 column)
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
-                        console.log('[taskEditor] Recalculating stack positions on edit start');
                         void stack.offsetHeight;
                         window.applyStackedColumnStyles();
                     });
@@ -580,7 +579,6 @@ class TaskEditor {
                         lastRecalcTime = now;
                         requestAnimationFrame(() => {
                             requestAnimationFrame(() => {
-                                console.log('[taskEditor] Recalculating stack positions during edit (immediate)');
                                 void stack.offsetHeight;
                                 window.applyStackedColumnStyles();
                             });
@@ -595,7 +593,6 @@ class TaskEditor {
                             lastRecalcTime = Date.now();
                             requestAnimationFrame(() => {
                                 requestAnimationFrame(() => {
-                                    console.log('[taskEditor] Recalculating stack positions during edit (delayed)');
                                     void stack.offsetHeight;
                                     window.applyStackedColumnStyles();
                                 });
@@ -1141,7 +1138,6 @@ class TaskEditor {
                 if (stack && stack.querySelectorAll('.kanban-full-height-column').length > 1) {
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
-                            console.log('[taskEditor] Recalculating stack positions after closing edit');
                             void stack.offsetHeight;
                             window.applyStackedColumnStyles();
                         });

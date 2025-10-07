@@ -4,33 +4,24 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] 
+
+
 - [x] in some situations it doesnt open a link i opened before. 
 - [x] Failed to update stickyStackMode preference: CodeExpectedError: In Arbeitsbereichseinstellungen kann nicht geschrieben werden, weil markdown-kanban.stickyStackMode keine registrierte Konfiguration ist.
 - [x] pressing alt on an image should open the file externally if it's found, othervise the replacement file search should be activated. but it currently doesnt. the code should be in the codebase already, but it currently doesnt seem to be active.
-
-- modifying a columntitle with a !!!columninclude()!!! does not set the title correctly according to the rule: link to filename that is clickable included with the rest of the title and tags
-
+- [x] modifying a columntitle with a !!!columninclude()!!! does not set the title correctly according to the rule: link to filename that is clickable included with the rest of the title and tags
 - [x] when restoring kanban views all views restore one kanban file. not individual files they contained before.
-- [ ] move the corner-badges-container into the column-header div verify that all css is corrected for the new location. ultrathink
-
-
+- [x] move the corner-badges-container into the column-header div verify that all css is corrected for the new location. ultrathink
 - [x] a horizontally folded column with a tag header doesnt add the tag above outside above, but overlaying above the normal header. this is one of the broken examples : TO ADD AN EXMAPLE
-
-
-
 - [x] after i moved away a card from a column i cant fold it anymore.
-
 - [x] lets make columns vertical folding working again. a column that is alone in a stack should by default fold as vertical. if there are multiple columns in a stack the folding should be horizontal. by pressing alt+fold-button the column switches between horizontal and vertical folding. all the functions and styles should be available already.
 - [x] if i delete a task recalculate the full stacks heights reuse the existing function for that
-
 - [x] make sure that in columns the "column-header.header-bars-container" contains the "header-bar" and "column-footer.footer-bars-container" contains the "footer-bar" in all circumstances.
-
 - [x] disable the vertical column folding mode
-- the title when inserting of a columninclude should only show thae filename included and he remainder of the contents. 
-
+- [x] the title when inserting of a columninclude should only show thae filename included and he remainder of the contents. 
 - [x] On start drag fix the tags of the source stack (where we took the column from). On end drag fix the tags of the destination stack (where we put the column)
-  
-- Corrected Summary of Implementation:
+- [x] Corrected Summary of Implementation:
 CSS Changes:
 - Grid overlay structure: All stacked columns overlay in single grid cell
 - Full viewport height: Each column min-height: 100vh so sticky works across entire scroll
@@ -46,9 +37,7 @@ Stacked columns overlay in same grid position with full viewport height
 Headers stick to top, footers stick to bottom
 Content scrolls naturally as before
 #stack tags automatically managed when dragging columns
-
 - [x] When moving a task into a folded column while pressing alt, the column should not unfold as it usually does.
-
 - [x] Columns that are in a "vertical stack" have a #stack tag or the next column has a #stack tag. Add a feature to make the columns fold horizontally, but keep the vertical folding function available. An column in a "vertical stack" stack should by default folds to horizontal folding state, a column in outside a stack should fold to vertical fold state. If <alt> is pressed while pressing the fold button again, the horizontal/vertical folding should switch. when pressing <alt> while it's unfolded, fold to the not-default-state. When <alt> is not pressed a folded column unfolds.
 
 - [x] Export and pack of the kanban does not generate the default folder name it should export into (based on the filename of the main kanban file combined with the date-time like "YYYYMMDD-HHmm").
