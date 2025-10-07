@@ -3007,6 +3007,17 @@ blockquote {
   opacity: 0.8;
 }
 
+/* Highlight lines/paragraphs containing tags in description */
+.task-description-display p:has(.kanban-tag),
+.task-description-display li:has(.kanban-tag),
+.task-description-display div:has(.kanban-tag) {
+  background-color: var(--vscode-list-hoverBackground);
+  padding: 2px 4px;
+  margin: 2px 0;
+  border-radius: 3px;
+  border-left: 2px solid var(--vscode-badge-background);
+}
+
 /* Special styling for span and row tags */
 .kanban-tag[data-tag^="span"],
 .kanban-tag[data-tag^="row"] {

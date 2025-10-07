@@ -3088,7 +3088,19 @@ function generateTagStyles() {
                         background-color: ${themeColors.background} !important;
                         border: 1px solid ${themeColors.background};
                     }\n`;
-                    
+
+                    // Highlight lines/paragraphs containing this tag in descriptions
+                    // Only p and li elements, not the task-section div wrappers
+                    const lineBgAlpha = themeColors.background + '20'; // Add 20 for ~12% opacity
+                    styles += `.task-description-display p:has(.kanban-tag[data-tag="${lowerTagName}"]),
+.task-description-display li:has(.kanban-tag[data-tag="${lowerTagName}"]) {
+    background-color: ${lineBgAlpha} !important;
+    border-left: 2px solid ${themeColors.background} !important;
+    padding: 2px 4px !important;
+    margin: 2px 0 !important;
+    border-radius: 3px !important;
+}\n`;
+
                     // Get the base background color (or use editor background as default)
                     const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
                     const bgDark = themeColors.backgroundDark || themeColors.background;
@@ -3359,12 +3371,23 @@ function injectStackableBars(targetElement = null) {
         const isCollapsed = isColumn && isColumnCollapsed(element);
         const isStacked = isColumn && element.closest('.kanban-column-stack');
 
-        // Filter out tags that are only in description for task elements
+        // Filter out tags that are ONLY in description (not in title) for task elements
         if (!isColumn) { // This is a task element
+            const taskTitleDisplay = element.querySelector('.task-title-display');
             const taskDescDisplay = element.querySelector('.task-description-display');
-            if (taskDescDisplay) {
+
+            if (taskTitleDisplay && taskDescDisplay) {
+                // Get tags from title
+                const titleTags = new Set();
+                taskTitleDisplay.querySelectorAll('.kanban-tag').forEach(tagSpan => {
+                    const tagName = tagSpan.getAttribute('data-tag');
+                    if (tagName) {
+                        titleTags.add(tagName);
+                    }
+                });
+
+                // Get tags from description
                 const descriptionTags = new Set();
-                // Find all tag spans in the description
                 taskDescDisplay.querySelectorAll('.kanban-tag').forEach(tagSpan => {
                     const tagName = tagSpan.getAttribute('data-tag');
                     if (tagName) {
@@ -3372,8 +3395,9 @@ function injectStackableBars(targetElement = null) {
                     }
                 });
 
-                // Only use tags that are NOT in description for card-level styling
-                tags = tags.filter(tag => !descriptionTags.has(tag));
+                // Only use tags that are in the title (even if also in description)
+                // Filter out tags that are ONLY in description
+                tags = tags.filter(tag => titleTags.has(tag) || !descriptionTags.has(tag));
             }
         }
         
@@ -3422,9 +3446,10 @@ function injectStackableBars(targetElement = null) {
                 // The header-bars-container uses flex layout, so bars stack naturally
 
                 headerBars.push(headerBar);
-                if (config.headerBar.label) {hasHeaderLabel = true;}
+                // Only add label class for columns, not for tasks
+                if (config.headerBar.label && isColumn) {hasHeaderLabel = true;}
             }
-            
+
             if (config && config.footerBar) {
                 const footerBar = document.createElement('div');
                 footerBar.className = `footer-bar footer-bar-${tag}`;
@@ -3433,7 +3458,8 @@ function injectStackableBars(targetElement = null) {
                 // The footer-bars-container uses flex layout, so bars stack naturally
 
                 footerBars.push(footerBar);
-                if (config.footerBar.label) {hasFooterLabel = true;}
+                // Only add label class for columns, not for tasks
+                if (config.footerBar.label && isColumn) {hasFooterLabel = true;}
             }
         });
         
