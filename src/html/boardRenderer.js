@@ -3418,15 +3418,8 @@ function injectStackableBars(targetElement = null) {
                 const headerBar = document.createElement('div');
                 headerBar.className = `header-bar header-bar-${tag}`;
 
-                if (!isCollapsed) {
-                    // Only use absolute positioning for non-collapsed elements
-                    const height = config.headerBar.label ? 20 : parseInt(config.headerBar.height || '4px');
-                    headerBar.style.top = `${headerBars.reduce((sum, bar) => {
-                        const barTag = bar.className.match(/header-bar-(\S+)/)?.[1];
-                        const barConfig = getTagConfig(barTag);
-                        return sum + (barConfig?.headerBar?.label ? 20 : parseInt(barConfig?.headerBar?.height || '4px'));
-                    }, 0)}px`;
-                }
+                // Don't set inline top style - let CSS handle layout via flexbox/normal flow
+                // The header-bars-container uses flex layout, so bars stack naturally
 
                 headerBars.push(headerBar);
                 if (config.headerBar.label) {hasHeaderLabel = true;}
@@ -3435,17 +3428,10 @@ function injectStackableBars(targetElement = null) {
             if (config && config.footerBar) {
                 const footerBar = document.createElement('div');
                 footerBar.className = `footer-bar footer-bar-${tag}`;
-                
-                if (!isCollapsed) {
-                    // Only use absolute positioning for non-collapsed elements
-                    const height = config.footerBar.label ? 20 : parseInt(config.footerBar.height || '3px');
-                    footerBar.style.bottom = `${footerBars.reduce((sum, bar) => {
-                        const barTag = bar.className.match(/footer-bar-(\S+)/)?.[1];
-                        const barConfig = getTagConfig(barTag);
-                        return sum + (barConfig?.footerBar?.label ? 20 : parseInt(barConfig?.footerBar?.height || '3px'));
-                    }, 0)}px`;
-                }
-                
+
+                // Don't set inline bottom style - let CSS handle layout via flexbox/normal flow
+                // The footer-bars-container uses flex layout, so bars stack naturally
+
                 footerBars.push(footerBar);
                 if (config.footerBar.label) {hasFooterLabel = true;}
             }
