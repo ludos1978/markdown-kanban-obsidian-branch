@@ -2433,6 +2433,8 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 
 .kanban-board.multi-row .kanban-row {
   position: relative;
+	margin-top: var(--whitespace-div2);
+	border-bottom: 0.5px dashed var(--vscode-panel-border);
 }
 
 .kanban-board.multi-row .kanban-row.drag-over {
