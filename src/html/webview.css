@@ -624,7 +624,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
   /* This contains the actual visual column with border and background */
   display: flex;
   flex-direction: column;
-  padding: var(--whitespace-div4)  var(--whitespace-div2) 0 var(--whitespace-div2);
+  padding: var(--whitespace-div4)  var(--whitespace-div2) var(--whitespace-div4) var(--whitespace-div2);
   flex: 0 0 auto;
   background-color: var(--vscode-editor-background);
   /* border-radius: 0 0 var(--whitespace-div4) var(--whitespace-div4); */
