@@ -92,6 +92,7 @@ const baseOptions = {
         { label: "Small", value: "250px", css: "250px" },
         { label: "Medium", value: "350px", css: "350px" },
         { label: "Wide", value: "450px", css: "450px" },
+        { label: "X-Wide", value: "650px", css: "650px" },
         { label: "1/3 Screen", value: "33percent", css: "31.5vw", separator: true },
         { label: "1/2 Screen", value: "50percent", css: "48vw" },
         { label: "2/3 Screen", value: "66percent", css: "63vw"},
