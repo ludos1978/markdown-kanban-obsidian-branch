@@ -1418,14 +1418,21 @@ function renderBoard() {
         if (window.stackedColumnStylesTimeout) {
             clearTimeout(window.stackedColumnStylesTimeout);
         }
-        // Debounce: wait for renders to settle before measuring
+        // Batch post-render operations to reduce DOM thrashing
         window.stackedColumnStylesTimeout = setTimeout(() => {
+            // Apply stacked column styles
             applyStackedColumnStyles();
+
+            // Re-apply column width after render to preserve user's UI settings
+            if (window.currentColumnWidth && window.applyColumnWidth) {
+                window.applyColumnWidth(window.currentColumnWidth, true); // Skip render to prevent loop
+            }
+
             window.stackedColumnStylesTimeout = null;
         }, 50);
     }
 
-    // Apply immediate visual updates to all elements with tags
+    // Apply immediate visual updates to all elements with tags - done earlier for visual feedback
     setTimeout(() => {
         document.querySelectorAll('[data-all-tags]').forEach(element => {
             const tags = element.getAttribute('data-all-tags').split(' ').filter(tag => tag.trim());
@@ -1435,14 +1442,6 @@ function renderBoard() {
             }
         });
     }, 20);
-
-    // Re-apply column width after render to preserve user's UI settings
-    // Use setTimeout to ensure DOM is fully ready after the render
-    setTimeout(() => {
-        if (window.currentColumnWidth && window.applyColumnWidth) {
-            window.applyColumnWidth(window.currentColumnWidth, true); // Skip render to prevent loop
-        }
-    }, 50);
 
     // Setup compact view detection for ALL columns
     // DISABLED: Causes severe performance issues with expensive scroll handlers
@@ -2240,7 +2239,37 @@ function enforceFoldModesForStacks(stackElement = null) {
  * Call this for most events (task moves, task folds, etc.)
  * @param {HTMLElement} stackElement - Specific stack to recalc, or null for all stacks
  */
-function recalculateStackHeights(stackElement = null) {
+// Debounced version to prevent excessive calls
+let recalculateStackHeightsTimer = null;
+let pendingStackElement = null;
+
+function recalculateStackHeightsDebounced(stackElement = null) {
+    // Store the stack element - if null is passed, it will recalculate all
+    // If a specific stack is passed multiple times, we still only recalculate once
+    if (stackElement === null) {
+        pendingStackElement = null; // null means recalculate all
+    } else if (pendingStackElement !== null) {
+        // If we already have a specific stack pending and another specific stack is requested,
+        // upgrade to recalculate all
+        if (pendingStackElement !== stackElement) {
+            pendingStackElement = null;
+        }
+    } else {
+        pendingStackElement = stackElement;
+    }
+
+    if (recalculateStackHeightsTimer) {
+        clearTimeout(recalculateStackHeightsTimer);
+    }
+
+    recalculateStackHeightsTimer = setTimeout(() => {
+        recalculateStackHeightsImmediate(pendingStackElement);
+        recalculateStackHeightsTimer = null;
+        pendingStackElement = null;
+    }, 150); // 150ms debounce delay
+}
+
+function recalculateStackHeightsImmediate(stackElement = null) {
     const stacks = stackElement ? [stackElement] : document.querySelectorAll('.kanban-column-stack');
 
     stacks.forEach(stack => {
@@ -2281,10 +2310,7 @@ function recalculateStackHeights(stackElement = null) {
                 const footer = col.querySelector('.column-footer');
                 const content = col.querySelector('.column-inner');
 
-                // Force reflow on each header to ensure bars are included in measurement
-                if (columnHeader) {void columnHeader.offsetHeight;}
-                if (header) {void header.offsetHeight;}
-                if (footer) {void footer.offsetHeight;}
+                // No need for individual reflows since we already forced one above on the parent stack
 
                 const columnHeaderHeight = columnHeader ? columnHeader.offsetHeight : 0;
                 const headerHeight = header ? header.offsetHeight : 0;
@@ -2504,7 +2530,9 @@ function recalculateStackHeights(stackElement = null) {
 
 // Export new functions
 window.enforceFoldModesForStacks = enforceFoldModesForStacks;
-window.recalculateStackHeights = recalculateStackHeights;
+// Use debounced version by default for performance, but export immediate version too
+window.recalculateStackHeights = recalculateStackHeightsDebounced;
+window.recalculateStackHeightsImmediate = recalculateStackHeightsImmediate;
 
 /**
  * Setup scroll handler to keep all column headers visible at all times
@@ -2520,7 +2548,10 @@ function setupStackedColumnScrollHandler(columnsData) {
     window.stackedColumnsData = columnsData;
 
     // Create scroll handler with FIXED positioning for bottom headers
-    const scrollHandler = () => {
+    // Use requestAnimationFrame throttling to prevent excessive calls
+    let ticking = false;
+
+    const updateScrollPositions = () => {
         if (!window.stackedColumnsData) return;
 
         const scrollY = window.scrollY || window.pageYOffset;
@@ -2608,6 +2639,15 @@ function setupStackedColumnScrollHandler(columnsData) {
                 // }
             }
         });
+
+        ticking = false;
+    };
+
+    const scrollHandler = () => {
+        if (!ticking) {
+            requestAnimationFrame(updateScrollPositions);
+            ticking = true;
+        }
     };
 
     // Store handler reference
@@ -2617,7 +2657,7 @@ function setupStackedColumnScrollHandler(columnsData) {
     window.addEventListener('scroll', scrollHandler, true);
 
     // Run once immediately
-    scrollHandler();
+    updateScrollPositions();
 }
 window.setupStackedColumnScrollHandler = setupStackedColumnScrollHandler;
 

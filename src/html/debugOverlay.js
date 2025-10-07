@@ -208,10 +208,18 @@ function startAutoRefresh() {
     // Clear existing timer
     stopAutoRefresh();
 
+    // Only start timer if overlay is actually visible or sticky
+    if (!debugOverlayVisible && !debugOverlaySticky) {
+        return;
+    }
+
     // Start new auto-refresh timer (refresh every 5 seconds, less frequent)
     autoRefreshTimer = setInterval(() => {
         if (debugOverlayVisible && (debugOverlaySticky || document.querySelector('#debug-overlay:hover'))) {
             refreshDebugOverlay();
+        } else {
+            // Stop timer if overlay is no longer visible
+            stopAutoRefresh();
         }
     }, 5000);
 

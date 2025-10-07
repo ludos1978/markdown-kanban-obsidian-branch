@@ -516,10 +516,7 @@ class TaskEditor {
             if (stack && stack.querySelectorAll('.kanban-full-height-column').length > 1) {
                 // Only recalc if we're in an actual stack (more than 1 column)
                 requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        void stack.offsetHeight;
-                        window.applyStackedColumnStyles();
-                    });
+                    window.applyStackedColumnStyles();
                 });
             }
         }
@@ -558,9 +555,17 @@ class TaskEditor {
         let recalcTimeout = null;
         let lastRecalcTime = 0;
         const MIN_DELAY_BETWEEN_RECALC = 300; // Minimum 300ms delay between recalculations
+        let autoResizePending = false;
 
         editElement.oninput = () => {
-            this.autoResize(editElement);
+            // Throttle autoResize to max 60fps for smooth input
+            if (!autoResizePending) {
+                autoResizePending = true;
+                requestAnimationFrame(() => {
+                    this.autoResize(editElement);
+                    autoResizePending = false;
+                });
+            }
             // For editing in stacked columns, recalculate positions after resize
             // Throttle with minimum 300ms delay between recalculations
             if (typeof window.applyStackedColumnStyles === 'function') {

@@ -4,7 +4,7 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] 
+- [ ] ...
 
 
 - [x] in some situations it doesnt open a link i opened before. 

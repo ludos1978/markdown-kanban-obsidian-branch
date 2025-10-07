@@ -1177,6 +1177,9 @@ function setupTaskDragAndDrop() {
         });
 
         // Keep the existing tasks container specific handling for precise placement
+        // Throttle transition class updates using requestAnimationFrame
+        let transitionUpdatePending = false;
+
         tasksContainer.addEventListener('dragover', e => {
             e.preventDefault();
 
@@ -1198,12 +1201,12 @@ function setupTaskDragAndDrop() {
             if (!dragState.draggedTask.classList.contains('dragging')) {
                 dragState.draggedTask.classList.add('dragging', 'drag-preview');
             }
-            
+
             // Remove any column-level visual feedback when over tasks
             columnElement.classList.remove('drag-over-append');
-            
+
             const afterElement = getDragAfterTaskElement(tasksContainer, e.clientY);
-            
+
             if (afterElement === null) {
                 // Insert at the end, but before the add button if it exists
                 const addButton = tasksContainer.querySelector('.add-task-btn');
@@ -1216,13 +1219,19 @@ function setupTaskDragAndDrop() {
                 // Insert before the after element
                 tasksContainer.insertBefore(dragState.draggedTask, afterElement);
             }
-            
-            // Add transition classes for smooth movement
-            tasksContainer.querySelectorAll('.task-item').forEach(task => {
-                if (task !== dragState.draggedTask) {
-                    task.classList.add('drag-transitioning');
-                }
-            });
+
+            // Throttle transition class updates to max 60fps
+            if (!transitionUpdatePending) {
+                transitionUpdatePending = true;
+                requestAnimationFrame(() => {
+                    tasksContainer.querySelectorAll('.task-item').forEach(task => {
+                        if (task !== dragState.draggedTask) {
+                            task.classList.add('drag-transitioning');
+                        }
+                    });
+                    transitionUpdatePending = false;
+                });
+            }
         });
 
         tasksContainer.addEventListener('drop', e => {
@@ -1247,6 +1256,12 @@ function setupTaskDragAndDrop() {
 }
 
 function setupTaskDragHandle(handle) {
+    // Prevent duplicate event listeners
+    if (handle.dataset.dragSetup === 'true') {
+        return;
+    }
+    handle.dataset.dragSetup = 'true';
+
     handle.draggable = true;
 
     handle.addEventListener('dragstart', e => {
@@ -1281,16 +1296,20 @@ function setupTaskDragHandle(handle) {
         if (taskItem) {
             // Clean up drag state FIRST
             dragState.isDragging = false;
-            
+
             // Remove all visual feedback
             taskItem.classList.remove('dragging', 'drag-preview');
-            document.querySelectorAll('.task-item').forEach(task => {
-                task.classList.remove('drag-transitioning');
-            });
-            // Clean up column drag-over styles
-            document.querySelectorAll('.kanban-full-height-column').forEach(col => {
-                col.classList.remove('drag-over-append');
-            });
+            // Scope cleanup to kanban board instead of entire document for performance
+            const boardElement = document.getElementById('kanban-board');
+            if (boardElement) {
+                boardElement.querySelectorAll('.task-item').forEach(task => {
+                    task.classList.remove('drag-transitioning');
+                });
+                // Clean up column drag-over styles
+                boardElement.querySelectorAll('.kanban-full-height-column').forEach(col => {
+                    col.classList.remove('drag-over-append');
+                });
+            }
             
             // Get the final position
             const finalParent = taskItem.parentNode;
@@ -1741,6 +1760,12 @@ function setupColumnDragAndDrop() {
     columns.forEach(column => {
         const dragHandle = column.querySelector('.column-drag-handle');
         if (!dragHandle) {return;}
+
+        // Prevent duplicate event listeners
+        if (dragHandle.dataset.dragSetup === 'true') {
+            return;
+        }
+        dragHandle.dataset.dragSetup = 'true';
 
         dragHandle.addEventListener('dragstart', e => {
             const columnElement = column;
