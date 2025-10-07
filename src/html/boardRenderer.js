@@ -10,6 +10,24 @@ window.globalColumnFoldState = window.globalColumnFoldState || 'fold-mixed'; // 
 // let window.currentBoard = null; // Removed to avoid conflicts
 let renderTimeout = null;
 
+// Cache board element reference for performance
+let cachedBoardElement = null;
+function getBoardElement() {
+    if (!cachedBoardElement) {
+        cachedBoardElement = document.getElementById('kanban-board');
+    }
+    return cachedBoardElement;
+}
+
+// Cache CSS variables for performance
+let cachedEditorBg = null;
+function getEditorBackground() {
+    if (!cachedEditorBg) {
+        cachedEditorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+    }
+    return cachedEditorBg;
+}
+
 // extractFirstTag function now in utils/tagUtils.js
 
 
@@ -145,7 +163,7 @@ function ensureTagStyleExists(tagName) {
     
     // Generate styles for this specific tag
     const tagConfig = config;
-    const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+    const editorBg = getEditorBackground();
     let newStyles = '';
     
     // Generate column styles for this tag
@@ -953,7 +971,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
                 
                 // If we have a backgroundDark, interpolate it for a subtle effect
                 if (bgDark) {
-                    const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+                    const editorBg = getEditorBackground();
                     // Use a lighter interpolation for the button background when active
                     bgColor = interpolateColor(editorBg, bgDark, isActive ? 0.25 : 0.1);
                 }
@@ -1181,8 +1199,8 @@ function renderBoard() {
     if (window.taskEditor && window.taskEditor.currentEditor) {
         return;
     }
-    
-    const boardElement = document.getElementById('kanban-board');
+
+    const boardElement = getBoardElement();
     if (!boardElement) {
         console.error('Board element not found');
         return;
@@ -1210,8 +1228,8 @@ function renderBoard() {
         window.currentBoard.columns = [];
     }
     
-    // Save current scroll positions
-    document.querySelectorAll('.tasks-container').forEach(container => {
+    // Save current scroll positions - scope to board element for performance
+    boardElement.querySelectorAll('.tasks-container').forEach(container => {
         const columnId = container.id.replace('tasks-', '');
         scrollPositions.set(columnId, container.scrollTop);
     });
@@ -1304,6 +1322,9 @@ function renderBoard() {
     // Always use row containers (even for single row)
     boardElement.classList.add('multi-row');
 
+    // Use DocumentFragment to batch DOM insertions for better performance
+    const fragment = document.createDocumentFragment();
+
     // Create row containers
     for (let row = 1; row <= numRows; row++) {
             const rowContainer = document.createElement('div');
@@ -1368,8 +1389,11 @@ function renderBoard() {
             dropZoneSpacer.className = 'row-drop-zone-spacer';
             rowContainer.appendChild(dropZoneSpacer);
 
-            boardElement.appendChild(rowContainer);
+            fragment.appendChild(rowContainer);
         }
+
+    // Append all rows at once to minimize reflows
+    boardElement.appendChild(fragment);
 
     // Apply folding states after rendering
     setTimeout(() => {
@@ -3034,7 +3058,7 @@ function generateTagStyles() {
         if (defaultConfig.column && (defaultConfig.column.applyBackground === true || defaultConfig.column.enable === true)) {
             const columnColors = defaultConfig.column[themeKey] || defaultConfig.column.light || {};
             if (columnColors.text && columnColors.background) {
-                const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+                const editorBg = getEditorBackground();
                 const bgDark = columnColors.backgroundDark || columnColors.background;
                 
                 const columnBg = interpolateColor(editorBg, bgDark, 0.15);
@@ -3080,7 +3104,7 @@ function generateTagStyles() {
         if (defaultConfig.card && (defaultConfig.card.applyBackground === true || defaultConfig.card.enable === true)) {
             const cardColors = defaultConfig.card[themeKey] || defaultConfig.card.light || {};
             if (cardColors.text && cardColors.background) {
-                const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+                const editorBg = getEditorBackground();
                 const bgDark = cardColors.backgroundDark || cardColors.background;
                 
                 const cardBg = interpolateColor(editorBg, bgDark, 0.25);
@@ -3142,7 +3166,7 @@ function generateTagStyles() {
 }\n`;
 
                     // Get the base background color (or use editor background as default)
-                    const editorBg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background') || '#ffffff';
+                    const editorBg = getEditorBackground();
                     const bgDark = themeColors.backgroundDark || themeColors.background;
                     
                     // Column background styles - only for primary tag
