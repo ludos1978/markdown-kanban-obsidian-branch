@@ -584,6 +584,33 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	height: var(--whitespace-div4);
 }
 
+.column-inner {
+  /* This is the scrollable container for sticky positioning */
+	transform: translateZ(0.01px);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* overflow-y: auto; */ /* must be disabled for sticky childs to work */
+	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
+	/* border-radius: 0px 0px 4px 4px; */
+  overflow-x: visible;
+  /* min-height: 100%; */
+	max-height: min-content;
+  background-color: transparent;
+}
+
+.column-footer {
+	padding-top: var(--whitespace-div2);
+	position: sticky;
+	/* top: 28px; */
+	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
+	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
+	border-radius: 0px 0px 4px 4px;
+}
+
 /* .column-inner :not(has) */
 
 .column-content {
@@ -1063,9 +1090,10 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	max-height: inherit;
 }
 
-.task-description-display:hover {
+/* DISABLED: Causes white overlay on videos when hovering */
+/* .task-description-display:hover {
   background-color: var(--vscode-list-hoverBackground);
-}
+} */
 
 /* Task section styling for content between HRs */
 .task-section {
@@ -1139,9 +1167,10 @@ body.section-height-limited .task-section figure img {
   border-radius: 3px;
 }
 
-.task-description-display:empty:hover::before {
+/* DISABLED: Related to video overlay issue */
+/* .task-description-display:empty:hover::before {
   background-color: var(--vscode-list-hoverBackground);
-}
+} */
 
 /* Edit fields */
 .column-title-edit,
