@@ -593,7 +593,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .column-inner {
   /* This is the scrollable container for sticky positioning */
-	transform: translateZ(0.02px);
+	transform: translateZ(0.05px);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -686,7 +686,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 .column-header {
-	transform: translateZ(0.04px);
+	transform: translateZ(0.066px);
   position: sticky;
   z-index: 11;
   background-color: var(--vscode-editor-background);
@@ -694,7 +694,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Column title */
 .column-title {
-	transform: translateZ(0.06px);
+	transform: translateZ(0.1px);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -714,7 +714,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .column-inner {
   /* This is the scrollable container for sticky positioning */
-	transform: translateZ(0.02px);
+	transform: translateZ(0.033px);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -730,7 +730,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 .column-footer {
-	transform: translateZ(0.04px);
+	transform: translateZ(0.066px);
 	padding-top: var(--whitespace-div4);
 	position: sticky;
 	/* top: 28px; */
@@ -2433,8 +2433,8 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 
 .kanban-board.multi-row .kanban-row {
   position: relative;
-	margin-top: var(--whitespace-div2);
-	border-bottom: 0.5px dashed var(--vscode-panel-border);
+	margin-bottom: var(--whitespace-div2);
+	border-top: 0.5px dashed var(--vscode-panel-border);
 }
 
 .kanban-board.multi-row .kanban-row.drag-over {
