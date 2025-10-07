@@ -89,10 +89,10 @@ function injectFontSizeCSS() {
 const baseOptions = {
     // Column width options
     columnWidth: [
-        { label: "Small", value: "250px", css: "250px" },
-        { label: "Medium", value: "350px", css: "350px" },
-        { label: "Wide", value: "450px", css: "450px" },
-        { label: "X-Wide", value: "650px", css: "650px" },
+        { label: "250px", value: "250px", css: "250px" },
+        { label: "350px", value: "350px", css: "350px" },
+        { label: "450px", value: "450px", css: "450px" },
+        { label: "650px", value: "650px", css: "650px" },
         { label: "1/3 Screen", value: "33percent", css: "31.5vw", separator: true },
         { label: "1/2 Screen", value: "50percent", css: "48vw" },
         { label: "2/3 Screen", value: "66percent", css: "63vw"},
@@ -1886,11 +1886,14 @@ function updateDocumentUri(newUri) {
 
 document.addEventListener('DOMContentLoaded', () => {
     // Theme observer is set up later in the file
-    
+
     // Initialize clipboard card source - handled by HTML ondragstart/ondragend attributes
-    
+
     // Populate dynamic menus
     populateDynamicMenus();
+
+    // Initialize border styles from config
+    updateBorderStyles();
 
     // Update clipboard content when window gets focus
     window.addEventListener('focus', async () => {
@@ -2361,6 +2364,15 @@ window.addEventListener('message', event => {
                     applyFontFamily(message.fontFamily);
                 } else {
                     applyFontFamily('system'); // Default fallback
+                }
+
+                // Store border configuration from extension
+                if (message.columnBorder && message.taskBorder) {
+                    window.borderConfig = {
+                        columnBorder: message.columnBorder,
+                        taskBorder: message.taskBorder
+                    };
+                    updateBorderStyles();
                 }
 
                 // Update column width with the value from configuration
@@ -3635,12 +3647,13 @@ function updateWhitespace(value) {
 }
 
 function updateBorderStyles() {
-    const configManager = window.configManager;
-    if (!configManager) return;
+    // Borders should be set via window.borderConfig from extension
+    if (!window.borderConfig) {
+        console.error('[Border] Border configuration not received from extension');
+        return;
+    }
 
-    // Get complete border style configurations
-    const columnBorder = configManager.getConfig('columnBorder', '0.5px solid var(--vscode-panel-border)');
-    const taskBorder = configManager.getConfig('taskBorder', '1px solid var(--vscode-panel-border)');
+    const { columnBorder, taskBorder } = window.borderConfig;
 
     // Apply CSS variables
     document.documentElement.style.setProperty('--column-border', columnBorder);
@@ -3773,6 +3786,7 @@ function updateMaxRowHeight(value) {
 window.saveCurrentFoldingState = saveCurrentFoldingState;
 window.restoreFoldingState = restoreFoldingState;
 window.calculateTaskDescriptionHeight = calculateTaskDescriptionHeight;
+window.updateBorderStyles = updateBorderStyles;
 
 // Make functions globally available
 window.toggleFileBarMenu = toggleFileBarMenu;
@@ -3906,6 +3920,60 @@ window.setFontSize = setFontSize;
 window.toggleCardFontSize = toggleCardFontSize;
 window.openIncludeFile = openIncludeFile;
 
+/**
+ * Lazy load videos using IntersectionObserver for better performance
+ * Videos with preload="none" will only start loading metadata when visible
+ */
+function initializeVideoLazyLoading() {
+    // Check if IntersectionObserver is supported
+    if (!('IntersectionObserver' in window)) {
+        return;
+    }
+
+    const videoObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const video = entry.target;
+                // Change preload from "none" to "metadata" when video comes into view
+                // This loads the first frame and duration without loading the entire video
+                if (video.preload === 'none') {
+                    video.preload = 'metadata';
+                }
+                // Stop observing once we've triggered the load
+                videoObserver.unobserve(video);
+            }
+        });
+    }, {
+        // Start loading when video is within 200px of viewport
+        rootMargin: '200px',
+        // Trigger when at least 10% of video is visible
+        threshold: 0.1
+    });
+
+    // Observe all video elements
+    const observeVideos = () => {
+        document.querySelectorAll('video[preload="none"]').forEach(video => {
+            videoObserver.observe(video);
+        });
+    };
+
+    // Observe videos on initial load
+    observeVideos();
+
+    // Re-observe videos after board renders (use MutationObserver to catch new videos)
+    const boardObserver = new MutationObserver(() => {
+        observeVideos();
+    });
+
+    const boardElement = document.getElementById('kanban-board');
+    if (boardElement) {
+        boardObserver.observe(boardElement, {
+            childList: true,
+            subtree: true
+        });
+    }
+}
+
 // Initialize font size on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Set default font size to small (maintaining current behavior)
@@ -3913,6 +3981,9 @@ document.addEventListener('DOMContentLoaded', function() {
     injectFontSizeCSS();
 
     setFontSize('1_0x');
+
+    // Initialize video lazy loading for better performance with many videos
+    initializeVideoLazyLoading();
 
     // Recalculate task description heights when window resizes (for vh units)
     window.addEventListener('resize', () => {

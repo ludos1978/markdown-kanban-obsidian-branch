@@ -173,6 +173,14 @@ function pushMediaToken(state, media, options) {
     token.attrSet("controls", "");
   }
 
+  // CRITICAL PERFORMANCE FIX: Set preload="none" for videos to prevent
+  // automatic loading of all videos when page renders.
+  // With many videos, this causes massive CPU and bandwidth usage.
+  // Videos will only load when user clicks play.
+  if (tagName === "video") {
+    token.attrSet("preload", "none");
+  }
+
   addMediaAttrs(token, media, options?.attrs?.[mediaType]);
 
   return token;

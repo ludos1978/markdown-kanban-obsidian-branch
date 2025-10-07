@@ -20,6 +20,8 @@ export interface KanbanConfiguration {
     fontSize: string;
     fontFamily: string;
     columnWidth: string;
+    columnBorder: string;
+    taskBorder: string;
     layoutRows: number;
     rowHeight: string;
     layoutPreset: string;

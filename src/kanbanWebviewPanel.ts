@@ -1537,8 +1537,12 @@ export class KanbanWebviewPanel {
         const layoutPresets = await this._getLayoutPresetsConfiguration();
 
         const showRowTags = await this._getShowRowTagsConfiguration();
-        
+
         const maxRowHeight = await this._getMaxRowHeightConfiguration();
+
+        const columnBorder = await this._getColumnBorderConfiguration();
+
+        const taskBorder = await this._getTaskBorderConfiguration();
 
         // Get version from package.json
         const packageJson = require('../package.json');
@@ -1562,6 +1566,8 @@ export class KanbanWebviewPanel {
                 layoutPresets: layoutPresets,
                 showRowTags: showRowTags,
                 maxRowHeight: maxRowHeight,
+                columnBorder: columnBorder,
+                taskBorder: taskBorder,
                 applyDefaultFolding: applyDefaultFolding,
                 isFullRefresh: isFullRefresh,
                 version: version
@@ -2188,6 +2194,14 @@ export class KanbanWebviewPanel {
         const config = vscode.workspace.getConfiguration('markdown-kanban');
         const showRowTags = config.get<boolean>('showRowTags', false);
         return showRowTags;
+    }
+
+    private async _getColumnBorderConfiguration(): Promise<string> {
+        return configService.getConfig('columnBorder', '0.5px solid var(--vscode-panel-border)');
+    }
+
+    private async _getTaskBorderConfiguration(): Promise<string> {
+        return configService.getConfig('taskBorder', '1px solid var(--vscode-panel-border)');
     }
 
 
