@@ -4040,29 +4040,3 @@ figcaption {
     height: auto !important;
     object-fit: contain !important;
 }
-/* ========================================
-   Horizontal Fold Mode (New Feature)
-   ======================================== */
-
-/* Horizontal fold: thin bar with normal text orientation, stays in stack */
-
-/* ========================================
-   Media Loading Error States
-   ======================================== */
-
-/* Error handling done in JS (webview.js) to prevent listener leaks and console spam.
-   No visual styling - videos fail silently like before. */
-
-/* Ensure media elements in tasks are styled appropriately */
-.task-description-display video,
-.task-description-display audio {
-    max-width: 100%;
-    border-radius: 4px;
-    margin: 8px 0;
-}
-
-/* Controls styling for video/audio elements */
-video::-webkit-media-controls-panel,
-audio::-webkit-media-controls-panel {
-    background-color: var(--vscode-editor-background);
-}
