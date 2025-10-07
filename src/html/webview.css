@@ -731,7 +731,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .column-footer {
 	transform: translateZ(0.04px);
-	padding-top: var(--whitespace-div2);
+	padding-top: var(--whitespace-div4);
 	position: sticky;
 	/* top: 28px; */
 	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
@@ -1888,7 +1888,7 @@ button.file-bar-menu-item {
 .kanban-column-stack .kanban-full-height-column .column-margin {
   position: sticky;
   background: var(--vscode-editor-background);
-  height: var(--whitespace);
+  height: var(--whitespace-div2);
 }
 
 /* Sticky headers and titles at bottom with dynamic offsets (set by JavaScript inline styles) */
