@@ -539,6 +539,15 @@ export class MessageHandler {
                 );
                 break;
 
+            case 'pasteImageIntoField':
+                await this.handlePasteImageIntoField(
+                    message.imageData,
+                    message.imageType,
+                    message.md5Hash,
+                    message.cursorPosition
+                );
+                break;
+
             case 'getExportDefaultFolder':
                 await this.handleGetExportDefaultFolder();
                 break;
@@ -1417,6 +1426,85 @@ export class MessageHandler {
                     success: false,
                     error: error instanceof Error ? error.message : 'Unknown error',
                     dropPosition: dropPosition
+                });
+            }
+        }
+    }
+
+    private async handlePasteImageIntoField(
+        imageData: string,
+        imageType: string,
+        md5Hash: string,
+        cursorPosition: number
+    ): Promise<void> {
+        try {
+            // Get current file path
+            const document = this._fileManager.getDocument();
+            const currentFilePath = this._fileManager.getFilePath() || document?.uri.fsPath;
+            if (!currentFilePath) {
+                console.error('[MESSAGE HANDLER] No current file path available for paste image');
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'imagePastedIntoField',
+                        success: false,
+                        error: 'No current file path available',
+                        cursorPosition: cursorPosition
+                    });
+                }
+                return;
+            }
+
+            // Extract base filename without extension
+            const pathParts = currentFilePath.split(/[\/\\]/);
+            const fileName = pathParts.pop() || 'kanban';
+            const baseFileName = fileName.replace(/\.[^/.]+$/, '');
+            const directory = pathParts.join('/');
+
+            // Generate filename from MD5 hash
+            const extension = imageType.split('/')[1] || 'png';
+            const imageFileName = `${md5Hash}.${extension}`;
+
+            // Create the media folder path
+            const mediaFolderName = `${baseFileName}-MEDIA`;
+            const mediaFolderPath = `${directory}/${mediaFolderName}`;
+            const imagePath = `${mediaFolderPath}/${imageFileName}`;
+
+            // Ensure the media folder exists
+            if (!fs.existsSync(mediaFolderPath)) {
+                fs.mkdirSync(mediaFolderPath, { recursive: true });
+            }
+
+            // Convert base64 to buffer (remove data URL prefix if present)
+            const base64Only = imageData.includes(',') ? imageData.split(',')[1] : imageData;
+            const buffer = Buffer.from(base64Only, 'base64');
+
+            // Write the image file
+            fs.writeFileSync(imagePath, buffer);
+
+            // Notify the webview that the image was saved successfully
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                panel._panel.webview.postMessage({
+                    type: 'imagePastedIntoField',
+                    success: true,
+                    imagePath: imagePath,
+                    relativePath: `./${mediaFolderName}/${imageFileName}`,
+                    cursorPosition: cursorPosition
+                });
+            }
+
+        } catch (error) {
+            console.error('[MESSAGE HANDLER] Error pasting image into field:', error);
+
+            // Notify the webview that there was an error
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                panel._panel.webview.postMessage({
+                    type: 'imagePastedIntoField',
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    cursorPosition: cursorPosition
                 });
             }
         }

@@ -123,21 +123,115 @@ class TaskEditor {
             }
         });
 
-        // Detect Shift+Cmd+V / Shift+Ctrl+V and set flag for paste handler
+        // Detect Shift+Cmd+V / Shift+Ctrl+V for smart paste (URL encoding + image handling)
         document.addEventListener('keydown', async (e) => {
             const target = e.target;
             const isTitleField = target && (target.classList.contains('task-title-edit') ||
                 target.classList.contains('column-title-edit'));
             const isDescriptionField = target && target.classList.contains('task-description-edit');
 
-            // Shift+Cmd+V (Mac) or Shift+Ctrl+V (Windows) - URL encoding paste
+            // Shift+Cmd+V (Mac) or Shift+Ctrl+V (Windows) - URL encoding paste + image handling
             if ((isTitleField || isDescriptionField) &&
                 e.shiftKey && (e.metaKey || e.ctrlKey) && (e.key === 'v' || e.key === 'V')) {
-                console.log('[Kanban Paste] Shift+Cmd+V detected, triggering URL encoding paste');
+                console.log('[Kanban Paste] Shift+Cmd+V detected, checking clipboard');
                 e.preventDefault(); // Prevent default paste
 
-                // Read clipboard directly
                 try {
+                    // First check if clipboard has an image
+                    let clipboardItems;
+                    try {
+                        clipboardItems = await navigator.clipboard.read();
+                    } catch (readError) {
+                        console.log('[Kanban Paste] Could not read clipboard items, trying text only');
+                        clipboardItems = null;
+                    }
+
+                    // Check for image in clipboard
+                    if (clipboardItems) {
+                        for (const item of clipboardItems) {
+                            for (const type of item.types) {
+                                if (type.startsWith('image/')) {
+                                    console.log('[Kanban Paste] Found image in clipboard:', type);
+
+                                    // Get the image blob
+                                    const blob = await item.getType(type);
+
+                                    // Convert blob to base64
+                                    const reader = new FileReader();
+                                    const base64Promise = new Promise((resolve, reject) => {
+                                        reader.onloadend = () => resolve(reader.result);
+                                        reader.onerror = reject;
+                                        reader.readAsDataURL(blob);
+                                    });
+
+                                    const base64Data = await base64Promise;
+
+                                    // Calculate MD5 hash for unique filename
+                                    let md5Hash = '';
+                                    if (typeof md5 === 'function') {
+                                        md5Hash = md5(base64Data);
+                                    } else {
+                                        md5Hash = Date.now().toString();
+                                    }
+
+                                    // Create image data object
+                                    const imageData = {
+                                        type: 'base64',
+                                        imageType: type,
+                                        data: base64Data,
+                                        md5Hash: md5Hash
+                                    };
+
+                                    // Store cursor position for later
+                                    const cursorPos = target.selectionStart;
+
+                                    // Set up one-time handler for image save response
+                                    const imageHandler = (event) => {
+                                        if (event.data.type === 'imagePastedIntoField' && event.data.cursorPosition === cursorPos) {
+                                            window.removeEventListener('message', imageHandler);
+
+                                            if (event.data.success) {
+                                                // Insert the image markdown at cursor position
+                                                const imageMarkdown = `![](${event.data.relativePath})`;
+                                                const start = target.selectionStart;
+                                                const end = target.selectionEnd;
+                                                const currentValue = target.value;
+                                                target.value = currentValue.substring(0, start) + imageMarkdown + currentValue.substring(end);
+
+                                                // Set cursor position after inserted markdown
+                                                const newPosition = start + imageMarkdown.length;
+                                                target.selectionStart = target.selectionEnd = newPosition;
+
+                                                // Auto-resize textarea
+                                                if (target.tagName === 'TEXTAREA' && self.autoResize) {
+                                                    self.autoResize(target);
+                                                }
+
+                                                console.log('[Kanban Paste] Image pasted successfully:', event.data.relativePath);
+                                            } else {
+                                                console.error('[Kanban Paste] Failed to save image');
+                                            }
+                                        }
+                                    };
+
+                                    window.addEventListener('message', imageHandler);
+
+                                    // Send to backend to save the image
+                                    vscode.postMessage({
+                                        type: 'pasteImageIntoField',
+                                        imageData: imageData.data,
+                                        imageType: type,
+                                        md5Hash: md5Hash,
+                                        cursorPosition: cursorPos
+                                    });
+
+                                    return; // Exit early - image found and handled
+                                }
+                            }
+                        }
+                    }
+
+                    // No image found, process as text
                     const text = await navigator.clipboard.readText();
                     console.log('[Kanban Paste] Clipboard text:', text);
 
