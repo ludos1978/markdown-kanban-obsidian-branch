@@ -3593,9 +3593,23 @@ function updateFileInfoBar() {
 
     if (fileNameElement) {
         fileNameElement.textContent = currentFileInfo.fileName;
-        fileNameElement.title = currentFileInfo.filePath || currentFileInfo.fileName;
+        fileNameElement.title = `Click to open: ${currentFileInfo.filePath || currentFileInfo.fileName}`;
+        fileNameElement.style.cursor = 'pointer';
+
+        // Remove any existing click handler to avoid duplicates
+        fileNameElement.onclick = null;
+
+        // Add click handler to open the file
+        fileNameElement.onclick = () => {
+            if (currentFileInfo.filePath) {
+                vscode.postMessage({
+                    type: 'openFileLink',
+                    href: currentFileInfo.filePath
+                });
+            }
+        };
     }
-    
+
     // Update undo/redo buttons when file info changes
     updateUndoRedoButtons();
 }

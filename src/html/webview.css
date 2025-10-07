@@ -87,6 +87,13 @@ body {
   text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.file-name:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
 }
 
 .file-info-right {
@@ -586,7 +593,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 .column-inner {
   /* This is the scrollable container for sticky positioning */
-	transform: translateZ(0.01px);
+	transform: translateZ(0.02px);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -602,7 +609,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 .column-footer {
-	padding-top: var(--whitespace-div2);
+	padding-top: var(--whitespace-div4);
 	position: sticky;
 	/* top: 28px; */
 	/* border-bottom: 0.5px solid var(--vscode-panel-border); */
@@ -679,7 +686,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 .column-header {
-	transform: translateZ(0.02px);
+	transform: translateZ(0.04px);
   position: sticky;
   z-index: 11;
   background-color: var(--vscode-editor-background);
@@ -687,7 +694,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Column title */
 .column-title {
-	transform: translateZ(0.03px);
+	transform: translateZ(0.06px);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -699,14 +706,15 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	/* border-radius: 4px 4px 0px 0px; */
 	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
 	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
-  /* border-bottom: 0.5px solid var(--vscode-panel-border); */
+  border-bottom: 0.25px dashed var(--vscode-panel-border);
+	border-top: 0.25px dashed var(--vscode-panel-border);
   margin-bottom: 0;
   flex-direction: column;
 }
 
 .column-inner {
   /* This is the scrollable container for sticky positioning */
-	transform: translateZ(0.01px);
+	transform: translateZ(0.02px);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -722,7 +730,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 }
 
 .column-footer {
-	transform: translateZ(0.02px);
+	transform: translateZ(0.04px);
 	padding-top: var(--whitespace-div2);
 	position: sticky;
 	/* top: 28px; */
@@ -733,18 +741,28 @@ body.small-card-fonts .task-title-container .markdown-content img {
 	border-radius: 0px 0px 4px 4px;
 }
 
+
 /* Column title section */
 .column-title-section {
-  padding: 0 var(--whitespace-div2);
+  padding: 0 var(--whitespace-div2); /* left & right */
   display: flex;
   /* align-items: flex-start; */
 	align-items: center;
-  gap: var(--whitespace-div2);;
+  gap: var(--whitespace-div4);
   flex: 1;
   min-width: 0;
   margin-top: 0;
   width: -webkit-fill-available;
 }
+
+/* Title container that should expand to fill available space */
+.column-title-container {
+  flex: auto;
+  /* min-width: 0;
+  display: flex;
+  flex-direction: column; */
+}
+
 
 /* Align control elements (icons/buttons) with the title baseline */
 .column-title-section > .drag-handle,
@@ -753,14 +771,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
 .column-title-section > .collapsed-add-task-btn,
 .column-title-section > .donut-menu {
   margin-top: 2px; /* Align with title text baseline */
-}
-
-/* Title container that should expand to fill available space */
-.column-title-container {
-  flex: auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 
@@ -2760,8 +2770,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-  margin: 0.25em 0 0.125em 0;
-  /* color: var(--vscode-foreground); */
+  /* margin: 0.25em 0 0.125em 0; */
 }
 
 .markdown-content p {
