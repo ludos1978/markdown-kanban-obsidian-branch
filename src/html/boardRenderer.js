@@ -1445,7 +1445,13 @@ function renderBoard() {
     }, 50);
 
     // Setup compact view detection for ALL columns
-    setupCompactViewHandler();
+    // DISABLED: Causes severe performance issues with expensive scroll handlers
+    // - Runs querySelectorAll on every scroll event
+    // - Calls getBoundingClientRect() forcing layout recalculations
+    // - With 50 columns = 500 forced layouts per second during scroll
+    // - Feature is currently disabled anyway (see setupCompactViewHandler)
+    // TODO: Replace with IntersectionObserver for proper implementation
+    // setupCompactViewHandler();
 }
 
 function getFoldAllButtonState(columnId) {

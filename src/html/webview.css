@@ -1092,11 +1092,17 @@ body.section-height-limited .task-section {
 }
 
 /* Ensure images and figures within sections are constrained by section height */
-body.section-height-limited .task-section img,
-body.section-height-limited .task-section figure {
+body.section-height-limited .task-section img {
   max-height: var(--section-max-height, auto);
   object-fit: contain;
   flex-shrink: 1;
+}
+
+/* Figures should NOT have object-fit (it's for replaced elements like img/video only) */
+body.section-height-limited .task-section figure {
+  max-height: var(--section-max-height, auto);
+  flex-shrink: 1;
+  /* NO object-fit - causes rendering issues on container elements */
 }
 
 /* Constrain figure content */
