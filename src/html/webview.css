@@ -787,6 +787,10 @@ body.small-card-fonts .task-title-container .markdown-content img {
   min-height: 16px;
   width: 100%;
   flex: 1;
+  /* Allow text to wrap to multiple lines when too long */
+  white-space: normal;
+  overflow-wrap: break-word;
+  max-height: none;
 }
 
 .column-title-text:hover {

@@ -93,6 +93,94 @@ class TaskEditor {
      */
     setupGlobalHandlers() {
 
+        // Global paste handler for title fields - strip newlines
+        const self = this;
+        document.addEventListener('paste', (e) => {
+            const target = e.target;
+            const isTitleField = target && (target.classList.contains('task-title-edit') ||
+                target.classList.contains('column-title-edit'));
+
+            // Normal paste for title fields only: strip newlines but preserve spaces
+            if (isTitleField) {
+                e.preventDefault();
+                let text = (e.clipboardData || window.clipboardData).getData('text');
+                const cleanText = text.replace(/[\r\n]+/g, ' ').trim();
+
+                // Insert at cursor position
+                const start = target.selectionStart;
+                const end = target.selectionEnd;
+                const currentValue = target.value;
+                target.value = currentValue.substring(0, start) + cleanText + currentValue.substring(end);
+
+                // Set cursor position after inserted text
+                const newPosition = start + cleanText.length;
+                target.selectionStart = target.selectionEnd = newPosition;
+
+                // Auto-resize textarea if it's a textarea
+                if (target.tagName === 'TEXTAREA' && self.autoResize) {
+                    self.autoResize(target);
+                }
+            }
+        });
+
+        // Detect Shift+Cmd+V / Shift+Ctrl+V and set flag for paste handler
+        document.addEventListener('keydown', async (e) => {
+            const target = e.target;
+            const isTitleField = target && (target.classList.contains('task-title-edit') ||
+                target.classList.contains('column-title-edit'));
+            const isDescriptionField = target && target.classList.contains('task-description-edit');
+
+            // Shift+Cmd+V (Mac) or Shift+Ctrl+V (Windows) - URL encoding paste
+            if ((isTitleField || isDescriptionField) &&
+                e.shiftKey && (e.metaKey || e.ctrlKey) && (e.key === 'v' || e.key === 'V')) {
+                console.log('[Kanban Paste] Shift+Cmd+V detected, triggering URL encoding paste');
+                e.preventDefault(); // Prevent default paste
+
+                // Read clipboard directly
+                try {
+                    const text = await navigator.clipboard.readText();
+                    console.log('[Kanban Paste] Clipboard text:', text);
+
+                    // Use existing processClipboardText function to convert URLs and file paths
+                    let cleanText;
+                    if (typeof processClipboardText === 'function') {
+                        try {
+                            const processed = await processClipboardText(text);
+                            cleanText = processed ? processed.content : text;
+                            console.log('[Kanban Paste] Processed text:', cleanText);
+                        } catch (error) {
+                            console.error('[Kanban Paste] Error processing:', error);
+                            cleanText = text;
+                        }
+                    } else {
+                        cleanText = text;
+                    }
+
+                    // For title fields, strip newlines
+                    if (isTitleField) {
+                        cleanText = cleanText.replace(/[\r\n]+/g, ' ').trim();
+                    }
+
+                    // Insert at cursor position
+                    const start = target.selectionStart;
+                    const end = target.selectionEnd;
+                    const currentValue = target.value;
+                    target.value = currentValue.substring(0, start) + cleanText + currentValue.substring(end);
+
+                    // Set cursor position after inserted text
+                    const newPosition = start + cleanText.length;
+                    target.selectionStart = target.selectionEnd = newPosition;
+
+                    // Auto-resize textarea if it's a textarea
+                    if (target.tagName === 'TEXTAREA' && self.autoResize) {
+                        self.autoResize(target);
+                    }
+                } catch (error) {
+                    console.error('[Kanban Paste] Failed to read clipboard:', error);
+                }
+            }
+        }, true); // Use capture phase to catch before other handlers
+
         // Single global keydown handler
         document.addEventListener('keydown', (e) => {
             if (!this.currentEditor) {return;}
