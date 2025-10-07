@@ -213,7 +213,7 @@ function ensureTagStyleExists(tagName) {
         const borderStyle = tagConfig.border.style || 'solid';
         
         if (tagConfig.border.position === 'left') {
-            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-title {
+            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-header {
                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }
 .kanban-full-height-column[data-column-tag="${tagName}"] .column-content {
@@ -223,7 +223,7 @@ function ensureTagStyleExists(tagName) {
                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }\n`;
         } else {
-            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-title {
+            newStyles += `.kanban-full-height-column[data-column-tag="${tagName}"] .column-header {
                 border: ${borderWidth} ${borderStyle} ${borderColor} !important;
             }
 .kanban-full-height-column[data-column-tag="${tagName}"] .column-content {
@@ -3175,11 +3175,11 @@ function generateTagStyles() {
                             styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
+                                border-top: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n
 														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-title {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;
                                 border-right: ${borderWidth} ${borderStyle} ${borderColor} !important;
-                                border-top: ${borderWidth} ${borderStyle} ${borderColor} !important;
                             }\n
 														.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-inner {
                                 border-left: ${borderWidth} ${borderStyle} ${borderColor} !important;

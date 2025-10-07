@@ -3184,14 +3184,16 @@ h6 .kanban-tag {
 /* .kanban-full-height-column.collapsed-horizontal.has-footer-label,
 .kanban-full-height-column.collapsed-horizontal.has-header-label, */
 
-.kanban-full-height-column.collapsed-vertical.has-header-label,
+/* .kanban-full-height-column.collapsed-vertical.has-header-label,
 .kanban-full-height-column.collapsed-vertical.has-footer-label {
   width: 60px !important;
   min-width: 60px !important;
   max-width: 60px !important;
-}
+} */
 
 /* .kanban-full-height-column.collapsed-horizontal.has-header-label.has-footer-label, */
+.kanban-full-height-column.collapsed-vertical.has-header-label,
+.kanban-full-height-column.collapsed-vertical.has-footer-label,
 .kanban-full-height-column.collapsed-vertical.has-header-label.has-footer-label {
   width: 80px !important;
   min-width: 80px !important;
