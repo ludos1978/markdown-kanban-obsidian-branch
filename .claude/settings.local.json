@@ -38,7 +38,8 @@
       "Bash(npx jest:*)",
       "Bash(cat:*)",
       "Bash(git log:*)",
-      "Bash(open tests/kanban-multirow-small.md)"
+      "Bash(open tests/kanban-multirow-small.md)",
+      "Bash(open /Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tmp/test-video-overlay.html)"
     ],
     "deny": [],
     "ask": []

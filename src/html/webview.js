@@ -1891,65 +1891,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Populate dynamic menus
     populateDynamicMenus();
 
-    // ========================================================================
-    // EVENT DELEGATION for error handling - prevents listener leaks!
-    // Uses only 2 listeners total (instead of hundreds) via event bubbling
-    // ========================================================================
-
-    const failedMediaUrls = new Set();
-
-    // Single delegated listener for ALL image errors (capture phase)
-    document.addEventListener('error', function(e) {
-        const target = e.target;
-
-        // Handle image errors
-        if (target.tagName === 'IMG' && !target.dataset.errorHandled) {
-            target.dataset.errorHandled = 'true';
-            e.stopPropagation();
-            e.preventDefault();
-
-            // Silently handle image loading errors
-            target.style.display = 'inline-block';
-            target.style.maxWidth = '200px';
-            target.style.width = 'auto';
-            target.style.height = 'auto';
-        }
-
-        // Handle video/audio errors - but only mark as failed after 2nd error
-        // First error might be premature (vscode-resource:// not ready yet)
-        else if ((target.tagName === 'VIDEO' || target.tagName === 'AUDIO')) {
-            const src = target.src || target.querySelector('source')?.src;
-
-            // Count errors for this element
-            const errorCount = parseInt(target.dataset.errorCount || '0') + 1;
-            target.dataset.errorCount = errorCount.toString();
-
-            // Only mark as failed after 2nd error (first might be premature)
-            if (errorCount >= 2 && !target.dataset.loadFailed) {
-                // Add to failed cache
-                if (src) {
-                    failedMediaUrls.add(src);
-                }
-
-                // Mark as failed
-                target.dataset.loadFailed = 'true';
-                target.classList.add('media-load-failed');
-
-                // Log once
-                if (!target.dataset.errorLogged) {
-                    console.warn('[Kanban Media] Failed to load after retries:', src);
-                    target.dataset.errorLogged = 'true';
-                }
-            }
-
-            // Stop propagation to prevent console spam
-            e.stopPropagation();
-            e.preventDefault();
-        }
-    }, true); // Use capture phase to catch errors before they bubble
-
-    // No MutationObserver needed! Event delegation handles dynamic content automatically
-    
     // Update clipboard content when window gets focus
     window.addEventListener('focus', async () => {
         // Wait a moment for focus to be fully established
