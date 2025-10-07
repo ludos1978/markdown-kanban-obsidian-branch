@@ -489,13 +489,13 @@ class TaskEditor {
             this.save();
         }
 
-        // For column title editing, show the title according to current tag visibility settings
+        // For column title editing, always show full title with tags (regardless of visibility setting)
+        // This prevents tags from being lost when editing
         if (type === 'column-title' && columnId) {
             const column = window.cachedBoard?.columns.find(col => col.id === columnId);
             if (column && column.title) {
-                // Show filtered title in editor if tags are hidden, full title if tags are shown
-                const titleForEditing = window.filterTagsFromText ? window.filterTagsFromText(column.title) : column.title;
-                editElement.value = titleForEditing;
+                // Always show full title in editor so users can see and edit tags
+                editElement.value = column.title;
 
                 // Store the original full title so we can reconstruct it properly when saving
                 editElement.setAttribute('data-original-title', column.title);

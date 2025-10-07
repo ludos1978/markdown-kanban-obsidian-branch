@@ -3400,7 +3400,10 @@ function injectStackableBars(targetElement = null) {
                 tags = tags.filter(tag => titleTags.has(tag) || !descriptionTags.has(tag));
             }
         }
-        
+
+        // Deduplicate tags array to prevent duplicate header/footer bars
+        tags = [...new Set(tags)];
+
         // Remove existing bars/containers - only from appropriate areas
         if (isColumn) {
             // For columns: only remove from column-header and column-footer, not from nested task cards
