@@ -670,7 +670,7 @@ body.small-card-fonts .task-title-container .markdown-content img {
 
 /* Column header - receives tag-based header bars, can be styled/faded independently */
 .column-header {
-	/* padding-bottom: var(--whitespace-div4); */
+	padding-bottom: var(--whitespace-div4);
 	position: sticky;
 	border-left: var(--column-border, 0.5px solid var(--vscode-panel-border));
 	border-right: var(--column-border, 0.5px solid var(--vscode-panel-border));
