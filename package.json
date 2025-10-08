@@ -33,45 +33,7 @@
     "configuration": {
       "title": "Ludos Markdown Kanban",
       "properties": {
-        "markdown-kanban.enableBackups": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable automatic backups of kanban files"
-        },
-        "markdown-kanban.backupInterval": {
-          "type": "number",
-          "default": 15,
-          "minimum": 1,
-          "maximum": 120,
-          "description": "Interval in minutes between automatic backups (1-60 minutes)"
-        },
-        "markdown-kanban.backupLocation": {
-          "type": "string",
-          "enum": [
-            "same-folder",
-            "workspace-folder",
-            "custom"
-          ],
-          "default": "same-folder",
-          "description": "Where to store backup files",
-          "enumDescriptions": [
-            "Store backups in the same folder as the original file",
-            "Store backups in a .backups folder in the workspace root",
-            "Store backups in a custom location (set customBackupPath)"
-          ]
-        },
-        "markdown-kanban.maxBackupsPerFile": {
-          "type": "number",
-          "default": 10,
-          "minimum": 1,
-          "maximum": 50,
-          "description": "Maximum number of backups to keep per file (older backups will be deleted)"
-        },
-        "markdown-kanban.openLinksInNewTab": {
-          "type": "boolean",
-          "default": false,
-          "description": "Open file links in new tabs instead of replacing the current editor"
-        },
+
         "markdown-kanban.pathGeneration": {
           "type": "string",
           "enum": [
@@ -85,6 +47,75 @@
             "Generate absolute file system paths"
           ]
         },
+        "markdown-kanban.openLinksInNewTab": {
+          "type": "boolean",
+          "default": false,
+          "description": "Open file links in new tabs instead of replacing the current editor"
+        },
+
+        "markdown-kanban.columnWidth": {
+          "type": "string",
+          "default": "medium",
+          "description": "The width of kanban columns",
+          "enum": [
+            "small",
+            "medium",
+            "wide",
+            "66",
+            "100"
+          ],
+          "enumDescriptions": [
+            "Small columns (250px)",
+            "Medium columns (350px)",
+            "Wide columns (450px)",
+            "Half screen width (48.5%)",
+            "Full screen width (98%)"
+          ]
+        },
+        "markdown-kanban.taskMinHeight": {
+          "type": "string",
+          "default": "auto",
+          "description": "The minimum height for task cards (e.g., 'auto', '200px', '400px', '43.5vh', '89vh')",
+          "enum": [
+            "auto",
+            "200px",
+            "400px",
+            "43.5vh",
+            "89vh"
+          ],
+          "enumDescriptions": [
+            "Automatic height based on content",
+            "Fixed minimum height of 200 pixels",
+            "Fixed minimum height of 400 pixels",
+            "Minimum height of 43.5% of viewport height",
+            "Minimum height of 89% of viewport height"
+          ]
+        },
+        "markdown-kanban.sectionMaxHeight": {
+          "type": "string",
+          "default": "auto",
+          "description": "Maximum height for content sections between horizontal rules (HRs) in task descriptions",
+          "enum": [
+            "auto",
+            "200px",
+            "400px",
+            "600px",
+            "33percent",
+            "50percent",
+            "66percent",
+            "100percent"
+          ],
+          "enumDescriptions": [
+            "No height limit (automatic based on content)",
+            "Fixed 200 pixels",
+            "Fixed 400 pixels",
+            "Fixed 600 pixels",
+            "1/3 of viewport height",
+            "1/2 of viewport height",
+            "2/3 of viewport height",
+            "Full viewport height"
+          ]
+        },
         "markdown-kanban.whitespace": {
           "type": "string",
           "default": "4px",
@@ -92,15 +123,82 @@
           "pattern": "^\\d+(\\.\\d+)?(px|em|rem)$",
           "patternErrorMessage": "Please enter a valid CSS size value (e.g., '4px', '0.5em', '1rem')"
         },
-        "markdown-kanban.columnBorder": {
+        "markdown-kanban.fontSize": {
           "type": "string",
-          "default": "1px solid var(--vscode-panel-border)",
-          "description": "Complete border style for columns (e.g., '1px solid var(--vscode-panel-border)', '1px dashed red', 'none'). Full CSS border shorthand supported."
+          "default": "small",
+          "description": "The font size for task cards and content",
+          "enum": [
+            "small",
+            "normal",
+            "bigger",
+            "large",
+            "xlarge"
+          ],
+          "enumDescriptions": [
+            "Small font size",
+            "Normal/default font size",
+            "Bigger font size",
+            "Large font size",
+            "Extra large font size"
+          ]
         },
-        "markdown-kanban.taskBorder": {
+        "markdown-kanban.fontFamily": {
           "type": "string",
-          "default": "1px solid var(--vscode-panel-border)",
-          "description": "Complete border style for task cards (e.g., '1px solid var(--vscode-panel-border)', '2px dotted blue', 'none'). Full CSS border shorthand supported."
+          "default": "system",
+          "description": "The font family for task cards and content",
+          "enum": [
+            "system",
+            "roboto",
+            "opensans",
+            "lato",
+            "poppins",
+            "inter",
+            "helvetica",
+            "arial",
+            "georgia",
+            "times",
+            "firacode",
+            "jetbrains",
+            "sourcecodepro",
+            "consolas"
+          ],
+          "enumDescriptions": [
+            "System default fonts",
+            "Roboto (Google font)",
+            "Open Sans (Google font)",
+            "Lato (Google font)",
+            "Poppins (Google font)",
+            "Inter (Google font)",
+            "Helvetica Neue / Helvetica / Arial",
+            "Arial",
+            "Georgia (serif)",
+            "Times New Roman (serif)",
+            "Fira Code (monospace)",
+            "JetBrains Mono (monospace)",
+            "Source Code Pro (monospace)",
+            "Consolas (monospace)"
+          ]
+        },
+				"markdown-kanban.layoutRows": {
+          "type": "number",
+          "default": 1,
+          "description": "The number of rows in the kanban layout",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "enumDescriptions": [
+            "1 row",
+            "2 rows",
+            "3 rows",
+            "4 rows",
+            "5 rows",
+            "6 rows"
+          ]
         },
         "markdown-kanban.maxRowHeight": {
           "type": "number",
@@ -108,10 +206,190 @@
           "description": "Maximum height for kanban rows in pixels. Set to 0 for unlimited height (full card height). Other values limit the row height.",
           "minimum": 0
         },
+        "markdown-kanban.rowHeight": {
+          "type": "string",
+          "default": "auto",
+          "description": "The height of kanban rows",
+          "enum": [
+            "95vh",
+            "63vh",
+            "48vh",
+            "31.5vh",
+            "44em",
+            "31em",
+            "19em",
+            "auto"
+          ],
+          "enumDescriptions": [
+            "100% of screen height",
+            "2/3 of screen height",
+            "1/2 of screen height",
+            "1/3 of screen height",
+            "700px (~47em)",
+            "500px (~31em)",
+            "300px (~19em)",
+            "Automatic height based on content"
+          ]
+        },
+
+        "markdown-kanban.stickyHeaders": {
+          "type": "string",
+          "default": "enabled",
+          "description": "Control sticky positioning of column headers",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "enumDescriptions": [
+            "Column headers stick to top when scrolling",
+            "Column headers scroll normally with content"
+          ]
+        },
+        "markdown-kanban.stickyStackMode": {
+          "type": "string",
+          "default": "titleonly",
+          "description": "Control sticky positioning behavior in column stacks",
+          "enum": [
+            "full",
+            "titleonly",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Header, title, footer & margin all sticky (original behavior)",
+            "Only title sticky (default)",
+            "Nothing sticky in stacks"
+          ]
+        },
+
         "markdown-kanban.showRowTags": {
           "type": "boolean",
           "default": false,
           "description": "Show row tags (#row2, #row3, #row4) in column headers"
+        },
+        "markdown-kanban.tagVisibility": {
+          "type": "string",
+          "default": "all",
+          "description": "Control which types of tags are displayed on cards",
+          "enum": [
+            "all",
+            "standard",
+            "custom",
+            "mentions",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Show all tags including #span, #row, and @ tags",
+            "Show all except #span and #row (includes @ tags)",
+            "Show only custom tags (not configured ones) and @ tags",
+            "Show only @ tags",
+            "Hide all tags"
+          ]
+        },
+
+				"markdown-kanban.layoutPreset": {
+          "type": "string",
+          "default": "normal",
+          "description": "The currently selected layout preset"
+        },
+        "markdown-kanban.imageFill": {
+          "type": "string",
+          "default": "fit",
+          "description": "Control how images are sized within cards",
+          "enum": [
+            "fit",
+            "fill"
+          ],
+          "enumDescriptions": [
+            "Images size to their natural dimensions",
+            "Images fill available space while keeping aspect ratio"
+          ]
+        },
+
+        "markdown-kanban.arrowKeyFocusScroll": {
+          "type": "string",
+          "default": "center",
+          "description": "How arrow key navigation scrolls focused items into view",
+          "enum": [
+            "center",
+            "nearest"
+          ],
+          "enumDescriptions": [
+            "Center the focused item in the viewport",
+            "Scroll just enough to bring the item into view"
+          ]
+        },
+				
+        "markdown-kanban.layoutPresets": {
+          "type": "object",
+          "default": {},
+          "description": "Custom layout presets configuration. Each preset should contain a 'label', 'description', and 'settings' object with layout options.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Display name for the preset"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of what this preset does"
+              },
+              "settings": {
+                "type": "object",
+                "description": "Layout settings to apply",
+                "properties": {
+                  "columnWidth": {
+                    "type": "string",
+                    "description": "Column width setting"
+                  },
+                  "cardHeight": {
+                    "type": "string",
+                    "description": "Card height setting"
+                  },
+                  "sectionMaxHeight": {
+                    "type": "string",
+                    "description": "Section max height setting"
+                  },
+                  "fontSize": {
+                    "type": "string",
+                    "description": "Font size setting"
+                  },
+                  "fontFamily": {
+                    "type": "string",
+                    "description": "Font family setting"
+                  },
+                  "layoutRows": {
+                    "type": "number",
+                    "description": "Number of layout rows"
+                  },
+                  "rowHeight": {
+                    "type": "string",
+                    "description": "Row height setting"
+                  },
+                  "stickyHeaders": {
+                    "type": "string",
+                    "description": "Sticky headers setting"
+                  },
+                  "tagVisibility": {
+                    "type": "string",
+                    "description": "Tag visibility setting"
+                  },
+                  "imageFill": {
+                    "type": "string",
+                    "description": "Image fill setting"
+                  },
+                  "whitespace": {
+                    "type": "string",
+                    "description": "Whitespace setting"
+                  },
+                  "arrowKeyFocusScroll": {
+                    "type": "string",
+                    "description": "Arrow key focus scroll behavior"
+                  }
+                }
+              }
+            }
+          }
         },
         "markdown-kanban.tagColors": {
           "type": "object",
@@ -1774,321 +2052,53 @@
           },
           "description": "Grouped color and style configuration for tags in kanban boards with various visual indicators."
         },
-        "markdown-kanban.taskMinHeight": {
+
+        "markdown-kanban.columnBorder": {
           "type": "string",
-          "default": "auto",
-          "description": "The minimum height for task cards (e.g., 'auto', '200px', '400px', '43.5vh', '89vh')",
-          "enum": [
-            "auto",
-            "200px",
-            "400px",
-            "43.5vh",
-            "89vh"
-          ],
-          "enumDescriptions": [
-            "Automatic height based on content",
-            "Fixed minimum height of 200 pixels",
-            "Fixed minimum height of 400 pixels",
-            "Minimum height of 43.5% of viewport height",
-            "Minimum height of 89% of viewport height"
-          ]
+          "default": "1px solid var(--vscode-panel-border)",
+          "description": "Complete border style for columns (e.g., '1px solid var(--vscode-panel-border)', '1px dashed red', 'none'). Full CSS border shorthand supported."
         },
-        "markdown-kanban.sectionMaxHeight": {
+        "markdown-kanban.taskBorder": {
           "type": "string",
-          "default": "auto",
-          "description": "Maximum height for content sections between horizontal rules (HRs) in task descriptions",
-          "enum": [
-            "auto",
-            "200px",
-            "400px",
-            "600px",
-            "33percent",
-            "50percent",
-            "66percent",
-            "100percent"
-          ],
-          "enumDescriptions": [
-            "No height limit (automatic based on content)",
-            "Fixed 200 pixels",
-            "Fixed 400 pixels",
-            "Fixed 600 pixels",
-            "1/3 of viewport height",
-            "1/2 of viewport height",
-            "2/3 of viewport height",
-            "Full viewport height"
-          ]
+          "default": "1px solid var(--vscode-panel-border)",
+          "description": "Complete border style for task cards (e.g., '1px solid var(--vscode-panel-border)', '2px dotted blue', 'none'). Full CSS border shorthand supported."
         },
-        "markdown-kanban.fontSize": {
-          "type": "string",
-          "default": "small",
-          "description": "The font size for task cards and content",
-          "enum": [
-            "small",
-            "normal",
-            "bigger",
-            "large",
-            "xlarge"
-          ],
-          "enumDescriptions": [
-            "Small font size",
-            "Normal/default font size",
-            "Bigger font size",
-            "Large font size",
-            "Extra large font size"
-          ]
+
+        "markdown-kanban.enableBackups": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic backups of kanban files"
         },
-        "markdown-kanban.fontFamily": {
-          "type": "string",
-          "default": "system",
-          "description": "The font family for task cards and content",
-          "enum": [
-            "system",
-            "roboto",
-            "opensans",
-            "lato",
-            "poppins",
-            "inter",
-            "helvetica",
-            "arial",
-            "georgia",
-            "times",
-            "firacode",
-            "jetbrains",
-            "sourcecodepro",
-            "consolas"
-          ],
-          "enumDescriptions": [
-            "System default fonts",
-            "Roboto (Google font)",
-            "Open Sans (Google font)",
-            "Lato (Google font)",
-            "Poppins (Google font)",
-            "Inter (Google font)",
-            "Helvetica Neue / Helvetica / Arial",
-            "Arial",
-            "Georgia (serif)",
-            "Times New Roman (serif)",
-            "Fira Code (monospace)",
-            "JetBrains Mono (monospace)",
-            "Source Code Pro (monospace)",
-            "Consolas (monospace)"
-          ]
-        },
-        "markdown-kanban.columnWidth": {
-          "type": "string",
-          "default": "medium",
-          "description": "The width of kanban columns",
-          "enum": [
-            "small",
-            "medium",
-            "wide",
-            "66",
-            "100"
-          ],
-          "enumDescriptions": [
-            "Small columns (250px)",
-            "Medium columns (350px)",
-            "Wide columns (450px)",
-            "Half screen width (48.5%)",
-            "Full screen width (98%)"
-          ]
-        },
-        "markdown-kanban.layoutPreset": {
-          "type": "string",
-          "default": "normal",
-          "description": "The currently selected layout preset"
-        },
-        "markdown-kanban.layoutPresets": {
-          "type": "object",
-          "default": {},
-          "description": "Custom layout presets configuration. Each preset should contain a 'label', 'description', and 'settings' object with layout options.",
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "label": {
-                "type": "string",
-                "description": "Display name for the preset"
-              },
-              "description": {
-                "type": "string",
-                "description": "Description of what this preset does"
-              },
-              "settings": {
-                "type": "object",
-                "description": "Layout settings to apply",
-                "properties": {
-                  "columnWidth": {
-                    "type": "string",
-                    "description": "Column width setting"
-                  },
-                  "cardHeight": {
-                    "type": "string",
-                    "description": "Card height setting"
-                  },
-                  "sectionMaxHeight": {
-                    "type": "string",
-                    "description": "Section max height setting"
-                  },
-                  "fontSize": {
-                    "type": "string",
-                    "description": "Font size setting"
-                  },
-                  "fontFamily": {
-                    "type": "string",
-                    "description": "Font family setting"
-                  },
-                  "layoutRows": {
-                    "type": "number",
-                    "description": "Number of layout rows"
-                  },
-                  "rowHeight": {
-                    "type": "string",
-                    "description": "Row height setting"
-                  },
-                  "stickyHeaders": {
-                    "type": "string",
-                    "description": "Sticky headers setting"
-                  },
-                  "tagVisibility": {
-                    "type": "string",
-                    "description": "Tag visibility setting"
-                  },
-                  "imageFill": {
-                    "type": "string",
-                    "description": "Image fill setting"
-                  },
-                  "whitespace": {
-                    "type": "string",
-                    "description": "Whitespace setting"
-                  },
-                  "arrowKeyFocusScroll": {
-                    "type": "string",
-                    "description": "Arrow key focus scroll behavior"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "markdown-kanban.arrowKeyFocusScroll": {
-          "type": "string",
-          "default": "center",
-          "description": "How arrow key navigation scrolls focused items into view",
-          "enum": [
-            "center",
-            "nearest"
-          ],
-          "enumDescriptions": [
-            "Center the focused item in the viewport",
-            "Scroll just enough to bring the item into view"
-          ]
-        },
-        "markdown-kanban.layoutRows": {
+        "markdown-kanban.backupInterval": {
           "type": "number",
-          "default": 1,
-          "description": "The number of rows in the kanban layout",
+          "default": 15,
+          "minimum": 1,
+          "maximum": 120,
+          "description": "Interval in minutes between automatic backups (1-60 minutes)"
+        },
+        "markdown-kanban.backupLocation": {
+          "type": "string",
           "enum": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6
+            "same-folder",
+            "workspace-folder",
+            "custom"
           ],
+          "default": "same-folder",
+          "description": "Where to store backup files",
           "enumDescriptions": [
-            "1 row",
-            "2 rows",
-            "3 rows",
-            "4 rows",
-            "5 rows",
-            "6 rows"
+            "Store backups in the same folder as the original file",
+            "Store backups in a .backups folder in the workspace root",
+            "Store backups in a custom location (set customBackupPath)"
           ]
         },
-        "markdown-kanban.rowHeight": {
-          "type": "string",
-          "default": "auto",
-          "description": "The height of kanban rows",
-          "enum": [
-            "95vh",
-            "63vh",
-            "48vh",
-            "31.5vh",
-            "44em",
-            "31em",
-            "19em",
-            "auto"
-          ],
-          "enumDescriptions": [
-            "100% of screen height",
-            "2/3 of screen height",
-            "1/2 of screen height",
-            "1/3 of screen height",
-            "700px (~47em)",
-            "500px (~31em)",
-            "300px (~19em)",
-            "Automatic height based on content"
-          ]
-        },
-        "markdown-kanban.stickyHeaders": {
-          "type": "string",
-          "default": "enabled",
-          "description": "Control sticky positioning of column headers",
-          "enum": [
-            "enabled",
-            "disabled"
-          ],
-          "enumDescriptions": [
-            "Column headers stick to top when scrolling",
-            "Column headers scroll normally with content"
-          ]
-        },
-        "markdown-kanban.stickyStackMode": {
-          "type": "string",
-          "default": "titleonly",
-          "description": "Control sticky positioning behavior in column stacks",
-          "enum": [
-            "full",
-            "titleonly",
-            "none"
-          ],
-          "enumDescriptions": [
-            "Header, title, footer & margin all sticky (original behavior)",
-            "Only title sticky (default)",
-            "Nothing sticky in stacks"
-          ]
-        },
-        "markdown-kanban.tagVisibility": {
-          "type": "string",
-          "default": "all",
-          "description": "Control which types of tags are displayed on cards",
-          "enum": [
-            "all",
-            "standard",
-            "custom",
-            "mentions",
-            "none"
-          ],
-          "enumDescriptions": [
-            "Show all tags including #span, #row, and @ tags",
-            "Show all except #span and #row (includes @ tags)",
-            "Show only custom tags (not configured ones) and @ tags",
-            "Show only @ tags",
-            "Hide all tags"
-          ]
-        },
-        "markdown-kanban.imageFill": {
-          "type": "string",
-          "default": "fit",
-          "description": "Control how images are sized within cards",
-          "enum": [
-            "fit",
-            "fill"
-          ],
-          "enumDescriptions": [
-            "Images size to their natural dimensions",
-            "Images fill available space while keeping aspect ratio"
-          ]
+        "markdown-kanban.maxBackupsPerFile": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Maximum number of backups to keep per file (older backups will be deleted)"
         }
+
       }
     },
     "commands": [

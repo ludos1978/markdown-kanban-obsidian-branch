@@ -47,6 +47,8 @@ export interface ConfigurationDefaults {
     fontSize: string;
     fontFamily: string;
     columnWidth: string;
+    columnBorder: string;
+    taskBorder: string;
     layoutRows: number;
     rowHeight: string;
     layoutPreset: string;
@@ -77,6 +79,8 @@ export class ConfigurationService {
         fontSize: 'medium',
         fontFamily: 'default',
         columnWidth: 'auto',
+        columnBorder: '1px solid var(--vscode-panel-border)',
+        taskBorder: '1px solid var(--vscode-panel-border)',
         layoutRows: 1,
         rowHeight: 'auto',
         layoutPreset: 'default',

@@ -1544,6 +1544,8 @@ export class KanbanWebviewPanel {
 
         const taskBorder = await this._getTaskBorderConfiguration();
 
+        console.log('[Border-Debug] About to send via postMessage - columnBorder:', columnBorder, 'taskBorder:', taskBorder);
+
         // Get version from package.json
         const packageJson = require('../package.json');
         const version = packageJson.version || 'Unknown';
@@ -2197,11 +2199,15 @@ export class KanbanWebviewPanel {
     }
 
     private async _getColumnBorderConfiguration(): Promise<string> {
-        return configService.getConfig('columnBorder', '0.5px solid var(--vscode-panel-border)');
+        const value = configService.getConfig('columnBorder', '1px solid var(--vscode-panel-border)');
+        console.log('[Border-Debug] _getColumnBorderConfiguration returned:', value);
+        return value;
     }
 
     private async _getTaskBorderConfiguration(): Promise<string> {
-        return configService.getConfig('taskBorder', '1px solid var(--vscode-panel-border)');
+        const value = configService.getConfig('taskBorder', '1px solid var(--vscode-panel-border)');
+        console.log('[Border-Debug] _getTaskBorderConfiguration returned:', value);
+        return value;
     }
 
 

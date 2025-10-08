@@ -2368,10 +2368,12 @@ window.addEventListener('message', event => {
 
                 // Store border configuration from extension
                 if (message.columnBorder && message.taskBorder) {
+                    console.log('[Border-Debug] Received from extension - columnBorder:', message.columnBorder, 'taskBorder:', message.taskBorder);
                     window.borderConfig = {
                         columnBorder: message.columnBorder,
                         taskBorder: message.taskBorder
                     };
+                    console.log('[Border-Debug] Stored in window.borderConfig:', window.borderConfig);
                     updateBorderStyles();
                 }
 
@@ -3654,10 +3656,13 @@ function updateBorderStyles() {
     }
 
     const { columnBorder, taskBorder } = window.borderConfig;
+    console.log('[Border-Debug] updateBorderStyles - columnBorder:', columnBorder, 'taskBorder:', taskBorder);
 
     // Apply CSS variables
     document.documentElement.style.setProperty('--column-border', columnBorder);
     document.documentElement.style.setProperty('--task-border', taskBorder);
+
+    console.log('[Border-Debug] Applied to CSS - --column-border:', document.documentElement.style.getPropertyValue('--column-border'), '--task-border:', document.documentElement.style.getPropertyValue('--task-border'));
 }
 
 function calculateTaskDescriptionHeight() {
