@@ -4265,6 +4265,9 @@ function executeUnifiedExport() {
         fileSizeLimitMB: parseInt(document.getElementById('file-size-limit')?.value) || 100
     } : undefined;
 
+    // Get merge includes option
+    const mergeIncludes = document.getElementById('merge-includes')?.checked || false;
+
     // Close modal
     closeExportModal();
 
@@ -4277,6 +4280,7 @@ function executeUnifiedExport() {
             tagVisibility: tagVisibility,
             packAssets: packAssets,
             packOptions: packOptions,
+            mergeIncludes: mergeIncludes,
             selection: {
                 rowNumber: item.rowNumber,
                 stackIndex: item.stackIndex,

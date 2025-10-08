@@ -391,22 +391,22 @@ export class ExportService {
 
         // Define include patterns and their replacement formats
         // If mergeIncludes is true, don't write separate files for ANY includes
-        // Column and task includes are always embedded by the parser
+        // Otherwise, write separate files for all include types
         const includePatterns = [
             {
                 pattern: this.INCLUDE_PATTERN,
                 replacement: (filename: string) => `!!!include(${filename})!!!`,
-                shouldWriteSeparateFile: !mergeIncludes  // Only write separate file if not merging
+                shouldWriteSeparateFile: !mergeIncludes
             },
             {
                 pattern: this.TASK_INCLUDE_PATTERN,
                 replacement: (filename: string) => `!!!taskinclude(${filename})!!!`,
-                shouldWriteSeparateFile: false  // Task includes are always embedded
+                shouldWriteSeparateFile: !mergeIncludes
             },
             {
                 pattern: this.COLUMN_INCLUDE_PATTERN,
                 replacement: (filename: string) => `!!!columninclude(${filename})!!!`,
-                shouldWriteSeparateFile: false  // Column includes are always embedded
+                shouldWriteSeparateFile: !mergeIncludes
             }
         ];
 
@@ -414,8 +414,10 @@ export class ExportService {
         for (const { pattern, replacement, shouldWriteSeparateFile } of includePatterns) {
             let match;
             const regex = new RegExp(pattern.source, pattern.flags);
+            console.log(`[kanban.exportService.processIncludedFiles] Searching with pattern: ${pattern.source}`);
 
             while ((match = regex.exec(processedContent)) !== null) {
+                console.log(`[kanban.exportService.processIncludedFiles] Found match: ${match[0]}`);
                 const includePath = match[1].trim();
                 // Decode URL-encoded include paths
                 const decodedIncludePath = decodeURIComponent(includePath);
@@ -434,33 +436,65 @@ export class ExportService {
 
                     const includeBasename = path.basename(resolvedPath, '.md');
 
-                    // Only write separate file for regular includes, not for column/task includes
-                    // Column and task includes are already embedded in the content by the parser
-                    if (shouldWriteSeparateFile) {
-                        // Process the included file recursively
-                        // Note: Don't pass convertToPresentation here because included files are already
-                        // embedded in the main content by the parser, so they'll be converted with the main file
-                        let { exportedContent } = await this.processMarkdownFile(
-                            resolvedPath,
-                            exportFolder,
-                            includeBasename,
-                            options,
-                            processedIncludes,
-                            false  // Don't convert includes separately - they're embedded in main content
-                        );
+                    console.log(`[kanban.exportService.processIncludedFiles] Processing include: ${resolvedPath}`);
+                    console.log(`[kanban.exportService.processIncludedFiles]   mergeIncludes: ${mergeIncludes}, shouldWriteSeparateFile: ${shouldWriteSeparateFile}`);
 
-                        // Copy the processed included file to export folder (keep original format)
+                    // Detect if the included file is already in presentation format
+                    const includeContent = fs.readFileSync(resolvedPath, 'utf8');
+                    const isKanbanFormat = includeContent.includes('kanban-plugin: board');
+
+                    // Determine if we need to convert the include file
+                    let shouldConvertInclude = false;
+                    if (convertToPresentation) {
+                        // Exporting to presentation: convert if include is kanban format
+                        shouldConvertInclude = isKanbanFormat;
+                    } else if (mergeIncludes && !isKanbanFormat) {
+                        // Exporting to kanban AND merging: convert if include is NOT kanban format
+                        // When merging into a kanban file, presentation includes must be converted to kanban
+                        // This will be handled differently - we need to convert presentation to kanban
+                        console.log(`[kanban.exportService.processIncludedFiles]   Include is presentation format, needs conversion to kanban for merge`);
+                    }
+
+                    console.log(`[kanban.exportService.processIncludedFiles]   isKanbanFormat: ${isKanbanFormat}, shouldConvertInclude: ${shouldConvertInclude}`);
+
+                    // Process the included file recursively
+                    let { exportedContent } = await this.processMarkdownFile(
+                        resolvedPath,
+                        exportFolder,
+                        includeBasename,
+                        options,
+                        processedIncludes,
+                        shouldConvertInclude
+                    );
+
+                    // If merging into kanban format and include is presentation format,
+                    // convert presentation slides to kanban tasks
+                    if (mergeIncludes && !convertToPresentation && !isKanbanFormat) {
+                        console.log(`[kanban.exportService.processIncludedFiles]   Converting presentation to kanban format for merge`);
+                        exportedContent = this.convertPresentationToKanban(exportedContent, match[0]);
+                    }
+
+                    if (shouldWriteSeparateFile) {
+                        // Mode: Keep separate files
+                        // Write the processed include file to export folder
                         const targetIncludePath = path.join(exportFolder, path.basename(resolvedPath));
                         fs.writeFileSync(targetIncludePath, exportedContent, 'utf8');
+                        console.log(`[kanban.exportService.processIncludedFiles]   Wrote separate file: ${targetIncludePath}`);
 
-                        // Update the include reference to use the new path
+                        // Update the marker to reference the exported file
                         processedContent = processedContent.replace(
                             match[0],
                             replacement(path.basename(resolvedPath))
                         );
+                    } else {
+                        // Mode: Merge includes into main file
+                        // Replace the marker with the actual content
+                        console.log(`[kanban.exportService.processIncludedFiles]   Merging content inline (${exportedContent.length} chars)`);
+                        processedContent = processedContent.replace(
+                            match[0],
+                            exportedContent
+                        );
                     }
-                    // For column/task includes, just keep the reference in the content
-                    // The parser has already embedded the tasks, so no need to write separate files
                 }
             }
         }
@@ -819,6 +853,7 @@ export class ExportService {
         const assets = this.findAssets(content, sourceDir);
 
         // Find and process included markdown files
+        console.log(`[kanban.exportService.processMarkdownContent] Before processIncludedFiles, content contains ${content.match(/!!!include/g)?.length || 0} include markers`);
         const { processedContent, includeStats } = await this.processIncludedFiles(
             content,
             sourceDir,
@@ -828,6 +863,7 @@ export class ExportService {
             convertToPresentation,
             mergeIncludes
         );
+        console.log(`[kanban.exportService.processMarkdownContent] After processIncludedFiles, content contains ${processedContent.match(/!!!include/g)?.length || 0} include markers`);
 
         // Filter assets based on options
         const assetsToInclude = this.filterAssets(assets, options);
@@ -855,6 +891,7 @@ export class ExportService {
         console.log(`[kanban.exportService.processMarkdownContent] convertToPresentation: ${convertToPresentation}`);
         if (convertToPresentation) {
             filteredContent = this.convertToPresentationFormat(filteredContent);
+            console.log(`[kanban.exportService.processMarkdownContent] After conversion, content contains ${filteredContent.match(/!!!include/g)?.length || 0} include markers`);
         }
 
         return {
@@ -1105,6 +1142,70 @@ export class ExportService {
     }
 
     /**
+     * Convert presentation format to kanban format
+     * For column includes and task includes that are in presentation format
+     */
+    private static convertPresentationToKanban(presentationContent: string, includeMarker: string): string {
+        console.log('[kanban.exportService.convertPresentationToKanban] Converting presentation to kanban format');
+
+        // Determine the include type from the marker
+        const isColumnInclude = includeMarker.includes('!!!columninclude');
+        const isTaskInclude = includeMarker.includes('!!!taskinclude');
+
+        // Parse presentation content into slides
+        const slides = PresentationParser.parsePresentation(presentationContent);
+
+        if (isColumnInclude) {
+            // Convert slides to a kanban column
+            // First slide title becomes column title, rest become tasks
+            if (slides.length === 0) return '';
+
+            const columnTitle = slides[0].title || slides[0].content.split('\n')[0] || 'Column';
+            let kanbanContent = `## ${columnTitle}\n`;
+
+            // Convert remaining slides to tasks
+            const tasks = PresentationParser.slidesToTasks(slides.slice(1));
+            for (const task of tasks) {
+                kanbanContent += `- [ ] ${task.title}\n`;
+                if (task.description) {
+                    // Indent description lines
+                    const descLines = task.description.split('\n');
+                    for (const line of descLines) {
+                        kanbanContent += `  ${line}\n`;
+                    }
+                }
+            }
+
+            console.log(`[kanban.exportService.convertPresentationToKanban] Converted ${slides.length} slides to column with ${tasks.length} tasks`);
+            return kanbanContent;
+
+        } else if (isTaskInclude) {
+            // Convert slides to tasks
+            const tasks = PresentationParser.slidesToTasks(slides);
+            let kanbanContent = '';
+
+            for (const task of tasks) {
+                kanbanContent += `- [ ] ${task.title}\n`;
+                if (task.description) {
+                    // Indent description lines
+                    const descLines = task.description.split('\n');
+                    for (const line of descLines) {
+                        kanbanContent += `  ${line}\n`;
+                    }
+                }
+            }
+
+            console.log(`[kanban.exportService.convertPresentationToKanban] Converted ${slides.length} slides to ${tasks.length} tasks`);
+            return kanbanContent;
+
+        } else {
+            // Regular include - just return as-is or wrapped in a column
+            console.log(`[kanban.exportService.convertPresentationToKanban] Regular include, returning as-is`);
+            return presentationContent;
+        }
+    }
+
+    /**
      * Convert kanban format to presentation format
      * Each task becomes a slide separated by ---
      * Column titles are included as slides before their tasks
@@ -1292,21 +1393,24 @@ export class ExportService {
             const mergeIncludes = options.mergeIncludes ?? (options.scope !== 'full');
             console.log(`[kanban.exportService.exportUnified] Scope: ${options.scope}, mergeIncludes: ${mergeIncludes}, convertToPresentation: ${convertToPresentation}`);
 
+            const exportOptions = {
+                targetFolder: options.targetFolder,
+                includeFiles: options.packOptions?.includeFiles ?? false,
+                includeImages: options.packOptions?.includeImages ?? false,
+                includeVideos: options.packOptions?.includeVideos ?? false,
+                includeOtherMedia: options.packOptions?.includeOtherMedia ?? false,
+                includeDocuments: options.packOptions?.includeDocuments ?? false,
+                fileSizeLimitMB: options.packOptions?.fileSizeLimitMB ?? 100,
+                tagVisibility: options.tagVisibility
+            };
+            console.log(`[kanban.exportService.exportUnified] Export options:`, exportOptions);
+
             const result = await this.processMarkdownContent(
                 content,
                 sourceDir,
                 targetBasename,
                 options.targetFolder,
-                {
-                    targetFolder: options.targetFolder,
-                    includeFiles: options.packOptions?.includeFiles ?? false,
-                    includeImages: options.packOptions?.includeImages ?? false,
-                    includeVideos: options.packOptions?.includeVideos ?? false,
-                    includeOtherMedia: options.packOptions?.includeOtherMedia ?? false,
-                    includeDocuments: options.packOptions?.includeDocuments ?? false,
-                    fileSizeLimitMB: options.packOptions?.fileSizeLimitMB ?? 100,
-                    tagVisibility: options.tagVisibility
-                },
+                exportOptions,
                 new Set<string>(),
                 convertToPresentation,
                 mergeIncludes
