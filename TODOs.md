@@ -4,7 +4,31 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] ...
+- [ ] cleanup the configuration and the functions that use it.  i think the """
+        "markdown-kanban.showRowTags": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show row tags (#row2, #row3, #row4) in column headers"
+        },
+        "markdown-kanban.tagVisibility": {
+          "type": "string",
+          "default": "all",
+          "description": "Control which types of tags are displayed on cards",
+          "enum": [
+            "all",
+            "standard",
+            "custom",
+            "mentions",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Show all tags including #span, #row, and @ tags",
+            "Show all except #span and #row (includes @ tags)",
+            "Show only custom tags (not configured ones) and @ tags",
+            "Show only @ tags",
+            "Hide all tags"
+          ]
+        },""" are doing the same thing, or rather showRowTags are obsolete.
 
 
 - [x] in some situations it doesnt open a link i opened before. 
