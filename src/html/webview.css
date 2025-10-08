@@ -2222,7 +2222,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 }
 
 .form-input {
-  width: 100%;
+  /* width: 100%; */
   padding: 4px;
   border: 1px solid var(--vscode-input-border);
   border-radius: 4px;
@@ -2333,7 +2333,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: normal;
-  min-height: 34px;
+  min-height: 28px;
   height: auto;
 }
 
@@ -2397,7 +2397,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 }
 
 .export-selector-full:hover {
-  border-color: var(--vscode-focusBorder);
+  border-color: var(--vscode-list-hoverBackground);
   background-color: var(--vscode-list-hoverBackground);
 }
 
@@ -2417,6 +2417,11 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   padding: 2px;
   background-color: var(--vscode-input-background);
   transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.export-selector-row:hover {
+  border-color: var(--vscode-list-hoverBackground);
+  background-color: var(--vscode-list-hoverBackground);
 }
 
 .export-selector-row.selected {
@@ -2471,8 +2476,8 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 }
 
 .export-selector-stack:hover {
-  border-color: var(--vscode-focusBorder);
-  background-color: rgba(128, 128, 128, 0.1);
+  border-color: var(--vscode-list-hoverBackground);
+  background-color: var(--vscode-list-hoverBackground);
 }
 
 .export-selector-stack.selected {
@@ -2508,13 +2513,15 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 }
 
 .export-selector-column:hover {
-  border-color: var(--vscode-focusBorder);
-  background-color: var(--vscode-button-hoverBackground);
+  border-color: var(--vscode-list-hoverBackground);
+  background-color: var(--vscode-list-hoverBackground);
+  color: var(--vscode-list-hoverForeground);
 }
 
 .export-selector-column.selected {
   border-color: var(--vscode-focusBorder);
-  background-color: var(--vscode-button-hoverBackground);
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
   box-shadow: 0 0 0 1px var(--vscode-focusBorder);
 }
 
@@ -2533,13 +2540,15 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 }
 
 .export-selector-stacked-column:hover {
-  border-color: var(--vscode-focusBorder);
-  background-color: var(--vscode-button-hoverBackground);
+  border-color: var(--vscode-list-hoverBackground);
+  background-color: var(--vscode-list-hoverBackground);
+  color: var(--vscode-list-hoverForeground);
 }
 
 .export-selector-stacked-column.selected {
   border-color: var(--vscode-focusBorder);
-  background-color: var(--vscode-button-hoverBackground);
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
   box-shadow: 0 0 0 1px var(--vscode-focusBorder);
 }
 
