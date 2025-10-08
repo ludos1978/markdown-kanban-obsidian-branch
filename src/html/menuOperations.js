@@ -1001,13 +1001,13 @@ function copyColumnAsMarkdown(columnId) {
     const column = currentBoard.columns.find(c => c.id === columnId);
     if (!column) {return;}
 
-    // Filter column title based on export tag visibility setting
-    const filteredTitle = window.filterTagsForExport ? window.filterTagsForExport(column.title) : column.title;
+    // Always use 'allexcludinglayout' tag visibility for copy as markdown
+    const filteredTitle = window.filterTagsForExport ? window.filterTagsForExport(column.title, 'allexcludinglayout') : column.title;
     let markdown = `# ${filteredTitle}\n`;
 
     column.tasks.forEach(task => {
-        // Filter task title based on export tag visibility setting
-        const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title) : task.title;
+        // Always use 'allexcludinglayout' tag visibility for copy as markdown
+        const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title, 'allexcludinglayout') : task.title;
         markdown += filteredTaskTitle.startsWith('#') ?
             `\n---\n\n${filteredTaskTitle || ''}\n` :
             `\n---\n\n## ${filteredTaskTitle || ''}\n`;
@@ -1026,8 +1026,8 @@ function copyTaskAsMarkdown(taskId, columnId) {
     const task = column?.tasks.find(t => t.id === taskId);
     if (!task) {return;}
 
-    // Filter task title based on export tag visibility setting
-    const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title) : task.title;
+    // Always use 'allexcludinglayout' tag visibility for copy as markdown
+    const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title, 'allexcludinglayout') : task.title;
     let markdown = filteredTaskTitle.startsWith('#') ?
         `${filteredTaskTitle || ''}\n` :
         `## ${filteredTaskTitle || ''}\n`;

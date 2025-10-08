@@ -10,7 +10,7 @@ kanban-plugin: board
 
 - [ ] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
 
-- [ ] move the "export tags" from the file info burger menu to the export function so it's chosen individually when exporting something
+- [x] move the "export tags" from the file info burger menu to the export function so it's chosen individually when exporting something
 
 - [x] remove the image fill mode and all code that is using it if it's not used for something else. preserve functionality that is outside the usage of the image scaling. """        "markdown-kanban.imageFill": {
           "type": "string",
