@@ -31,23 +31,25 @@ export class PresentationParser {
       let title: string | undefined;
       let remainingContent: string;
 
-      // Find the first heading line (any level from # to ######)
+      // Find title: either a heading (# to ######) or the first non-empty line within first 3 lines
       let titleLineIndex = -1;
       let titleLine: string | undefined;
 
-      for (let i = 0; i < lines.length; i++) {
+      for (let i = 0; i < Math.min(3, lines.length); i++) {
         const line = lines[i].trim();
-        if (line && line.match(/^#{1,7}\s+/)) {
-          titleLine = lines[i]; // Keep original line with exact spacing and heading level
-          titleLineIndex = i;
-
-          // Check if this is H7 (####### ) - convert to normal text
-          if (line.match(/^#{7}\s+/)) {
-            title = line.replace(/^#{7}\s+/, '').trim(); // Remove H7 syntax, store as plain text
-          } else {
+        if (line) {
+          // Check if it's a heading (H1-H6 only, not H7)
+          if (line.match(/^#{1,6}\s+/)) {
+            titleLine = lines[i]; // Keep original line with exact spacing and heading level
             title = titleLine; // Store the full heading with depth (H1-H6)
+            titleLineIndex = i;
+            break;
+          } else if (titleLineIndex === -1) {
+            // First non-empty line that's not a heading - use as plain text title
+            title = line;
+            titleLineIndex = i;
+            break;
           }
-          break;
         }
       }
 
@@ -110,8 +112,8 @@ export class PresentationParser {
           // Title already has heading depth, use it as-is
           slideContent += `${task.title}\n\n`;
         } else {
-          // Title without heading syntax, store as H7 (which will be read back as normal text)
-          slideContent += `####### ${task.title}\n\n`;
+          // Plain text title: place on first line, followed by empty line
+          slideContent += `${task.title}\n\n`;
         }
       }
 
