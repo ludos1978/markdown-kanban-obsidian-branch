@@ -4070,10 +4070,34 @@ let exportDefaultFolder = '';
  * Show the export dialog
  */
 function showExportDialog() {
+    showExportDialogWithSelection(null, null, null);
+}
+
+/**
+ * Show export dialog with optional pre-selection
+ * @param {string} scope - Scope to pre-select ('column', 'row', 'stack', or null for full)
+ * @param {number} index - Index of the item to select
+ * @param {string} id - ID of the item (for columns)
+ */
+function showExportDialogWithSelection(scope, index, id) {
     const modal = document.getElementById('export-modal');
     if (!modal) {
         return;
     }
+
+    // Determine pre-selection node ID
+    let preSelectNodeId = null;
+    if (scope === 'column' && index !== null) {
+        preSelectNodeId = `column-${index}`;
+    } else if (scope === 'row' && index !== null) {
+        preSelectNodeId = `row-${index}`;
+    } else if (scope === 'stack' && index !== null) {
+        // Stack needs both row and stack index, handled in initializeExportTree
+        preSelectNodeId = `stack-${index}`;
+    }
+
+    // Initialize export tree with pre-selection
+    initializeExportTree(preSelectNodeId);
 
     // Generate default export folder name
     vscode.postMessage({
@@ -4126,9 +4150,83 @@ function setSelectedExportFolder(folderPath) {
 }
 
 /**
- * Execute the export operation
+ * Execute the export operation (LEGACY - kept for backward compatibility)
  */
 function executeExport() {
+    executeUnifiedExport();
+}
+
+/**
+ * Global export tree UI instance
+ */
+let exportTreeUI = null;
+
+/**
+ * Initialize export tree when modal opens
+ * @param {string} preSelectNodeId - Optional node ID to pre-select instead of full kanban
+ */
+function initializeExportTree(preSelectNodeId = null) {
+    if (!window.currentBoard) {
+        console.warn('[kanban.webview.initializeExportTree] No board available');
+        return;
+    }
+
+    // Check if tree builder is available
+    if (!window.ExportTreeBuilder) {
+        console.error('[kanban.webview.initializeExportTree] ExportTreeBuilder not loaded');
+        const container = document.getElementById('export-tree-container');
+        if (container) {
+            container.innerHTML = '<div class="export-tree-empty">Export tree not available. Please reload the page.</div>';
+        }
+        return;
+    }
+
+    // Build tree from current board
+    const tree = window.ExportTreeBuilder.buildExportTree(window.currentBoard);
+
+    // Create or get tree UI instance
+    if (!exportTreeUI) {
+        exportTreeUI = new window.ExportTreeUI('export-tree-container');
+    }
+
+    // Render tree
+    exportTreeUI.render(tree);
+
+    // Select either the pre-selected node or full kanban
+    if (preSelectNodeId) {
+        exportTreeUI.tree = window.ExportTreeBuilder.toggleSelection(exportTreeUI.tree, preSelectNodeId, true);
+        exportTreeUI.render(exportTreeUI.tree);
+    } else {
+        // Auto-select full kanban by default
+        exportTreeUI.selectAll();
+    }
+
+    // Set up pack assets toggle
+    const packCheckbox = document.getElementById('pack-assets');
+    const packOptions = document.getElementById('export-pack-options');
+
+    if (packCheckbox && packOptions) {
+        packCheckbox.addEventListener('change', () => {
+            if (packCheckbox.checked) {
+                packOptions.classList.remove('disabled');
+            } else {
+                packOptions.classList.add('disabled');
+            }
+        });
+
+        // Initialize state
+        if (packCheckbox.checked) {
+            packOptions.classList.remove('disabled');
+        } else {
+            packOptions.classList.add('disabled');
+        }
+    }
+}
+
+/**
+ * Execute unified export
+ */
+function executeUnifiedExport() {
     const folderInput = document.getElementById('export-folder');
     if (!folderInput || !folderInput.value.trim()) {
         vscode.postMessage({
@@ -4138,25 +4236,60 @@ function executeExport() {
         return;
     }
 
-    // Gather options from the form
-    const options = {
-        targetFolder: folderInput.value.trim(),
+    // Get selected items from tree
+    const selectedItems = exportTreeUI ? exportTreeUI.getSelectedItems() : [];
+    if (selectedItems.length === 0) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'Please select at least one item to export'
+        });
+        return;
+    }
+
+    // Get export format
+    const format = document.querySelector('input[name="export-format"]:checked')?.value || 'kanban';
+
+    // Get tag visibility
+    const tagVisibility = document.getElementById('export-tag-visibility')?.value || 'allexcludinglayout';
+
+    // Get pack assets option
+    const packAssets = document.getElementById('pack-assets')?.checked || false;
+
+    // Get pack options if packing is enabled
+    const packOptions = packAssets ? {
         includeFiles: document.getElementById('include-files')?.checked || false,
         includeImages: document.getElementById('include-images')?.checked || false,
         includeVideos: document.getElementById('include-videos')?.checked || false,
         includeOtherMedia: document.getElementById('include-other-media')?.checked || false,
         includeDocuments: document.getElementById('include-documents')?.checked || false,
-        fileSizeLimitMB: parseInt(document.getElementById('file-size-limit')?.value) || 100,
-        tagVisibility: document.getElementById('export-tag-visibility')?.value || 'all'
-    };
+        fileSizeLimitMB: parseInt(document.getElementById('file-size-limit')?.value) || 100
+    } : undefined;
 
     // Close modal
     closeExportModal();
 
-    // Send export request
-    vscode.postMessage({
-        type: 'exportWithAssets',
-        options: options
+    // Export each selected item
+    selectedItems.forEach(item => {
+        const options = {
+            targetFolder: folderInput.value.trim(),
+            scope: item.scope,
+            format: format,
+            tagVisibility: tagVisibility,
+            packAssets: packAssets,
+            packOptions: packOptions,
+            selection: {
+                rowNumber: item.rowNumber,
+                stackIndex: item.stackIndex,
+                columnIndex: item.columnIndex,
+                columnId: item.columnId
+            }
+        };
+
+        // Send unified export request
+        vscode.postMessage({
+            type: 'unifiedExport',
+            options: options
+        });
     });
 }
 
@@ -4211,12 +4344,8 @@ window.exportColumn = function exportColumn(columnId) {
         return;
     }
 
-    // Store the column info and show the export dialog
-    selectedColumnId = columnId;
-    selectedColumnIndex = columnIndex;
-    selectedColumnTitle = column.title || `Column ${columnIndex + 1}`;
-
-    showColumnExportDialog(columnIndex, column.title);
+    // Use unified export dialog with this column pre-selected
+    showExportDialogWithSelection('column', columnIndex, columnId);
 };
 
 function showColumnExportDialog(columnIndex, columnTitle) {

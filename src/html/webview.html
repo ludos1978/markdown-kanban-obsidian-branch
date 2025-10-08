@@ -249,7 +249,7 @@
     <div id="export-modal" class="modal">
         <div class="modal-content export-modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">Export & Pack</h3>
+                <h3 class="modal-title">Export Kanban</h3>
                 <button class="close-btn" onclick="closeExportModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -262,34 +262,59 @@
                 </div>
 
                 <div class="export-field">
-                    <label>Include Assets:</label>
-                    <div class="export-checkboxes">
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="include-files" checked>
-                            <span>Included Files</span>
-                        </label>
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="include-images" checked>
-                            <span>Images</span>
-                        </label>
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="include-videos" checked>
-                            <span>Videos</span>
-                        </label>
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="include-other-media" checked>
-                            <span>Other Media</span>
-                        </label>
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="include-documents" checked>
-                            <span>Documents</span>
-                        </label>
+                    <label>Select Content to Export:</label>
+                    <div id="export-tree-container" class="export-tree-container">
+                        <!-- Tree will be rendered here by JavaScript -->
                     </div>
                 </div>
 
                 <div class="export-field">
-                    <label for="file-size-limit">File Size Limit (MB):</label>
-                    <input type="number" id="file-size-limit" class="form-input" value="100" min="1" max="1000" />
+                    <label>Export Format:</label>
+                    <div class="export-format-options">
+                        <div class="export-format-option">
+                            <input type="radio" id="format-kanban" name="export-format" value="kanban" checked>
+                            <label for="format-kanban">Kanban Format (original structure)</label>
+                        </div>
+                        <div class="export-format-option">
+                            <input type="radio" id="format-presentation" name="export-format" value="presentation">
+                            <label for="format-presentation">Presentation Format (copy-as-markdown style)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="export-field">
+                    <label class="export-pack-toggle">
+                        <input type="checkbox" id="pack-assets" checked>
+                        <span>Pack Assets into Export Folder</span>
+                    </label>
+                    <div id="export-pack-options" class="export-pack-options">
+                        <div class="export-checkboxes">
+                            <label class="export-checkbox">
+                                <input type="checkbox" id="include-files" checked>
+                                <span>Included Files</span>
+                            </label>
+                            <label class="export-checkbox">
+                                <input type="checkbox" id="include-images" checked>
+                                <span>Images</span>
+                            </label>
+                            <label class="export-checkbox">
+                                <input type="checkbox" id="include-videos" checked>
+                                <span>Videos</span>
+                            </label>
+                            <label class="export-checkbox">
+                                <input type="checkbox" id="include-other-media" checked>
+                                <span>Other Media</span>
+                            </label>
+                            <label class="export-checkbox">
+                                <input type="checkbox" id="include-documents" checked>
+                                <span>Documents</span>
+                            </label>
+                        </div>
+                        <div class="export-field" style="margin-top: 12px;">
+                            <label for="file-size-limit">File Size Limit (MB):</label>
+                            <input type="number" id="file-size-limit" class="form-input" value="100" min="1" max="1000" />
+                        </div>
+                    </div>
                 </div>
 
                 <div class="export-field">
@@ -305,13 +330,13 @@
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="executeExport()">Export</button>
+                <button type="button" class="btn btn-primary" onclick="executeUnifiedExport()">Export</button>
             </div>
         </div>
     </div>
 
-    <!-- Column Export dialog -->
-    <div id="column-export-modal" class="modal">
+    <!-- Column Export dialog (DEPRECATED - now uses unified export dialog) -->
+    <!-- <div id="column-export-modal" class="modal">
         <div class="modal-content export-modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">Export Column</h3>
@@ -377,7 +402,7 @@
                 <button type="button" class="btn btn-primary" onclick="executeColumnExport()">Export Column</button>
             </div>
         </div>
-    </div>
+    </div> -->
 
     <!-- JavaScript modules in dependency order -->
     <!-- Initialize vscode API first -->
@@ -398,6 +423,8 @@
     <script src="utils/validationUtils.js"></script>
     <script src="utils/modalUtils.js"></script>
     <script src="utils/activityIndicator.js"></script>
+    <script src="utils/exportTreeBuilder.js"></script>
+    <script src="utils/exportTreeUI.js"></script>
 
     <!-- Core modules -->
     <script src="runtime-tracker.js"></script>

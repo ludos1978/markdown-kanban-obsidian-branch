@@ -584,6 +584,18 @@ export class MessageHandler {
                 await this.handleGenerateCopyContent(message.options);
                 break;
 
+            case 'unifiedExport':
+                const unifiedExportId = `unified_export_${Date.now()}`;
+                await this.startOperation(unifiedExportId, 'export', 'Exporting...');
+                try {
+                    await this.handleUnifiedExport(message.options, unifiedExportId);
+                    await this.endOperation(unifiedExportId);
+                } catch (error) {
+                    await this.endOperation(unifiedExportId);
+                    throw error;
+                }
+                break;
+
             case 'showError':
                 vscode.window.showErrorMessage(message.message);
                 break;
@@ -1938,6 +1950,51 @@ export class MessageHandler {
         } catch (error) {
             console.error('[kanban.messageHandler.generateCopyContent] Error:', error);
             vscode.window.showErrorMessage(`Copy content generation failed: ${error}`);
+        }
+    }
+
+    private async handleUnifiedExport(options: any, operationId?: string): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                vscode.window.showErrorMessage('No document available for export');
+                return;
+            }
+
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `Exporting ${options.scope}...`,
+                cancellable: false
+            }, async (progress) => {
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 20, 'Processing content...');
+                }
+                progress.report({ increment: 20, message: 'Processing content...' });
+
+                const result = await ExportService.exportUnified(document, options);
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 90, 'Finalizing...');
+                }
+                progress.report({ increment: 80, message: 'Finalizing...' });
+
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel) {
+                    panel._panel.webview.postMessage({
+                        type: 'exportResult',
+                        result: result
+                    });
+                }
+
+                if (operationId) {
+                    await this.updateOperationProgress(operationId, 100);
+                }
+            });
+
+        } catch (error) {
+            console.error('[kanban.messageHandler.unifiedExport] Error:', error);
+            vscode.window.showErrorMessage(`Export failed: ${error}`);
         }
     }
 
