@@ -40,7 +40,8 @@
       "Bash(git log:*)",
       "Bash(open tests/kanban-multirow-small.md)",
       "Bash(open /Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tmp/test-video-overlay.html)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(open:*)"
     ],
     "deny": [],
     "ask": []

@@ -6,16 +6,16 @@ kanban-plugin: board
 
 ## ## Title
 
-## In Progress #inprogress #feature
-- [ ] #blue
-- [ ] #cyan
-- [ ] #green
-- [ ] #yellow
-- [ ] #orange
-- [ ] #red
-- [ ] #magenta
+## In Progress #inprogress #feature #stack
+- [ ] # h1 #blue
+- [ ] ## h2 #cyan
+- [ ] ### h3 #green
+- [ ] #### h4 #yellow
+- [ ] ##### h5 #orange
+- [ ] ###### h6 #red
+- [ ] ####### h7  #lime
 
-## Review #review
+## Review #review #stack
 - [ ] #teal
 - [ ] #indigo
 - [ ] #lime
@@ -23,11 +23,16 @@ kanban-plugin: board
 
 ## TODO #todo
 
-## #review
+## #testing #stack
 
-## #testing
+## #wip #stack
 
-## #wip
+## #done #stack
+
+## #review #stack
+- [ ] test
+
+## #blocked
 
 ## # Title #row2
 
@@ -94,11 +99,5 @@ kanban-plugin: board
 ## #performance #row4
 
 ## #api #row4
-
-## #done
-
-## #blocked
-
-## 
 
 

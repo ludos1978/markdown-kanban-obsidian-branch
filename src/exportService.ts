@@ -1139,20 +1139,17 @@ export class ExportService {
         const slides: string[] = [];
 
         for (const column of board.columns) {
-            // Add column title as a slide (if it has heading syntax after removing ##)
-            // The parser already removed "## " from column.title, so just trim
+            // Add column title as a slide
+            // The parser already removed "## " from column.title, just use it directly
             const columnTitle = column.title.trim();
 
             console.log(`[kanban.exportService.convertToPresentationFormat] Column title: "${columnTitle}"`);
 
-            // Only add column title as a slide if it already contains heading syntax (#)
-            if (columnTitle.match(/^#+\s/)) {
-                console.log(`[kanban.exportService.convertToPresentationFormat]   Has heading syntax, adding as slide`);
+            // Add the column title as-is (parser already stripped the kanban ## structure)
+            if (columnTitle) {
                 slides.push(columnTitle);
-            } else {
-                console.log(`[kanban.exportService.convertToPresentationFormat]   No heading syntax, skipping`);
+                console.log(`[kanban.exportService.convertToPresentationFormat]   Added column title as slide`);
             }
-            // If title has no heading syntax, skip it (don't add to slides)
 
             // Convert column tasks to slides
             if (column.tasks && column.tasks.length > 0) {
