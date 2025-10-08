@@ -256,38 +256,39 @@
                 </div>
             </div>
             <div class="modal-body">
+
+								<div class="export-field-row">
+										<div class="export-field-half">
+												<label for="export-format">Export Format:</label>
+												<select id="export-format" class="form-input">
+														<option value="kanban">Kanban Format</option>
+														<option value="presentation">Presentation Format</option>
+												</select>
+										</div>
+										<div class="export-field-half">
+												<label for="export-tag-visibility">Tag Visibility:</label>
+												<select id="export-tag-visibility" class="form-input">
+														<option value="all">All Tags</option>
+														<option value="allexcludinglayout">All Excluding Layout</option>
+														<option value="customonly">Custom Tags Only</option>
+														<option value="mentionsonly">@ Tags Only</option>
+														<option value="none">No Tags</option>
+												</select>
+										</div>
+								</div>
+
                 <div class="export-field">
+										<label>Select Content to Export:</label>
+										<div id="export-tree-container" class="export-tree-container">
+												<!-- Tree will be rendered here by JavaScript -->
+										</div>
+								</div>
+
+								<div class="export-field">
                     <label for="export-folder">Export Folder:</label>
                     <div class="export-folder-input">
                         <input type="text" id="export-folder" class="form-input" placeholder="Select folder..." readonly />
                         <button type="button" class="btn btn-secondary" onclick="selectExportFolder()">Browse</button>
-                    </div>
-                </div>
-
-                <div class="export-field">
-                    <label>Select Content to Export:</label>
-                    <div id="export-tree-container" class="export-tree-container">
-                        <!-- Tree will be rendered here by JavaScript -->
-                    </div>
-                </div>
-
-                <div class="export-field-row">
-                    <div class="export-field-half">
-                        <label for="export-format">Export Format:</label>
-                        <select id="export-format" class="form-input">
-                            <option value="kanban">Kanban Format</option>
-                            <option value="presentation">Presentation Format</option>
-                        </select>
-                    </div>
-                    <div class="export-field-half">
-                        <label for="export-tag-visibility">Tag Visibility:</label>
-                        <select id="export-tag-visibility" class="form-input">
-                            <option value="all">All Tags</option>
-                            <option value="allexcludinglayout">All Excluding Layout</option>
-                            <option value="customonly">Custom Tags Only</option>
-                            <option value="mentionsonly">@ Tags Only</option>
-                            <option value="none">No Tags</option>
-                        </select>
                     </div>
                 </div>
 

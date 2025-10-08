@@ -995,30 +995,26 @@ export class ExportService {
      * A stack includes: base column (without #stack) + all consecutive #stack columns after it
      */
     private static extractStackContent(markdownContent: string, rowNumber: number, stackIndex: number): string | null {
+        console.log(`[kanban.exportService.extractStackContent] Extracting row ${rowNumber}, stack ${stackIndex}`);
+
         const isKanban = markdownContent.includes('kanban-plugin: board');
         if (!isKanban) { return null; }
 
         const lines = markdownContent.split('\n');
-        const stacks: string[][] = [];
-        let currentStack: string[] = [];
+
+        // First, collect all columns in the target row
+        const rowColumns: { content: string; stacked: boolean; title: string }[] = [];
         let currentColumn: { content: string[]; row: number; stacked: boolean } | null = null;
 
         for (const line of lines) {
             if (line.startsWith('## ')) {
-                // Process previous column
+                // Save previous column if it's in the target row
                 if (currentColumn && currentColumn.row === rowNumber) {
-                    if (currentColumn.stacked) {
-                        // Stacked column - add to current stack
-                        currentStack.push(currentColumn.content.join('\n'));
-                    } else {
-                        // Non-stacked column - this is a new base column
-                        // First, finish the previous stack if it exists
-                        if (currentStack.length > 0) {
-                            stacks.push([...currentStack]);
-                        }
-                        // Start new stack with this base column
-                        currentStack = [currentColumn.content.join('\n')];
-                    }
+                    rowColumns.push({
+                        content: currentColumn.content.join('\n'),
+                        stacked: currentColumn.stacked,
+                        title: currentColumn.content[0]
+                    });
                 }
 
                 // Start new column
@@ -1032,27 +1028,49 @@ export class ExportService {
 
         // Don't forget the last column
         if (currentColumn && currentColumn.row === rowNumber) {
-            if (currentColumn.stacked) {
-                currentStack.push(currentColumn.content.join('\n'));
-            } else {
-                // Non-stacked column - finish previous stack and start new one
-                if (currentStack.length > 0) {
-                    stacks.push([...currentStack]);
-                }
-                currentStack = [currentColumn.content.join('\n')];
-            }
+            rowColumns.push({
+                content: currentColumn.content.join('\n'),
+                stacked: currentColumn.stacked,
+                title: currentColumn.content[0]
+            });
         }
 
-        // Push the final stack
-        if (currentStack.length > 0) {
+        console.log(`[kanban.exportService.extractStackContent] Found ${rowColumns.length} columns in row ${rowNumber}:`);
+        rowColumns.forEach((col, i) => {
+            console.log(`  [${i}] stacked:${col.stacked} title:"${col.title}"`);
+        });
+
+        // Now group columns into stacks (matching frontend logic)
+        // A stack is: base column + all consecutive #stack columns
+        const stacks: string[][] = [];
+        let i = 0;
+
+        while (i < rowColumns.length) {
+            const currentStack = [rowColumns[i].content]; // Start with base column
+            console.log(`[kanban.exportService.extractStackContent] Starting stack ${stacks.length} with base: "${rowColumns[i].title}"`);
+            i++;
+
+            // Add all consecutive #stack columns to this stack
+            while (i < rowColumns.length && rowColumns[i].stacked) {
+                console.log(`[kanban.exportService.extractStackContent]   Adding stacked: "${rowColumns[i].title}"`);
+                currentStack.push(rowColumns[i].content);
+                i++;
+            }
+
+            console.log(`[kanban.exportService.extractStackContent] Stack ${stacks.length} has ${currentStack.length} columns`);
             stacks.push(currentStack);
         }
 
+        console.log(`[kanban.exportService.extractStackContent] Total stacks: ${stacks.length}, requesting index: ${stackIndex}`);
+
         if (stackIndex >= stacks.length) {
+            console.log(`[kanban.exportService.extractStackContent] Stack index ${stackIndex} out of bounds (only ${stacks.length} stacks)`);
             return null;
         }
 
-        return stacks[stackIndex].join('\n\n');
+        const result = stacks[stackIndex].join('\n\n');
+        console.log(`[kanban.exportService.extractStackContent] Returning stack ${stackIndex} with ${stacks[stackIndex].length} columns, ${result.split('## ').length - 1} column headers`);
+        return result;
     }
 
     /**

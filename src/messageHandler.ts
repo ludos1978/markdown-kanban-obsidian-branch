@@ -332,9 +332,13 @@ export class MessageHandler {
                 );
                 break;
             case 'deleteColumn':
-                await this.performBoardAction(() => 
-                    this._boardOperations.deleteColumn(this._getCurrentBoard()!, message.columnId)
-                );
+                // REVERT: Using performBoardAction to investigate why changes are being reverted
+                console.log('[kanban.messageHandler.deleteColumn] Before delete, board has', this._getCurrentBoard()?.columns.length, 'columns');
+                await this.performBoardAction(() => {
+                    const result = this._boardOperations.deleteColumn(this._getCurrentBoard()!, message.columnId);
+                    console.log('[kanban.messageHandler.deleteColumn] After delete, board has', this._getCurrentBoard()?.columns.length, 'columns');
+                    return result;
+                });
                 break;
             case 'insertColumnBefore':
                 await this.performBoardAction(() => 
