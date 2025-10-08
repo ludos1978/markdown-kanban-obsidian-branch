@@ -11,6 +11,7 @@ kanban-plugin: board
     at setColumnExportDefaultFolder (webview.js?v=1759945056175:4383:16)
     at webview.js?v=1759945056175:2633:13"
 
+- [ ] can we integrate marp (maybe using the marp plugin in vscode). to directly start presentations from the kanban viewer? also the different export options of marp would be interesting. we would need to integrate the markdown-it plugins into the marp workflow. we could require the user to install marp and just deliver the engine.js and the node modules required.
 
 - [ ] add the ability to export as pdf. could we integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly?
 

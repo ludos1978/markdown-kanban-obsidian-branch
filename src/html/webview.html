@@ -250,7 +250,10 @@
         <div class="modal-content export-modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">Export Kanban</h3>
-                <button class="close-btn" onclick="closeExportModal()">&times;</button>
+                <div class="modal-header-actions">
+                    <button type="button" class="btn btn-primary btn-export-header" onclick="executeUnifiedExport()">Export</button>
+                    <button class="close-btn" onclick="closeExportModal()">&times;</button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="export-field">
@@ -322,10 +325,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="executeUnifiedExport()">Export</button>
             </div>
         </div>
     </div>

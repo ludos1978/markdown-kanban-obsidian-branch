@@ -2152,7 +2152,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .modal-content {
   background-color: var(--vscode-editor-background);
   margin: 5vh auto;
-  padding: 16px;
+  padding: 0px 8px 8px 8px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 8px;
   width: 80%;
@@ -2166,34 +2166,64 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  margin-bottom: 4px;
+  padding-bottom: 3px;
   border-bottom: 1px solid var(--vscode-panel-border);
   flex-shrink: 0;
+  min-height: 24px;
+}
+
+.modal-header-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.btn-export-header {
+  padding: 3px 8px;
+  font-size: 12px;
+  line-height: 1.2;
+  border: 1px solid var(--vscode-button-border, transparent);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.btn-export-header:hover {
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
 }
 
 .modal-title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.2;
+	margin: 0px;
 }
 
 .close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
+  background: var(--vscode-button-secondaryBackground);
+  border: 1px solid var(--vscode-button-border, transparent);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+  border-radius: 4px;
+  font-size: 16px;
+  line-height: 1;
   cursor: pointer;
-  color: var(--vscode-foreground);
+  color: var(--vscode-button-secondaryForeground);
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+	margin: 4px 0px 0px 6px;
+}
+
+.close-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
 }
 
 .form-input {
   width: 100%;
-  padding: 8px 12px;
+  padding: 4px;
   border: 1px solid var(--vscode-input-border);
   border-radius: 4px;
   background-color: var(--vscode-input-background);
@@ -2218,7 +2248,8 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 }
 
 .btn {
-  padding: 8px 16px;
+  padding: 2px 8px;
+	margin: 6px 0px 2px 0px;
   border: none;
   border-radius: 4px;
   font-size: 14px;
@@ -2238,10 +2269,13 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .btn-secondary {
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
+  border: 1px solid var(--vscode-button-border, transparent);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
 }
 
 .btn-secondary:hover {
   background: var(--vscode-button-secondaryHoverBackground);
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
 }
 
 /* Export Modal Specific Styles */
@@ -2305,8 +2339,8 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 
 .export-checkboxes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 4px;
   margin-top: 6px;
 }
 
@@ -2327,6 +2361,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 /* Export Visual Selector (Kanban-style layout) */
 .export-tree-container {
   flex: 1;
+  overflow-x: auto;
   overflow-y: auto;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 4px;
@@ -2346,18 +2381,19 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: max-content;
 }
 
 /* Full Kanban option */
 .export-selector-full {
-  padding: 6px 10px;
-  border: 2px solid var(--vscode-panel-border);
+  padding: 2px 10px;
+  border: 1px solid var(--vscode-panel-border);
   border-radius: 4px;
   background-color: var(--vscode-input-background);
   cursor: pointer;
   font-weight: 600;
   text-align: center;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .export-selector-full:hover {
@@ -2375,12 +2411,12 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 /* Row container */
 .export-selector-row {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 4px;
-  padding: 3px;
+  padding: 2px;
   background-color: var(--vscode-input-background);
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .export-selector-row.selected {
@@ -2392,7 +2428,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .export-selector-row-label {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  padding: 8px 4px;
+  padding: 2px 4px;
   font-weight: 500;
   cursor: pointer;
   border-radius: 2px;
@@ -2412,7 +2448,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .export-selector-columns-container {
   display: flex;
   gap: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-start;
   flex: 1;
 }
@@ -2424,11 +2460,13 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   gap: 2px;
   border: 1px dashed var(--vscode-panel-border);
   border-radius: 3px;
-  padding: 4px;
+  padding: 2px;
   background-color: rgba(128, 128, 128, 0.05);
   cursor: pointer;
-  transition: all 0.15s ease;
-  width: 200px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  min-width: 120px;
+  max-width: 250px;
+  width: fit-content;
   flex-shrink: 0;
 }
 
@@ -2454,16 +2492,19 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 
 /* Regular column (not stacked) */
 .export-selector-column {
-  padding: 6px 12px;
+  padding: 2px 8px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 3px;
   background-color: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
   cursor: pointer;
   font-size: 0.9em;
-  white-space: nowrap;
-  transition: all 0.15s ease;
+  white-space: normal;
+  word-wrap: break-word;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
   flex-shrink: 0;
+  min-width: 80px;
+  max-width: 250px;
 }
 
 .export-selector-column:hover {
@@ -2474,23 +2515,21 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .export-selector-column.selected {
   border-color: var(--vscode-focusBorder);
   background-color: var(--vscode-button-hoverBackground);
-  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
-  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
 }
 
 /* Stacked column (horizontal line in stack) */
 .export-selector-stacked-column {
-  padding: 4px 8px;
+  padding: 2px 6px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 2px;
   background-color: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
   cursor: pointer;
   font-size: 0.85em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: all 0.15s ease;
+  white-space: normal;
+  word-wrap: break-word;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .export-selector-stacked-column:hover {
@@ -2501,8 +2540,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .export-selector-stacked-column.selected {
   border-color: var(--vscode-focusBorder);
   background-color: var(--vscode-button-hoverBackground);
-  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
-  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
 }
 
 /* Export Format Selection */
