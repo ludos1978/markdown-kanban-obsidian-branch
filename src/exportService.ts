@@ -314,7 +314,8 @@ export class ExportService {
         exportFolder: string,
         fileBasename: string,
         options: ExportOptions,
-        processedIncludes: Set<string>
+        processedIncludes: Set<string>,
+        convertToPresentation: boolean = false
     ): Promise<{
         exportedContent: string;
         notIncludedAssets: AssetInfo[];
@@ -333,7 +334,8 @@ export class ExportService {
             sourceDir,
             exportFolder,
             options,
-            processedIncludes
+            processedIncludes,
+            convertToPresentation
         );
 
         // Filter assets based on options
@@ -424,13 +426,19 @@ export class ExportService {
                     const includeBasename = path.basename(resolvedPath, '.md');
 
                     // Process the included file recursively
-                    const { exportedContent } = await this.processMarkdownFile(
+                    let { exportedContent } = await this.processMarkdownFile(
                         resolvedPath,
                         exportFolder,
                         includeBasename,
                         options,
-                        processedIncludes
+                        processedIncludes,
+                        convertToPresentation
                     );
+
+                    // Apply presentation format conversion if needed
+                    if (convertToPresentation) {
+                        exportedContent = this.convertToPresentationFormat(exportedContent);
+                    }
 
                     // Copy the processed included file to export folder
                     const targetIncludePath = path.join(exportFolder, path.basename(resolvedPath));
@@ -785,7 +793,8 @@ export class ExportService {
         fileBasename: string,
         exportFolder: string,
         options: ExportOptions,
-        processedIncludes: Set<string>
+        processedIncludes: Set<string>,
+        convertToPresentation: boolean = false
     ): Promise<{
         exportedContent: string;
         notIncludedAssets: AssetInfo[];
@@ -802,7 +811,8 @@ export class ExportService {
             sourceDir,
             exportFolder,
             options,
-            processedIncludes
+            processedIncludes,
+            convertToPresentation
         );
 
         // Filter assets based on options
@@ -1182,7 +1192,8 @@ export class ExportService {
                     fileSizeLimitMB: options.packOptions?.fileSizeLimitMB ?? 100,
                     tagVisibility: options.tagVisibility
                 },
-                new Set<string>()
+                new Set<string>(),
+                options.format === 'presentation'
             );
 
             // Write the markdown file
