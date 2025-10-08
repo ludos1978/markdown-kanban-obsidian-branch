@@ -4,6 +4,9 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { TagUtils, TagVisibility } from './utils/tagUtils';
 
+export type ExportScope = 'full' | 'row' | 'stack' | 'column' | 'task';
+export type ExportFormat = 'kanban' | 'presentation';
+
 export interface ExportOptions {
     targetFolder: string;
     includeFiles: boolean;
@@ -18,6 +21,29 @@ export interface ExportOptions {
 export interface ColumnExportOptions extends ExportOptions {
     columnIndex: number;
     columnTitle?: string;
+}
+
+export interface UnifiedExportOptions {
+    targetFolder?: string;
+    scope: ExportScope;
+    format: ExportFormat;
+    tagVisibility: TagVisibility;
+    packAssets: boolean;
+    packOptions?: {
+        includeFiles: boolean;
+        includeImages: boolean;
+        includeVideos: boolean;
+        includeOtherMedia: boolean;
+        includeDocuments: boolean;
+        fileSizeLimitMB: number;
+    };
+    selection: {
+        rowNumber?: number;
+        stackIndex?: number;
+        columnIndex?: number;
+        taskId?: string;
+        columnId?: string;
+    };
 }
 
 export interface AssetInfo {
@@ -876,6 +902,311 @@ export class ExportService {
                 .toLowerCase();
         } else {
             return `Row${columnIndex}`;
+        }
+    }
+
+    /**
+     * Get row number from column title (defaults to 1)
+     */
+    private static getColumnRow(title: string): number {
+        if (!title) { return 1; }
+        const rowMatches = title.match(/#row(\d+)\b/gi);
+        if (rowMatches && rowMatches.length > 0) {
+            const lastMatch = rowMatches[rowMatches.length - 1];
+            const num = parseInt(lastMatch.replace(/#row/i, ''), 10);
+            return isNaN(num) ? 1 : num;
+        }
+        return 1;
+    }
+
+    /**
+     * Check if column has #stack tag
+     */
+    private static isColumnStacked(title: string): boolean {
+        return /#stack\b/i.test(title);
+    }
+
+    /**
+     * Extract all columns content from a specific row
+     */
+    private static extractRowContent(markdownContent: string, rowNumber: number): string | null {
+        const isKanban = markdownContent.includes('kanban-plugin: board');
+        if (!isKanban) { return null; }
+
+        const lines = markdownContent.split('\n');
+        const rowColumns: string[] = [];
+        let currentColumn: { content: string[]; row: number } | null = null;
+
+        for (const line of lines) {
+            if (line.startsWith('## ')) {
+                // Save previous column if it's in the target row
+                if (currentColumn && currentColumn.row === rowNumber) {
+                    rowColumns.push(currentColumn.content.join('\n'));
+                }
+                // Start new column
+                const columnRow = this.getColumnRow(line);
+                currentColumn = { content: [line], row: columnRow };
+            } else if (currentColumn) {
+                currentColumn.content.push(line);
+            }
+        }
+
+        // Don't forget the last column
+        if (currentColumn && currentColumn.row === rowNumber) {
+            rowColumns.push(currentColumn.content.join('\n'));
+        }
+
+        return rowColumns.length > 0 ? rowColumns.join('\n\n') : null;
+    }
+
+    /**
+     * Extract stack content (consecutive stacked columns in same row)
+     */
+    private static extractStackContent(markdownContent: string, rowNumber: number, stackIndex: number): string | null {
+        const isKanban = markdownContent.includes('kanban-plugin: board');
+        if (!isKanban) { return null; }
+
+        const lines = markdownContent.split('\n');
+        const stacks: string[][] = [];
+        let currentStack: string[] = [];
+        let currentColumn: { content: string[]; row: number; stacked: boolean } | null = null;
+        let inTargetRow = false;
+
+        for (const line of lines) {
+            if (line.startsWith('## ')) {
+                // Process previous column
+                if (currentColumn) {
+                    if (currentColumn.row === rowNumber && currentColumn.stacked) {
+                        currentStack.push(currentColumn.content.join('\n'));
+                    } else if (currentColumn.row === rowNumber) {
+                        // Non-stacked column ends current stack
+                        if (currentStack.length > 0) {
+                            stacks.push([...currentStack]);
+                            currentStack = [];
+                        }
+                    }
+                }
+
+                // Start new column
+                const columnRow = this.getColumnRow(line);
+                const isStacked = this.isColumnStacked(line);
+                inTargetRow = columnRow === rowNumber;
+                currentColumn = { content: [line], row: columnRow, stacked: isStacked };
+            } else if (currentColumn) {
+                currentColumn.content.push(line);
+            }
+        }
+
+        // Don't forget the last column
+        if (currentColumn && currentColumn.row === rowNumber && currentColumn.stacked) {
+            currentStack.push(currentColumn.content.join('\n'));
+        }
+        if (currentStack.length > 0) {
+            stacks.push(currentStack);
+        }
+
+        if (stackIndex >= stacks.length) {
+            return null;
+        }
+
+        return stacks[stackIndex].join('\n\n');
+    }
+
+    /**
+     * Extract single task content from a column
+     */
+    private static extractTaskContent(columnContent: string, taskId?: string): string | null {
+        const lines = columnContent.split('\n');
+        const tasks: string[] = [];
+        let currentTask: string[] = [];
+        let inTask = false;
+
+        for (const line of lines) {
+            if (line.trim().startsWith('---')) {
+                // Task separator
+                if (currentTask.length > 0) {
+                    tasks.push(currentTask.join('\n'));
+                    currentTask = [];
+                }
+                inTask = true;
+            } else if (inTask) {
+                currentTask.push(line);
+            }
+        }
+
+        // Don't forget the last task
+        if (currentTask.length > 0) {
+            tasks.push(currentTask.join('\n'));
+        }
+
+        // If taskId provided, find specific task; otherwise return first
+        return tasks.length > 0 ? tasks[0] : null;
+    }
+
+    /**
+     * Convert kanban format to presentation format
+     */
+    private static convertToPresentationFormat(content: string): string {
+        const lines = content.split('\n');
+        const result: string[] = [];
+
+        for (const line of lines) {
+            if (line.startsWith('## ')) {
+                // Column header → presentation header
+                result.push('#' + line);
+            } else if (line.trim() === '---') {
+                // Task separator stays the same
+                result.push(line);
+            } else if (line.trim().startsWith('##')) {
+                // Task header stays the same
+                result.push(line);
+            } else if (!line.startsWith('#')) {
+                // Regular content
+                result.push(line);
+            } else {
+                // Other headers (shouldn't happen in well-formed kanban)
+                result.push(line);
+            }
+        }
+
+        return result.join('\n');
+    }
+
+    /**
+     * Unified export method - handles all export scopes and formats
+     */
+    public static async exportUnified(
+        sourceDocument: vscode.TextDocument,
+        options: UnifiedExportOptions
+    ): Promise<{ success: boolean; message: string; content?: string; exportedPath?: string }> {
+        try {
+            // Read source content
+            const sourcePath = sourceDocument.uri.fsPath;
+            if (!fs.existsSync(sourcePath)) {
+                throw new Error(`Source file not found: ${sourcePath}`);
+            }
+            const fullContent = fs.readFileSync(sourcePath, 'utf8');
+
+            // Extract content based on scope
+            let content: string | null = null;
+            switch (options.scope) {
+                case 'full':
+                    content = fullContent;
+                    break;
+                case 'row':
+                    if (options.selection.rowNumber === undefined) {
+                        throw new Error('Row number required for row scope');
+                    }
+                    content = this.extractRowContent(fullContent, options.selection.rowNumber);
+                    break;
+                case 'stack':
+                    if (options.selection.rowNumber === undefined || options.selection.stackIndex === undefined) {
+                        throw new Error('Row number and stack index required for stack scope');
+                    }
+                    content = this.extractStackContent(fullContent, options.selection.rowNumber, options.selection.stackIndex);
+                    break;
+                case 'column':
+                    if (options.selection.columnIndex === undefined) {
+                        throw new Error('Column index required for column scope');
+                    }
+                    content = this.extractColumnContent(fullContent, options.selection.columnIndex);
+                    break;
+                case 'task':
+                    if (options.selection.columnIndex === undefined) {
+                        throw new Error('Column index required for task scope');
+                    }
+                    const columnContent = this.extractColumnContent(fullContent, options.selection.columnIndex);
+                    content = columnContent ? this.extractTaskContent(columnContent, options.selection.taskId) : null;
+                    break;
+            }
+
+            if (!content) {
+                throw new Error(`Could not extract content for scope: ${options.scope}`);
+            }
+
+            // Apply tag filtering
+            let processedContent = this.applyTagFiltering(content, {
+                targetFolder: '',
+                includeFiles: false,
+                includeImages: false,
+                includeVideos: false,
+                includeOtherMedia: false,
+                includeDocuments: false,
+                fileSizeLimitMB: 100,
+                tagVisibility: options.tagVisibility
+            });
+
+            // Convert format if needed
+            if (options.format === 'presentation') {
+                processedContent = this.convertToPresentationFormat(processedContent);
+            }
+
+            // If no pack, just return content (for copy operations)
+            if (!options.packAssets || !options.targetFolder) {
+                return {
+                    success: true,
+                    message: 'Content generated successfully',
+                    content: processedContent
+                };
+            }
+
+            // Pack assets if requested
+            const sourceDir = path.dirname(sourcePath);
+            const sourceBasename = path.basename(sourcePath, '.md');
+            const scopeSuffix = options.scope === 'full' ? '' : `-${options.scope}`;
+            const targetBasename = `${sourceBasename}${scopeSuffix}`;
+
+            // Ensure target folder exists
+            if (!fs.existsSync(options.targetFolder)) {
+                fs.mkdirSync(options.targetFolder, { recursive: true });
+            }
+
+            // Clear tracking maps
+            this.fileHashMap.clear();
+            this.exportedFiles.clear();
+
+            // Process with asset packing
+            const result = await this.processMarkdownContent(
+                processedContent,
+                sourceDir,
+                targetBasename,
+                options.targetFolder,
+                {
+                    targetFolder: options.targetFolder,
+                    includeFiles: options.packOptions?.includeFiles ?? false,
+                    includeImages: options.packOptions?.includeImages ?? false,
+                    includeVideos: options.packOptions?.includeVideos ?? false,
+                    includeOtherMedia: options.packOptions?.includeOtherMedia ?? false,
+                    includeDocuments: options.packOptions?.includeDocuments ?? false,
+                    fileSizeLimitMB: options.packOptions?.fileSizeLimitMB ?? 100,
+                    tagVisibility: options.tagVisibility
+                },
+                new Set<string>()
+            );
+
+            // Write the markdown file
+            const targetMarkdownPath = path.join(options.targetFolder, `${targetBasename}.md`);
+            fs.writeFileSync(targetMarkdownPath, result.exportedContent, 'utf8');
+
+            // Create _not_included.md if needed
+            if (result.notIncludedAssets.length > 0) {
+                await this.createNotIncludedFile(result.notIncludedAssets, options.targetFolder);
+            }
+
+            const successMessage = `Export completed! ${result.stats.includedCount} assets included, ${result.stats.excludedCount} excluded.`;
+
+            return {
+                success: true,
+                message: successMessage,
+                exportedPath: targetMarkdownPath
+            };
+
+        } catch (error) {
+            console.error('[kanban.exportService.exportUnified] Export failed:', error);
+            return {
+                success: false,
+                message: `Export failed: ${error instanceof Error ? error.message : String(error)}`
+            };
         }
     }
 }

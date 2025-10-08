@@ -995,47 +995,49 @@ function sortColumn(columnId, sortType) {
     vscode.postMessage({ type: 'sortColumn', columnId, sortType });
 }
 
-// Copy operations
-function copyColumnAsMarkdown(columnId) {
+// Copy operations - using unified export system
+async function copyColumnAsMarkdown(columnId) {
     if (!currentBoard?.columns) {return;}
-    const column = currentBoard.columns.find(c => c.id === columnId);
-    if (!column) {return;}
+    const columnIndex = currentBoard.columns.findIndex(c => c.id === columnId);
+    if (columnIndex === -1) {return;}
 
-    // Always use 'allexcludinglayout' tag visibility for copy as markdown
-    const filteredTitle = window.filterTagsForExport ? window.filterTagsForExport(column.title, 'allexcludinglayout') : column.title;
-    let markdown = `# ${filteredTitle}\n`;
-
-    column.tasks.forEach(task => {
-        // Always use 'allexcludinglayout' tag visibility for copy as markdown
-        const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title, 'allexcludinglayout') : task.title;
-        markdown += filteredTaskTitle.startsWith('#') ?
-            `\n---\n\n${filteredTaskTitle || ''}\n` :
-            `\n---\n\n## ${filteredTaskTitle || ''}\n`;
-        if (task.description?.trim()) {
-            markdown += `\n${task.description}\n`;
+    // Use unified export system with presentation format
+    vscode.postMessage({
+        type: 'generateCopyContent',
+        options: {
+            scope: 'column',
+            format: 'presentation',
+            tagVisibility: 'allexcludinglayout',
+            packAssets: false,
+            selection: {
+                columnIndex: columnIndex
+            }
         }
     });
 
-    copyToClipboard(markdown);
     document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
 }
 
-function copyTaskAsMarkdown(taskId, columnId) {
+async function copyTaskAsMarkdown(taskId, columnId) {
     if (!currentBoard?.columns) {return;}
-    const column = currentBoard.columns.find(c => c.id === columnId);
-    const task = column?.tasks.find(t => t.id === taskId);
-    if (!task) {return;}
+    const columnIndex = currentBoard.columns.findIndex(c => c.id === columnId);
+    if (columnIndex === -1) {return;}
 
-    // Always use 'allexcludinglayout' tag visibility for copy as markdown
-    const filteredTaskTitle = window.filterTagsForExport ? window.filterTagsForExport(task.title, 'allexcludinglayout') : task.title;
-    let markdown = filteredTaskTitle.startsWith('#') ?
-        `${filteredTaskTitle || ''}\n` :
-        `## ${filteredTaskTitle || ''}\n`;
-    if (task.description?.trim()) {
-        markdown += `\n${task.description}\n`;
-    }
+    // Use unified export system with presentation format
+    vscode.postMessage({
+        type: 'generateCopyContent',
+        options: {
+            scope: 'task',
+            format: 'presentation',
+            tagVisibility: 'allexcludinglayout',
+            packAssets: false,
+            selection: {
+                columnIndex: columnIndex,
+                taskId: taskId
+            }
+        }
+    });
 
-    copyToClipboard(markdown);
     document.querySelectorAll('.donut-menu').forEach(menu => menu.classList.remove('active'));
 }
 

@@ -2642,6 +2642,9 @@ window.addEventListener('message', event => {
         case 'columnExportResult':
             handleColumnExportResult(message.result);
             break;
+        case 'copyContentResult':
+            handleCopyContentResult(message.result);
+            break;
 
         // Activity indicator messages
         case 'operationStarted':
@@ -4330,6 +4333,50 @@ function handleColumnExportResult(result) {
         vscode.postMessage({
             type: 'showError',
             message: result.message
+        });
+    }
+}
+
+/**
+ * Handle copy content result from unified export
+ */
+function handleCopyContentResult(result) {
+    if (result.success && result.content) {
+        // Copy to clipboard
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(result.content).then(() => {
+                console.log('[kanban.webview.handleCopyContentResult] Content copied to clipboard');
+            }).catch(err => {
+                console.error('[kanban.webview.handleCopyContentResult] Failed to copy:', err);
+                vscode.postMessage({
+                    type: 'showError',
+                    message: 'Failed to copy to clipboard'
+                });
+            });
+        } else {
+            // Fallback for browsers without clipboard API
+            const textarea = document.createElement('textarea');
+            textarea.value = result.content;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                console.log('[kanban.webview.handleCopyContentResult] Content copied to clipboard (fallback)');
+            } catch (err) {
+                console.error('[kanban.webview.handleCopyContentResult] Fallback copy failed:', err);
+                vscode.postMessage({
+                    type: 'showError',
+                    message: 'Failed to copy to clipboard'
+                });
+            }
+            document.body.removeChild(textarea);
+        }
+    } else {
+        vscode.postMessage({
+            type: 'showError',
+            message: result.message || 'Failed to generate copy content'
         });
     }
 }

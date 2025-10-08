@@ -580,6 +580,10 @@ export class MessageHandler {
                 }
                 break;
 
+            case 'generateCopyContent':
+                await this.handleGenerateCopyContent(message.options);
+                break;
+
             case 'showError':
                 vscode.window.showErrorMessage(message.message);
                 break;
@@ -1910,6 +1914,30 @@ export class MessageHandler {
         } catch (error) {
             console.error('Error exporting column:', error);
             vscode.window.showErrorMessage(`Column export failed: ${error}`);
+        }
+    }
+
+    private async handleGenerateCopyContent(options: any): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                vscode.window.showErrorMessage('No document available');
+                return;
+            }
+
+            const result = await ExportService.exportUnified(document, options);
+
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel) {
+                panel._panel.webview.postMessage({
+                    type: 'copyContentResult',
+                    result: result
+                });
+            }
+
+        } catch (error) {
+            console.error('[kanban.messageHandler.generateCopyContent] Error:', error);
+            vscode.window.showErrorMessage(`Copy content generation failed: ${error}`);
         }
     }
 
