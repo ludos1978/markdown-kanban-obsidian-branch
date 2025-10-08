@@ -1160,7 +1160,6 @@ export class KanbanWebviewPanel {
                     cardHeight: "100percent",
 										sectionMaxHeight: "100percent",
                     fontSize: "3x",
-                    stickyHeaders: "disabled",
                     tagVisibility: "none",
                     whitespace: "16px",
                     arrowKeyFocusScroll: "center"

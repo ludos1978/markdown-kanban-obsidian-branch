@@ -4,13 +4,57 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] the export functionality should be unified. add a function to the export view that allows selecting which columns to export, structure it the same way as the columns are structured with rows, stacks and columns (but of course only show the titles.) where a user might select the full kanban, a row, a stack or a single column. add the option to select which format it should export "kanban" format exports it in the same format as the kanban has, "presentation" format converts it the same way as "copy as markdown does". the pack feature should be optional, so it might leave the links as they are, or the user might select to pack all or some (same selections as it currently has) of the assets into the export folder. the copy as markdown should also use the same function.  ultrathink plan think ultraplan ultrathink
+- [ ] the export functionality should be unified. add a function to the export view that allows selecting which columns to export, structure it the same way as the columns are structured with rows, stacks and columns (but of course only show the titles.) where a user might select the full kanban, a row, a stack or a single column. add the option to select which format it should export "kanban" format exports it in the same format as the kanban has, "presentation" format converts it the same way as "copy as markdown does". the pack feature should be optional, so it might leave the links as they are, or the user might select to pack all or some (same selections as it currently has) of the assets into the export folder. the copy as markdown should also use the same function, just use the preset values such as the task, the column etc and presentation mode. ultrathink plan think ultraplan ultrathink
 
 - [ ] add the ability to export as pdf. could we integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly?
 
 - [ ] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
 
-- [ ] cleanup the configuration and the functions that use it.  i think the """
+- [ ] remove the image fill mode and all code that is using it if it's not used for something else. preserve functionality that is outside the usage of the image scaling. """        "markdown-kanban.imageFill": {
+          "type": "string",
+          "default": "fit",
+          "description": "Control how images are sized within cards",
+          "enum": [
+            "fit",
+            "fill"
+          ],
+          "enumDescriptions": [
+            "Images size to their natural dimensions",
+            "Images fill available space while keeping aspect ratio"
+          ]
+        },""" 
+
+- [x] Cleanup the configuration and the functions that use it. we currently have """        "markdown-kanban.stickyHeaders": {
+          "type": "string",
+          "default": "enabled",
+          "description": "Control sticky positioning of column headers",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "enumDescriptions": [
+            "Column headers stick to top when scrolling",
+            "Column headers scroll normally with content"
+          ]
+        },
+        "markdown-kanban.stickyStackMode": {
+          "type": "string",
+          "default": "titleonly",
+          "description": "Control sticky positioning behavior in column stacks",
+          "enum": [
+            "full",
+            "titleonly",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Header, title, footer & margin all sticky (original behavior)",
+            "Only title sticky (default)",
+            "Nothing sticky in stacks"
+          ]
+        },""" 
+	with the stickyStackMode the stickyHeaders are obsolete and can be removed. migrate all functions that are not a duplicate to the stickyStackMode.
+	
+- [x] cleanup the configuration and the functions that use it.  i think the """
         "markdown-kanban.showRowTags": {
           "type": "boolean",
           "default": false,

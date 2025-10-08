@@ -25,7 +25,6 @@ export interface KanbanConfiguration {
     rowHeight: string;
     layoutPreset: string;
     layoutPresets: { [key: string]: any };
-    stickyHeaders: boolean;
     tagVisibility: string;
     exportTagVisibility: boolean;
     imageFill: string;
@@ -50,7 +49,6 @@ export interface ConfigurationDefaults {
     layoutRows: number;
     rowHeight: string;
     layoutPreset: string;
-    stickyHeaders: boolean;
     tagVisibility: string;
     exportTagVisibility: boolean;
     imageFill: string;
@@ -81,7 +79,6 @@ export class ConfigurationService {
         layoutRows: 1,
         rowHeight: 'auto',
         layoutPreset: 'default',
-        stickyHeaders: false,
         tagVisibility: 'visible',
         exportTagVisibility: true,
         imageFill: 'contain',
@@ -212,7 +209,6 @@ export class ConfigurationService {
             maxRowHeight: this.getConfig('maxRowHeight'),
             layoutPreset: this.getConfig('layoutPreset'),
             layoutPresets: this.getConfig('layoutPresets', {}),
-            stickyHeaders: this.getConfig('stickyHeaders'),
             arrowKeyFocusScroll: this.getConfig('arrowKeyFocusScroll')
         };
     }

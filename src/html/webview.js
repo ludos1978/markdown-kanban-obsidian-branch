@@ -158,11 +158,6 @@ const baseOptions = {
         { label: "5 Rows", value: 5, css: 5 },
         { label: "6 Rows", value: 6, css: 6 }
     ],
-    // Sticky headers options
-    stickyHeaders: [
-        { label: "Enabled", value: "enabled", css: true, description: "Headers stick to top when scrolling" },
-        { label: "Disabled", value: "disabled", css: false, description: "Headers scroll with content" }
-    ],
     // Sticky stack mode options
     stickyStackMode: [
         { label: "Full Stack", value: "full", css: "full", description: "Header, title, footer & margin all sticky" },
@@ -212,7 +207,6 @@ const menuConfig = {
     whitespace: null, // Generated
     fontSize: null, // Generated
     layoutRows: null, // Generated
-    stickyHeaders: null, // Generated
     tagVisibility: null, // Generated
     imageFill: null, // Generated
     fontFamily: [
@@ -245,7 +239,7 @@ const menuConfig = {
 
 // Generate menu configurations from base options
 // Simple generator for most menu types
-['columnWidth', 'cardHeight', 'sectionMaxHeight', 'rowHeight', 'whitespace', 'fontSize', 'layoutRows', 'stickyHeaders', 'stickyStackMode', 'tagVisibility', 'imageFill', 'arrowKeyFocusScroll'].forEach(key => {
+['columnWidth', 'cardHeight', 'sectionMaxHeight', 'rowHeight', 'whitespace', 'fontSize', 'layoutRows', 'stickyStackMode', 'tagVisibility', 'imageFill', 'arrowKeyFocusScroll'].forEach(key => {
     if (baseOptions[key]) {
         menuConfig[key] = baseOptions[key].map(option => {
             const result = {
@@ -289,8 +283,6 @@ function getCurrentSettingValue(configKey) {
             return window.currentLayoutRows || 1;
         case 'rowHeight':
             return window.currentRowHeight || 'auto';
-        case 'stickyHeaders':
-            return window.currentStickyHeaders || 'enabled';
         case 'stickyStackMode':
             return window.currentStickyStackMode || 'titleonly';
         case 'tagVisibility':
@@ -317,7 +309,6 @@ function updateAllMenuIndicators() {
         { selector: '[data-menu="fontFamily"]', config: 'fontFamily', function: 'setFontFamily' },
         { selector: '[data-menu="layoutRows"]', config: 'layoutRows', function: 'setLayoutRows' },
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
-        { selector: '[data-menu="stickyHeaders"]', config: 'stickyHeaders', function: 'setStickyHeaders' },
         { selector: '[data-menu="stickyStackMode"]', config: 'stickyStackMode', function: 'setStickyStackMode' },
         { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
         { selector: '[data-menu="exportTagVisibility"]', config: 'exportTagVisibility', function: 'setExportTagVisibility' },
@@ -1325,43 +1316,6 @@ function setRowHeight(height) {
     // }
     
     // vscode.postMessage({ type: 'showMessage', text: message });
-}
-
-// Sticky headers functionality
-let currentStickyHeaders = 'enabled'; // Default to enabled
-
-function applyStickyHeaders(setting) {
-    // Store current setting
-    currentStickyHeaders = setting;
-    window.currentStickyHeaders = setting;
-
-    if (setting === 'disabled') {
-        // Add class to disable sticky headers
-        document.body.classList.add('sticky-headers-disabled');
-    } else {
-        // Remove class to enable sticky headers
-        document.body.classList.remove('sticky-headers-disabled');
-    }
-}
-
-function setStickyHeaders(setting) {
-    // Apply the sticky headers setting
-    applyStickyHeaders(setting);
-
-    // Store preference
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'stickyHeaders',
-        value: setting
-    });
-
-    // Update menu indicators
-    updateAllMenuIndicators();
-
-    // Close menu
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
 }
 
 // Sticky stack elements functionality
@@ -2423,13 +2377,6 @@ window.addEventListener('message', event => {
                     applyRowHeightSetting(rowHeight);
                 } else {
                     applyRowHeightSetting('auto'); // Default fallback
-                }
-
-                // Update sticky headers with the value from configuration
-                if (message.stickyHeaders) {
-                    applyStickyHeaders(message.stickyHeaders);
-                } else {
-                    applyStickyHeaders('enabled'); // Default fallback
                 }
 
                 // Update sticky stack mode with value from configuration
@@ -3802,9 +3749,6 @@ window.setLayoutRows = setLayoutRows;
 window.setRowHeight = setRowHeight;
 window.applyRowHeight = applyRowHeight;
 window.currentRowHeight = currentRowHeight;
-window.setStickyHeaders = setStickyHeaders;
-window.applyStickyHeaders = applyStickyHeaders;
-window.currentStickyHeaders = currentStickyHeaders;
 window.setTagVisibility = setTagVisibility;
 window.applyTagVisibility = applyTagVisibility;
 window.currentTagVisibility = currentTagVisibility;
@@ -4137,9 +4081,6 @@ function applyLayoutPreset(presetKey) {
                 break;
             case 'rowHeight':
                 setRowHeight(value);
-                break;
-            case 'stickyHeaders':
-                setStickyHeaders(value);
                 break;
             case 'stickyStackMode':
                 setStickyStackMode(value);
