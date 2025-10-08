@@ -2288,67 +2288,185 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   margin: 0;
 }
 
-/* Export Tree Selector */
+/* Export Visual Selector (Kanban-style layout) */
 .export-tree-container {
   max-height: 400px;
   overflow-y: auto;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 4px;
-  padding: 12px;
+  padding: 8px;
   background-color: var(--vscode-editor-background);
   margin-top: 8px;
 }
 
-.export-tree-empty {
+.export-selector-empty {
   text-align: center;
   padding: 20px;
   color: var(--vscode-descriptionForeground);
   font-style: italic;
 }
 
-.export-tree-node {
-  margin: 4px 0;
+.export-selector-main {
   display: flex;
-  align-items: center;
-  min-height: 24px;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.export-tree-checkbox {
-  width: 16px;
-  height: 16px;
-  margin: 0 8px 0 0;
+/* Full Kanban option */
+.export-selector-full {
+  padding: 8px 12px;
+  border: 2px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  background-color: var(--vscode-input-background);
   cursor: pointer;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.export-selector-full:hover {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.export-selector-full.selected {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+/* Row container */
+.export-selector-row {
+  display: flex;
+  gap: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 4px;
+  background-color: var(--vscode-input-background);
+  transition: all 0.15s ease;
+}
+
+.export-selector-row.selected {
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+  background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+.export-selector-row-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  padding: 8px 4px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 2px;
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  font-size: 0.85em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.export-selector-row-label:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Columns container (horizontal) */
+.export-selector-columns-container {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  flex: 1;
+}
+
+/* Stack (vertical container) */
+.export-selector-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 3px;
+  padding: 4px;
+  background-color: rgba(128, 128, 128, 0.05);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 200px;
   flex-shrink: 0;
 }
 
-.export-tree-label {
-  cursor: pointer;
-  user-select: none;
-  flex: 1;
-  padding: 2px 0;
+.export-selector-stack:hover {
+  border-color: var(--vscode-focusBorder);
+  background-color: rgba(128, 128, 128, 0.1);
 }
 
-.export-tree-root .export-tree-label {
-  font-weight: 600;
-  font-size: 1.05em;
+.export-selector-stack.selected {
+  border-color: var(--vscode-focusBorder);
+  border-style: solid;
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+  background-color: var(--vscode-list-activeSelectionBackground);
 }
 
-.export-tree-row .export-tree-label {
-  font-weight: 500;
-  color: var(--vscode-foreground);
-}
-
-.export-tree-stack .export-tree-label {
-  font-style: italic;
+.export-selector-stack-label {
+  font-size: 0.75em;
   color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  padding: 2px 4px;
+  text-align: center;
 }
 
-.export-tree-column .export-tree-label {
-  color: var(--vscode-foreground);
+/* Regular column (not stacked) */
+.export-selector-column {
+  padding: 6px 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 3px;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  font-size: 0.9em;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
-.export-tree-children {
-  width: 100%;
+.export-selector-column:hover {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.export-selector-column.selected {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-button-hoverBackground);
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+  font-weight: 600;
+}
+
+/* Stacked column (horizontal line in stack) */
+.export-selector-stacked-column {
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 2px;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  font-size: 0.85em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.15s ease;
+}
+
+.export-selector-stacked-column:hover {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.export-selector-stacked-column.selected {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-button-hoverBackground);
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+  font-weight: 600;
 }
 
 /* Export Format Selection */

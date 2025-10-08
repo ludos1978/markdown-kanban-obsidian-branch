@@ -145,31 +145,35 @@ class ExportTreeBuilder {
 
     /**
      * Group columns into stacks
-     * Consecutive stacked columns form a stack
+     * A column with #stack stacks below the previous column
+     * Logic: [base column] + [all consecutive #stack columns after it] = one stack
      */
     static groupIntoStacks(columns) {
-        const stacks = [];
-        let currentStack = [];
-
-        columns.forEach(item => {
-            if (item.isStacked) {
-                currentStack.push(item);
-            } else {
-                // Non-stacked column ends current stack
-                if (currentStack.length > 0) {
-                    stacks.push([...currentStack]);
-                    currentStack = [];
-                }
-                // Single non-stacked column
-                stacks.push([item]);
-            }
+        console.log('[kanban.exportTreeBuilder.groupIntoStacks] Processing', columns.length, 'columns');
+        columns.forEach((item, i) => {
+            console.log(`  [${i}] "${item.column.title}" - isStacked: ${item.isStacked}`);
         });
 
-        // Don't forget last stack
-        if (currentStack.length > 0) {
+        const stacks = [];
+        let i = 0;
+
+        while (i < columns.length) {
+            const currentStack = [columns[i]]; // Start with base column
+            console.log(`[kanban.exportTreeBuilder.groupIntoStacks] Starting stack with base column: "${columns[i].column.title}"`);
+            i++;
+
+            // Add all consecutive #stack columns to this stack
+            while (i < columns.length && columns[i].isStacked) {
+                console.log(`[kanban.exportTreeBuilder.groupIntoStacks]   Adding stacked column: "${columns[i].column.title}"`);
+                currentStack.push(columns[i]);
+                i++;
+            }
+
             stacks.push(currentStack);
+            console.log(`[kanban.exportTreeBuilder.groupIntoStacks] Created stack with ${currentStack.length} column(s)`);
         }
 
+        console.log('[kanban.exportTreeBuilder.groupIntoStacks] Result:', stacks.length, 'stacks/columns total');
         return stacks;
     }
 

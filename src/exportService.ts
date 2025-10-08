@@ -373,7 +373,8 @@ export class ExportService {
         sourceDir: string,
         exportFolder: string,
         options: ExportOptions,
-        processedIncludes: Set<string>
+        processedIncludes: Set<string>,
+        convertToPresentation: boolean = false
     ): Promise<{ processedContent: string; includeStats: number }> {
         if (!options.includeFiles) {
             return { processedContent: content, includeStats: 0 };
