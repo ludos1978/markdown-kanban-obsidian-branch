@@ -1082,11 +1082,6 @@ body.small-card-fonts .task-title-container .markdown-content img {
   flex: 1 1 auto;
 }
 
-.image-fill-fill .task-description-container {
-  position: relative;
-  overflow: hidden;
-}
-
 .task-description-display {
   color: var(--vscode-foreground);
   font-size: 13px;
@@ -4024,41 +4019,3 @@ figcaption {
   text-align: center;
 }
 
-/* Image Fill Controls */
-/* Default: Images fit their natural content size (use existing behavior) */
-.image-fill-fit .task-title-container .markdown-content img,
-.image-fill-fit .task-description-container .markdown-content img {
-    /* Use existing default styles */
-}
-
-/* Fill Space: Images scale to use available space while maintaining aspect ratio */
-.image-fill-fill .task-title-container .markdown-content img {
-    max-width: 100% !important;
-    width: auto !important;
-    height: auto !important;
-    max-height: inherit;
-    object-fit: contain !important;
-    object-position: left !important;
-}
-
-.image-fill-fill .task-description-container .markdown-content img {
-    width: 100% !important;
-    height: auto !important;
-    max-width: 100% !important;
-    object-fit: contain !important;
-    object-position: center !important;
-    display: block !important;
-}
-
-/* Ensure task-description-container respects height constraints in height-limited mode */
-.task-height-limited .image-fill-fill .task-description-container {
-    height: 100% !important;
-    box-sizing: border-box !important;
-}
-
-/* In height-limited mode, images must fit within the container bounds */
-.task-height-limited .image-fill-fill .task-description-container .markdown-content img {
-    max-height: 100% !important;
-    height: auto !important;
-    object-fit: contain !important;
-}

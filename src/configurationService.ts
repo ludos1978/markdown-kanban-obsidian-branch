@@ -27,7 +27,6 @@ export interface KanbanConfiguration {
     layoutPresets: { [key: string]: any };
     tagVisibility: string;
     exportTagVisibility: boolean;
-    imageFill: string;
     arrowKeyFocusScroll: string;
 }
 
@@ -51,7 +50,6 @@ export interface ConfigurationDefaults {
     layoutPreset: string;
     tagVisibility: string;
     exportTagVisibility: boolean;
-    imageFill: string;
     arrowKeyFocusScroll: string;
 }
 
@@ -81,7 +79,6 @@ export class ConfigurationService {
         layoutPreset: 'default',
         tagVisibility: 'visible',
         exportTagVisibility: true,
-        imageFill: 'contain',
         arrowKeyFocusScroll: 'center'
     };
 
@@ -235,13 +232,6 @@ export class ConfigurationService {
         return this.getConfig('pathGeneration');
     }
 
-    // Media configuration
-    public getMediaConfiguration() {
-        return {
-            imageFill: this.getConfig('imageFill')
-        };
-    }
-
     /**
      * Validate configuration value
      */
@@ -263,8 +253,6 @@ export class ConfigurationService {
                 return ['normal', 'nowrap', 'pre', 'pre-wrap'].includes(value);
             case 'tagVisibility':
                 return ['visible', 'hover', 'hidden'].includes(value);
-            case 'imageFill':
-                return ['contain', 'cover', 'fill', 'scale-down', 'none'].includes(value);
             default:
                 return true; // Default to valid for unknown keys
         }

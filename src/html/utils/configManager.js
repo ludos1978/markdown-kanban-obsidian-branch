@@ -33,7 +33,6 @@ class ConfigManager {
             stickyStackMode: 'titleonly',
             tagVisibility: 'visible',
             exportTagVisibility: true,
-            imageFill: 'contain',
             arrowKeyFocusScroll: 'center',
             tagColors: {}
         };
@@ -167,13 +166,6 @@ class ConfigManager {
         };
     }
 
-    // Media configuration
-    getMediaConfiguration() {
-        return {
-            imageFill: this.getConfig('imageFill')
-        };
-    }
-
     /**
      * Get all configuration as object
      * @returns {object} All configuration values
@@ -206,8 +198,6 @@ class ConfigManager {
                 return ['normal', 'nowrap', 'pre', 'pre-wrap'].includes(value);
             case 'tagVisibility':
                 return ['visible', 'hover', 'hidden'].includes(value);
-            case 'imageFill':
-                return ['contain', 'cover', 'fill', 'scale-down', 'none'].includes(value);
             default:
                 return true; // Default to valid for unknown keys
         }

@@ -273,19 +273,6 @@
           "default": "normal",
           "description": "The currently selected layout preset"
         },
-        "markdown-kanban.imageFill": {
-          "type": "string",
-          "default": "fit",
-          "description": "Control how images are sized within cards",
-          "enum": [
-            "fit",
-            "fill"
-          ],
-          "enumDescriptions": [
-            "Images size to their natural dimensions",
-            "Images fill available space while keeping aspect ratio"
-          ]
-        },
 
         "markdown-kanban.arrowKeyFocusScroll": {
           "type": "string",
@@ -355,10 +342,6 @@
                   "tagVisibility": {
                     "type": "string",
                     "description": "Tag visibility setting"
-                  },
-                  "imageFill": {
-                    "type": "string",
-                    "description": "Image fill setting"
                   },
                   "whitespace": {
                     "type": "string",

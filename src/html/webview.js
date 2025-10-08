@@ -172,11 +172,6 @@ const baseOptions = {
         { label: "@ Tags Only", value: "mentionsonly", description: "Show only @ tags" },
         { label: "No Tags", value: "none", description: "Hide all tags" }
     ],
-    // Image fill options
-    imageFill: [
-        { label: "Fit Content", value: "fit", css: "fit", description: "Images size to their natural dimensions" },
-        { label: "Fill Space", value: "fill", css: "fill", description: "Images fill available space while keeping aspect ratio" }
-    ],
     // Arrow key focus scroll options
     arrowKeyFocusScroll: [
         { label: "Center", value: "center", css: "center", description: "Center the focused item in the viewport" },
@@ -208,7 +203,6 @@ const menuConfig = {
     fontSize: null, // Generated
     layoutRows: null, // Generated
     tagVisibility: null, // Generated
-    imageFill: null, // Generated
     fontFamily: [
         { label: "System Default", value: "system", icon: "Aa" },
         { label: "Roboto", value: "roboto", icon: "Aa", iconStyle: "font-family: 'Roboto', sans-serif;" },
@@ -239,7 +233,7 @@ const menuConfig = {
 
 // Generate menu configurations from base options
 // Simple generator for most menu types
-['columnWidth', 'cardHeight', 'sectionMaxHeight', 'rowHeight', 'whitespace', 'fontSize', 'layoutRows', 'stickyStackMode', 'tagVisibility', 'imageFill', 'arrowKeyFocusScroll'].forEach(key => {
+['columnWidth', 'cardHeight', 'sectionMaxHeight', 'rowHeight', 'whitespace', 'fontSize', 'layoutRows', 'stickyStackMode', 'tagVisibility', 'arrowKeyFocusScroll'].forEach(key => {
     if (baseOptions[key]) {
         menuConfig[key] = baseOptions[key].map(option => {
             const result = {
@@ -289,8 +283,6 @@ function getCurrentSettingValue(configKey) {
             return window.currentTagVisibility || 'allexcludinglayout';
         case 'exportTagVisibility':
             return window.currentExportTagVisibility || 'allexcludinglayout';
-        case 'imageFill':
-            return window.currentImageFill || 'fit';
         case 'arrowKeyFocusScroll':
             return window.currentArrowKeyFocusScroll || 'center';
         default:
@@ -311,8 +303,7 @@ function updateAllMenuIndicators() {
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
         { selector: '[data-menu="stickyStackMode"]', config: 'stickyStackMode', function: 'setStickyStackMode' },
         { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
-        { selector: '[data-menu="exportTagVisibility"]', config: 'exportTagVisibility', function: 'setExportTagVisibility' },
-        { selector: '[data-menu="imageFill"]', config: 'imageFill', function: 'setImageFill' }
+        { selector: '[data-menu="exportTagVisibility"]', config: 'exportTagVisibility', function: 'setExportTagVisibility' }
     ];
 
     menuMappings.forEach(mapping => {
@@ -1465,43 +1456,8 @@ function filterTagsForExport(text) {
     }
 }
 
-// Image fill functionality
-let currentImageFill = 'fit'; // Default to fit content
-
 // Arrow key focus scroll setting
 let currentArrowKeyFocusScroll = 'center'; // Default to center
-
-function applyImageFill(setting) {
-    // Store current setting
-    currentImageFill = setting;
-    window.currentImageFill = setting;
-
-    // Remove all image fill classes
-    document.body.classList.remove('image-fill-fit', 'image-fill-fill');
-
-    // Add the selected image fill class
-    document.body.classList.add(`image-fill-${setting}`);
-}
-
-function setImageFill(setting) {
-    // Apply the image fill setting
-    applyImageFill(setting);
-
-    // Store preference
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'imageFill',
-        value: setting
-    });
-
-    // Update menu indicators
-    updateAllMenuIndicators();
-
-    // Close menu
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
-}
 
 // Refactored whitespace functions using styleManager
 function applyWhitespace(spacing) {
@@ -2409,13 +2365,6 @@ window.addEventListener('message', event => {
                 } else {
                     currentExportTagVisibility = 'allexcludinglayout'; // Default fallback
                     window.currentExportTagVisibility = 'allexcludinglayout';
-                }
-
-                // Update image fill with the value from configuration
-                if (message.imageFill) {
-                    applyImageFill(message.imageFill);
-                } else {
-                    applyImageFill('fit'); // Default fallback
                 }
 
                 // Update arrow key focus scroll with the value from configuration
@@ -3754,9 +3703,6 @@ window.applyTagVisibility = applyTagVisibility;
 window.currentTagVisibility = currentTagVisibility;
 window.filterTagsFromText = filterTagsFromText;
 window.filterTagsForExport = filterTagsForExport;
-window.setImageFill = setImageFill;
-window.applyImageFill = applyImageFill;
-window.currentImageFill = currentImageFill;
 window.updateColumnRowTag = updateColumnRowTag;
 window.getColumnRow = getColumnRow;
 
@@ -4087,9 +4033,6 @@ function applyLayoutPreset(presetKey) {
                 break;
             case 'tagVisibility':
                 setTagVisibility(value);
-                break;
-            case 'imageFill':
-                setImageFill(value);
                 break;
             case 'whitespace':
                 setWhitespace(value);
