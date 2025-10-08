@@ -220,14 +220,6 @@ const menuConfig = {
         { label: "JetBrains Mono", value: "jetbrains", icon: "{ }", iconStyle: "font-family: 'JetBrains Mono', monospace;" },
         { label: "Source Code Pro", value: "sourcecodepro", icon: "{ }", iconStyle: "font-family: 'Source Code Pro', monospace;" },
         { label: "Consolas", value: "consolas", icon: "{ }", iconStyle: "font-family: Consolas, monospace;" }
-    ],
-    // These are not in baseOptions as they don't need CSS conversion
-    exportTagVisibility: [
-        { label: "All Tags", value: "all", description: "Export all tags including #span, #row, and @ tags" },
-        { label: "All Excluding Layout", value: "allexcludinglayout", description: "Export all except #span and #row (includes @ tags)" },
-        { label: "Custom Tags Only", value: "customonly", description: "Export only custom tags (not configured ones) and @ tags" },
-        { label: "@ Tags Only", value: "mentionsonly", description: "Export only @ tags" },
-        { label: "No Tags", value: "none", description: "Export without any tags" }
     ]
 };
 
@@ -281,8 +273,6 @@ function getCurrentSettingValue(configKey) {
             return window.currentStickyStackMode || 'titleonly';
         case 'tagVisibility':
             return window.currentTagVisibility || 'allexcludinglayout';
-        case 'exportTagVisibility':
-            return window.currentExportTagVisibility || 'allexcludinglayout';
         case 'arrowKeyFocusScroll':
             return window.currentArrowKeyFocusScroll || 'center';
         default:
@@ -302,8 +292,7 @@ function updateAllMenuIndicators() {
         { selector: '[data-menu="layoutRows"]', config: 'layoutRows', function: 'setLayoutRows' },
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
         { selector: '[data-menu="stickyStackMode"]', config: 'stickyStackMode', function: 'setStickyStackMode' },
-        { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
-        { selector: '[data-menu="exportTagVisibility"]', config: 'exportTagVisibility', function: 'setExportTagVisibility' }
+        { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' }
     ];
 
     menuMappings.forEach(mapping => {
@@ -1424,15 +1413,11 @@ function setTagVisibility(setting) {
     });
 }
 
-// Export tag visibility functionality
-let currentExportTagVisibility = 'allexcludinglayout'; // Default setting
-
-
 // Helper function to filter tags from text based on export tag visibility setting
-function filterTagsForExport(text) {
+function filterTagsForExport(text, tagVisibility = 'allexcludinglayout') {
     if (!text) return text;
 
-    const setting = window.currentExportTagVisibility || 'allexcludinglayout';
+    const setting = tagVisibility;
 
     switch (setting) {
         case 'all':
@@ -2356,15 +2341,6 @@ window.addEventListener('message', event => {
                     applyTagVisibility(tagVisibility);
                 } else {
                     applyTagVisibility('allexcludinglayout'); // Default fallback
-                }
-
-                // Update export tag visibility with the value from configuration
-                if (message.exportTagVisibility) {
-                    currentExportTagVisibility = message.exportTagVisibility;
-                    window.currentExportTagVisibility = message.exportTagVisibility;
-                } else {
-                    currentExportTagVisibility = 'allexcludinglayout'; // Default fallback
-                    window.currentExportTagVisibility = 'allexcludinglayout';
                 }
 
                 // Update arrow key focus scroll with the value from configuration
