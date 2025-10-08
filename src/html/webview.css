@@ -2151,23 +2151,25 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 
 .modal-content {
   background-color: var(--vscode-editor-background);
-  margin: 10% auto;
-  padding: 20px;
+  margin: 5vh auto;
+  padding: 16px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
+  width: 80%;
+  height: 80vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
 }
 
 .modal-title {
@@ -2209,9 +2211,10 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  margin-top: 20px;
-  padding-top: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
 }
 
 .btn {
@@ -2243,35 +2246,68 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 
 /* Export Modal Specific Styles */
 .export-modal-content {
-  max-width: 600px;
+  max-width: none;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .export-field {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+}
+
+.export-field-compact {
+  margin-top: 8px;
+}
+
+.export-field-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.export-field-half {
+  flex: 1;
+}
+
+.export-field-half label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  font-size: 13px;
 }
 
 .export-field label {
   display: block;
-  font-weight: 600;
-  margin-bottom: 8px;
+  font-weight: 500;
+  margin-bottom: 6px;
   color: var(--vscode-foreground);
+  font-size: 13px;
 }
 
 .export-folder-input {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .export-folder-input input {
   flex: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  min-height: 34px;
+  height: auto;
 }
 
 .export-checkboxes {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .export-checkbox {
@@ -2290,13 +2326,13 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 
 /* Export Visual Selector (Kanban-style layout) */
 .export-tree-container {
-  max-height: 400px;
+  flex: 1;
   overflow-y: auto;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 4px;
-  padding: 8px;
+  padding: 6px;
   background-color: var(--vscode-editor-background);
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .export-selector-empty {
@@ -2309,12 +2345,12 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .export-selector-main {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* Full Kanban option */
 .export-selector-full {
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: 2px solid var(--vscode-panel-border);
   border-radius: 4px;
   background-color: var(--vscode-input-background);
@@ -2339,10 +2375,10 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 /* Row container */
 .export-selector-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 4px;
-  padding: 4px;
+  padding: 3px;
   background-color: var(--vscode-input-background);
   transition: all 0.15s ease;
 }
@@ -2514,13 +2550,13 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 
 .export-pack-options {
   margin-left: 24px;
+  margin-top: 8px;
   padding-left: 12px;
   border-left: 2px solid var(--vscode-panel-border);
 }
 
 .export-pack-options.disabled {
-  opacity: 0.5;
-  pointer-events: none;
+  display: none;
 }
 
 /* Search Panel */

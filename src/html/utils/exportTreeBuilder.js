@@ -244,16 +244,25 @@ class ExportTreeBuilder {
 
     /**
      * Update parent selection based on children
+     * - If all children are selected, select the parent
+     * - If any child is deselected, deselect the parent
      */
     static updateParentSelection(node) {
         if (!node.children || node.children.length === 0) return;
 
+        // Recursively update children first
         node.children.forEach(child => this.updateParentSelection(child));
 
-        // If all children selected, select parent
+        // Update this node's selection based on its children
         const allChildrenSelected = node.children.every(child => child.selected);
+        const anyChildDeselected = node.children.some(child => !child.selected);
+
         if (allChildrenSelected && node.children.length > 0) {
+            // All children selected -> select parent
             node.selected = true;
+        } else if (anyChildDeselected) {
+            // Any child deselected -> deselect parent
+            node.selected = false;
         }
     }
 

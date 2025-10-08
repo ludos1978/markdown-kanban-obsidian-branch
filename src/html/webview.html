@@ -268,17 +268,23 @@
                     </div>
                 </div>
 
-                <div class="export-field">
-                    <label>Export Format:</label>
-                    <div class="export-format-options">
-                        <div class="export-format-option">
-                            <input type="radio" id="format-kanban" name="export-format" value="kanban" checked>
-                            <label for="format-kanban">Kanban Format (original structure)</label>
-                        </div>
-                        <div class="export-format-option">
-                            <input type="radio" id="format-presentation" name="export-format" value="presentation">
-                            <label for="format-presentation">Presentation Format (copy-as-markdown style)</label>
-                        </div>
+                <div class="export-field-row">
+                    <div class="export-field-half">
+                        <label for="export-format">Export Format:</label>
+                        <select id="export-format" class="form-input">
+                            <option value="kanban">Kanban Format</option>
+                            <option value="presentation">Presentation Format</option>
+                        </select>
+                    </div>
+                    <div class="export-field-half">
+                        <label for="export-tag-visibility">Tag Visibility:</label>
+                        <select id="export-tag-visibility" class="form-input">
+                            <option value="all">All Tags</option>
+                            <option value="allexcludinglayout">All Excluding Layout</option>
+                            <option value="customonly">Custom Tags Only</option>
+                            <option value="mentionsonly">@ Tags Only</option>
+                            <option value="none">No Tags</option>
+                        </select>
                     </div>
                 </div>
 
@@ -310,22 +316,11 @@
                                 <span>Documents</span>
                             </label>
                         </div>
-                        <div class="export-field" style="margin-top: 12px;">
+                        <div class="export-field-compact">
                             <label for="file-size-limit">File Size Limit (MB):</label>
                             <input type="number" id="file-size-limit" class="form-input" value="100" min="1" max="1000" />
                         </div>
                     </div>
-                </div>
-
-                <div class="export-field">
-                    <label for="export-tag-visibility">Tag Visibility:</label>
-                    <select id="export-tag-visibility" class="form-input">
-                        <option value="all">All Tags</option>
-                        <option value="allexcludinglayout">All Excluding Layout</option>
-                        <option value="customonly">Custom Tags Only</option>
-                        <option value="mentionsonly">@ Tags Only</option>
-                        <option value="none">No Tags</option>
-                    </select>
                 </div>
             </div>
             <div class="modal-actions">
