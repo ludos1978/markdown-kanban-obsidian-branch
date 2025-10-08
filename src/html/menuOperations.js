@@ -866,12 +866,6 @@ function changeColumnSpan(columnId, delta) {
         if (titleElement) {
             const displayTitle = window.filterTagsFromText(newTitle);
             titleElement.innerHTML = renderMarkdown(displayTitle);
-
-            // Add row indicator if needed
-            const currentRow = getColumnRow(newTitle);
-            if (window.showRowTags && currentRow > 1) {
-                titleElement.innerHTML += `<span class="column-row-tag">Row ${currentRow}</span>`;
-            }
         }
 
         // Update the span value display in the menu
@@ -2257,13 +2251,11 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
     // Update title display
     const titleElement = columnElement.querySelector('.column-title-text');
     if (titleElement) {
-        const displayTitle = newTitle.replace(/#row\d+/gi, '').trim();
-        const renderedTitle = displayTitle ? 
-            (window.renderMarkdown ? window.renderMarkdown(displayTitle) : displayTitle) : 
+        const displayTitle = window.filterTagsFromText ? window.filterTagsFromText(newTitle) : newTitle;
+        const renderedTitle = displayTitle ?
+            (window.renderMarkdown ? window.renderMarkdown(displayTitle) : displayTitle) :
             '';
-        const columnRow = window.getColumnRow ? window.getColumnRow(newTitle) : 1;
-        const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
-        titleElement.innerHTML = renderedTitle + rowIndicator;
+        titleElement.innerHTML = renderedTitle;
     }
     
     // Update edit field if it exists

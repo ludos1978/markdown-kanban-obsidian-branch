@@ -21,7 +21,6 @@ class ConfigManager {
             openLinksInNewTab: false,
             whitespace: 'normal',
             maxRowHeight: 'auto',
-            showRowTags: true,
             taskMinHeight: 'auto',
             fontSize: 'medium',
             fontFamily: 'default',
@@ -130,7 +129,6 @@ class ConfigManager {
     // Tag configuration
     getTagConfiguration() {
         return {
-            showRowTags: this.getConfig('showRowTags'),
             tagColors: this.getConfig('tagColors'),
             tagVisibility: this.getConfig('tagVisibility'),
             exportTagVisibility: this.getConfig('exportTagVisibility')

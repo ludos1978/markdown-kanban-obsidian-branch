@@ -2025,10 +2025,9 @@ function setupColumnDragAndDrop() {
             if (titleElement && window.cachedBoard) {
                 const columnData = window.cachedBoard.columns.find(col => col.id === columnId);
                 if (columnData) {
-                    const displayTitle = columnData.title.replace(/#row\d+/gi, '').trim();
+                    const displayTitle = window.filterTagsFromText ? window.filterTagsFromText(columnData.title) : columnData.title;
                     const renderedTitle = window.renderMarkdown ? window.renderMarkdown(displayTitle) : displayTitle;
-                    const rowIndicator = (window.showRowTags && newRow > 1) ? `<span class="column-row-tag">Row ${newRow}</span>` : '';
-                    titleElement.innerHTML = renderedTitle + rowIndicator;
+                    titleElement.innerHTML = renderedTitle;
                 }
             }
 

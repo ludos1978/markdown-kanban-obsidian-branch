@@ -3019,7 +3019,8 @@ blockquote {
 
 /* Special styling for span and row tags */
 .kanban-tag[data-tag^="span"],
-.kanban-tag[data-tag^="row"] {
+.kanban-tag[data-tag^="row"],
+.kanban-tag[data-tag^="stack"] {
   color: #666;
   background-color: transparent;
   border: 1px dashed #999;
@@ -3991,15 +3992,17 @@ s {
 }
 
 /* Tag Visibility Controls */
-/* Standard Tags: Hide #span and #row tags only */
+/* Standard Tags: Hide #span, #row, and #stack tags only */
 .tag-visibility-allexcludinglayout .kanban-tag[data-tag^="span"],
-.tag-visibility-allexcludinglayout .kanban-tag[data-tag^="row"] {
+.tag-visibility-allexcludinglayout .kanban-tag[data-tag^="row"],
+.tag-visibility-allexcludinglayout .kanban-tag[data-tag^="stack"] {
     display: none !important;
 }
 
-/* Custom Tags Only: Hide #span, #row, and all configured tags (but show @ tags) */
+/* Custom Tags Only: Hide #span, #row, #stack, and all configured tags (but show @ tags) */
 .tag-visibility-customonly .kanban-tag[data-tag^="span"],
 .tag-visibility-customonly .kanban-tag[data-tag^="row"],
+.tag-visibility-customonly .kanban-tag[data-tag^="stack"],
 .tag-visibility-customonly .kanban-tag:not([data-tag^="@"]):not(.custom-tag) {
     display: none !important;
 }

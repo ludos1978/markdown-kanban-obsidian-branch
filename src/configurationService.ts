@@ -13,7 +13,6 @@ export interface KanbanConfiguration {
     pathGeneration: 'relative' | 'absolute';
     whitespace: string;
     maxRowHeight: number;
-    showRowTags: boolean;
     tagColors: { [key: string]: string };
     taskMinHeight: string;
     sectionMaxHeight: string;
@@ -41,7 +40,6 @@ export interface ConfigurationDefaults {
     pathGeneration: 'relative' | 'absolute';
     whitespace: string;
     maxRowHeight: number;
-    showRowTags: boolean;
     taskMinHeight: string;
     sectionMaxHeight: string;
     fontSize: string;
@@ -73,7 +71,6 @@ export class ConfigurationService {
         pathGeneration: 'relative' as 'relative' | 'absolute',
         whitespace: 'normal',
         maxRowHeight: 0,
-        showRowTags: true,
         taskMinHeight: 'auto',
         sectionMaxHeight: 'auto',
         fontSize: 'medium',
@@ -195,7 +192,6 @@ export class ConfigurationService {
     // Tag configuration
     public getTagConfiguration() {
         return {
-            showRowTags: this.getConfig('showRowTags'),
             tagColors: this.getConfig('tagColors', {}),
             tagVisibility: this.getConfig('tagVisibility'),
             exportTagVisibility: this.getConfig('exportTagVisibility')

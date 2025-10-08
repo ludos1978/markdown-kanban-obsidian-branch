@@ -790,8 +790,8 @@ class TaskEditor {
                         const displayTitle = window.filterTagsFromText(column.title);
                         this.currentEditor.displayElement.innerHTML = renderMarkdown(displayTitle);
 
-                        // Add row indicator if needed
-                        if (window.showRowTags && currentRow > 1) {
+                        // Add row indicator if needed (always show in edit mode)
+                        if (currentRow > 1) {
                             this.currentEditor.displayElement.innerHTML += `<span class="column-row-tag">Row ${currentRow}</span>`;
                         }
                     }

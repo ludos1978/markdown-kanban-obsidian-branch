@@ -4,6 +4,12 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] the export functionality should be unified. add a function to the export view that allows selecting which columns to export, structure it the same way as the columns are structured with rows, stacks and columns (but of course only show the titles.) where a user might select the full kanban, a row, a stack or a single column. add the option to select which format it should export "kanban" format exports it in the same format as the kanban has, "presentation" format converts it the same way as "copy as markdown does". the pack feature should be optional, so it might leave the links as they are, or the user might select to pack all or some (same selections as it currently has) of the assets into the export folder. the copy as markdown should also use the same function.  ultrathink plan think ultraplan ultrathink
+
+- [ ] add the ability to export as pdf. could we integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly?
+
+- [ ] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
+
 - [ ] cleanup the configuration and the functions that use it.  i think the """
         "markdown-kanban.showRowTags": {
           "type": "boolean",

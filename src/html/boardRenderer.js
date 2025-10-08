@@ -1709,7 +1709,8 @@ function createColumnElement(column, columnIndex) {
             renderedTitle = linkHtml;
         }
     } else {
-        // Normal column - use displayTitle or filter tags
+        // Normal column - use displayTitle or filter tags based on tagVisibility
+        // Tags like #stack and #row will be rendered as <span class="kanban-tag"> by markdown
         displayTitle = column.displayTitle || (column.title ? window.filterTagsFromText(column.title) : '');
         renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
     }
@@ -1717,10 +1718,6 @@ function createColumnElement(column, columnIndex) {
     // For editing, always use the full title including include syntax
     const editTitle = column.title || '';
     const foldButtonState = getFoldAllButtonState(column.id);
-
-    // Only show row indicator for rows 2, 3, 4 if configuration allows (not row 1)
-    const columnRow = getColumnRow(column.title);
-    const rowIndicator = (window.showRowTags && columnRow > 1) ? `<span class="column-row-tag">Row ${columnRow}</span>` : '';
 
 		// the column-header and column-title MUST be outside the column-inner to be able to be sticky over the full height!!!
     columnDiv.innerHTML = `
@@ -1735,7 +1732,7 @@ function createColumnElement(column, columnIndex) {
 								<span class="drag-handle column-drag-handle" draggable="true">⋮⋮</span>
 								<span class="collapse-toggle ${isCollapsed ? 'rotated' : ''}" data-column-id="${column.id}">▶</span>
 								<div class="column-title-container">
-										<div class="column-title-text markdown-content" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}${rowIndicator}</div>
+										<div class="column-title-text markdown-content" onclick="handleColumnTitleClick(event, '${column.id}')">${renderedTitle}</div>
 										<textarea class="column-title-edit"
 																data-column-id="${column.id}"
 																style="display: none;">${escapeHtml(editTitle)}</textarea>

@@ -465,6 +465,7 @@ class TagUtils {
                 // Show all tags - don't filter anything
                 return text;
             case 'standard':
+            case 'allexcludinglayout':
                 // Hide layout tags only (#span, #row, #stack)
                 return this.removeTagsFromText(text, {
                     removeHash: false,
@@ -472,6 +473,7 @@ class TagUtils {
                     keepLayout: false
                 }).replace(this.patterns.rowTag, '').replace(this.patterns.spanTag, '').replace(this.patterns.stackTag, '').trim();
             case 'custom':
+            case 'customonly':
                 // Hide layout tags only (configured tag filtering happens in CSS)
                 return this.removeTagsFromText(text, {
                     removeHash: false,
@@ -479,6 +481,7 @@ class TagUtils {
                     keepLayout: false
                 }).replace(this.patterns.rowTag, '').replace(this.patterns.spanTag, '').replace(this.patterns.stackTag, '').trim();
             case 'mentions':
+            case 'mentionsonly':
                 // Hide all # tags, keep @ tags
                 return this.removeTagsFromText(text, {
                     removeHash: true,

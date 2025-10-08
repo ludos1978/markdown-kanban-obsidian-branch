@@ -21,7 +21,6 @@ async function generateMD5Hash(arrayBuffer) {
 let canUndo = false;
 let canRedo = false;
 window.currentImageMappings = {};
-window.showRowTags = false;
 
 // Card navigation variables
 let currentFocusedCard = null;
@@ -1405,26 +1404,34 @@ function filterTagsFromText(text) {
 
     const setting = currentTagVisibility || 'standard';
 
+    // Use TagUtils for proper tag filtering including #stack
+    if (window.tagUtils && typeof window.tagUtils.filterTagsFromText === 'function') {
+        return window.tagUtils.filterTagsFromText(text, setting);
+    }
+
+    // Fallback to basic filtering if TagUtils not available
     switch (setting) {
         case 'all':
             // Show all tags - don't filter anything
             return text;
         case 'standard':
-            // Hide #span and #row tags only, but preserve include syntax
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+        case 'allexcludinglayout':
+            // Hide #span, #row, and #stack tags only
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').replace(/#stack\b/gi, '').trim();
         case 'custom':
-            // Hide #span, #row, and configured tags (but show @ tags)
-            // For now, just hide #span and #row (configured tag filtering happens in CSS)
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+        case 'customonly':
+            // Hide #span, #row, #stack, and configured tags (but show @ tags)
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').replace(/#stack\b/gi, '').trim();
         case 'mentions':
-            // Hide all tags except @ tags - need to preserve @mentions but remove # tags
+        case 'mentionsonly':
+            // Hide all tags except @ tags
             return text.replace(/#\w+/gi, '').trim();
         case 'none':
             // Hide all tags
             return text.replace(/#\w+/gi, '').replace(/@\w+/gi, '').trim();
         default:
             // Default to standard behavior
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').trim();
+            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').replace(/#stack\b/gi, '').trim();
     }
 }
 
@@ -1717,10 +1724,9 @@ function updateColumnRowTag(columnId, newRow) {
         // Update the displayed title
         const titleElement = columnElement.querySelector('.column-title-text');
         if (titleElement) {
-            const displayTitle = column.title.replace(/#row\d+/gi, '').trim();
+            const displayTitle = window.filterTagsFromText(column.title);
             const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
-            const rowIndicator = (window.showRowTags && newRow > 1) ? `<span class="column-row-tag">Row ${newRow}</span>` : '';
-            titleElement.innerHTML = renderedTitle + rowIndicator;
+            titleElement.innerHTML = renderedTitle;
         }
         
         // Update the edit textarea
@@ -2494,12 +2500,7 @@ window.addEventListener('message', event => {
                     applyTagStyles();
                 }
             }
-            
-            // Store showRowTags configuration
-            if (typeof message.showRowTags !== 'undefined') {
-                window.showRowTags = message.showRowTags;
-            }
-            
+
             // Save folding state before re-render
             saveCurrentFoldingState();
             const isEditing = window.taskEditor && window.taskEditor.currentEditor;
