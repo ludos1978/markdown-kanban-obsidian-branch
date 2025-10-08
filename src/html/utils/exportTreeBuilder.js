@@ -179,11 +179,18 @@ class ExportTreeBuilder {
 
     /**
      * Get all selected items from tree
+     * Only returns top-level selected items (doesn't include children of selected parents)
      */
     static getSelectedItems(tree) {
         const selected = [];
 
-        const traverse = (node) => {
+        const traverse = (node, parentSelected = false) => {
+            // If parent is already selected, don't add this child node
+            // because the parent export will include it
+            if (parentSelected) {
+                return;
+            }
+
             if (node.selected && node.scope !== 'root') {
                 selected.push({
                     type: node.type,
@@ -193,13 +200,20 @@ class ExportTreeBuilder {
                     columnIndex: node.columnIndex,
                     columnId: node.columnId
                 });
-            }
-            if (node.children) {
-                node.children.forEach(child => traverse(child));
+                // If this node is selected, don't export its children separately
+                // Pass true to indicate children have a selected parent
+                if (node.children) {
+                    node.children.forEach(child => traverse(child, true));
+                }
+            } else {
+                // Node not selected, continue traversing children
+                if (node.children) {
+                    node.children.forEach(child => traverse(child, false));
+                }
             }
         };
 
-        traverse(tree);
+        traverse(tree, false);
         return selected;
     }
 

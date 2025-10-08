@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { TagUtils, TagVisibility } from './utils/tagUtils';
+import { MarkdownKanbanParser } from './markdownParser';
+import { PresentationParser } from './presentationParser';
 
 export type ExportScope = 'full' | 'row' | 'stack' | 'column' | 'task';
 export type ExportFormat = 'kanban' | 'presentation';
@@ -29,6 +31,7 @@ export interface UnifiedExportOptions {
     format: ExportFormat;
     tagVisibility: TagVisibility;
     packAssets: boolean;
+    mergeIncludes?: boolean;  // If true, merge all includes into one file; if false, keep as separate files
     packOptions?: {
         includeFiles: boolean;
         includeImages: boolean;
@@ -376,7 +379,8 @@ export class ExportService {
         exportFolder: string,
         options: ExportOptions,
         processedIncludes: Set<string>,
-        convertToPresentation: boolean = false
+        convertToPresentation: boolean = false,
+        mergeIncludes: boolean = false
     ): Promise<{ processedContent: string; includeStats: number }> {
         if (!options.includeFiles) {
             return { processedContent: content, includeStats: 0 };
@@ -386,23 +390,28 @@ export class ExportService {
         let includeCount = 0;
 
         // Define include patterns and their replacement formats
+        // If mergeIncludes is true, don't write separate files for ANY includes
+        // Column and task includes are always embedded by the parser
         const includePatterns = [
             {
                 pattern: this.INCLUDE_PATTERN,
-                replacement: (filename: string) => `!!!include(${filename})!!!`
+                replacement: (filename: string) => `!!!include(${filename})!!!`,
+                shouldWriteSeparateFile: !mergeIncludes  // Only write separate file if not merging
             },
             {
                 pattern: this.TASK_INCLUDE_PATTERN,
-                replacement: (filename: string) => `!!!taskinclude(${filename})!!!`
+                replacement: (filename: string) => `!!!taskinclude(${filename})!!!`,
+                shouldWriteSeparateFile: false  // Task includes are always embedded
             },
             {
                 pattern: this.COLUMN_INCLUDE_PATTERN,
-                replacement: (filename: string) => `!!!columninclude(${filename})!!!`
+                replacement: (filename: string) => `!!!columninclude(${filename})!!!`,
+                shouldWriteSeparateFile: false  // Column includes are always embedded
             }
         ];
 
         // Process each include pattern
-        for (const { pattern, replacement } of includePatterns) {
+        for (const { pattern, replacement, shouldWriteSeparateFile } of includePatterns) {
             let match;
             const regex = new RegExp(pattern.source, pattern.flags);
 
@@ -425,30 +434,33 @@ export class ExportService {
 
                     const includeBasename = path.basename(resolvedPath, '.md');
 
-                    // Process the included file recursively
-                    let { exportedContent } = await this.processMarkdownFile(
-                        resolvedPath,
-                        exportFolder,
-                        includeBasename,
-                        options,
-                        processedIncludes,
-                        convertToPresentation
-                    );
+                    // Only write separate file for regular includes, not for column/task includes
+                    // Column and task includes are already embedded in the content by the parser
+                    if (shouldWriteSeparateFile) {
+                        // Process the included file recursively
+                        // Note: Don't pass convertToPresentation here because included files are already
+                        // embedded in the main content by the parser, so they'll be converted with the main file
+                        let { exportedContent } = await this.processMarkdownFile(
+                            resolvedPath,
+                            exportFolder,
+                            includeBasename,
+                            options,
+                            processedIncludes,
+                            false  // Don't convert includes separately - they're embedded in main content
+                        );
 
-                    // Apply presentation format conversion if needed
-                    if (convertToPresentation) {
-                        exportedContent = this.convertToPresentationFormat(exportedContent);
+                        // Copy the processed included file to export folder (keep original format)
+                        const targetIncludePath = path.join(exportFolder, path.basename(resolvedPath));
+                        fs.writeFileSync(targetIncludePath, exportedContent, 'utf8');
+
+                        // Update the include reference to use the new path
+                        processedContent = processedContent.replace(
+                            match[0],
+                            replacement(path.basename(resolvedPath))
+                        );
                     }
-
-                    // Copy the processed included file to export folder
-                    const targetIncludePath = path.join(exportFolder, path.basename(resolvedPath));
-                    fs.writeFileSync(targetIncludePath, exportedContent, 'utf8');
-
-                    // Update the include reference to use the new path
-                    processedContent = processedContent.replace(
-                        match[0],
-                        replacement(path.basename(resolvedPath))
-                    );
+                    // For column/task includes, just keep the reference in the content
+                    // The parser has already embedded the tasks, so no need to write separate files
                 }
             }
         }
@@ -794,7 +806,8 @@ export class ExportService {
         exportFolder: string,
         options: ExportOptions,
         processedIncludes: Set<string>,
-        convertToPresentation: boolean = false
+        convertToPresentation: boolean = false,
+        mergeIncludes: boolean = false
     ): Promise<{
         exportedContent: string;
         notIncludedAssets: AssetInfo[];
@@ -812,7 +825,8 @@ export class ExportService {
             exportFolder,
             options,
             processedIncludes,
-            convertToPresentation
+            convertToPresentation,
+            mergeIncludes
         );
 
         // Filter assets based on options
@@ -835,7 +849,13 @@ export class ExportService {
 
         // Apply tag filtering to the content if specified
         // This ensures all markdown files (main and included) get tag filtering
-        const filteredContent = this.applyTagFiltering(modifiedContent, options);
+        let filteredContent = this.applyTagFiltering(modifiedContent, options);
+
+        // Convert to presentation format if requested
+        console.log(`[kanban.exportService.processMarkdownContent] convertToPresentation: ${convertToPresentation}`);
+        if (convertToPresentation) {
+            filteredContent = this.convertToPresentationFormat(filteredContent);
+        }
 
         return {
             exportedContent: filteredContent,
@@ -972,6 +992,7 @@ export class ExportService {
 
     /**
      * Extract stack content (consecutive stacked columns in same row)
+     * A stack includes: base column (without #stack) + all consecutive #stack columns after it
      */
     private static extractStackContent(markdownContent: string, rowNumber: number, stackIndex: number): string | null {
         const isKanban = markdownContent.includes('kanban-plugin: board');
@@ -981,27 +1002,28 @@ export class ExportService {
         const stacks: string[][] = [];
         let currentStack: string[] = [];
         let currentColumn: { content: string[]; row: number; stacked: boolean } | null = null;
-        let inTargetRow = false;
 
         for (const line of lines) {
             if (line.startsWith('## ')) {
                 // Process previous column
-                if (currentColumn) {
-                    if (currentColumn.row === rowNumber && currentColumn.stacked) {
+                if (currentColumn && currentColumn.row === rowNumber) {
+                    if (currentColumn.stacked) {
+                        // Stacked column - add to current stack
                         currentStack.push(currentColumn.content.join('\n'));
-                    } else if (currentColumn.row === rowNumber) {
-                        // Non-stacked column ends current stack
+                    } else {
+                        // Non-stacked column - this is a new base column
+                        // First, finish the previous stack if it exists
                         if (currentStack.length > 0) {
                             stacks.push([...currentStack]);
-                            currentStack = [];
                         }
+                        // Start new stack with this base column
+                        currentStack = [currentColumn.content.join('\n')];
                     }
                 }
 
                 // Start new column
                 const columnRow = this.getColumnRow(line);
                 const isStacked = this.isColumnStacked(line);
-                inTargetRow = columnRow === rowNumber;
                 currentColumn = { content: [line], row: columnRow, stacked: isStacked };
             } else if (currentColumn) {
                 currentColumn.content.push(line);
@@ -1009,9 +1031,19 @@ export class ExportService {
         }
 
         // Don't forget the last column
-        if (currentColumn && currentColumn.row === rowNumber && currentColumn.stacked) {
-            currentStack.push(currentColumn.content.join('\n'));
+        if (currentColumn && currentColumn.row === rowNumber) {
+            if (currentColumn.stacked) {
+                currentStack.push(currentColumn.content.join('\n'));
+            } else {
+                // Non-stacked column - finish previous stack and start new one
+                if (currentStack.length > 0) {
+                    stacks.push([...currentStack]);
+                }
+                currentStack = [currentColumn.content.join('\n')];
+            }
         }
+
+        // Push the final stack
         if (currentStack.length > 0) {
             stacks.push(currentStack);
         }
@@ -1056,31 +1088,69 @@ export class ExportService {
 
     /**
      * Convert kanban format to presentation format
+     * Each task becomes a slide separated by ---
+     * Column titles are included as slides before their tasks
+     * Task checkboxes (- [ ]) are removed from titles
      */
     private static convertToPresentationFormat(content: string): string {
-        const lines = content.split('\n');
-        const result: string[] = [];
+        console.log('[kanban.exportService.convertToPresentationFormat] Converting to presentation format');
 
-        for (const line of lines) {
-            if (line.startsWith('## ')) {
-                // Column header → presentation header
-                result.push('#' + line);
-            } else if (line.trim() === '---') {
-                // Task separator stays the same
-                result.push(line);
-            } else if (line.trim().startsWith('##')) {
-                // Task header stays the same
-                result.push(line);
-            } else if (!line.startsWith('#')) {
-                // Regular content
-                result.push(line);
+        // Add temporary YAML header if missing (needed for parser)
+        let contentToParse = content;
+        const hasYaml = content.trim().startsWith('---');
+
+        if (!hasYaml) {
+            contentToParse = '---\nkanban-plugin: board\n---\n\n' + content;
+            console.log('[kanban.exportService.convertToPresentationFormat] Added temporary YAML header for parsing');
+        }
+
+        // Parse the kanban content to extract tasks
+        const { board } = MarkdownKanbanParser.parseMarkdown(contentToParse);
+
+        if (!board.valid) {
+            console.log('[kanban.exportService.convertToPresentationFormat] No valid kanban board found after adding YAML, returning original content');
+            return content;
+        }
+
+        if (board.columns.length === 0) {
+            console.log('[kanban.exportService.convertToPresentationFormat] No columns found');
+            return '';
+        }
+
+        // Build slides with column titles as section headers
+        const slides: string[] = [];
+
+        for (const column of board.columns) {
+            // Add column title as a slide (if it has heading syntax after removing ##)
+            // The parser already removed "## " from column.title, so just trim
+            const columnTitle = column.title.trim();
+
+            console.log(`[kanban.exportService.convertToPresentationFormat] Column title: "${columnTitle}"`);
+
+            // Only add column title as a slide if it already contains heading syntax (#)
+            if (columnTitle.match(/^#+\s/)) {
+                console.log(`[kanban.exportService.convertToPresentationFormat]   Has heading syntax, adding as slide`);
+                slides.push(columnTitle);
             } else {
-                // Other headers (shouldn't happen in well-formed kanban)
-                result.push(line);
+                console.log(`[kanban.exportService.convertToPresentationFormat]   No heading syntax, skipping`);
+            }
+            // If title has no heading syntax, skip it (don't add to slides)
+
+            // Convert column tasks to slides
+            if (column.tasks && column.tasks.length > 0) {
+                const columnSlides = PresentationParser.tasksToPresentation(column.tasks);
+                // Remove the trailing newline from tasksToPresentation and split by slide separator
+                const taskSlideArray = columnSlides.trim().split(/\n\n---\n\n/);
+                slides.push(...taskSlideArray);
             }
         }
 
-        return result.join('\n');
+        console.log(`[kanban.exportService.convertToPresentationFormat] Converted ${board.columns.length} columns with column titles as slides`);
+
+        // Join all slides with separator
+        const presentationContent = slides.join('\n\n---\n\n') + '\n';
+
+        return presentationContent;
     }
 
     /**
@@ -1135,25 +1205,24 @@ export class ExportService {
                 throw new Error(`Could not extract content for scope: ${options.scope}`);
             }
 
-            // Apply tag filtering
-            let processedContent = this.applyTagFiltering(content, {
-                targetFolder: '',
-                includeFiles: false,
-                includeImages: false,
-                includeVideos: false,
-                includeOtherMedia: false,
-                includeDocuments: false,
-                fileSizeLimitMB: 100,
-                tagVisibility: options.tagVisibility
-            });
-
-            // Convert format if needed
-            if (options.format === 'presentation') {
-                processedContent = this.convertToPresentationFormat(processedContent);
-            }
-
-            // If no pack, just return content (for copy operations)
+            // For copy operations (no pack), apply tag filtering and format conversion
             if (!options.packAssets || !options.targetFolder) {
+                let processedContent = this.applyTagFiltering(content, {
+                    targetFolder: '',
+                    includeFiles: false,
+                    includeImages: false,
+                    includeVideos: false,
+                    includeOtherMedia: false,
+                    includeDocuments: false,
+                    fileSizeLimitMB: 100,
+                    tagVisibility: options.tagVisibility
+                });
+
+                // Convert format if needed
+                if (options.format === 'presentation') {
+                    processedContent = this.convertToPresentationFormat(processedContent);
+                }
+
                 return {
                     success: true,
                     message: 'Content generated successfully',
@@ -1164,8 +1233,33 @@ export class ExportService {
             // Pack assets if requested
             const sourceDir = path.dirname(sourcePath);
             const sourceBasename = path.basename(sourcePath, '.md');
-            const scopeSuffix = options.scope === 'full' ? '' : `-${options.scope}`;
+
+            // Build scope suffix with indices
+            let scopeSuffix = '';
+            if (options.scope !== 'full') {
+                const parts: string[] = [];
+
+                if (options.selection.rowNumber !== undefined) {
+                    parts.push(`row${options.selection.rowNumber}`);
+                }
+                if (options.selection.stackIndex !== undefined) {
+                    parts.push(`stack${options.selection.stackIndex}`);
+                }
+                if (options.selection.columnIndex !== undefined) {
+                    parts.push(`col${options.selection.columnIndex}`);
+                }
+
+                // If no indices specified, just use scope name
+                if (parts.length === 0) {
+                    scopeSuffix = `-${options.scope}`;
+                } else {
+                    scopeSuffix = `-${parts.join('-')}`;
+                }
+            }
+
             const targetBasename = `${sourceBasename}${scopeSuffix}`;
+
+            console.log(`[kanban.exportService.exportUnified] Format: ${options.format}, Will convert to presentation: ${options.format === 'presentation'}`);
 
             // Ensure target folder exists
             if (!fs.existsSync(options.targetFolder)) {
@@ -1177,8 +1271,14 @@ export class ExportService {
             this.exportedFiles.clear();
 
             // Process with asset packing
+            // Pass raw content - processMarkdownContent will handle tag filtering and format conversion
+            const convertToPresentation = options.format === 'presentation';
+            // For scoped exports (not full), merge includes by default unless explicitly set
+            const mergeIncludes = options.mergeIncludes ?? (options.scope !== 'full');
+            console.log(`[kanban.exportService.exportUnified] Scope: ${options.scope}, mergeIncludes: ${mergeIncludes}, convertToPresentation: ${convertToPresentation}`);
+
             const result = await this.processMarkdownContent(
-                processedContent,
+                content,
                 sourceDir,
                 targetBasename,
                 options.targetFolder,
@@ -1193,7 +1293,8 @@ export class ExportService {
                     tagVisibility: options.tagVisibility
                 },
                 new Set<string>(),
-                options.format === 'presentation'
+                convertToPresentation,
+                mergeIncludes
             );
 
             // Write the markdown file

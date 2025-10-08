@@ -1955,9 +1955,38 @@ export class MessageHandler {
 
     private async handleUnifiedExport(options: any, operationId?: string): Promise<void> {
         try {
-            const document = this._fileManager.getDocument();
+            let document = this._fileManager.getDocument();
+            console.log('[kanban.messageHandler.unifiedExport] FileManager document:', document ? document.uri.fsPath : 'null');
+
+            // If document not available from FileManager, try to get the file path and open it
             if (!document) {
-                vscode.window.showErrorMessage('No document available for export');
+                const filePath = this._fileManager.getFilePath();
+                console.log('[kanban.messageHandler.unifiedExport] FileManager filePath:', filePath || 'null');
+
+                if (filePath) {
+                    // Open the document using the file path
+                    try {
+                        document = await vscode.workspace.openTextDocument(filePath);
+                        console.log('[kanban.messageHandler.unifiedExport] Opened document from file path');
+                    } catch (error) {
+                        console.error('[kanban.messageHandler.unifiedExport] Failed to open document from file path:', error);
+                    }
+                }
+
+                // If still no document, try active editor as last resort
+                if (!document) {
+                    const activeEditor = vscode.window.activeTextEditor;
+                    console.log('[kanban.messageHandler.unifiedExport] Active editor:', activeEditor ? activeEditor.document.fileName : 'null');
+                    if (activeEditor && activeEditor.document.fileName.endsWith('.md')) {
+                        document = activeEditor.document;
+                        console.log('[kanban.messageHandler.unifiedExport] Using active editor document as fallback');
+                    }
+                }
+            }
+
+            if (!document) {
+                console.error('[kanban.messageHandler.unifiedExport] No document available for export');
+                vscode.window.showErrorMessage('No document available for export. Please ensure a markdown file is open.');
                 return;
             }
 
@@ -1972,7 +2001,7 @@ export class MessageHandler {
                 }
                 progress.report({ increment: 20, message: 'Processing content...' });
 
-                const result = await ExportService.exportUnified(document, options);
+                const result = await ExportService.exportUnified(document!, options);
 
                 if (operationId) {
                     await this.updateOperationProgress(operationId, 90, 'Finalizing...');

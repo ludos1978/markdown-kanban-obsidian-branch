@@ -2156,7 +2156,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   border: 1px solid var(--vscode-panel-border);
   border-radius: 8px;
   width: 80%;
-  height: 80vh;
+  height: min-content;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
