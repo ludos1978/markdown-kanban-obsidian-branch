@@ -20,6 +20,8 @@ kanban-plugin: board
 - the export/output folder definition for each file, which is usually the folder where they are loaded from.
 - in this step we can also unify the title and description of the cards into one data structure. The display of the title is only for visualizing when folded, but is othervise not handled separately from the rest of the content.
 
+we should be able to remove tons of individual usages of conversions etc. with this. think about what we can remove. analyze what we can remove and analyze everything that happens within that functions. create a file with the plan for this feature that we can continue to work on until we have a solid and sound idea. there should only be one place we use functions such as tasksToPresentations and all similar functions. Analyze for duplicate or similar code we can remove.
+
 ultrathink, plan.
 
 
