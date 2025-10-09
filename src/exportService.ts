@@ -5,6 +5,8 @@ import * as crypto from 'crypto';
 import { TagUtils, TagVisibility } from './utils/tagUtils';
 import { MarkdownKanbanParser } from './markdownParser';
 import { PresentationParser } from './presentationParser';
+import { ContentPipelineService } from './services/ContentPipelineService';
+import { OperationOptionsBuilder, OperationOptions, FormatStrategy } from './services/OperationOptions';
 
 export type ExportScope = 'full' | 'row' | 'stack' | 'column' | 'task';
 export type ExportFormat = 'kanban' | 'presentation';
@@ -1491,6 +1493,190 @@ export class ExportService {
 
         } catch (error) {
             console.error('[kanban.exportService.exportUnified] Export failed:', error);
+            return {
+                success: false,
+                message: `Export failed: ${error instanceof Error ? error.message : String(error)}`
+            };
+        }
+    }
+
+    /**
+     * Export using ContentPipelineService (v2 implementation)
+     *
+     * This is the new unified export that uses the ContentPipelineService
+     * for all processing. It coexists with the old exportUnified() method
+     * to allow gradual migration and testing.
+     *
+     * @param sourceDocument Source document to export from
+     * @param options Export options
+     * @returns Export result
+     */
+    public static async exportUnifiedV2(
+        sourceDocument: vscode.TextDocument,
+        options: UnifiedExportOptions
+    ): Promise<{ success: boolean; message: string; content?: string; exportedPath?: string }> {
+        try {
+            const sourcePath = sourceDocument.uri.fsPath;
+
+            // Read source content
+            if (!fs.existsSync(sourcePath)) {
+                throw new Error(`Source file not found: ${sourcePath}`);
+            }
+            const fullContent = fs.readFileSync(sourcePath, 'utf8');
+
+            // Step 1: Extract content based on scope (reuse existing extraction methods)
+            let content: string | null = null;
+            switch (options.scope) {
+                case 'full':
+                    content = fullContent;
+                    break;
+                case 'row':
+                    if (options.selection.rowNumber === undefined) {
+                        throw new Error('Row number required for row scope');
+                    }
+                    content = this.extractRowContent(fullContent, options.selection.rowNumber);
+                    break;
+                case 'stack':
+                    if (options.selection.rowNumber === undefined || options.selection.stackIndex === undefined) {
+                        throw new Error('Row number and stack index required for stack scope');
+                    }
+                    content = this.extractStackContent(fullContent, options.selection.rowNumber, options.selection.stackIndex);
+                    break;
+                case 'column':
+                    if (options.selection.columnIndex === undefined) {
+                        throw new Error('Column index required for column scope');
+                    }
+                    content = this.extractColumnContent(fullContent, options.selection.columnIndex);
+                    break;
+                case 'task':
+                    if (options.selection.columnIndex === undefined) {
+                        throw new Error('Column index required for task scope');
+                    }
+                    const columnContent = this.extractColumnContent(fullContent, options.selection.columnIndex);
+                    content = columnContent ? this.extractTaskContent(columnContent, options.selection.taskId) : null;
+                    break;
+            }
+
+            if (!content) {
+                throw new Error(`Could not extract content for scope: ${options.scope}`);
+            }
+
+            // Step 2: Apply tag filtering (still needed, not part of pipeline)
+            let processedContent = this.applyTagFiltering(content, {
+                targetFolder: '',
+                includeFiles: false,
+                includeImages: false,
+                includeVideos: false,
+                includeOtherMedia: false,
+                includeDocuments: false,
+                fileSizeLimitMB: 100,
+                tagVisibility: options.tagVisibility
+            });
+
+            // Step 3: For copy operations (no pack), return processed content
+            if (!options.packAssets || !options.targetFolder) {
+                // Convert format if needed using ContentPipelineService
+                const formatStrategy: FormatStrategy = options.format === 'presentation' ? 'presentation' : 'keep';
+
+                if (formatStrategy !== 'keep') {
+                    const tempOptions = new OperationOptionsBuilder()
+                        .operation('export')
+                        .source(sourcePath)
+                        .format(formatStrategy)
+                        .build();
+
+                    // Just use FormatConverter directly for in-memory conversion
+                    const { FormatConverter } = require('./services/FormatConverter');
+                    processedContent = FormatConverter.convert(processedContent, formatStrategy);
+                }
+
+                return {
+                    success: true,
+                    message: 'Content generated successfully',
+                    content: processedContent
+                };
+            }
+
+            // Step 4: Pack assets using ContentPipelineService
+            const sourceDir = path.dirname(sourcePath);
+            const sourceBasename = path.basename(sourcePath, '.md');
+
+            // Build scope suffix with indices
+            let scopeSuffix = '';
+            if (options.scope !== 'full') {
+                const parts: string[] = [];
+
+                if (options.selection.rowNumber !== undefined) {
+                    parts.push(`row${options.selection.rowNumber}`);
+                }
+                if (options.selection.stackIndex !== undefined) {
+                    parts.push(`stack${options.selection.stackIndex}`);
+                }
+                if (options.selection.columnIndex !== undefined) {
+                    parts.push(`col${options.selection.columnIndex}`);
+                }
+
+                if (parts.length === 0) {
+                    scopeSuffix = `-${options.scope}`;
+                } else {
+                    scopeSuffix = `-${parts.join('-')}`;
+                }
+            }
+
+            const targetBasename = `${sourceBasename}${scopeSuffix}`;
+            const targetFolder = options.targetFolder || this.generateDefaultExportFolder(sourcePath);
+
+            // Step 5: Build OperationOptions for ContentPipelineService
+            const formatStrategy: FormatStrategy = options.format === 'presentation' ? 'presentation' : 'keep';
+            const mergeIncludes = options.mergeIncludes ?? (options.scope !== 'full');
+
+            const pipelineOptions = new OperationOptionsBuilder()
+                .operation('export')
+                .source(sourcePath)
+                .targetDir(targetFolder)
+                .targetFilename(`${targetBasename}.md`)
+                .format(formatStrategy)
+                .scope(options.scope as any)
+                .includes({
+                    strategy: mergeIncludes ? 'merge' : 'separate',
+                    processTypes: ['include', 'columninclude', 'taskinclude'],
+                    resolveNested: true,
+                    maxDepth: 10
+                })
+                .exportOptions({
+                    includeAssets: options.packAssets && (
+                        (options.packOptions?.includeImages ?? false) ||
+                        (options.packOptions?.includeVideos ?? false) ||
+                        (options.packOptions?.includeOtherMedia ?? false) ||
+                        (options.packOptions?.includeDocuments ?? false)
+                    ),
+                    assetStrategy: options.packAssets ? 'copy' : 'ignore',
+                    preserveYaml: true
+                })
+                .build();
+
+            // Step 6: Execute pipeline with extracted content
+            const result = await ContentPipelineService.execute(processedContent, pipelineOptions);
+
+            if (!result.success) {
+                throw new Error(result.errors?.join('; ') || 'Export failed');
+            }
+
+            // Step 7: Build success message
+            const mainFile = result.filesWritten.find(f => f.type === 'main');
+            const includeCount = result.filesWritten.filter(f => f.type === 'include').length;
+            const assetCount = result.filesWritten.filter(f => f.type === 'asset').length;
+
+            const successMessage = `Export completed! ${includeCount} includes, ${assetCount} assets included. Time: ${result.executionTime}ms`;
+
+            return {
+                success: true,
+                message: successMessage,
+                exportedPath: mainFile?.path
+            };
+
+        } catch (error) {
+            console.error('[kanban.exportService.exportUnifiedV2] Export failed:', error);
             return {
                 success: false,
                 message: `Export failed: ${error instanceof Error ? error.message : String(error)}`
