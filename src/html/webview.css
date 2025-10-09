@@ -2157,6 +2157,7 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   border-radius: 8px;
   width: 80%;
   height: min-content;
+  max-height: 80%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
