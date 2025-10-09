@@ -1087,6 +1087,42 @@ function toggleFileBarMenu(event, button) {
 
 // Function to set column width
 /**
+ * Generic helper to apply and save a setting
+ * Purpose: DRY helper to reduce duplication in set* functions
+ * @param {string} configKey - The configuration key to save
+ * @param {any} value - The value to save
+ * @param {function} applyFunction - The apply function to call
+ * @param {object} options - Optional settings
+ * @param {string} options.message - Success message to show user
+ * @param {function} options.afterApply - Callback to run after applying
+ */
+function applyAndSaveSetting(configKey, value, applyFunction, options = {}) {
+    // Apply the setting
+    applyFunction(value);
+
+    // Store preference
+    configManager.setPreference(configKey, value);
+
+    // Update menu indicators
+    updateAllMenuIndicators();
+
+    // Close menus
+    document.querySelectorAll('.file-bar-menu').forEach(m => {
+        m.classList.remove('active');
+    });
+
+    // Run optional callback after apply
+    if (options.afterApply) {
+        options.afterApply();
+    }
+
+    // Show success message if provided
+    if (options.message) {
+        vscode.postMessage({ type: 'showMessage', text: options.message });
+    }
+}
+
+/**
  * Sets the width of all kanban columns
  * Purpose: Adjust column width for different screen sizes
  * Used by: Column width menu selections
@@ -1117,21 +1153,9 @@ function applyColumnWidth(size, skipRender = false) {
 }
 
 function setColumnWidth(size) {
-    // Apply the column width
-    applyColumnWidth(size);
-
-    // Store preference
-    configManager.setPreference('columnWidth', size);
-
-    // Update menu indicators
-    updateAllMenuIndicators();
-
-    // Close menu
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
+    applyAndSaveSetting('columnWidth', size, applyColumnWidth, {
+        message: `Column width set to ${size}`
     });
-    
-    vscode.postMessage({ type: 'showMessage', text: `Column width set to ${size}` });
 }
 
 
@@ -1159,21 +1183,9 @@ function applyLayoutRows(rows) {
 }
 
 function setLayoutRows(rows) {
-    applyLayoutRows(rows);
-
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'layoutRows',
-        value: rows
+    applyAndSaveSetting('layoutRows', rows, applyLayoutRows, {
+        message: `Layout set to ${rows} row${rows > 1 ? 's' : ''}`
     });
-
-    updateAllMenuIndicators();
-
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
-
-    vscode.postMessage({ type: 'showMessage', text: `Layout set to ${rows} row${rows > 1 ? 's' : ''}` });
 }
 
 // Global variable to store current row height
@@ -1267,20 +1279,8 @@ function applyRowHeightSetting(height) {
 }
 
 function setRowHeight(height) {
-    applyRowHeightSetting(height);
+    applyAndSaveSetting('rowHeight', height, applyRowHeightSetting);
 
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'rowHeight',
-        value: height
-    });
-
-    updateAllMenuIndicators();
-
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
-    
     // Show user-friendly message
     // let message = 'Row height set to ';
     // switch(height) {
@@ -1314,19 +1314,14 @@ function applyStickyStackMode(mode) {
 }
 
 function setStickyStackMode(mode) {
-    applyStickyStackMode(mode);
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'stickyStackMode',
-        value: mode
+    applyAndSaveSetting('stickyStackMode', mode, applyStickyStackMode, {
+        afterApply: () => {
+            // Recalculate stack positions with new mode
+            if (typeof window.applyStackedColumnStyles === 'function') {
+                window.applyStackedColumnStyles();
+            }
+        }
     });
-    updateAllMenuIndicators();
-    document.querySelectorAll('.file-bar-menu').forEach(m => m.classList.remove('active'));
-
-    // Recalculate stack positions with new mode
-    if (typeof window.applyStackedColumnStyles === 'function') {
-        window.applyStackedColumnStyles();
-    }
 }
 
 // Tag visibility functionality
@@ -1394,23 +1389,7 @@ function applyTagVisibility(setting) {
 }
 
 function setTagVisibility(setting) {
-    // Apply the tag visibility setting
-    applyTagVisibility(setting);
-
-    // Store preference
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'tagVisibility',
-        value: setting
-    });
-
-    // Update menu indicators
-    updateAllMenuIndicators();
-
-    // Close menu
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
+    applyAndSaveSetting('tagVisibility', setting, applyTagVisibility);
 }
 
 // Helper function to filter tags from text based on export tag visibility setting
@@ -1464,19 +1443,7 @@ function applyWhitespace(spacing) {
 }
 
 function setWhitespace(spacing) {
-    applyWhitespace(spacing);
-
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'whitespace',
-        value: spacing
-    });
-
-    updateAllMenuIndicators();
-
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
+    applyAndSaveSetting('whitespace', spacing, applyWhitespace);
 }
 
 // Refactored task min height functions using styleManager
@@ -1494,19 +1461,7 @@ function applyTaskMinHeight(height) {
 }
 
 function setTaskMinHeight(height) {
-    applyTaskMinHeight(height);
-
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'taskMinHeight',
-        value: height
-    });
-
-    updateAllMenuIndicators();
-
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
+    applyAndSaveSetting('taskMinHeight', height, applyTaskMinHeight);
 }
 
 // Section max height functions
@@ -1518,19 +1473,7 @@ function applySectionMaxHeight(height) {
 }
 
 function setSectionMaxHeight(height) {
-    applySectionMaxHeight(height);
-
-    vscode.postMessage({
-        type: 'setPreference',
-        key: 'sectionMaxHeight',
-        value: height
-    });
-
-    updateAllMenuIndicators();
-
-    document.querySelectorAll('.file-bar-menu').forEach(m => {
-        m.classList.remove('active');
-    });
+    applyAndSaveSetting('sectionMaxHeight', height, applySectionMaxHeight);
 }
 
 // Function to detect row tags from board

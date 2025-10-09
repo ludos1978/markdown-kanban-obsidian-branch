@@ -96,18 +96,18 @@ export class KanbanWebviewPanel {
                 this._panel.webview.postMessage({
                     type: 'updateBoard',
                     board: this._board,
-                    columnWidth: this._getColumnWidthConfiguration(),
-                    taskMinHeight: this._getTaskMinHeightConfiguration(),
-                    sectionMaxHeight: this._getSectionMaxHeightConfiguration(),
-                    fontSize: this._getFontSizeConfiguration(),
-                    fontFamily: this._getFontFamilyConfiguration(),
-                    whitespace: this._getWhitespaceConfiguration(),
-                    layoutRows: this._getLayoutRowsConfiguration(),
-                    rowHeight: this._getRowHeightConfiguration(),
-                    layoutPreset: this._getLayoutPresetConfiguration(),
+                    columnWidth: configService.getConfig('columnWidth', '350px'),
+                    taskMinHeight: configService.getConfig('taskMinHeight'),
+                    sectionMaxHeight: configService.getConfig('sectionMaxHeight'),
+                    fontSize: configService.getConfig('fontSize'),
+                    fontFamily: configService.getConfig('fontFamily'),
+                    whitespace: configService.getConfig('whitespace', '8px'),
+                    layoutRows: configService.getConfig('layoutRows'),
+                    rowHeight: configService.getConfig('rowHeight'),
+                    layoutPreset: configService.getConfig('layoutPreset', 'normal'),
                     layoutPresets: this._getLayoutPresetsConfiguration(),
-                    maxRowHeight: this._getMaxRowHeightConfiguration(),
-                    tagColors: await this._getTagConfiguration()
+                    maxRowHeight: configService.getConfig('maxRowHeight', 0),
+                    tagColors: configService.getConfig('tagColors', {})
                 });
             }, 100);
         }
@@ -545,11 +545,9 @@ export class KanbanWebviewPanel {
     private _updateUnifiedIncludeSystem(includedFiles: string[], columnIncludeFiles: string[], taskIncludeFiles: string[]): void {
 
         // Helper function to normalize include paths consistently
+        // Use PathResolver.normalize for consistent path handling
         const normalizePath = (filePath: string): string => {
-            if (!path.isAbsolute(filePath) && !filePath.startsWith('.')) {
-                return './' + filePath;
-            }
-            return filePath;
+            return PathResolver.normalize(filePath);
         };
 
         // Create or update entries for each file type
@@ -595,6 +593,38 @@ export class KanbanWebviewPanel {
 
         // For now, don't remove files here - this will be handled by the async check
 
+    }
+
+    /**
+     * Normalize include path for consistent storage/lookup
+     * Handles URL decoding and adds ./ prefix
+     */
+    private _normalizeIncludePath(relativePath: string): string {
+        if (!relativePath) return '';
+        // Decode URL encoding (e.g., %20 to space)
+        const decoded = decodeURIComponent(relativePath);
+        // Add ./ prefix if not present
+        return PathResolver.normalize(decoded);
+    }
+
+    /**
+     * Find include file in map, handling path variations
+     * Returns undefined if not found
+     */
+    private _findIncludeFile(relativePath: string): IncludeFile | undefined {
+        const normalized = this._normalizeIncludePath(relativePath);
+        return this._includeFiles.get(normalized);
+    }
+
+    /**
+     * Check if two include paths refer to same file
+     */
+    private _isSameIncludePath(path1: string, path2: string): boolean {
+        if (!path1 || !path2) return path1 === path2;
+        return PathResolver.areEqual(
+            this._normalizeIncludePath(path1),
+            this._normalizeIncludePath(path2)
+        );
     }
 
     /**
@@ -1060,46 +1090,6 @@ export class KanbanWebviewPanel {
         }
     }
 
-    private async _getTagConfiguration(): Promise<any> {
-        return configService.getConfig('tagColors', {});
-    }
-
-    private async _getWhitespaceConfiguration(): Promise<string> {
-        return configService.getConfig('whitespace', '8px');
-    }
-
-    private async _getTaskMinHeightConfiguration(): Promise<string> {
-        return configService.getConfig('taskMinHeight');
-    }
-
-    private async _getSectionMaxHeightConfiguration(): Promise<string> {
-        return configService.getConfig('sectionMaxHeight');
-    }
-
-    private async _getFontSizeConfiguration(): Promise<string> {
-        return configService.getConfig('fontSize');
-    }
-
-    private async _getFontFamilyConfiguration(): Promise<string> {
-        return configService.getConfig('fontFamily');
-    }
-
-    private async _getColumnWidthConfiguration(): Promise<string> {
-        return configService.getConfig('columnWidth', '350px');
-    }
-
-    private async _getLayoutRowsConfiguration(): Promise<number> {
-        return configService.getConfig('layoutRows');
-    }
-
-    private async _getRowHeightConfiguration(): Promise<string> {
-        return configService.getConfig('rowHeight');
-    }
-
-    private async _getLayoutPresetConfiguration(): Promise<string> {
-        return configService.getConfig('layoutPreset', 'normal');
-    }
-
     private async _getLayoutPresetsConfiguration(): Promise<any> {
         const userPresets = configService.getConfig('layoutPresets', {});
 
@@ -1172,10 +1162,6 @@ export class KanbanWebviewPanel {
 
         // Merge user presets with defaults (user presets override defaults)
         return { ...defaultPresets, ...userPresets };
-    }
-
-    private async _getMaxRowHeightConfiguration(): Promise<number> {
-        return configService.getConfig('maxRowHeight', 0);
     }
 
     // Public methods for external access
@@ -1514,34 +1500,21 @@ export class KanbanWebviewPanel {
         // Generate image path mappings without modifying the board content
         const imageMappings = await this._generateImageMappings(board);
         
-        // Get tag configuration
-        const tagColors = await this._getTagConfiguration();
-        
-        const whitespace = await this._getWhitespaceConfiguration();
-
-        const taskMinHeight = await this._getTaskMinHeightConfiguration();
-
-        const sectionMaxHeight = await this._getSectionMaxHeightConfiguration();
-
-        const fontSize = await this._getFontSizeConfiguration();
-        
-        const fontFamily = await this._getFontFamilyConfiguration();
-        
-        const columnWidth = await this._getColumnWidthConfiguration();
-        
-        const layoutRows = await this._getLayoutRowsConfiguration();
-        
-        const rowHeight = await this._getRowHeightConfiguration();
-
-        const layoutPreset = await this._getLayoutPresetConfiguration();
-
+        // Get all configuration values
+        const tagColors = configService.getConfig('tagColors', {});
+        const whitespace = configService.getConfig('whitespace', '8px');
+        const taskMinHeight = configService.getConfig('taskMinHeight');
+        const sectionMaxHeight = configService.getConfig('sectionMaxHeight');
+        const fontSize = configService.getConfig('fontSize');
+        const fontFamily = configService.getConfig('fontFamily');
+        const columnWidth = configService.getConfig('columnWidth', '350px');
+        const layoutRows = configService.getConfig('layoutRows');
+        const rowHeight = configService.getConfig('rowHeight');
+        const layoutPreset = configService.getConfig('layoutPreset', 'normal');
         const layoutPresets = await this._getLayoutPresetsConfiguration();
-
-        const maxRowHeight = await this._getMaxRowHeightConfiguration();
-
-        const columnBorder = await this._getColumnBorderConfiguration();
-
-        const taskBorder = await this._getTaskBorderConfiguration();
+        const maxRowHeight = configService.getConfig('maxRowHeight', 0);
+        const columnBorder = configService.getConfig('columnBorder', '1px solid var(--vscode-panel-border)');
+        const taskBorder = configService.getConfig('taskBorder', '1px solid var(--vscode-panel-border)');
 
         console.log('[Border-Debug] About to send via postMessage - columnBorder:', columnBorder, 'taskBorder:', taskBorder);
 
@@ -2192,19 +2165,6 @@ export class KanbanWebviewPanel {
 
     }
 
-    private async _getColumnBorderConfiguration(): Promise<string> {
-        const value = configService.getConfig('columnBorder', '1px solid var(--vscode-panel-border)');
-        console.log('[Border-Debug] _getColumnBorderConfiguration returned:', value);
-        return value;
-    }
-
-    private async _getTaskBorderConfiguration(): Promise<string> {
-        const value = configService.getConfig('taskBorder', '1px solid var(--vscode-panel-border)');
-        console.log('[Border-Debug] _getTaskBorderConfiguration returned:', value);
-        return value;
-    }
-
-
     /**
      * Centralized dialog manager - prevents duplicate conflict dialogs
      */
@@ -2671,8 +2631,7 @@ export class KanbanWebviewPanel {
             }
 
             // CRITICAL: Check if the unified system has this include file and if it matches the column
-            const normalizedPath = includeFile.startsWith('./') ? includeFile : './' + includeFile;
-            const unifiedIncludeFile = this._includeFiles.get(normalizedPath) || this._includeFiles.get(includeFile);
+            const unifiedIncludeFile = this._findIncludeFile(includeFile);
 
             if (!unifiedIncludeFile) {
                 return false;
@@ -2909,9 +2868,7 @@ export class KanbanWebviewPanel {
         }
 
         const includeFile = task.includeFiles[0];
-        // Try both with and without ./ prefix for path normalization
-        const normalizedPath = includeFile.startsWith('./') ? includeFile : './' + includeFile;
-        const unifiedIncludeFile = this._includeFiles.get(includeFile) || this._includeFiles.get(normalizedPath);
+        const unifiedIncludeFile = this._findIncludeFile(includeFile);
 
         // Check if this file has unsaved changes using unified system
         return unifiedIncludeFile?.hasUnsavedChanges === true;
@@ -2926,9 +2883,7 @@ export class KanbanWebviewPanel {
         }
 
         const includeFile = column.includeFiles[0];
-        // Try both with and without ./ prefix for path normalization
-        const normalizedPath = includeFile.startsWith('./') ? includeFile : './' + includeFile;
-        const unifiedIncludeFile = this._includeFiles.get(includeFile) || this._includeFiles.get(normalizedPath);
+        const unifiedIncludeFile = this._findIncludeFile(includeFile);
 
         // Check if this file has unsaved changes using unified system
         return unifiedIncludeFile?.hasUnsavedChanges === true;
@@ -3165,7 +3120,7 @@ export class KanbanWebviewPanel {
             const absolutePath = PathResolver.resolve(basePath, includeFile);
 
             // Normalize the path to match keys in _includeFiles map
-            const normalizedIncludeFile = includeFile.startsWith('./') ? includeFile : './' + includeFile;
+            const normalizedIncludeFile = this._normalizeIncludePath(includeFile);
 
             // Use shared method to read and update content
             const fileContent = await this.readAndUpdateIncludeContent(absolutePath, normalizedIncludeFile);
@@ -3253,7 +3208,7 @@ export class KanbanWebviewPanel {
             const absolutePath = PathResolver.resolve(basePath, relativePath);
 
             // Normalize the path to match keys in _includeFiles map
-            const normalizedPath = relativePath.startsWith('./') ? relativePath : './' + relativePath;
+            const normalizedPath = this._normalizeIncludePath(relativePath);
 
             // Get or create the include file entry
             const unifiedIncludeFile = this.getOrCreateIncludeFile(normalizedPath, 'task');
@@ -3290,9 +3245,10 @@ export class KanbanWebviewPanel {
 
             // Check if any of the column's include files were recently reloaded
             return !col.includeFiles.some(file => {
-                const normalizedFile = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
-                const isRecentlyReloaded = this._recentlyReloadedFiles.has(normalizedFile) || this._recentlyReloadedFiles.has(file);
-                return isRecentlyReloaded;
+                // Use helper method for consistent path comparison
+                return Array.from(this._recentlyReloadedFiles).some(reloadedPath =>
+                    this._isSameIncludePath(file, reloadedPath)
+                );
             });
         });
 
@@ -3320,9 +3276,10 @@ export class KanbanWebviewPanel {
                 if (task.includeMode) {
                     // Check if any of the task's include files were recently reloaded
                     const shouldSkip = task.includeFiles?.some(file => {
-                        const normalizedFile = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
-                        const isRecentlyReloaded = this._recentlyReloadedFiles.has(normalizedFile) || this._recentlyReloadedFiles.has(file);
-                        return isRecentlyReloaded;
+                        // Use helper method for consistent path comparison
+                        return Array.from(this._recentlyReloadedFiles).some(reloadedPath =>
+                            this._isSameIncludePath(file, reloadedPath)
+                        );
                     });
 
                     if (!shouldSkip) {
@@ -3358,15 +3315,10 @@ export class KanbanWebviewPanel {
         }
 
         const basePath = path.dirname(currentDocument.uri.fsPath);
-        let relativePath = path.relative(basePath, filePath);
+        const relativePath = path.relative(basePath, filePath);
 
-        // Normalize path format to match how includes are stored (with ./ prefix for relative paths)
-        if (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) {
-            relativePath = './' + relativePath;
-        }
-
-        // Get the include file from unified system
-        const includeFile = this._includeFiles.get(relativePath);
+        // Get the include file from unified system using helper method
+        const includeFile = this._findIncludeFile(relativePath);
         if (!includeFile) {
             return;
         }
@@ -3430,7 +3382,7 @@ export class KanbanWebviewPanel {
                 // Mark this file as recently reloaded to prevent immediate re-saving
                 const basePath = path.dirname(this._fileManager.getDocument()!.uri.fsPath);
                 const relativePath = path.relative(basePath, filePath);
-                const normalizedPath = (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) ? './' + relativePath : relativePath;
+                const normalizedPath = this._normalizeIncludePath(relativePath);
                 this._recentlyReloadedFiles.add(normalizedPath);
 
                 // Clear the flag after a short delay to allow normal saving later
@@ -3450,7 +3402,7 @@ export class KanbanWebviewPanel {
                 // Mark this file as recently reloaded to prevent immediate re-saving
                 const basePath = path.dirname(this._fileManager.getDocument()!.uri.fsPath);
                 const relativePath = path.relative(basePath, filePath);
-                const normalizedPath = (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) ? './' + relativePath : relativePath;
+                const normalizedPath = this._normalizeIncludePath(relativePath);
                 this._recentlyReloadedFiles.add(normalizedPath);
 
                 // Clear the flag after a short delay to allow normal saving later
@@ -3527,11 +3479,10 @@ export class KanbanWebviewPanel {
         if (isColumnInclude) {
             // Handle column includes using existing system
             for (const column of this._board.columns) {
-                // Check both normalized and original paths since column.includeFiles might store the original format
-                const hasFile = column.includeMode && column.includeFiles?.some(file => {
-                    const normalizedFile = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
-                    return normalizedFile === relativePath || file === relativePath;
-                });
+                // Use helper method for consistent path comparison
+                const hasFile = column.includeMode && column.includeFiles?.some(file =>
+                    this._isSameIncludePath(file, relativePath)
+                );
                 if (hasFile) {
                     await this.updateIncludeContentUnified(column, [relativePath], 'conflict_resolution');
                     break;
@@ -3541,11 +3492,10 @@ export class KanbanWebviewPanel {
             // Handle task includes - need to find and update the specific task with conflict detection
             for (const column of this._board.columns) {
                 for (const task of column.tasks) {
-                    // Check both normalized and original paths since task.includeFiles might store the original format
-                    const hasFile = task.includeMode && task.includeFiles?.some(file => {
-                        const normalizedFile = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
-                        return normalizedFile === relativePath || file === relativePath;
-                    });
+                    // Use helper method for consistent path comparison
+                    const hasFile = task.includeMode && task.includeFiles?.some(file =>
+                        this._isSameIncludePath(file, relativePath)
+                    );
                     if (hasFile) {
                         if (skipConflictDetection) {
                             // Skip conflict detection and update directly (already resolved)
@@ -3593,14 +3543,9 @@ export class KanbanWebviewPanel {
         const basePath = path.dirname(currentDocument.uri.fsPath);
         const relativePath = path.relative(basePath, filePath);
 
-        // Normalize path to match the format stored in includeFiles
-        // Column includes store without ./ prefix, task includes store with ./ prefix
-        const normalizedRelativePath = relativePath.startsWith('./') ? relativePath : './' + relativePath;
-        const normalizedRelativePathWithoutPrefix = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
-
         for (const column of this._board.columns) {
-            // Check column includes (they store without ./ prefix)
-            if (column.includeMode && column.includeFiles?.includes(normalizedRelativePathWithoutPrefix)) {
+            // Check column includes using helper method for consistent path comparison
+            if (column.includeMode && column.includeFiles?.some(file => this._isSameIncludePath(file, relativePath))) {
                 const presentationContent = PresentationParser.tasksToPresentation(column.tasks);
 
                 // Use BackupManager for consistent backup creation
@@ -3622,9 +3567,9 @@ export class KanbanWebviewPanel {
                 return; // Found and handled column include
             }
 
-            // Check task includes
+            // Check task includes using helper method for consistent path comparison
             for (const task of column.tasks) {
-                if (task.includeMode && task.includeFiles?.includes(normalizedRelativePath)) {
+                if (task.includeMode && task.includeFiles?.some(file => this._isSameIncludePath(file, relativePath))) {
                     // Reconstruct what the file content should be from task data
                     let expectedContent = '';
                     if (task.displayTitle) {
@@ -3682,25 +3627,13 @@ export class KanbanWebviewPanel {
             relativePath = filePath;
         }
 
-        // Normalize paths for comparison - need to handle both storage formats
-        const normalizedRelativePath = relativePath.startsWith('./') ? relativePath : './' + relativePath;
-        const normalizedRelativePathWithoutPrefix = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
-
-        // Check column includes - they can be stored in multiple formats
+        // Check column includes - use helper method for path comparison
         for (const column of this._board.columns) {
             if (column.includeMode && column.includeFiles) {
                 // Check if any of the stored paths match our target file
-                const hasMatch = column.includeFiles.some(storedPath => {
-                    // Compare all possible path formats
-                    const normalizedStored = storedPath.startsWith('./') ? storedPath : './' + storedPath;
-                    const storedWithoutPrefix = storedPath.startsWith('./') ? storedPath.substring(2) : storedPath;
-
-                    return storedPath === relativePath ||
-                           storedPath === normalizedRelativePath ||
-                           storedPath === normalizedRelativePathWithoutPrefix ||
-                           normalizedStored === normalizedRelativePath ||
-                           storedWithoutPrefix === normalizedRelativePathWithoutPrefix;
-                });
+                const hasMatch = column.includeFiles.some(storedPath =>
+                    this._isSameIncludePath(storedPath, relativePath)
+                );
 
                 if (hasMatch) {
                     await this.saveColumnIncludeChanges(column);
@@ -3709,29 +3642,21 @@ export class KanbanWebviewPanel {
             }
         }
 
-        // Check task includes - they can also be stored in multiple formats
+        // Check task includes - use helper method for path comparison
         for (const column of this._board.columns) {
             for (const task of column.tasks) {
                 if (task.includeMode && task.includeFiles) {
                     // Check if any of the stored paths match our target file
-                    const hasMatch = task.includeFiles.some(storedPath => {
-                        // Compare all possible path formats
-                        const normalizedStored = storedPath.startsWith('./') ? storedPath : './' + storedPath;
-                        const storedWithoutPrefix = storedPath.startsWith('./') ? storedPath.substring(2) : storedPath;
-
-                        return storedPath === relativePath ||
-                               storedPath === normalizedRelativePath ||
-                               storedPath === normalizedRelativePathWithoutPrefix ||
-                               normalizedStored === normalizedRelativePath ||
-                               storedWithoutPrefix === normalizedRelativePathWithoutPrefix;
-                    });
+                    const hasMatch = task.includeFiles.some(storedPath =>
+                        this._isSameIncludePath(storedPath, relativePath)
+                    );
 
                     if (hasMatch) {
                         // Save task include content
                         await this.saveTaskIncludeChanges(task);
 
                         // Also clear the unsaved changes flag in unified system
-                        const includeFile = this._includeFiles.get(normalizedRelativePath);
+                        const includeFile = this._findIncludeFile(relativePath);
                         if (includeFile) {
                             includeFile.hasUnsavedChanges = false;
                         }
@@ -3803,13 +3728,10 @@ export class KanbanWebviewPanel {
         // Check if any column uses this file as an include file
         for (const column of this._board.columns) {
             if (column.includeMode && column.includeFiles) {
-                // Check for match with proper normalization
-                const hasMatch = column.includeFiles.some(file => {
-                    // Normalize both the stored file path and the relative path for comparison
-                    const normalizedStored = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
-                    const normalizedRelative = (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) ? './' + relativePath : relativePath;
-                    return normalizedStored === normalizedRelative || file === relativePath || normalizedStored === relativePath;
-                });
+                // Use helper method for consistent path comparison
+                const hasMatch = column.includeFiles.some(file =>
+                    this._isSameIncludePath(file, relativePath)
+                );
                 if (hasMatch) {
                     return true;
                 }
@@ -3843,13 +3765,10 @@ export class KanbanWebviewPanel {
         for (const column of this._board.columns) {
             for (const task of column.tasks) {
                 if (task.includeMode && task.includeFiles) {
-                    // Check for match with proper normalization
-                    const hasMatch = task.includeFiles.some(file => {
-                        // Normalize both the stored file path and the relative path for comparison
-                        const normalizedStored = (!path.isAbsolute(file) && !file.startsWith('.')) ? './' + file : file;
-                        const normalizedRelative = (!path.isAbsolute(relativePath) && !relativePath.startsWith('.')) ? './' + relativePath : relativePath;
-                        return normalizedStored === normalizedRelative || file === relativePath || normalizedStored === relativePath;
-                    });
+                    // Use helper method for consistent path comparison
+                    const hasMatch = task.includeFiles.some(file =>
+                        this._isSameIncludePath(file, relativePath)
+                    );
                     if (hasMatch) {
                         return true;
                     }
@@ -4067,7 +3986,7 @@ export class KanbanWebviewPanel {
                     const absolutePath = PathResolver.resolve(basePath, includeFile);
 
                     // CRITICAL: Normalize the path to match keys in _includeFiles map
-                    const normalizedIncludeFile = includeFile.startsWith('./') ? includeFile : './' + includeFile;
+                    const normalizedIncludeFile = this._normalizeIncludePath(includeFile);
 
                     // Get or create include file in legacy system (this loads content)
                     const unifiedIncludeFile = this.getOrCreateIncludeFile(normalizedIncludeFile, 'column');
@@ -4127,7 +4046,7 @@ export class KanbanWebviewPanel {
                         const absolutePath = PathResolver.resolve(basePath, includeFile);
 
                         // CRITICAL: Normalize the path to match keys in _includeFiles map
-                        const normalizedIncludeFile = includeFile.startsWith('./') ? includeFile : './' + includeFile;
+                        const normalizedIncludeFile = this._normalizeIncludePath(includeFile);
 
                         // Get or create include file in legacy system (this loads content)
                         const unifiedIncludeFile = this.getOrCreateIncludeFile(normalizedIncludeFile, 'task');

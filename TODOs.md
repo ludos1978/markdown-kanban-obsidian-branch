@@ -4,6 +4,13 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] OPEN BUGS:
+- files included with !!!include(root/include-2.md)!!! are not updated automatically when they are changed externally. it seems to work with a path that has ./ in front of it.
+- files included with !!!include(./folder%20with%20space/include-1.md)!!! or !!!include(folder%20with%20space/include-2.md)!!! are not found/loaded.
+- when drag & dropping a file from the explorer into the view the path to it is not url encoded. use the existing functions to url encode the path that are also used by the drag&drop source.
+- when i edit the column title with a !!!columninclude(markdown-presentation-b.md)!!! the title should show the filename (markdown-presentation-b.md). this is correct after loading the file. but not after editing the title.
+- when i edit a !!!taskinclude(filename.md)!!! it asks me if i want to overwrite, even if the file has not been externally modified. this should only be asked if the user did change the filename.md since we included the file. The same when switching the file for another !!!taskinclude(filename-b.md)!!! , it asks if i want to save my changes to the previously included file, even if the included parts has not been edited in the kanban.
+
 - [x] currently an included markdown file (using columninclude) detects a title of a task using the h7 format (#######). we must change this to use the first non-empty line within the first 3 lines after a slide break (---). remove the adding of H7 and replace it with the same logic, place the header of the task on the second line and have an empty one after that.
 
 - [x] when exporting to kanban and using the "Merge Includes into Main File" then externally included files that are not in the markdown-kanban format (columnincludes or taskincludes) must be converted into the markdown-kanban format.
