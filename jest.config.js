@@ -8,7 +8,8 @@ module.exports = {
     
     // Test file patterns
     testMatch: [
-        '**/src/test/suite/**/*.test.js'
+        '**/src/test/suite/**/*.test.js',
+        '**/src/test/unit/**/*.test.ts'
     ],
     
     // Setup files

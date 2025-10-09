@@ -33,7 +33,6 @@
     "configuration": {
       "title": "Ludos Markdown Kanban",
       "properties": {
-
         "markdown-kanban.pathGeneration": {
           "type": "string",
           "enum": [
@@ -52,7 +51,6 @@
           "default": false,
           "description": "Open file links in new tabs instead of replacing the current editor"
         },
-
         "markdown-kanban.columnWidth": {
           "type": "string",
           "default": "medium",
@@ -179,7 +177,7 @@
             "Consolas (monospace)"
           ]
         },
-				"markdown-kanban.layoutRows": {
+        "markdown-kanban.layoutRows": {
           "type": "number",
           "default": 1,
           "description": "The number of rows in the kanban layout",
@@ -231,7 +229,6 @@
             "Automatic height based on content"
           ]
         },
-
         "markdown-kanban.stickyStackMode": {
           "type": "string",
           "default": "titleonly",
@@ -247,7 +244,6 @@
             "Nothing sticky in stacks"
           ]
         },
-
         "markdown-kanban.tagVisibility": {
           "type": "string",
           "default": "all",
@@ -267,13 +263,11 @@
             "Hide all tags"
           ]
         },
-
-				"markdown-kanban.layoutPreset": {
+        "markdown-kanban.layoutPreset": {
           "type": "string",
           "default": "normal",
           "description": "The currently selected layout preset"
         },
-
         "markdown-kanban.arrowKeyFocusScroll": {
           "type": "string",
           "default": "center",
@@ -287,7 +281,6 @@
             "Scroll just enough to bring the item into view"
           ]
         },
-				
         "markdown-kanban.layoutPresets": {
           "type": "object",
           "default": {},
@@ -2017,7 +2010,6 @@
           },
           "description": "Grouped color and style configuration for tags in kanban boards with various visual indicators."
         },
-
         "markdown-kanban.columnBorder": {
           "type": "string",
           "default": "1px solid var(--vscode-panel-border)",
@@ -2028,7 +2020,6 @@
           "default": "1px solid var(--vscode-panel-border)",
           "description": "Complete border style for task cards (e.g., '1px solid var(--vscode-panel-border)', '2px dotted blue', 'none'). Full CSS border shorthand supported."
         },
-
         "markdown-kanban.enableBackups": {
           "type": "boolean",
           "default": true,
@@ -2063,7 +2054,6 @@
           "maximum": 50,
           "description": "Maximum number of backups to keep per file (older backups will be deleted)"
         }
-
       }
     },
     "commands": [
@@ -2169,6 +2159,7 @@
     "analyze-all": "npm run analyze-code && npm run analyze-cleanup"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/markdown-it": "^12.2.3",
     "@types/node": "16.x",
     "@types/vscode": "^1.74.0",
