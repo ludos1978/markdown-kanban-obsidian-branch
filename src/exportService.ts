@@ -9,7 +9,7 @@ import { ContentPipelineService } from './services/ContentPipelineService';
 import { OperationOptionsBuilder, OperationOptions, FormatStrategy } from './services/OperationOptions';
 
 export type ExportScope = 'full' | 'row' | 'stack' | 'column' | 'task';
-export type ExportFormat = 'kanban' | 'presentation';
+export type ExportFormat = 'keep' | 'kanban' | 'presentation';
 
 export interface ExportOptions {
     targetFolder: string;

@@ -4247,7 +4247,7 @@ function executeUnifiedExport() {
     }
 
     // Get export format
-    const format = document.getElementById('export-format')?.value || 'kanban';
+    const format = document.getElementById('export-format')?.value || 'keep';
 
     // Get tag visibility
     const tagVisibility = document.getElementById('export-tag-visibility')?.value || 'allexcludinglayout';
