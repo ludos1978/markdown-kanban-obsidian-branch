@@ -901,10 +901,13 @@ export class ExportService {
         let filteredContent = this.applyTagFiltering(modifiedContent, options);
 
         // Convert to presentation format if requested
+        // When merging includes, skip conversion to preserve raw merged content
         console.log(`[kanban.exportService.processMarkdownContent] convertToPresentation: ${convertToPresentation}, mergeIncludes: ${mergeIncludes}`);
-        if (convertToPresentation) {
-            filteredContent = this.convertToPresentationFormat(filteredContent, mergeIncludes);
+        if (convertToPresentation && !mergeIncludes) {
+            filteredContent = this.convertToPresentationFormat(filteredContent, false);
             console.log(`[kanban.exportService.processMarkdownContent] After conversion, content contains ${filteredContent.match(/!!!include/g)?.length || 0} include markers`);
+        } else if (convertToPresentation && mergeIncludes) {
+            console.log(`[kanban.exportService.processMarkdownContent] Skipping conversion - using raw merged content to preserve structure`);
         }
 
         return {
