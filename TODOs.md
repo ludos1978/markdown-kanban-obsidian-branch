@@ -4,21 +4,49 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [x] the export functionality should be unified. add a function to the export view that allows selecting which columns to export, structure it the same way as the columns are structured with rows, stacks and columns (but of course only show the titles.) where a user might select the full kanban, a row, a stack or a single column. add the option to select which format it should export "kanban" format exports it in the same format as the kanban has, "presentation" format converts it the same way as "copy as markdown does". the pack feature should be optional, so it might leave the links as they are, or the user might select to pack all or some (same selections as it currently has) of the assets into the export folder. the copy as markdown should also use the same function, just use the preset values such as the task, the column etc and presentation mode. ultrathink plan think ultraplan ultrathink
-- [x] if i deselect a column from a active stack, the stack must be disabled as well, if i select all columns in a stack, also select the stack. likewise for the row, if a stack is deseleted (can also be because a deselected column), deselect the row, if all stacks are selected in a row, also activate the row. for the kanban do the same.
+- [x] currently an included markdown file (using columninclude) detects a title of a task using the h7 format (#######). we must change this to use the first non-empty line within the first 3 lines after a slide break (---). remove the adding of H7 and replace it with the same logic, place the header of the task on the second line and have an empty one after that.
 
-- [ ] make the folder path line multiline if it's longer then the width of the field. use less spacing around the dialogue. make the dialogue use 80% of width and 80% of height. use less space around the options. put the tag visibility on the same line as the export format. make the export format use a dropdop as well.
-- [ ] move the presentation format and the tag style include settings above the column-selection view.
+- [x] when exporting to kanban and using the "Merge Includes into Main File" then externally included files that are not in the markdown-kanban format (columnincludes or taskincludes) must be converted into the markdown-kanban format.
 
-- [ ] i encountered this error "webview.js?v=1759945056175:4383 Uncaught TypeError: Cannot read properties of null (reading 'value')
-    at setColumnExportDefaultFolder (webview.js?v=1759945056175:4383:16)
-    at webview.js?v=1759945056175:2633:13"
+- [ ] we need to unify the save, backup and export with all the features in all these versions.
+- we need a third export format type:
+  - keep file formats: does not change the output format
+  - individual file format: choose an individual file format for all files which then allows
+    - export all as kanban: converts all files to the markdown-kanban format (## columns, - [ ] tasks)
+    - export all as presentation: all column headers are stored as separate slides, as well as the complete content (including the title) of a card.
+- we want the kanban/row/stack/column selection to be integrated, but when saving and doing backups we just select the full board. only when exporting we only export parts. it should also work for situations where we only save individual files (for example included files or theyr backups).
+- the pack feature is an additional feature that is not activated on normal saves, but allows rewriting the paths and copying the included and or linked files. this might also lead to another feature that allows copying or moving included content into a specific folder and rewriting the links in the file. 
+- the tag visibility needs to be defineable when exporting, but usuallly is all tags when saving.
+- the export/output folder definition for each file, which is usually the folder where they are loaded from.
+- in this step we can also unify the title and description of the cards into one data structure. The display of the title is only for visualizing when folded, but is othervise not handled separately from the rest of the content.
+
+ultrathink, plan.
+
+
+- [ ] the time format is 2 hours off, i think you are using gmt which is not our local time format.
+
+- [ ] when exporting to presentation mode with "Merge Includes into Main File" the title of a task should not be separated into as a single slide in the export. Also dont remove ## from the lines.
+
+- [x] there should be an option that combines all the include files into one file and another one that allows exporting with the includes preserved. now for that to work i think the conversion to presentation format needs to happen after selecting the content to export and deciding which files they should go into. after that the conversion might be done, depending wether the original file format was the kanban-markdown format. if it already was an included presentation it does not need to be converted.
 
 - [ ] can we integrate marp (maybe using the marp plugin in vscode). to directly start presentations from the kanban viewer? also the different export options of marp would be interesting. we would need to integrate the markdown-it plugins into the marp workflow. we could require the user to install marp and just deliver the engine.js and the node modules required.
 
 - [ ] add the ability to export as pdf. could we integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly?
 
 - [ ] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
+ 
+- [x] i encountered this error "webview.js?v=1759945056175:4383 Uncaught TypeError: Cannot read properties of null (reading 'value')
+    at setColumnExportDefaultFolder (webview.js?v=1759945056175:4383:16)
+    at webview.js?v=1759945056175:2633:13"
+
+
+- [x] the export functionality should be unified. add a function to the export view that allows selecting which columns to export, structure it the same way as the columns are structured with rows, stacks and columns (but of course only show the titles.) where a user might select the full kanban, a row, a stack or a single column. add the option to select which format it should export "kanban" format exports it in the same format as the kanban has, "presentation" format converts it the same way as "copy as markdown does". the pack feature should be optional, so it might leave the links as they are, or the user might select to pack all or some (same selections as it currently has) of the assets into the export folder. the copy as markdown should also use the same function, just use the preset values such as the task, the column etc and presentation mode. ultrathink plan think ultraplan ultrathink
+- [x] if i deselect a column from a active stack, the stack must be disabled as well, if i select all columns in a stack, also select the stack. likewise for the row, if a stack is deseleted (can also be because a deselected column), deselect the row, if all stacks are selected in a row, also activate the row. for the kanban do the same.
+
+- [x] make the folder path line multiline if it's longer then the width of the field. use less spacing around the dialogue. make the dialogue use 80% of width and 80% of height. use less space around the options. put the tag visibility on the same line as the export format. make the export format use a dropdop as well.
+
+- [x] move the presentation format and the tag style include settings above the column-selection view.
+
 
 - [x] move the "export tags" from the file info burger menu to the export function so it's chosen individually when exporting something
 

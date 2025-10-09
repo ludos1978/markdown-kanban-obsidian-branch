@@ -107,14 +107,8 @@ export class PresentationParser {
 
       // Add title with preserved heading depth if it exists
       if (task.title && task.title.trim()) {
-        // Check if title already contains heading syntax (# to ######)
-        if (task.title.match(/^#{1,6}\s+/)) {
-          // Title already has heading depth, use it as-is
-          slideContent += `${task.title}\n\n`;
-        } else {
-          // Plain text title: place on first line, followed by empty line
-          slideContent += `${task.title}\n\n`;
-        }
+        // Plain text title: place on first line, followed by empty line
+        slideContent += `${task.title}\n\n`;
       }
 
       // Add description content

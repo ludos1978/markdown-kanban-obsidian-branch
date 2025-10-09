@@ -458,14 +458,26 @@ export class ExportService {
                     console.log(`[kanban.exportService.processIncludedFiles]   isKanbanFormat: ${isKanbanFormat}, shouldConvertInclude: ${shouldConvertInclude}`);
 
                     // Process the included file recursively
-                    let { exportedContent } = await this.processMarkdownFile(
-                        resolvedPath,
-                        exportFolder,
-                        includeBasename,
-                        options,
-                        processedIncludes,
-                        shouldConvertInclude
-                    );
+                    // IMPORTANT: When merging into presentation, don't convert - keep raw format
+                    const shouldProcessInclude = !mergeIncludes || shouldConvertInclude;
+                    let exportedContent: string;
+
+                    if (shouldProcessInclude) {
+                        const result = await this.processMarkdownFile(
+                            resolvedPath,
+                            exportFolder,
+                            includeBasename,
+                            options,
+                            processedIncludes,
+                            shouldConvertInclude
+                        );
+                        exportedContent = result.exportedContent;
+                    } else {
+                        // When merging, use raw content without processing
+                        // This preserves ## headers and slide structure
+                        console.log(`[kanban.exportService.processIncludedFiles]   Using raw content for merge (no conversion)`);
+                        exportedContent = includeContent;
+                    }
 
                     // If merging into kanban format and include is presentation format,
                     // convert presentation slides to kanban tasks
@@ -490,6 +502,7 @@ export class ExportService {
                         // Mode: Merge includes into main file
                         // Replace the marker with the actual content
                         console.log(`[kanban.exportService.processIncludedFiles]   Merging content inline (${exportedContent.length} chars)`);
+                        console.log(`[kanban.exportService.processIncludedFiles]   First 200 chars: ${exportedContent.substring(0, 200)}`);
                         processedContent = processedContent.replace(
                             match[0],
                             exportedContent
@@ -888,9 +901,9 @@ export class ExportService {
         let filteredContent = this.applyTagFiltering(modifiedContent, options);
 
         // Convert to presentation format if requested
-        console.log(`[kanban.exportService.processMarkdownContent] convertToPresentation: ${convertToPresentation}`);
+        console.log(`[kanban.exportService.processMarkdownContent] convertToPresentation: ${convertToPresentation}, mergeIncludes: ${mergeIncludes}`);
         if (convertToPresentation) {
-            filteredContent = this.convertToPresentationFormat(filteredContent);
+            filteredContent = this.convertToPresentationFormat(filteredContent, mergeIncludes);
             console.log(`[kanban.exportService.processMarkdownContent] After conversion, content contains ${filteredContent.match(/!!!include/g)?.length || 0} include markers`);
         }
 
@@ -1210,9 +1223,12 @@ export class ExportService {
      * Each task becomes a slide separated by ---
      * Column titles are included as slides before their tasks
      * Task checkboxes (- [ ]) are removed from titles
+     *
+     * @param content - The kanban content to convert
+     * @param mergeIncludes - If true, preserve column structure without separating tasks into slides
      */
-    private static convertToPresentationFormat(content: string): string {
-        console.log('[kanban.exportService.convertToPresentationFormat] Converting to presentation format');
+    private static convertToPresentationFormat(content: string, mergeIncludes: boolean = false): string {
+        console.log(`[kanban.exportService.convertToPresentationFormat] Converting to presentation format, mergeIncludes: ${mergeIncludes}`);
 
         // Add temporary YAML header if missing (needed for parser)
         let contentToParse = content;
@@ -1236,37 +1252,74 @@ export class ExportService {
             return '';
         }
 
-        // Build slides with column titles as section headers
-        const slides: string[] = [];
+        if (mergeIncludes) {
+            // When merging includes, preserve column structure
+            // Don't split tasks into individual slides
+            let presentationContent = '';
 
-        for (const column of board.columns) {
-            // Add column title as a slide
-            // The parser already removed "## " from column.title, just use it directly
-            const columnTitle = column.title.trim();
+            for (const column of board.columns) {
+                const columnTitle = column.title.trim();
+                console.log(`[kanban.exportService.convertToPresentationFormat] Column: "${columnTitle}"`);
 
-            console.log(`[kanban.exportService.convertToPresentationFormat] Column title: "${columnTitle}"`);
+                // Add column as a section with ## header
+                if (columnTitle) {
+                    presentationContent += `## ${columnTitle}\n\n`;
+                }
 
-            // Add the column title as-is (parser already stripped the kanban ## structure)
-            if (columnTitle) {
-                slides.push(columnTitle);
-                console.log(`[kanban.exportService.convertToPresentationFormat]   Added column title as slide`);
+                // Add tasks under the column (not as separate slides)
+                if (column.tasks && column.tasks.length > 0) {
+                    for (const task of column.tasks) {
+                        // Add task with its title and description
+                        const taskTitle = task.title.replace(/^- \[ \]\s*/, '').trim();
+                        presentationContent += `${taskTitle}\n`;
+
+                        if (task.description && task.description.trim()) {
+                            presentationContent += `\n${task.description.trim()}\n`;
+                        }
+                        presentationContent += '\n';
+                    }
+                }
+
+                // Separate columns with slide separator
+                presentationContent += '---\n\n';
             }
 
-            // Convert column tasks to slides
-            if (column.tasks && column.tasks.length > 0) {
-                const columnSlides = PresentationParser.tasksToPresentation(column.tasks);
-                // Remove the trailing newline from tasksToPresentation and split by slide separator
-                const taskSlideArray = columnSlides.trim().split(/\n\n---\n\n/);
-                slides.push(...taskSlideArray);
+            console.log(`[kanban.exportService.convertToPresentationFormat] Preserved column structure for ${board.columns.length} columns (mergeIncludes mode)`);
+            return presentationContent;
+
+        } else {
+            // Build slides with column titles as section headers
+            const slides: string[] = [];
+
+            for (const column of board.columns) {
+                // Add column title as a slide
+                // The parser already removed "## " from column.title, just use it directly
+                const columnTitle = column.title.trim();
+
+                console.log(`[kanban.exportService.convertToPresentationFormat] Column title: "${columnTitle}"`);
+
+                // Add the column title as-is (parser already stripped the kanban ## structure)
+                if (columnTitle) {
+                    slides.push(columnTitle);
+                    console.log(`[kanban.exportService.convertToPresentationFormat]   Added column title as slide`);
+                }
+
+                // Convert column tasks to slides
+                if (column.tasks && column.tasks.length > 0) {
+                    const columnSlides = PresentationParser.tasksToPresentation(column.tasks);
+                    // Remove the trailing newline from tasksToPresentation and split by slide separator
+                    const taskSlideArray = columnSlides.trim().split(/\n\n---\n\n/);
+                    slides.push(...taskSlideArray);
+                }
             }
+
+            console.log(`[kanban.exportService.convertToPresentationFormat] Converted ${board.columns.length} columns with column titles as slides`);
+
+            // Join all slides with separator
+            const presentationContent = slides.join('\n\n---\n\n') + '\n';
+
+            return presentationContent;
         }
-
-        console.log(`[kanban.exportService.convertToPresentationFormat] Converted ${board.columns.length} columns with column titles as slides`);
-
-        // Join all slides with separator
-        const presentationContent = slides.join('\n\n---\n\n') + '\n';
-
-        return presentationContent;
     }
 
     /**
