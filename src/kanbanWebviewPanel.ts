@@ -15,6 +15,9 @@ import { ExternalFileWatcher } from './externalFileWatcher';
 import { ConflictResolver, ConflictContext, ConflictResolution } from './conflictResolver';
 import { configService, ConfigurationService } from './configurationService';
 import { getFileStateManager } from './fileStateManager';
+import { PathResolver } from './services/PathResolver';
+import { FileWriter } from './services/FileWriter';
+import { FormatConverter } from './services/FormatConverter';
 
 interface IncludeFile {
     relativePath: string;
@@ -422,7 +425,7 @@ export class KanbanWebviewPanel {
         if (!includeFile) {
             const currentDocument = this._fileManager.getDocument();
             const basePath = currentDocument ? path.dirname(currentDocument.uri.fsPath) : '';
-            const absolutePath = path.resolve(basePath, relativePath);
+            const absolutePath = PathResolver.resolve(basePath, relativePath);
 
             // CRITICAL: Check if this file had unsaved changes in FileStateManager before creating
             const fileStateManager = getFileStateManager();
@@ -2598,7 +2601,7 @@ export class KanbanWebviewPanel {
                 const document = this._fileManager.getDocument();
                 if (document) {
                     const basePath = path.dirname(document.uri.fsPath);
-                    absolutePath = path.resolve(basePath, filePath);
+                    absolutePath = PathResolver.resolve(basePath, filePath);
                 }
             }
 
@@ -2660,7 +2663,7 @@ export class KanbanWebviewPanel {
 
             // For now, handle single file includes (could be extended for multi-file)
             const includeFile = column.includeFiles[0];
-            const absolutePath = path.resolve(basePath, includeFile);
+            const absolutePath = PathResolver.resolve(basePath, includeFile);
 
             // Check if the file exists - if not, this might be a new file path that hasn't been loaded yet
             if (!fs.existsSync(absolutePath)) {
@@ -2769,7 +2772,10 @@ export class KanbanWebviewPanel {
             });
 
             // Write to file
-            fs.writeFileSync(absolutePath, presentationContent, 'utf8');
+            await FileWriter.writeFile(absolutePath, presentationContent, {
+                createDirs: false,
+                showNotification: false
+            });
 
             // Update unified system tracking (reuse the variable we already found)
             if (unifiedIncludeFile) {
@@ -2834,7 +2840,7 @@ export class KanbanWebviewPanel {
                     let includeDescription = '';
 
                     for (const filePath of includeFiles) {
-                        const resolvedPath = path.resolve(basePath, filePath);
+                        const resolvedPath = PathResolver.resolve(basePath, filePath);
                         try {
                             if (fs.existsSync(resolvedPath)) {
                                 const fileContent = fs.readFileSync(resolvedPath, 'utf8');
@@ -2951,7 +2957,7 @@ export class KanbanWebviewPanel {
 
             // For now, handle single file includes (could be extended for multi-file)
             const includeFile = task.includeFiles[0];
-            const absolutePath = path.resolve(basePath, includeFile);
+            const absolutePath = PathResolver.resolve(basePath, includeFile);
 
             // Check if the file exists - if not, create it
             if (!fs.existsSync(absolutePath)) {
@@ -3003,7 +3009,10 @@ export class KanbanWebviewPanel {
             });
 
             // Write to file
-            fs.writeFileSync(absolutePath, fileContent, 'utf8');
+            await FileWriter.writeFile(absolutePath, fileContent, {
+                createDirs: false,
+                showNotification: false
+            });
 
             // Update unified system tracking
             const unifiedIncludeFile = this._includeFiles.get(includeFile);
@@ -3065,7 +3074,7 @@ export class KanbanWebviewPanel {
 
             // For now, handle single file includes
             const includeFile = newIncludeFiles[0];
-            const absolutePath = path.resolve(basePath, includeFile);
+            const absolutePath = PathResolver.resolve(basePath, includeFile);
 
             // Ensure the new include file is registered in the unified system
             this.getOrCreateIncludeFile(includeFile, 'column');
@@ -3153,7 +3162,7 @@ export class KanbanWebviewPanel {
 
             // For now, handle single file includes
             const includeFile = newIncludeFiles[0];
-            const absolutePath = path.resolve(basePath, includeFile);
+            const absolutePath = PathResolver.resolve(basePath, includeFile);
 
             // Normalize the path to match keys in _includeFiles map
             const normalizedIncludeFile = includeFile.startsWith('./') ? includeFile : './' + includeFile;
@@ -3241,7 +3250,7 @@ export class KanbanWebviewPanel {
             }
 
             const basePath = path.dirname(currentDocument.uri.fsPath);
-            const absolutePath = path.resolve(basePath, relativePath);
+            const absolutePath = PathResolver.resolve(basePath, relativePath);
 
             // Normalize the path to match keys in _includeFiles map
             const normalizedPath = relativePath.startsWith('./') ? relativePath : './' + relativePath;
@@ -3923,7 +3932,7 @@ export class KanbanWebviewPanel {
         if (!this._includeFiles.has(relativePath)) {
             const currentDocument = this._fileManager.getDocument();
             const basePath = currentDocument ? path.dirname(currentDocument.uri.fsPath) : '';
-            const absolutePath = path.resolve(basePath, relativePath);
+            const absolutePath = PathResolver.resolve(basePath, relativePath);
 
             // Register the inline include file in the unified system
             const includeFile: IncludeFile = {
@@ -4055,7 +4064,7 @@ export class KanbanWebviewPanel {
         for (const column of board.columns) {
             if (column.includeMode && column.includeFiles && column.includeFiles.length > 0) {
                 for (const includeFile of column.includeFiles) {
-                    const absolutePath = path.resolve(basePath, includeFile);
+                    const absolutePath = PathResolver.resolve(basePath, includeFile);
 
                     // CRITICAL: Normalize the path to match keys in _includeFiles map
                     const normalizedIncludeFile = includeFile.startsWith('./') ? includeFile : './' + includeFile;
@@ -4115,7 +4124,7 @@ export class KanbanWebviewPanel {
             for (const task of column.tasks) {
                 if (task.includeMode && task.includeFiles && task.includeFiles.length > 0) {
                     for (const includeFile of task.includeFiles) {
-                        const absolutePath = path.resolve(basePath, includeFile);
+                        const absolutePath = PathResolver.resolve(basePath, includeFile);
 
                         // CRITICAL: Normalize the path to match keys in _includeFiles map
                         const normalizedIncludeFile = includeFile.startsWith('./') ? includeFile : './' + includeFile;
@@ -4255,9 +4264,12 @@ export class KanbanWebviewPanel {
             }
 
             const basePath = path.dirname(currentDocument.uri.fsPath);
-            const absolutePath = path.resolve(basePath, filePath);
+            const absolutePath = PathResolver.resolve(basePath, filePath);
 
-            fs.writeFileSync(absolutePath, content, 'utf8');
+            await FileWriter.writeFile(absolutePath, content, {
+                createDirs: false,
+                showNotification: false
+            });
 
         } catch (error) {
             console.error(`[_writeFileContent] Error writing file ${filePath}:`, error);
