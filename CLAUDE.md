@@ -10,6 +10,8 @@
   - create functions if theyr functionality is used in more then one place.
 	- create functions to separate different functionalities.
 	- make sure to only create new variables if the data is nowhere else stored (an exeption might be the separated front and backend)
+	- never store the same information in mutiple places, except if the user wants that. cleanup all data duplication that you detect after discussing it with the user. make sure the data is placed at the most appropriate place and create functions to retreive the single point of knowledge.
+		- one exception in this code is the kanban board which is stored in the front and the backend.
 - never remove functionality without the users consent.
 - if you cleanup code, allways check what the code does, create a list of these features and reimplement all these features.
 - Never try to add an alternative implementation. 

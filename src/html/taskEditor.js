@@ -538,7 +538,7 @@ class TaskEditor {
             element: editElement,
             displayElement: displayElement,
             type: type,
-            taskId: taskId || editElement.dataset.taskId,
+            taskId: taskId || window.getTaskIdFromElement(editElement),
             columnId: columnId || window.getColumnIdFromElement(editElement),
             originalValue: editElement.value
         };

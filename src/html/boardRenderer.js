@@ -40,8 +40,21 @@ function getColumnIdFromElement(element) {
     return columnElement?.dataset.columnId || null;
 }
 
-// Make it globally accessible
+/**
+ * Gets the task ID for any element by traversing up the DOM tree
+ * This avoids storing redundant data-task-id on child elements
+ * @param {HTMLElement} element - Any element within a task
+ * @returns {string|null} The task ID, or null if not found
+ */
+function getTaskIdFromElement(element) {
+    if (!element) return null;
+    const taskElement = element.closest('.task-item');
+    return taskElement?.dataset.taskId || null;
+}
+
+// Make them globally accessible
 window.getColumnIdFromElement = getColumnIdFromElement;
+window.getTaskIdFromElement = getTaskIdFromElement;
 
 // extractFirstTag function now in utils/tagUtils.js
 
@@ -1927,10 +1940,8 @@ function createTaskElement(task, columnId, taskIndex) {
                 <div class="task-drag-handle" title="Drag to move task">⋮⋮</div>
                 <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}'); updateFoldAllButton('${columnId}')">▶</span>
                 <div class="task-title-container" onclick="handleTaskTitleClick(event, this, '${task.id}', '${columnId}')">
-                <div class="task-title-display markdown-content"
-                            data-task-id="${task.id}">${renderedTitle}</div>
+                <div class="task-title-display markdown-content">${renderedTitle}</div>
                     <textarea class="task-title-edit"
-                                data-task-id="${task.id}"
                                 data-field="title"
                                 placeholder="Task title (Markdown supported)..."
                                 style="display: none;">${escapeHtml(task.title || '')}</textarea>
@@ -1968,10 +1979,8 @@ function createTaskElement(task, columnId, taskIndex) {
 
             <div class="task-description-container">
                 <div class="task-description-display markdown-content"
-                        data-task-id="${task.id}"
                         onclick="handleDescriptionClick(event, this, '${task.id}', '${columnId}')">${renderedDescription}</div>
                 <textarea class="task-description-edit"
-                            data-task-id="${task.id}"
                             data-field="description"
                             placeholder="Add description (Markdown supported)..."
                             style="display: none;">${escapeHtml(getTaskEditContent(task))}</textarea>
