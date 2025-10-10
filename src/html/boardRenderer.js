@@ -489,6 +489,13 @@ function applyDefaultFoldingState() {
 
     // Set the global fold state to expanded (the default state)
     window.globalColumnFoldState = 'fold-expanded';
+
+    // Recalculate heights after applying default folding
+    // Use requestAnimationFrame to ensure DOM has finished updating all column states
+    requestAnimationFrame(() => {
+        enforceFoldModesForStacks();
+        recalculateStackHeightsImmediate();
+    });
 }
 
 /**
@@ -618,9 +625,11 @@ function toggleAllColumns() {
     updateGlobalColumnFoldButton();
 
     // Recalculate stacked column heights after bulk fold/unfold
-    if (typeof window.applyStackedColumnStyles === 'function') {
-        window.applyStackedColumnStyles();
-    }
+    // Use requestAnimationFrame to ensure DOM has finished updating all column states
+    requestAnimationFrame(() => {
+        enforceFoldModesForStacks();
+        recalculateStackHeightsImmediate();
+    });
 
     // Save state immediately
     if (window.saveCurrentFoldingState) {
