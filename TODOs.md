@@ -4,8 +4,9 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] we need even more contrast. have the text black by default not white in light mode. make the dark colors light
 
-- [ ] the time format is 2 hours off, i think you are using gmt which is not our local time format.
+- [x] the time format is 2 hours off, i think you are using gmt which is not our local time format.
 
 - [ ] when exporting to presentation mode with "Merge Includes into Main File" the title of a task should not be separated into as a single slide in the export. Also dont remove ## from the lines.
 
@@ -15,7 +16,9 @@ kanban-plugin: board
 
 - [ ] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
  
-- [ ] can you make a concept for the tags and colors. One of the core aspects i want, is for designing teaching materials. 
+- [ ] make the hidden html tag <!-- --> show up when it's used in the tasks content, title or column title. show it similar to the markers that show the style of elements. add an option to the main-burger menu that allows showing and hiding of the html-comments. make sure it's accessable from the layout presets.
+
+- [x] can you make a concept for the tags and colors. One of the core aspects i want, is for designing teaching materials. 
 - where each task is a slide on a topic. so the task may need to be improved, might be obsolete, might be more or less important, also think of other situations i might forget about right now.
 - another usage case is for designing products such as games, user experience or software. add all relevant project states that might be used for columns. also add the possible states of each row, as well as for tasks that might be importancy. 
 
@@ -28,6 +31,8 @@ ultrathink think plan
 add grays to the colors. ultrathink think and plan again to verify the usability on each process and suggest other aspects that might be useful.
 
 create me the tag list with the colors, think about which ones are better suited for tasks/slides/todos vs categories/topics and assign the headers/footers/stickers and border colors accordingly! make good use of the categories
+
+- [ ] there should be 4 groups of colors. dark colors, normal colors, light colors that have 12 colors and a gray and accessible colors (#332288, #117733, #44AA99, #88CCEE, #DDCC77, #CC6677, #AA4499, #882255) make sure they still have dark and light styles as required in the 
 
 - [x] sometimes i cant drop an column after the last column in a row into a stack, why? dont modify only research.
 - [x] when adding a new column after a column in a stack, add #stack as default tag (add it to the stack below)

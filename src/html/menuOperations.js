@@ -257,23 +257,47 @@ class SimpleMenuManager {
         if (window.generateGroupTagItems) {
             const tagConfig = window.tagColors || {};
             let tags = [];
-            
+
+            // Get current element's active tags to ensure they're always shown
+            const currentBoard = window.cachedBoard;
+            let currentTitle = '';
+            if (type === 'column') {
+                const column = currentBoard?.columns?.find(c => c.id === id);
+                currentTitle = column?.title || '';
+            } else if (type === 'task' && columnId) {
+                const column = currentBoard?.columns?.find(c => c.id === columnId);
+                const task = column?.tasks?.find(t => t.id === id);
+                currentTitle = task?.title || '';
+            }
+            const activeTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(currentTitle) : [];
+
             if (group === 'custom') {
                 tags = window.getUserAddedTags ? window.getUserAddedTags() : [];
             } else {
                 const groupValue = tagConfig[group];
+
                 if (groupValue && typeof groupValue === 'object') {
-                    if (groupValue.light || groupValue.dark) {
+                    // Check if this is a direct tag (has any styling properties)
+                    const isDirectTag = groupValue.light || groupValue.dark || groupValue.headerBar ||
+                                       groupValue.border || groupValue.footerBar || groupValue.cornerBadge;
+
+                    if (isDirectTag) {
                         tags = [group];
                     } else {
+                        // It's a group, collect its tags that have styling OR are currently active
                         tags = Object.keys(groupValue).filter(key => {
                             const val = groupValue[key];
-                            return val && typeof val === 'object' && (val.light || val.dark);
+                            // Include if has styling properties OR if currently active on this element
+                            const hasTagProperties = val && typeof val === 'object' &&
+                                                    (val.light || val.dark || val.headerBar ||
+                                                     val.border || val.footerBar || val.cornerBadge);
+                            const isActive = activeTags.includes(key.toLowerCase());
+                            return hasTagProperties || isActive;
                         });
                     }
                 }
             }
-            
+
             return window.generateGroupTagItems(tags, id, type, columnId, group !== 'custom');
         }
         return '<div>No tags available</div>';
@@ -510,11 +534,12 @@ function toggleDonutMenu(event, button) {
             setupMenuHoverHandlers(menu, dropdown);
             
             // Update tag category counts (including "Remove all tags" button) when menu opens
-            const firstMenuItem = dropdown.querySelector('[data-id][data-type]');
-            if (firstMenuItem) {
-                const id = firstMenuItem.getAttribute('data-id');
-                const type = firstMenuItem.getAttribute('data-type');
-                const columnId = firstMenuItem.getAttribute('data-column-id');
+            // Use data-group selector to find tag menu items specifically (not Move/Move-to-list items)
+            const firstTagMenuItem = dropdown.querySelector('[data-group][data-id][data-type]');
+            if (firstTagMenuItem) {
+                const id = firstTagMenuItem.getAttribute('data-id');
+                const type = firstTagMenuItem.getAttribute('data-type');
+                const columnId = firstTagMenuItem.getAttribute('data-column-id');
                 updateTagCategoryCounts(id, type, columnId || null);
             }
         }
@@ -3136,8 +3161,10 @@ function updateCornerBadgesImmediate(elementId, elementType, newTitle) {
 
 // Update tag category counts in the open dropdown menu
 function updateTagCategoryCounts(id, type, columnId = null) {
-    
+
     // Get current title to check which tags are active
+    const currentBoard = window.cachedBoard;
+
     let currentTitle = '';
     if (type === 'column') {
         const column = currentBoard?.columns?.find(c => c.id === id);
@@ -3147,7 +3174,7 @@ function updateTagCategoryCounts(id, type, columnId = null) {
         const task = column?.tasks?.find(t => t.id === id);
         currentTitle = task?.title || '';
     }
-    
+
     // Get active tags
     const activeTags = getActiveTagsInTitle(currentTitle);
     
@@ -3173,14 +3200,20 @@ function updateTagCategoryCounts(id, type, columnId = null) {
         
         if (groupValue && typeof groupValue === 'object') {
             let groupTags = [];
-            
-            // Check if this is a direct tag configuration or a group
-            if (groupValue.light || groupValue.dark) {
+
+            // Check if this is a direct tag configuration or a group (check ALL styling properties)
+            const isDirectTag = groupValue.light || groupValue.dark || groupValue.headerBar ||
+                               groupValue.border || groupValue.footerBar || groupValue.cornerBadge;
+
+            if (isDirectTag) {
                 groupTags = [groupKey];
             } else {
                 Object.keys(groupValue).forEach(tagKey => {
                     const tagValue = groupValue[tagKey];
-                    if (tagValue && typeof tagValue === 'object' && (tagValue.light || tagValue.dark)) {
+                    const hasTagProperties = tagValue && typeof tagValue === 'object' &&
+                                            (tagValue.light || tagValue.dark || tagValue.headerBar ||
+                                             tagValue.border || tagValue.footerBar || tagValue.cornerBadge);
+                    if (hasTagProperties) {
                         groupTags.push(tagKey);
                     }
                 });

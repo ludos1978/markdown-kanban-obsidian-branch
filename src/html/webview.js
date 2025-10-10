@@ -2311,6 +2311,20 @@ window.addEventListener('message', event => {
                 }
             }
 
+            // Store enabled tag categories for menu filtering
+            if (message.enabledTagCategoriesColumn !== undefined) {
+                window.enabledTagCategoriesColumn = message.enabledTagCategoriesColumn;
+            }
+            if (message.enabledTagCategoriesTask !== undefined) {
+                window.enabledTagCategoriesTask = message.enabledTagCategoriesTask;
+            }
+
+            // Merge custom tag categories into tagColors
+            if (message.customTagCategories && Object.keys(message.customTagCategories).length > 0) {
+                window.tagColors = window.tagColors || {};
+                Object.assign(window.tagColors, message.customTagCategories);
+            }
+
             // Save folding state before re-render
             saveCurrentFoldingState();
             const isEditing = window.taskEditor && window.taskEditor.currentEditor;

@@ -37,7 +37,20 @@ class SubmenuGenerator {
     createTagGroupContent(group, id, type, columnId) {
         const tagConfig = window.tagColors || {};
         let tags = [];
-        
+
+        // Get current element's active tags to ensure they're always shown
+        const currentBoard = window.cachedBoard;
+        let currentTitle = '';
+        if (type === 'column') {
+            const column = currentBoard?.columns?.find(c => c.id === id);
+            currentTitle = column?.title || '';
+        } else if (type === 'task' && columnId) {
+            const column = currentBoard?.columns?.find(c => c.id === columnId);
+            const task = column?.tasks?.find(t => t.id === id);
+            currentTitle = task?.title || '';
+        }
+        const activeTags = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(currentTitle) : [];
+
         if (group === 'custom') {
             // Get user-added tags using the same function as the original
             if (window.getUserAddedTags) {
@@ -46,28 +59,36 @@ class SubmenuGenerator {
         } else {
             // Get tags from the specific group in tagConfig
             const groupValue = tagConfig[group];
+
             if (groupValue && typeof groupValue === 'object') {
-                // Check if this is a direct tag or a group
-                if (groupValue.light || groupValue.dark) {
+                // Check if this is a direct tag or a group (has any styling properties)
+                const isDirectTag = groupValue.light || groupValue.dark || groupValue.headerBar ||
+                                   groupValue.border || groupValue.footerBar || groupValue.cornerBadge;
+
+                if (isDirectTag) {
                     // This is a single tag
                     tags = [group];
                 } else {
-                    // This is a group, collect its tags
+                    // This is a group, collect its tags that have styling OR are currently active
                     Object.keys(groupValue).forEach(tagKey => {
                         const tagValue = groupValue[tagKey];
-                        if (tagValue && typeof tagValue === 'object' && (tagValue.light || tagValue.dark)) {
+                        const hasTagProperties = tagValue && typeof tagValue === 'object' &&
+                                                (tagValue.light || tagValue.dark || tagValue.headerBar ||
+                                                 tagValue.border || tagValue.footerBar || tagValue.cornerBadge);
+                        const isActive = activeTags.includes(tagKey.toLowerCase());
+                        if (hasTagProperties || isActive) {
                             tags.push(tagKey);
                         }
                     });
                 }
             }
         }
-        
+
         // Generate the tag items HTML
         if (window.generateGroupTagItems) {
             return window.generateGroupTagItems(tags, id, type, columnId, group !== 'custom');
         }
-        
+
         // Fallback if generateGroupTagItems is not available
         return '<div>Tags not available</div>';
     }

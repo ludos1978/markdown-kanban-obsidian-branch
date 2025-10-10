@@ -107,7 +107,10 @@ export class KanbanWebviewPanel {
                     layoutPreset: configService.getConfig('layoutPreset', 'normal'),
                     layoutPresets: this._getLayoutPresetsConfiguration(),
                     maxRowHeight: configService.getConfig('maxRowHeight', 0),
-                    tagColors: configService.getConfig('tagColors', {})
+                    tagColors: configService.getConfig('tagColors', {}),
+                    enabledTagCategoriesColumn: configService.getEnabledTagCategoriesColumn(),
+                    enabledTagCategoriesTask: configService.getEnabledTagCategoriesTask(),
+                    customTagCategories: configService.getCustomTagCategories()
                 });
             }, 100);
         }
@@ -1500,6 +1503,9 @@ export class KanbanWebviewPanel {
         
         // Get all configuration values
         const tagColors = configService.getConfig('tagColors', {});
+        const enabledTagCategoriesColumn = configService.getEnabledTagCategoriesColumn();
+        const enabledTagCategoriesTask = configService.getEnabledTagCategoriesTask();
+        const customTagCategories = configService.getCustomTagCategories();
         const whitespace = configService.getConfig('whitespace', '8px');
         const taskMinHeight = configService.getConfig('taskMinHeight');
         const sectionMaxHeight = configService.getConfig('sectionMaxHeight');
@@ -1526,6 +1532,9 @@ export class KanbanWebviewPanel {
                 board: board,
                 imageMappings: imageMappings,
                 tagColors: tagColors,
+                enabledTagCategoriesColumn: enabledTagCategoriesColumn,
+                enabledTagCategoriesTask: enabledTagCategoriesTask,
+                customTagCategories: customTagCategories,
                 whitespace: whitespace,
                 taskMinHeight: taskMinHeight,
                 sectionMaxHeight: sectionMaxHeight,

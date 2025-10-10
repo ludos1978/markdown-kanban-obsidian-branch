@@ -817,20 +817,31 @@ function getUserAddedTags() {
     
     // Dynamically collect all configured tags regardless of group names
     Object.keys(tagConfig).forEach(key => {
+        // Skip the default group (contains column/card defaults, not tags)
+        if (key === 'default') return;
+
         const value = tagConfig[key];
-        
-        // Check if this is a group (contains objects with light/dark themes)
+
+        // Check if this is a group (contains objects)
         if (value && typeof value === 'object') {
-            // Check if this is a direct tag configuration (has light/dark)
-            if (value.light || value.dark) {
+            // Check if this is a direct tag configuration (has any styling properties)
+            const isDirectTag = value.light || value.dark || value.headerBar ||
+                               value.border || value.footerBar || value.cornerBadge;
+
+            if (isDirectTag) {
                 // This is a direct tag configuration
                 configuredTags.add(key.toLowerCase());
             } else {
                 // This might be a group, check its children
                 Object.keys(value).forEach(subKey => {
                     const subValue = value[subKey];
-                    if (subValue && typeof subValue === 'object' && (subValue.light || subValue.dark)) {
-                        configuredTags.add(subKey.toLowerCase());
+                    if (subValue && typeof subValue === 'object') {
+                        // Check if this has any valid tag styling properties
+                        const hasTagProperties = subValue.light || subValue.dark || subValue.headerBar ||
+                                                subValue.border || subValue.footerBar || subValue.cornerBadge;
+                        if (hasTagProperties) {
+                            configuredTags.add(subKey.toLowerCase());
+                        }
                     }
                 });
             }
@@ -861,63 +872,70 @@ function getUserAddedTags() {
 function generateTagMenuItems(id, type, columnId = null) {
     const tagConfig = window.tagColors || {};
 
-    // Debug: Check if tagColors is available
-
     const userAddedTags = getUserAddedTags();
-    
-    // Get current title to check which tags are active
-    let currentTitle = '';
-    if (type === 'column') {
-        const column = window.cachedBoard?.columns?.find(c => c.id === id);
-        currentTitle = column?.title || '';
-    } else if (type === 'task' && columnId) {
-        const column = window.cachedBoard?.columns?.find(c => c.id === columnId);
-        const task = column?.tasks?.find(t => t.id === id);
-        currentTitle = task?.title || '';
-    }
-    
-    // Get all active tags
-    const activeTags = getActiveTagsInTitle(currentTitle);
-    
+
     let menuHtml = '';
     let hasAnyTags = false;
     
+    // Get enabled categories based on element type
+    const enabledCategories = type === 'column'
+        ? (window.enabledTagCategoriesColumn || {})
+        : (window.enabledTagCategoriesTask || {});
+
+    // Map group keys to config keys (kebab-case to camelCase)
+    const groupKeyToConfigKey = (groupKey) => {
+        // Convert kebab-case to camelCase: 'content-type-teaching' -> 'contentTypeTeaching'
+        return groupKey.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+    };
+
     // Dynamically generate menu for all groups in configuration
     Object.keys(tagConfig).forEach(groupKey => {
+        // Skip the default group (contains column/card defaults, not tags)
+        if (groupKey === 'default') return;
+
+        // Check if this category is enabled for the current element type
+        const configKey = groupKeyToConfigKey(groupKey);
+        if (enabledCategories[configKey] !== true) {
+            return; // Skip if NOT explicitly enabled
+        }
+
         const groupValue = tagConfig[groupKey];
-        
-        // Check if this is a group (contains objects with light/dark themes)
+
+        // Check if this is a group (contains tag objects)
         if (groupValue && typeof groupValue === 'object') {
             let groupTags = [];
-            
-            // Check if this is a direct tag configuration
-            if (groupValue.light || groupValue.dark) {
+
+            // Check if this is a direct tag configuration (has any styling properties)
+            const isDirectTag = groupValue.light || groupValue.dark || groupValue.headerBar ||
+                               groupValue.border || groupValue.footerBar || groupValue.cornerBadge;
+
+            if (isDirectTag) {
                 // This is a single tag, not a group
                 groupTags = [groupKey];
             } else {
                 // This is a group, collect its tags
                 Object.keys(groupValue).forEach(tagKey => {
                     const tagValue = groupValue[tagKey];
-                    if (tagValue && typeof tagValue === 'object' && (tagValue.light || tagValue.dark)) {
-                        groupTags.push(tagKey);
+                    if (tagValue && typeof tagValue === 'object') {
+                        // Check if this has any valid tag styling properties
+                        const hasTagProperties = tagValue.light || tagValue.dark || tagValue.headerBar ||
+                                                tagValue.border || tagValue.footerBar || tagValue.cornerBadge;
+                        if (hasTagProperties) {
+                            groupTags.push(tagKey);
+                        }
                     }
                 });
             }
             
             if (groupTags.length > 0) {
                 hasAnyTags = true;
-                // Count active tags in this group
-                const activeCount = groupTags.filter(tag => 
-                    activeTags.includes(tag.toLowerCase())
-                ).length;
-                
+
                 // Use dynamic submenu generation - just add placeholder with data attributes
+                // Count badges will be added dynamically by updateTagCategoryCounts() when menu opens
                 const groupLabel = groupKey.charAt(0).toUpperCase() + groupKey.slice(1);
-                const countBadge = activeCount > 0 ? `<span style="opacity: 0.7; margin-left: auto; padding-left: 10px;">${activeCount}</span>` : '';
                 menuHtml += `
                     <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="${groupKey}" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}" style="display: flex; align-items: center;">
                         <span>${groupLabel}</span>
-                        ${countBadge}
                     </div>
                 `;
             }
@@ -927,27 +945,22 @@ function generateTagMenuItems(id, type, columnId = null) {
     // Add user-added tags if any exist
     if (userAddedTags.length > 0) {
         hasAnyTags = true;
-        // Count active custom tags
-        const activeCustomCount = userAddedTags.filter(tag => 
-            activeTags.includes(tag.toLowerCase())
-        ).length;
-        const customCountBadge = activeCustomCount > 0 ? `<span style="opacity: 0.7; margin-left: auto; padding-left: 10px;">${activeCustomCount}</span>` : '';
-        
+        // Count badges will be added dynamically by updateTagCategoryCounts() when menu opens
+
         menuHtml += `
             <div class="donut-menu-item has-submenu" data-submenu-type="tags" data-group="custom" data-id="${id}" data-type="${type}" data-column-id="${columnId || ''}" style="display: flex; align-items: center;">
                 <span>Custom Tags</span>
-                ${customCountBadge}
             </div>
         `;
     }
     
     // Note: "Remove all tags" option is added dynamically by updateTagCategoryCounts() when tags are active
-    
+
     // If no tags at all, show a message
-    if (!hasAnyTags && activeTags.length === 0) {
+    if (!hasAnyTags) {
         menuHtml = '<button class="donut-menu-item" disabled>No tags available</button>';
     }
-    
+
     return menuHtml;
 }
 
@@ -956,6 +969,7 @@ function generateTagMenuItems(id, type, columnId = null) {
 
 // Helper function to generate tag items for a group (horizontal layout)
 function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = true) {
+
     // Get current title to check which tags are active
     let currentTitle = '';
     if (type === 'column') {
@@ -966,7 +980,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         const task = column?.tasks?.find(t => t.id === id);
         currentTitle = task?.title || '';
     }
-    
+
     // Check which tags are currently in the title
     const activeTags = getActiveTagsInTitle(currentTitle);
     
@@ -1847,7 +1861,7 @@ function createColumnElement(column, columnIndex) {
 														Sort by
 												</div>
 												<div class="donut-menu-divider"></div>
-												${generateTagMenuItems(column.id, 'column')}
+												${generateTagMenuItems(column.id, 'column', null)}
 												<div class="donut-menu-divider"></div>
 												<button class="donut-menu-item danger" onclick="deleteColumn('${column.id}')">Delete list</button>
 										</div>
@@ -3066,7 +3080,14 @@ function getTagConfig(tagName) {
     if (tagName === 'default') {return null;}
     
     // Check grouped structure
-    const groups = ['status', 'type', 'priority', 'category', 'colors'];
+    const groups = [
+        'status', 'type', 'priority', 'category', 'colors', 'importance',
+        'workflow', 'organization',
+        'content-type-teaching', 'content-type-product',
+        'complexity', 'review-status', 'time-estimate',
+        'testing-status', 'platform-teaching', 'platform-product',
+        'version', 'impact'
+    ];
     for (const group of groups) {
         if (window.tagColors[group] && window.tagColors[group][tagName]) {
             return window.tagColors[group][tagName];
@@ -3460,13 +3481,29 @@ function generateTagStyles() {
     };
     
     // Check if we have grouped structure
-    const isGrouped = window.tagColors.status || window.tagColors.type || 
-                     window.tagColors.priority || window.tagColors.category || 
-                     window.tagColors.colors;
-    
+    const isGrouped = window.tagColors.status || window.tagColors.type ||
+                     window.tagColors.priority || window.tagColors.category ||
+                     window.tagColors.colors || window.tagColors['dark-colors'] ||
+                     window.tagColors['light-colors'] || window.tagColors['accessible-colors'] ||
+                     window.tagColors.workflow ||
+                     window.tagColors.organization || window.tagColors.importance ||
+                     window.tagColors['content-type-teaching'] || window.tagColors['content-type-product'] ||
+                     window.tagColors.complexity || window.tagColors['review-status'] ||
+                     window.tagColors['time-estimate'] || window.tagColors['testing-status'] ||
+                     window.tagColors['platform-teaching'] || window.tagColors['platform-product'] ||
+                     window.tagColors.version || window.tagColors.impact;
+
     if (isGrouped) {
         // Process each group
-        const groups = ['status', 'type', 'priority', 'category', 'colors'];
+        const groups = [
+            'status', 'type', 'priority', 'category',
+            'colors', 'dark-colors', 'light-colors', 'accessible-colors',
+            'importance', 'workflow', 'organization',
+            'content-type-teaching', 'content-type-product',
+            'complexity', 'review-status', 'time-estimate',
+            'testing-status', 'platform-teaching', 'platform-product',
+            'version', 'impact'
+        ];
         groups.forEach(groupName => {
             if (window.tagColors[groupName]) {
                 processTags(window.tagColors[groupName], groupName);

@@ -192,6 +192,49 @@ export class ConfigurationService {
         };
     }
 
+    // Tag category filtering for columns
+    public getEnabledTagCategoriesColumn(): { [key: string]: boolean } {
+        const config = vscode.workspace.getConfiguration(this.CONFIGURATION_SECTION);
+        const enabledArray = config.get<string[]>('enabledTagCategoriesColumn', [
+            'workflow', 'organization', 'importance', 'type', 'category',
+            'colors', 'content-type-teaching', 'content-type-product', 'complexity'
+        ]);
+
+        // Convert array to object format for backward compatibility
+        const result: { [key: string]: boolean } = {};
+        enabledArray.forEach(category => {
+            // Convert kebab-case to camelCase
+            const camelCase = category.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+            result[camelCase] = true;
+        });
+        return result;
+    }
+
+    // Tag category filtering for tasks
+    public getEnabledTagCategoriesTask(): { [key: string]: boolean } {
+        const config = vscode.workspace.getConfiguration(this.CONFIGURATION_SECTION);
+        const enabledArray = config.get<string[]>('enabledTagCategoriesTask', [
+            'priority', 'status', 'importance', 'type',
+            'colors', 'review-status', 'time-estimate', 'testing-status',
+            'platform-teaching', 'platform-product', 'version', 'impact'
+        ]);
+
+        // Convert array to object format for backward compatibility
+        const result: { [key: string]: boolean } = {};
+        enabledArray.forEach(category => {
+            // Convert kebab-case to camelCase
+            const camelCase = category.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+            result[camelCase] = true;
+        });
+        return result;
+    }
+
+    // Custom user-defined tag categories
+    public getCustomTagCategories(): { [key: string]: any } {
+        const config = vscode.workspace.getConfiguration(this.CONFIGURATION_SECTION);
+        return config.get('customTagCategories', {});
+    }
+
     // Layout configuration
     public getLayoutConfiguration() {
         return {
