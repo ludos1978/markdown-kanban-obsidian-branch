@@ -1142,8 +1142,8 @@ function applyColumnWidth(size, skipRender = false) {
     } else {
         // For pixel widths, re-apply span classes if they exist
         // Trigger a re-render to restore span classes from column titles
-        if (window.currentBoard && !skipRender) {
-            renderBoard(window.currentBoard, { skipRender: false });
+        if (window.cachedBoard && !skipRender) {
+            renderBoard(window.cachedBoard, { skipRender: false });
         }
     }
 }
@@ -1372,8 +1372,8 @@ function applyTagVisibility(setting) {
     document.body.classList.add(`tag-visibility-${setting}`);
 
     // Trigger re-render to apply text filtering changes
-    if (window.currentBoard) {
-        renderBoard(window.currentBoard, { skipRender: false });
+    if (window.cachedBoard) {
+        renderBoard(window.cachedBoard, { skipRender: false });
 
         // Preserve column width after re-render
         setTimeout(() => {
@@ -1718,7 +1718,7 @@ function updateDocumentUri(newUri) {
         const hadSavedState = restoreFoldingState();
 
         // If no saved state exists and board is ready, apply defaults for new document
-        if (!hadSavedState && window.currentBoard && window.currentBoard.columns) {
+        if (!hadSavedState && window.cachedBoard && window.cachedBoard.columns) {
             applyDefaultFoldingToNewDocument();
         }
     }
@@ -1918,7 +1918,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Request initial board data and file info
     setTimeout(() => {
-        if (!window.currentBoard || !window.currentBoard.columns || window.currentBoard.columns.length === 0) {
+        if (!window.cachedBoard || !window.cachedBoard.columns || window.cachedBoard.columns.length === 0) {
             vscode.postMessage({ type: 'requestBoardUpdate' });
         }
         if (!currentFileInfo) {
@@ -2070,7 +2070,7 @@ window.addEventListener('message', event => {
     
     switch (message.type) {
         case 'updateBoard':
-            const previousBoard = window.currentBoard;
+            const previousBoard = window.cachedBoard;
             
             // Clear card focus when board is updated
             focusCard(null);
@@ -2079,8 +2079,7 @@ window.addEventListener('message', event => {
             const isInitialLoad = !window.cachedBoard;
             const isFullRefresh = message.isFullRefresh;
             if (isInitialLoad || isFullRefresh) {
-                window.cachedBoard = JSON.parse(JSON.stringify(message.board)); // Deep clone
-                window.currentBoard = window.cachedBoard; // Keep for compatibility
+                window.cachedBoard = JSON.parse(JSON.stringify(message.board)); // Deep clone - SINGLE source of truth
                 window.savedBoardState = JSON.parse(JSON.stringify(message.board)); // Reference for unsaved detection
                 window.hasUnsavedChanges = false;
             } else {
@@ -2382,11 +2381,11 @@ window.addEventListener('message', event => {
             break;
         case 'requestCachedBoard':
             // Send the current cached board back to the backend
-            if (window.cachedBoard || window.currentBoard) {
+            if (window.cachedBoard || window.cachedBoard) {
                 vscode.postMessage({
                     type: 'markUnsavedChanges',
                     hasUnsavedChanges: window.hasUnsavedChanges || false,
-                    cachedBoard: window.cachedBoard || window.currentBoard
+                    cachedBoard: window.cachedBoard || window.cachedBoard
                 });
             }
             break;
@@ -4100,7 +4099,7 @@ let exportTreeUI = null;
  * @param {string} preSelectNodeId - Optional node ID to pre-select instead of full kanban
  */
 function initializeExportTree(preSelectNodeId = null) {
-    if (!window.currentBoard) {
+    if (!window.cachedBoard) {
         console.warn('[kanban.webview.initializeExportTree] No board available');
         return;
     }
@@ -4116,7 +4115,7 @@ function initializeExportTree(preSelectNodeId = null) {
     }
 
     // Build tree from current board
-    const tree = window.ExportTreeBuilder.buildExportTree(window.currentBoard);
+    const tree = window.ExportTreeBuilder.buildExportTree(window.cachedBoard);
 
     // Create or get tree UI instance
     if (!exportTreeUI) {
@@ -4263,7 +4262,7 @@ let selectedColumnId = '';
 
 window.exportColumn = function exportColumn(columnId) {
     // Find the column in the current board
-    if (!window.currentBoard || !window.currentBoard.columns) {
+    if (!window.cachedBoard || !window.cachedBoard.columns) {
         vscode.postMessage({
             type: 'showError',
             message: 'No board data available'
@@ -4271,8 +4270,8 @@ window.exportColumn = function exportColumn(columnId) {
         return;
     }
 
-    const columnIndex = window.currentBoard.columns.findIndex(c => c.id === columnId);
-    const column = window.currentBoard.columns[columnIndex];
+    const columnIndex = window.cachedBoard.columns.findIndex(c => c.id === columnId);
+    const column = window.cachedBoard.columns[columnIndex];
 
     if (!column) {
         vscode.postMessage({
@@ -4454,11 +4453,11 @@ function handleCopyContentResult(result) {
  * @returns {object|null} The task object or null if not found
  */
 function findTaskById(taskId) {
-    if (!window.currentBoard || !window.currentBoard.columns) {
+    if (!window.cachedBoard || !window.cachedBoard.columns) {
         return null;
     }
 
-    for (const column of window.currentBoard.columns) {
+    for (const column of window.cachedBoard.columns) {
         if (column.tasks) {
             const task = column.tasks.find(t => t.id === taskId);
             if (task) {
@@ -4475,11 +4474,11 @@ function findTaskById(taskId) {
  * @returns {object|null} The column object or null if not found
  */
 function findColumnById(columnId) {
-    if (!window.currentBoard || !window.currentBoard.columns) {
+    if (!window.cachedBoard || !window.cachedBoard.columns) {
         return null;
     }
 
-    return window.currentBoard.columns.find(col => col.id === columnId) || null;
+    return window.cachedBoard.columns.find(col => col.id === columnId) || null;
 }
 
 /**

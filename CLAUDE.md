@@ -11,7 +11,9 @@
 	- create functions to separate different functionalities.
 	- make sure to only create new variables if the data is nowhere else stored (an exeption might be the separated front and backend)
 	- never store the same information in mutiple places, except if the user wants that. cleanup all data duplication that you detect after discussing it with the user. make sure the data is placed at the most appropriate place and create functions to retreive the single point of knowledge.
-		- one exception in this code is the kanban board which is stored in the front and the backend.
+		- one exception in this code is the kanban board which is stored in the front and the backend (intentional sync between layers).
+		- within each layer (frontend or backend), maintain only ONE reference to each piece of data.
+		- keep a list of the single points of data in tmp/single-points-of-knowledge.md and update it when adding new data storage.
 - never remove functionality without the users consent.
 - if you cleanup code, allways check what the code does, create a list of these features and reimplement all these features.
 - Never try to add an alternative implementation. 

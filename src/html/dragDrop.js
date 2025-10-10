@@ -1333,9 +1333,9 @@ function setupTaskDragHandle(handle) {
                                 }
                                 
                                 // Also update currentBoard for compatibility
-                                if (window.currentBoard !== window.cachedBoard) {
-                                    const currentOriginal = window.currentBoard.columns.find(col => col.id === originalColumnId);
-                                    const currentFinal = window.currentBoard.columns.find(col => col.id === finalColumnId);
+                                if (window.cachedBoard !== window.cachedBoard) {
+                                    const currentOriginal = window.cachedBoard.columns.find(col => col.id === originalColumnId);
+                                    const currentFinal = window.cachedBoard.columns.find(col => col.id === finalColumnId);
                                     if (currentOriginal && currentFinal) {
                                         const currentTaskIndex = currentOriginal.tasks.findIndex(t => t.id === taskId);
                                         if (currentTaskIndex >= 0) {
@@ -1675,7 +1675,7 @@ function updateColumnTitleDisplay(columnId) {
     }
 
     // Get updated title from data model
-    const column = window.currentBoard?.columns.find(c => c.id === columnId);
+    const column = window.cachedBoard?.columns.find(c => c.id === columnId);
     if (!column) {
         console.warn('[dragDrop-updateTitle] Column not found in data model:', columnId);
         return;
@@ -1778,8 +1778,8 @@ function setupColumnDragAndDrop() {
                                 cachedCol.title = cachedCol.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
                             }
                         }
-                        if (window.currentBoard) {
-                            const currentCol = window.currentBoard.columns.find(c => c.id === colId);
+                        if (window.cachedBoard) {
+                            const currentCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (currentCol) {
                                 currentCol.title = currentCol.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
                             }
@@ -1794,8 +1794,8 @@ function setupColumnDragAndDrop() {
                                 cachedCol.title = cachedCol.title.trim() + ' #stack';
                             }
                         }
-                        if (window.currentBoard) {
-                            const currentCol = window.currentBoard.columns.find(c => c.id === colId);
+                        if (window.cachedBoard) {
+                            const currentCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (currentCol && !/#stack\b/i.test(currentCol.title)) {
                                 currentCol.title = currentCol.title.trim() + ' #stack';
                             }
@@ -1899,8 +1899,8 @@ function setupColumnDragAndDrop() {
             }
 
             // Also update currentBoard
-            if (window.currentBoard) {
-                const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+            if (window.cachedBoard) {
+                const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
                 if (currentColumn) {
                     let cleanTitle = currentColumn.title
                         .replace(/#row\d+\b/gi, '')
@@ -1938,8 +1938,8 @@ function setupColumnDragAndDrop() {
                                 cachedCol.title = cachedCol.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
                             }
                         }
-                        if (window.currentBoard) {
-                            const currentCol = window.currentBoard.columns.find(c => c.id === colId);
+                        if (window.cachedBoard) {
+                            const currentCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (currentCol) {
                                 currentCol.title = currentCol.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
                             }
@@ -1954,8 +1954,8 @@ function setupColumnDragAndDrop() {
                                 cachedCol.title = cachedCol.title.trim() + ' #stack';
                             }
                         }
-                        if (window.currentBoard) {
-                            const currentCol = window.currentBoard.columns.find(c => c.id === colId);
+                        if (window.cachedBoard) {
+                            const currentCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (currentCol && !/#stack\b/i.test(currentCol.title)) {
                                 currentCol.title = currentCol.title.trim() + ' #stack';
                             }
@@ -1976,8 +1976,8 @@ function setupColumnDragAndDrop() {
                         cachedColumn.title = cachedColumn.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
                     }
                 }
-                if (window.currentBoard) {
-                    const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+                if (window.cachedBoard) {
+                    const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
                     if (currentColumn) {
                         currentColumn.title = currentColumn.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
                     }
@@ -2005,11 +2005,11 @@ function setupColumnDragAndDrop() {
                 window.cachedBoard.columns = reorderedColumns;
                 
                 // Also update currentBoard for compatibility
-                if (window.currentBoard !== window.cachedBoard) {
+                if (window.cachedBoard !== window.cachedBoard) {
                     const currentReordered = newOrder.map(colId => 
-                        window.currentBoard.columns.find(col => col.id === colId)
+                        window.cachedBoard.columns.find(col => col.id === colId)
                     ).filter(Boolean);
-                    window.currentBoard.columns = currentReordered;
+                    window.cachedBoard.columns = currentReordered;
                 }
             }
             

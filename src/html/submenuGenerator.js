@@ -84,7 +84,7 @@ class SubmenuGenerator {
 
     // Create move to list content
     createMoveToListContent(taskId, columnId) {
-        const currentBoard = window.currentBoard;
+        const currentBoard = window.cachedBoard;
         if (!currentBoard || !currentBoard.columns) {return '';}
         
         return currentBoard.columns.map(col => 

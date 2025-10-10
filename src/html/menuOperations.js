@@ -281,7 +281,7 @@ class SimpleMenuManager {
 
     // Create move to list content
     createMoveToListContent(taskId, columnId) {
-        const currentBoard = window.currentBoard;
+        const currentBoard = window.cachedBoard;
         if (!currentBoard?.columns) {return '';}
         
         return currentBoard.columns
@@ -943,8 +943,8 @@ function toggleColumnStack(columnId) {
 
     // Trigger board refresh for layout changes
     setTimeout(() => {
-        if (typeof window.renderBoard === 'function' && window.currentBoard) {
-            window.renderBoard(window.currentBoard);
+        if (typeof window.renderBoard === 'function' && window.cachedBoard) {
+            window.renderBoard(window.cachedBoard);
         }
     }, 50);
 
@@ -968,10 +968,10 @@ function deleteColumn(columnId) {
             const deletedColumn = window.cachedBoard.columns.splice(columnIndex, 1)[0];
 
             // Also update currentBoard for compatibility
-            if (window.currentBoard !== window.cachedBoard) {
-                const currentColumnIndex = window.currentBoard.columns.findIndex(col => col.id === columnId);
+            if (window.cachedBoard !== window.cachedBoard) {
+                const currentColumnIndex = window.cachedBoard.columns.findIndex(col => col.id === columnId);
                 if (currentColumnIndex >= 0) {
-                    window.currentBoard.columns.splice(currentColumnIndex, 1);
+                    window.cachedBoard.columns.splice(currentColumnIndex, 1);
                 }
             }
 
@@ -1106,8 +1106,8 @@ function enableColumnIncludeMode(columnId, fileName) {
 		column.title = newTitle;
 
 		// Also update currentBoard for compatibility
-		if (window.currentBoard !== window.cachedBoard) {
-				const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+		if (window.cachedBoard !== window.cachedBoard) {
+				const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
 				if (currentColumn) {
 						currentColumn.originalTitle = currentTitle;
 						currentColumn.title = newTitle;
@@ -1189,8 +1189,8 @@ function updateColumnIncludeFile(columnId, newFileName, currentFile) {
         column.originalTitle = newTitle;
 
         // Also update currentBoard for compatibility
-        if (window.currentBoard !== window.cachedBoard) {
-            const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+        if (window.cachedBoard !== window.cachedBoard) {
+            const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
             if (currentColumn) {
                 currentColumn.title = newTitle;
                 currentColumn.includeFiles = [newFileName.trim()];
@@ -1244,8 +1244,8 @@ function disableColumnIncludeMode(columnId) {
     delete column.originalTitle;
 
     // Also update currentBoard for compatibility
-    if (window.currentBoard !== window.cachedBoard) {
-        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+    if (window.cachedBoard !== window.cachedBoard) {
+        const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (currentColumn) {
             currentColumn.title = cleanTitle || 'Untitled Column';
             currentColumn.includeMode = false;
@@ -1297,8 +1297,8 @@ function enableTaskIncludeMode(taskId, columnId, fileName) {
     task.title = newTitle;
 
     // Also update currentBoard for compatibility
-    if (window.currentBoard !== window.cachedBoard) {
-        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+    if (window.cachedBoard !== window.cachedBoard) {
+        const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (currentColumn) {
             const currentTask = currentColumn.tasks.find(t => t.id === taskId);
             if (currentTask) {
@@ -1394,8 +1394,8 @@ function updateTaskIncludeFile(taskId, columnId, newFileName) {
     task.originalTitle = cleanTitle;
 
     // Also update currentBoard for compatibility
-    if (window.currentBoard !== window.cachedBoard) {
-        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+    if (window.cachedBoard !== window.cachedBoard) {
+        const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (currentColumn) {
             const currentTask = currentColumn.tasks.find(t => t.id === taskId);
             if (currentTask) {
@@ -1449,8 +1449,8 @@ function disableTaskIncludeMode(taskId, columnId) {
     task.displayTitle = undefined;
 
     // Also update currentBoard for compatibility
-    if (window.currentBoard !== window.cachedBoard) {
-        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+    if (window.cachedBoard !== window.cachedBoard) {
+        const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (currentColumn) {
             const currentTask = currentColumn.tasks.find(t => t.id === taskId);
             if (currentTask) {
@@ -1808,8 +1808,8 @@ function deleteTask(taskId, columnId) {
             const deletedTask = foundColumn.tasks.splice(taskIndex, 1)[0];
 
             // Also update currentBoard for compatibility
-            if (window.currentBoard !== window.cachedBoard) {
-                for (const currentColumn of window.currentBoard.columns) {
+            if (window.cachedBoard !== window.cachedBoard) {
+                for (const currentColumn of window.cachedBoard.columns) {
                     const currentTaskIndex = currentColumn.tasks.findIndex(t => t.id === taskId);
                     if (currentTaskIndex >= 0) {
                         currentColumn.tasks.splice(currentTaskIndex, 1);
@@ -1874,8 +1874,8 @@ function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
             }
 
             // Also update currentBoard to keep it in sync for tag operations
-            if (window.currentBoard && window.currentBoard !== window.cachedBoard) {
-                const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+            if (window.cachedBoard && window.cachedBoard !== window.cachedBoard) {
+                const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
                 if (currentColumn) {
                     if (insertIndex >= 0 && insertIndex <= currentColumn.tasks.length) {
                         currentColumn.tasks.splice(insertIndex, 0, { ...newTask });
@@ -2024,15 +2024,15 @@ function toggleColumnTag(columnId, tagName, event) {
     }
 
     // If not found, try currentBoard
-    if (!column && window.currentBoard?.columns) {
-        column = window.currentBoard.columns.find(c => c.id === columnId);
+    if (!column && window.cachedBoard?.columns) {
+        column = window.cachedBoard.columns.find(c => c.id === columnId);
         if (column) {
-            boardToUse = window.currentBoard;
+            boardToUse = window.cachedBoard;
         }
     }
 
     if (!column) {
-        if (window.currentBoard?.columns) {
+        if (window.cachedBoard?.columns) {
         }
         if (window.cachedBoard?.columns) {
         }
@@ -2070,8 +2070,8 @@ function toggleColumnTag(columnId, tagName, event) {
     column.title = title;
 
     // Ensure both currentBoard and cachedBoard are updated if they exist and are different
-    if (window.currentBoard && window.currentBoard !== boardToUse) {
-        const currentColumn = window.currentBoard.columns.find(col => col.id === columnId);
+    if (window.cachedBoard && window.cachedBoard !== boardToUse) {
+        const currentColumn = window.cachedBoard.columns.find(col => col.id === columnId);
         if (currentColumn) {
             currentColumn.title = title;
         }
@@ -2176,13 +2176,13 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     }
 
     // If not found, try currentBoard
-    if (!task && window.currentBoard?.columns) {
-        column = window.currentBoard.columns.find(c => c.id === columnId);
+    if (!task && window.cachedBoard?.columns) {
+        column = window.cachedBoard.columns.find(c => c.id === columnId);
         task = column?.tasks.find(t => t.id === taskId);
 
         // If task not found in expected column, search all columns
         if (!task) {
-            for (const col of window.currentBoard.columns) {
+            for (const col of window.cachedBoard.columns) {
                 const foundTask = col.tasks.find(t => t.id === taskId);
                 if (foundTask) {
                     column = col;
@@ -2193,7 +2193,7 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
         }
 
         if (task) {
-            boardToUse = window.currentBoard;
+            boardToUse = window.cachedBoard;
         }
     }
 
@@ -2225,8 +2225,8 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     task.title = title;
 
     // Ensure both currentBoard and cachedBoard are updated if they exist and are different
-    if (window.currentBoard && window.currentBoard !== boardToUse) {
-        const currentColumn = window.currentBoard.columns.find(col => col.id === column.id);
+    if (window.cachedBoard && window.cachedBoard !== boardToUse) {
+        const currentColumn = window.cachedBoard.columns.find(col => col.id === column.id);
         if (currentColumn) {
             const currentTask = currentColumn.tasks.find(t => t.id === taskId);
             if (currentTask) {
@@ -2473,7 +2473,7 @@ function markUnsavedChanges() {
     
     // Always notify backend about unsaved changes state AND send the current cached board data
     if (typeof vscode !== 'undefined') {
-        const boardToSend = window.cachedBoard || window.currentBoard;
+        const boardToSend = window.cachedBoard || window.cachedBoard;
         
         vscode.postMessage({
             type: 'markUnsavedChanges',
@@ -2727,7 +2727,7 @@ function retryLastFlushedChanges() {
  */
 function applyPendingChangesLocally() {
     
-    if (!window.currentBoard) {
+    if (!window.cachedBoard) {
         return;
     }
     
@@ -2736,7 +2736,7 @@ function applyPendingChangesLocally() {
     // Apply column changes locally
     if (window.pendingColumnChanges && window.pendingColumnChanges.size > 0) {
         window.pendingColumnChanges.forEach(({ title, columnId }) => {
-            const column = window.currentBoard.columns.find(col => col.id === columnId);
+            const column = window.cachedBoard.columns.find(col => col.id === columnId);
             if (column && column.title !== title) {
                 column.title = title;
                 changesApplied++;
@@ -2752,7 +2752,7 @@ function applyPendingChangesLocally() {
             let task = null;
             let actualColumn = null;
             
-            for (const column of window.currentBoard.columns) {
+            for (const column of window.cachedBoard.columns) {
                 task = column.tasks.find(t => t.id === taskId);
                 if (task) {
                     actualColumn = column;

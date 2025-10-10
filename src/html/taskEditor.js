@@ -776,8 +776,8 @@ class TaskEditor {
                         if (layoutChanged) {
                             // Layout tags changed - refresh the board layout
                             setTimeout(() => {
-                                if (typeof window.renderBoard === 'function' && window.currentBoard) {
-                                    window.renderBoard(window.currentBoard);
+                                if (typeof window.renderBoard === 'function' && window.cachedBoard) {
+                                    window.renderBoard(window.cachedBoard);
                                 }
                             }, 50);
                         }
@@ -1011,9 +1011,6 @@ class TaskEditor {
                     }
 
                     if (wasChanged) {
-                        // Ensure currentBoard is synced with cachedBoard for markUnsavedChanges
-                        window.currentBoard = window.cachedBoard;
-
                         if (typeof markUnsavedChanges === 'function') {
                             markUnsavedChanges();
                         }
