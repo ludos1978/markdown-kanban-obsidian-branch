@@ -4,12 +4,37 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] sometimes i cant drop an column after the last column in a row into a stack, why? dont modify only research.
-- [ ] when adding a new column after a column in a stack, add #stack as default tag (add it to the stack below)
 
-- [ ] when exporting as "convert to presentation format" with "pack assets", without "merge includes into main file" and all selected, then it doesnt include include/columninclude/taskinclude files that are in any other directories or subdirectories. fix it for all parameter combinations of exporting. make sure files with the same filename dont overwrite each other when coming from different folders. use indexes after the filename to make sure they are distinctive in the filename. reuse files that have the same content, verify it by using an md5 hash, for large files limit the md5 hash to the first megabyte. this code has been in the codebase before, maybe you can reuse it.
+- [ ] the time format is 2 hours off, i think you are using gmt which is not our local time format.
 
-- [ ] OPEN BUGS:
+- [ ] when exporting to presentation mode with "Merge Includes into Main File" the title of a task should not be separated into as a single slide in the export. Also dont remove ## from the lines.
+
+- [ ] can we integrate marp (maybe using the marp plugin in vscode). to directly start presentations from the kanban viewer? also the different export options of marp would be interesting. we would need to integrate the markdown-it plugins into the marp workflow. we could require the user to install marp and just deliver the engine.js and the node modules required.
+
+- [ ] add the ability to export as pdf. could we integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly?
+
+- [ ] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
+ 
+- [ ] can you make a concept for the tags and colors. One of the core aspects i want, is for designing teaching materials. 
+- where each task is a slide on a topic. so the task may need to be improved, might be obsolete, might be more or less important, also think of other situations i might forget about right now.
+- another usage case is for designing products such as games, user experience or software. add all relevant project states that might be used for columns. also add the possible states of each row, as well as for tasks that might be importancy. 
+
+make the styles be equal. for example the tags that are meant for columns can have footers or headers, but in one category, each should eighter have eigher one, or not. also think about the colors, make more important aspects a bright and strong colors, less important things less colorful or bright. think about good colors and dark and light states as well.
+
+all tags must be with # there is only dates and persons with the @-tag. also for the colors, make a dark, medium and light and a accessible color palette with at least 12 colors that are well dispersed on the visible color range. the accessible colors should be (#332288, #117733, #44AA99, #88CCEE, #DDCC77, #CC6677, #AA4499, #882255)
+
+ultrathink think plan
+
+add grays to the colors. ultrathink think and plan again to verify the usability on each process and suggest other aspects that might be useful.
+
+create me the tag list with the colors, think about which ones are better suited for tasks/slides/todos vs categories/topics and assign the headers/footers/stickers and border colors accordingly! make good use of the categories
+
+- [x] sometimes i cant drop an column after the last column in a row into a stack, why? dont modify only research.
+- [x] when adding a new column after a column in a stack, add #stack as default tag (add it to the stack below)
+
+- [x] when exporting as "convert to presentation format" with "pack assets", without "merge includes into main file" and all selected, then it doesnt include include/columninclude/taskinclude files that are in any other directories or subdirectories. fix it for all parameter combinations of exporting. make sure files with the same filename dont overwrite each other when coming from different folders. use indexes after the filename to make sure they are distinctive in the filename. reuse files that have the same content, verify it by using an md5 hash, for large files limit the md5 hash to the first megabyte. this code has been in the codebase before, maybe you can reuse it.
+
+- [x] OPEN BUGS:
 - files included with !!!include(root/include-2.md)!!! are not updated automatically when they are changed externally. it seems to work with a path that has ./ in front of it.
 - files included with !!!include(./folder%20with%20space/include-1.md)!!! or !!!include(folder%20with%20space/include-2.md)!!! are not found/loaded.
 - when drag & dropping a file from the explorer into the view the path to it is not url encoded. use the existing functions to url encode the path that are also used by the drag&drop source.
@@ -20,7 +45,7 @@ kanban-plugin: board
 
 - [x] when exporting to kanban and using the "Merge Includes into Main File" then externally included files that are not in the markdown-kanban format (columnincludes or taskincludes) must be converted into the markdown-kanban format.
 
-- [ ] we need to unify the save, backup and export with all the features in all these versions.
+- [x] we need to unify the save, backup and export with all the features in all these versions.
 - we need a third export format type:
   - keep file formats: does not change the output format
   - individual file format: choose an individual file format for all files which then allows
@@ -36,19 +61,8 @@ we should be able to remove tons of individual usages of conversions etc. with t
 
 ultrathink, plan.
 
-
-- [ ] the time format is 2 hours off, i think you are using gmt which is not our local time format.
-
-- [ ] when exporting to presentation mode with "Merge Includes into Main File" the title of a task should not be separated into as a single slide in the export. Also dont remove ## from the lines.
-
 - [x] there should be an option that combines all the include files into one file and another one that allows exporting with the includes preserved. now for that to work i think the conversion to presentation format needs to happen after selecting the content to export and deciding which files they should go into. after that the conversion might be done, depending wether the original file format was the kanban-markdown format. if it already was an included presentation it does not need to be converted.
 
-- [ ] can we integrate marp (maybe using the marp plugin in vscode). to directly start presentations from the kanban viewer? also the different export options of marp would be interesting. we would need to integrate the markdown-it plugins into the marp workflow. we could require the user to install marp and just deliver the engine.js and the node modules required.
-
-- [ ] add the ability to export as pdf. could we integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly?
-
-- [ ] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
- 
 - [x] i encountered this error "webview.js?v=1759945056175:4383 Uncaught TypeError: Cannot read properties of null (reading 'value')
     at setColumnExportDefaultFolder (webview.js?v=1759945056175:4383:16)
     at webview.js?v=1759945056175:2633:13"
