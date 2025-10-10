@@ -280,7 +280,36 @@ export class IncludeProcessor {
         // For taskinclude, convert appropriately
         if (includeType === 'taskinclude') {
             if (targetFormat === 'kanban' && sourceFormat === 'presentation') {
-                return FormatConverter.presentationToKanban(content);
+                // For taskinclude, use raw content as single task
+                // First non-empty line becomes title, rest becomes description
+                // This preserves all formatting including --- separators
+                const lines = content.split('\n');
+                let title = '';
+                let description = '';
+                let titleIndex = -1;
+
+                // Find first non-empty line for title
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].trim()) {
+                        title = lines[i].trim();
+                        titleIndex = i;
+                        break;
+                    }
+                }
+
+                // Everything after title becomes description (preserving --- and all content)
+                if (titleIndex >= 0 && titleIndex < lines.length - 1) {
+                    description = lines.slice(titleIndex + 1).join('\n').trim();
+                }
+
+                let kanbanContent = `- [ ] ${title || 'Untitled'}\n`;
+                if (description) {
+                    const descLines = description.split('\n');
+                    for (const line of descLines) {
+                        kanbanContent += `  ${line}\n`;
+                    }
+                }
+                return kanbanContent;
             } else if (targetFormat === 'presentation' && sourceFormat === 'kanban') {
                 return FormatConverter.kanbanToPresentation(content, false);
             }

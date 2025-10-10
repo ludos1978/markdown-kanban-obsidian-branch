@@ -99,6 +99,24 @@ export class ExportService {
     }
 
     /**
+     * Ensure YAML frontmatter exists in kanban content
+     * Adds standard kanban YAML header if not present
+     */
+    private static ensureYamlFrontmatter(content: string): string {
+        // Check if content already has YAML frontmatter
+        const hasYaml = content.trim().startsWith('---');
+
+        if (hasYaml) {
+            // Already has YAML, return as-is
+            return content;
+        }
+
+        // Add standard kanban YAML frontmatter
+        const yamlHeader = '---\n\nkanban-plugin: board\n\n---\n\n';
+        return yamlHeader + content;
+    }
+
+    /**
      * Export markdown file with selected assets
      */
     public static async exportWithAssets(
@@ -165,6 +183,9 @@ export class ExportService {
             } catch (error) {
                 throw new Error(`Failed to process markdown file "${sourcePath}": ${error}`);
             }
+
+            // Ensure YAML frontmatter (exportWithAssets always exports kanban format)
+            exportedContent = this.ensureYamlFrontmatter(exportedContent);
 
             // Write the main markdown file to export folder
             const targetMarkdownPath = path.join(options.targetFolder, path.basename(sourcePath));
@@ -278,6 +299,9 @@ export class ExportService {
             } catch (error) {
                 throw new Error(`Failed to process column content: ${error}`);
             }
+
+            // Ensure YAML frontmatter (column export is kanban format)
+            exportedContent = this.ensureYamlFrontmatter(exportedContent);
 
             // Write the column markdown file to export folder
             const targetMarkdownPath = path.join(options.targetFolder, `${columnFileName}.md`);
@@ -1288,22 +1312,37 @@ export class ExportService {
             return kanbanContent;
 
         } else if (isTaskInclude) {
-            // Convert slides to tasks
-            const tasks = PresentationParser.slidesToTasks(slides);
-            let kanbanContent = '';
+            // For taskinclude, use raw presentation content as single task
+            // First non-empty line becomes task title, rest becomes description
+            // This preserves all formatting including --- separators
+            const lines = presentationContent.split('\n');
+            let title = '';
+            let description = '';
+            let titleIndex = -1;
 
-            for (const task of tasks) {
-                kanbanContent += `- [ ] ${task.title}\n`;
-                if (task.description) {
-                    // Indent description lines
-                    const descLines = task.description.split('\n');
-                    for (const line of descLines) {
-                        kanbanContent += `  ${line}\n`;
-                    }
+            // Find first non-empty line for title
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    title = lines[i].trim();
+                    titleIndex = i;
+                    break;
                 }
             }
 
-            console.log(`[kanban.exportService.convertPresentationToKanban] Converted ${slides.length} slides to ${tasks.length} tasks`);
+            // Everything after title becomes description (preserving --- and all content)
+            if (titleIndex >= 0 && titleIndex < lines.length - 1) {
+                description = lines.slice(titleIndex + 1).join('\n').trim();
+            }
+
+            let kanbanContent = `- [ ] ${title || 'Untitled'}\n`;
+            if (description) {
+                const descLines = description.split('\n');
+                for (const line of descLines) {
+                    kanbanContent += `  ${line}\n`;
+                }
+            }
+
+            console.log(`[kanban.exportService.convertPresentationToKanban] Converted taskinclude to single task with title: "${title}"`);
             return kanbanContent;
 
         } else {
@@ -1564,9 +1603,15 @@ export class ExportService {
                 mergeIncludes
             );
 
+            // Ensure YAML frontmatter for kanban format exports
+            let finalContent = result.exportedContent;
+            if (options.format === 'kanban' || options.format === 'keep') {
+                finalContent = this.ensureYamlFrontmatter(finalContent);
+            }
+
             // Write the markdown file
             const targetMarkdownPath = path.join(options.targetFolder, `${targetBasename}.md`);
-            fs.writeFileSync(targetMarkdownPath, result.exportedContent, 'utf8');
+            fs.writeFileSync(targetMarkdownPath, finalContent, 'utf8');
 
             // Create _not_included.md if needed
             if (result.notIncludedAssets.length > 0) {
@@ -1678,6 +1723,11 @@ export class ExportService {
                     // Just use FormatConverter directly for in-memory conversion
                     const { FormatConverter } = require('./services/FormatConverter');
                     processedContent = FormatConverter.convert(processedContent, formatStrategy);
+                }
+
+                // Ensure YAML frontmatter for kanban format exports
+                if (options.format === 'kanban' || options.format === 'keep') {
+                    processedContent = this.ensureYamlFrontmatter(processedContent);
                 }
 
                 return {
