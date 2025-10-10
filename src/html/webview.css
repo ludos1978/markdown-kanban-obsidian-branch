@@ -2155,7 +2155,8 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   padding: 0px 8px 8px 8px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 8px;
-  width: 80%;
+  width: min-content;
+  max-width: 80%;
   height: min-content;
   max-height: 80%;
   overflow-y: auto;
@@ -2277,11 +2278,6 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
 .btn-secondary:hover {
   background: var(--vscode-button-secondaryHoverBackground);
   box-shadow: 0 0 0 2px var(--vscode-focusBorder);
-}
-
-/* Export Modal Specific Styles */
-.export-modal-content {
-  max-width: none;
 }
 
 .modal-body {
@@ -4114,6 +4110,8 @@ mark {
     color: var(--vscode-editor-foreground);
     padding: 1px 2px;
     border-radius: 2px;
+    display: inline-flex;
+    word-break: break-word;
 }
 
 /* Additional markdown-it plugin styles */

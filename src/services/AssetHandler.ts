@@ -72,9 +72,8 @@ export class AssetHandler {
                 const cleanPath = assetPath.split(/[?#]/)[0];
 
                 try {
-                    // Resolve path
-                    const decodedPath = decodeURIComponent(cleanPath);
-                    const resolvedPath = PathResolver.resolve(basePath, decodedPath);
+                    // Resolve path (PathResolver handles URL decoding)
+                    const resolvedPath = PathResolver.resolve(basePath, cleanPath);
 
                     // Skip if already seen
                     if (seenPaths.has(resolvedPath)) {

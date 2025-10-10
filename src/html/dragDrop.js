@@ -709,7 +709,7 @@ function handleVSCodeFileDrop(e, files) {
     const fileName = file.name;
 
     // Create appropriate link format based on file type
-    const fileLink = createFileLink(fileName, fileName); // For direct file drops, use filename as path
+    const fileLink = createFileMarkdownLink(fileName); // For direct file drops, use filename as path
 
     createNewTaskWithContent(
         fileName,  // Title: actual filename
@@ -742,7 +742,7 @@ function handleVSCodeUriDrop(e, uriData) {
             }
 
             // Create appropriate link format based on file type
-            const fileLink = createFileLink(filename, fullPath);
+            const fileLink = createFileMarkdownLink(fullPath);
 
             // Stagger the creation slightly if multiple files
             setTimeout(() => {
@@ -758,42 +758,6 @@ function handleVSCodeUriDrop(e, uriData) {
     }
 }
 
-/**
- * Creates appropriate link format based on file type
- * @param {string} filename - The filename with extension
- * @param {string} fullPath - The full path to the file
- * @returns {string} Formatted link based on file type
- */
-function createFileLink(filename, fullPath) {
-    const extension = filename.toLowerCase().split('.').pop();
-    const baseName = filename.replace(/\.[^/.]+$/, ""); // filename without extension
-
-    // Image file extensions
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif'];
-
-    // Video file extensions
-    const videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'ogv', '3gp'];
-
-    // Audio file extensions
-    const audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma', 'opus'];
-
-    // Markdown file extensions
-    const markdownExtensions = ['md', 'markdown', 'mdown', 'mkd', 'mdx'];
-
-    if (imageExtensions.includes(extension) || videoExtensions.includes(extension) || audioExtensions.includes(extension)) {
-        // Use image/media syntax: ![alt-text](path)
-        return `![${baseName}](${fullPath})`;
-    } else if (markdownExtensions.includes(extension)) {
-        // Use Obsidian-style wiki links: [[file.md]]
-        return `[[${filename}]]`;
-    } else if (fullPath.startsWith('http://') || fullPath.startsWith('https://')) {
-        // Use angle brackets for URLs: <url>
-        return `<${fullPath}>`;
-    } else {
-        // Use standard markdown link for unknown file types: [filename](path)
-        return `[${baseName}](${fullPath})`;
-    }
-}
 
 function getActiveTextEditor() {
 

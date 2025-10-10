@@ -42,7 +42,8 @@
       "Bash(open /Users/rspoerri/_REPOSITORIES/_TINKERING_REPOs/markdown-kanban-obsidian/tmp/test-video-overlay.html)",
       "Bash(git diff:*)",
       "Bash(open:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(md5:*)"
     ],
     "deny": [],
     "ask": []

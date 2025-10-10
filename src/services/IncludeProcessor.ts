@@ -102,9 +102,8 @@ export class IncludeProcessor {
             const m = matches[i];
 
             try {
-                // Resolve include path
-                const decodedPath = decodeURIComponent(m.filename);
-                const resolvedPath = PathResolver.resolve(basePath, decodedPath);
+                // Resolve include path (PathResolver handles URL decoding)
+                const resolvedPath = PathResolver.resolve(basePath, m.filename);
 
                 // Check for circular references
                 if (result.processedPaths.has(resolvedPath)) {
@@ -243,8 +242,8 @@ export class IncludeProcessor {
 
         while ((match = regex.exec(content)) !== null) {
             const filename = match[1].trim();
-            const decodedPath = decodeURIComponent(filename);
-            const resolvedPath = PathResolver.resolve(basePath, decodedPath);
+            // PathResolver handles URL decoding internally
+            const resolvedPath = PathResolver.resolve(basePath, filename);
 
             if (!outputArray.includes(resolvedPath)) {
                 outputArray.push(resolvedPath);

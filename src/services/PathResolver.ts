@@ -24,7 +24,15 @@ export class PathResolver {
         }
 
         // Decode URL-encoded paths (from webview)
-        const decoded = decodeURIComponent(relativePath);
+        let decoded = relativePath;
+        if (relativePath.includes('%')) {
+            try {
+                decoded = decodeURIComponent(relativePath);
+            } catch (error) {
+                // If decoding fails, use original (might not be URL-encoded)
+                decoded = relativePath;
+            }
+        }
 
         // If already absolute, return as-is
         if (path.isAbsolute(decoded)) {
@@ -32,28 +40,41 @@ export class PathResolver {
         }
 
         // Resolve relative to base
-        return path.resolve(basePath, decoded);
+        const resolved = path.resolve(basePath, decoded);
+        return resolved;
     }
 
     /**
      * Normalize a path to use ./ prefix consistently
      * Used for map keys and comparisons
+     * Also decodes URL-encoded paths for consistency
      *
-     * @param relativePath - Path to normalize
-     * @returns Path with ./ prefix
+     * @param relativePath - Path to normalize (may be URL-encoded)
+     * @returns Decoded path with ./ prefix
      */
     static normalize(relativePath: string): string {
         if (!relativePath) {
             return '';
         }
 
+        // Decode URL-encoded paths (e.g., %20 to space)
+        let decoded = relativePath;
+        if (relativePath.includes('%')) {
+            try {
+                decoded = decodeURIComponent(relativePath);
+            } catch (error) {
+                // If decoding fails, use original (might not be URL-encoded)
+                decoded = relativePath;
+            }
+        }
+
         // Already has ./ prefix
-        if (relativePath.startsWith('./')) {
-            return relativePath;
+        if (decoded.startsWith('./')) {
+            return decoded;
         }
 
         // Add ./ prefix
-        return './' + relativePath;
+        return './' + decoded;
     }
 
     /**

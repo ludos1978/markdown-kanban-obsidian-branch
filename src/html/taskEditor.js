@@ -191,8 +191,11 @@ class TaskEditor {
                                             window.removeEventListener('message', imageHandler);
 
                                             if (event.data.success) {
-                                                // Insert the image markdown at cursor position
-                                                const imageMarkdown = `![](${event.data.relativePath})`;
+                                                // Insert the image markdown at cursor position (URL-encode path)
+                                                const safePath = (typeof escapeFilePath === 'function')
+                                                    ? escapeFilePath(event.data.relativePath)
+                                                    : event.data.relativePath;
+                                                const imageMarkdown = `![](${safePath})`;
                                                 const start = target.selectionStart;
                                                 const end = target.selectionEnd;
                                                 const currentValue = target.value;
@@ -791,6 +794,8 @@ class TaskEditor {
                         this.currentEditor.displayElement.innerHTML = renderMarkdown(displayTitle);
 
                         // Add row indicator if needed (always show in edit mode)
+                        const rowMatch = column.title.match(/#row(\d+)\b/i);
+                        const currentRow = rowMatch ? parseInt(rowMatch[1], 10) : 1;
                         if (currentRow > 1) {
                             this.currentEditor.displayElement.innerHTML += `<span class="column-row-tag">Row ${currentRow}</span>`;
                         }

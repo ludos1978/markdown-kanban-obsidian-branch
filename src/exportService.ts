@@ -7,6 +7,7 @@ import { MarkdownKanbanParser } from './markdownParser';
 import { PresentationParser } from './presentationParser';
 import { ContentPipelineService } from './services/ContentPipelineService';
 import { OperationOptionsBuilder, OperationOptions, FormatStrategy } from './services/OperationOptions';
+import { PathResolver } from './services/PathResolver';
 
 export type ExportScope = 'full' | 'row' | 'stack' | 'column' | 'task';
 export type ExportFormat = 'keep' | 'kanban' | 'presentation';
@@ -414,21 +415,30 @@ export class ExportService {
 
         // Process each include pattern
         for (const { pattern, replacement, shouldWriteSeparateFile } of includePatterns) {
-            let match;
             const regex = new RegExp(pattern.source, pattern.flags);
             console.log(`[kanban.exportService.processIncludedFiles] Searching with pattern: ${pattern.source}`);
 
+            // Collect all matches first before modifying content
+            const matches: RegExpExecArray[] = [];
+            let match;
             while ((match = regex.exec(processedContent)) !== null) {
+                matches.push(match);
+            }
+
+            // Process matches in reverse order to maintain correct string positions
+            for (let i = matches.length - 1; i >= 0; i--) {
+                match = matches[i];
                 console.log(`[kanban.exportService.processIncludedFiles] Found match: ${match[0]}`);
                 const includePath = match[1].trim();
-                // Decode URL-encoded include paths
-                const decodedIncludePath = decodeURIComponent(includePath);
-                const resolvedPath = path.isAbsolute(decodedIncludePath)
-                    ? decodedIncludePath
-                    : path.resolve(sourceDir, decodedIncludePath);
+                console.log(`[kanban.exportService.processIncludedFiles]   includePath: "${includePath}"`);
+                // PathResolver.resolve() handles URL decoding
+                const resolvedPath = PathResolver.resolve(sourceDir, includePath);
+                console.log(`[kanban.exportService.processIncludedFiles]   resolvedPath: "${resolvedPath}"`);
+                console.log(`[kanban.exportService.processIncludedFiles]   exists: ${fs.existsSync(resolvedPath)}`);
 
                 // Avoid circular references
                 if (processedIncludes.has(resolvedPath)) {
+                    console.log(`[kanban.exportService.processIncludedFiles]   Skipping (circular reference)`);
                     continue;
                 }
 
@@ -490,15 +500,57 @@ export class ExportService {
 
                     if (shouldWriteSeparateFile) {
                         // Mode: Keep separate files
-                        // Write the processed include file to export folder
-                        const targetIncludePath = path.join(exportFolder, path.basename(resolvedPath));
-                        fs.writeFileSync(targetIncludePath, exportedContent, 'utf8');
-                        console.log(`[kanban.exportService.processIncludedFiles]   Wrote separate file: ${targetIncludePath}`);
+                        // Calculate MD5 for duplicate detection
+                        const includeBuffer = Buffer.from(exportedContent, 'utf8');
+                        const md5Hash = crypto.createHash('md5').update(includeBuffer).digest('hex');
+
+                        // Check if we already exported this exact content
+                        let exportedRelativePath: string;
+                        if (this.exportedFiles.has(md5Hash)) {
+                            // Use existing exported file
+                            const existingPath = this.exportedFiles.get(md5Hash)!;
+                            exportedRelativePath = path.relative(exportFolder, existingPath).replace(/\\/g, '/');
+                            console.log(`[kanban.exportService.processIncludedFiles]   Reusing existing file (MD5 match): ${exportedRelativePath}`);
+                        } else {
+                            // Generate unique filename if needed
+                            const fileName = path.basename(resolvedPath);
+                            const ext = path.extname(fileName);
+                            const nameWithoutExt = path.basename(fileName, ext);
+
+                            let targetIncludePath = path.join(exportFolder, fileName);
+                            let exportedFileName = fileName;
+                            let index = 1;
+
+                            // Check for filename conflicts
+                            while (fs.existsSync(targetIncludePath)) {
+                                const existingContent = fs.readFileSync(targetIncludePath, 'utf8');
+                                const existingHash = crypto.createHash('md5').update(existingContent, 'utf8').digest('hex');
+                                if (existingHash === md5Hash) {
+                                    // Same content, use existing file
+                                    break;
+                                }
+                                // Different content with same name, create alternative name
+                                exportedFileName = `${nameWithoutExt}-${index}${ext}`;
+                                targetIncludePath = path.join(exportFolder, exportedFileName);
+                                index++;
+                            }
+
+                            // Write the file if not already there
+                            if (!fs.existsSync(targetIncludePath)) {
+                                fs.writeFileSync(targetIncludePath, exportedContent, 'utf8');
+                                this.exportedFiles.set(md5Hash, targetIncludePath);
+                                console.log(`[kanban.exportService.processIncludedFiles]   Wrote separate file: ${targetIncludePath}`);
+                            } else {
+                                console.log(`[kanban.exportService.processIncludedFiles]   File already exists with same content: ${targetIncludePath}`);
+                            }
+
+                            exportedRelativePath = exportedFileName;
+                        }
 
                         // Update the marker to reference the exported file
                         processedContent = processedContent.replace(
                             match[0],
-                            replacement(path.basename(resolvedPath))
+                            replacement(exportedRelativePath)
                         );
                     } else {
                         // Mode: Merge includes into main file
@@ -518,7 +570,7 @@ export class ExportService {
     }
 
     /**
-     * Calculate MD5 hash for file (first 100KB for large files)
+     * Calculate MD5 hash for file (first 1MB for large files)
      */
     private static async calculateMD5(filePath: string): Promise<string> {
         return new Promise((resolve, reject) => {
@@ -527,7 +579,7 @@ export class ExportService {
             const stats = fs.statSync(filePath);
 
             let bytesRead = 0;
-            const maxBytes = stats.size > 1024 * 1024 ? 100 * 1024 : stats.size; // 100KB for files > 1MB
+            const maxBytes = stats.size > 1024 * 1024 ? 1024 * 1024 : stats.size; // 1MB for files > 1MB
 
             stream.on('data', (chunk) => {
                 bytesRead += chunk.length;
@@ -589,12 +641,8 @@ export class ExportService {
                     continue;
                 }
 
-                // Decode URL-encoded paths (e.g., %20 for spaces)
-                const decodedPath = decodeURIComponent(rawPath);
-
-                const resolvedPath = path.isAbsolute(decodedPath)
-                    ? decodedPath
-                    : path.resolve(sourceDir, decodedPath);
+                // PathResolver.resolve() handles URL decoding
+                const resolvedPath = PathResolver.resolve(sourceDir, rawPath);
 
                 const exists = fs.existsSync(resolvedPath);
                 const stats = exists ? fs.statSync(resolvedPath) : null;

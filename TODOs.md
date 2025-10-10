@@ -4,6 +4,8 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] when exporting as "convert to presentation format" with "pack assets", without "merge includes into main file" and all selected, then it doesnt include include/columninclude/taskinclude files that are in any other directories or subdirectories. fix it for all parameter combinations of exporting. make sure files with the same filename dont overwrite each other when coming from different folders. use indexes after the filename to make sure they are distinctive in the filename. reuse files that have the same content, verify it by using an md5 hash, for large files limit the md5 hash to the first megabyte. this code has been in the codebase before, maybe you can reuse it.
+
 - [ ] OPEN BUGS:
 - files included with !!!include(root/include-2.md)!!! are not updated automatically when they are changed externally. it seems to work with a path that has ./ in front of it.
 - files included with !!!include(./folder%20with%20space/include-1.md)!!! or !!!include(folder%20with%20space/include-2.md)!!! are not found/loaded.

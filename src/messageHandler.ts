@@ -7,6 +7,7 @@ import { ExternalFileWatcher } from './externalFileWatcher';
 import { configService } from './configurationService';
 import { ExportService } from './exportService';
 import { getFileStateManager } from './fileStateManager';
+import { PathResolver } from './services/PathResolver';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -837,7 +838,7 @@ export class MessageHandler {
                 const document = this._fileManager.getDocument();
                 if (document) {
                     const currentDir = path.dirname(document.uri.fsPath);
-                    absolutePath = path.resolve(currentDir, filePath);
+                    absolutePath = PathResolver.resolve(currentDir, filePath);
                 } else {
                     console.error('[MessageHandler] Cannot resolve relative path - no current document');
                     return;
@@ -1601,7 +1602,7 @@ export class MessageHandler {
             }
 
             const basePath = path.dirname(document.uri.fsPath);
-            const absolutePath = path.resolve(basePath, filePath);
+            const absolutePath = PathResolver.resolve(basePath, filePath);
 
 
             // Read the file content
@@ -1674,7 +1675,7 @@ export class MessageHandler {
                 const currentDocument = this._fileManager.getDocument();
                 if (currentDocument) {
                     const basePath = path.dirname(currentDocument.uri.fsPath);
-                    includeFile.absolutePath = path.resolve(basePath, filePath);
+                    includeFile.absolutePath = PathResolver.resolve(basePath, filePath);
                 }
             }
 
@@ -1795,9 +1796,37 @@ export class MessageHandler {
 
     private async handleGetExportDefaultFolder(): Promise<void> {
         try {
-            const document = this._fileManager.getDocument();
+            let document = this._fileManager.getDocument();
+            console.log('[kanban.messageHandler.getExportDefaultFolder] FileManager document:', document ? document.uri.fsPath : 'null');
+
+            // If document not available from FileManager, try to get the file path and open it
             if (!document) {
-                console.error('No document available for export');
+                const filePath = this._fileManager.getFilePath();
+                console.log('[kanban.messageHandler.getExportDefaultFolder] FileManager filePath:', filePath || 'null');
+
+                if (filePath) {
+                    // Open the document using the file path
+                    try {
+                        document = await vscode.workspace.openTextDocument(filePath);
+                        console.log('[kanban.messageHandler.getExportDefaultFolder] Opened document from file path');
+                    } catch (error) {
+                        console.error('[kanban.messageHandler.getExportDefaultFolder] Failed to open document from file path:', error);
+                    }
+                }
+
+                // If still no document, try active editor as last resort
+                if (!document) {
+                    const activeEditor = vscode.window.activeTextEditor;
+                    console.log('[kanban.messageHandler.getExportDefaultFolder] Active editor:', activeEditor ? activeEditor.document.fileName : 'null');
+                    if (activeEditor && activeEditor.document.fileName.endsWith('.md')) {
+                        document = activeEditor.document;
+                        console.log('[kanban.messageHandler.getExportDefaultFolder] Using active editor document as fallback');
+                    }
+                }
+            }
+
+            if (!document) {
+                console.error('[kanban.messageHandler.getExportDefaultFolder] No document available for export');
                 return;
             }
 
@@ -1810,7 +1839,7 @@ export class MessageHandler {
                 });
             }
         } catch (error) {
-            console.error('Error getting export default folder:', error);
+            console.error('[kanban.messageHandler.getExportDefaultFolder] Error:', error);
         }
     }
 

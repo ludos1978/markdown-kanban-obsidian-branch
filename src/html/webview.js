@@ -752,20 +752,16 @@ function createFileMarkdownLink(filePath) {
 
     if (imageExtensions.includes(extension)) {
         // Image: ![](path) - use URL encoding for spaces and special characters
-        const safePath = (typeof escapeFilePath === 'function') ? escapeFilePath(filePath) : filePath;
+        const safePath = escapeFilePath(filePath);
         return `![](${safePath})`;
     } else if (markdownExtensions.includes(extension)) {
-        // Markdown: [[filename]] - wiki links don't use URL encoding
-        const wikiPath = (typeof ValidationUtils !== 'undefined' && ValidationUtils.escapeWikiLinkPath)
-            ? ValidationUtils.escapeWikiLinkPath(filePath)
-            : filePath;
+        // Markdown: [[filename]] - wiki links don't use URL encoding, just escape special chars
         if (filePath.includes('/') || filePath.includes('\\')) {
+            const wikiPath = ValidationUtils.escapeWikiLinkPath(filePath);
             return `[[${wikiPath}]]`;
         } else {
             // For simple filenames, also use wiki link escaping
-            const wikiFileName = (typeof ValidationUtils !== 'undefined' && ValidationUtils.escapeWikiLinkPath)
-                ? ValidationUtils.escapeWikiLinkPath(fileName)
-                : fileName;
+            const wikiFileName = ValidationUtils.escapeWikiLinkPath(fileName);
             return `[[${wikiFileName}]]`;
         }
     } else if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
@@ -773,7 +769,7 @@ function createFileMarkdownLink(filePath) {
         return `<${filePath}>`;
     } else {
         // Other files: [filename](path) - use URL encoding
-        const safePath = (typeof escapeFilePath === 'function') ? escapeFilePath(filePath) : filePath;
+        const safePath = escapeFilePath(filePath);
         const baseName = fileName.replace(/\.[^/.]+$/, "");
         return `[${baseName}](${safePath})`;
     }
@@ -2437,7 +2433,8 @@ window.addEventListener('message', event => {
             if (message.success) {
                 // Create a new task with the image filename as title and markdown link as description
                 const imageFileName = message.relativePath.split('/').pop().replace(/\.[^/.]+$/, ''); // Remove extension
-                const markdownLink = `![](${message.relativePath})`;
+                const safePath = escapeFilePath(message.relativePath);
+                const markdownLink = `![](${safePath})`;
 
                 createNewTaskWithContent(
                     imageFileName,
@@ -3344,14 +3341,8 @@ function insertFileLink(fileInfo) {
     let activeEditor = getActiveTextEditor();
     
 
-    // Create markdown link with ORIGINAL relative path
-    let markdownLink;
-    if (isImage) {
-        const altText = fileName.split('.')[0];
-        markdownLink = `![${altText}](${relativePath})`;
-    } else {
-        markdownLink = `[${fileName}](${relativePath})`;
-    }
+    // Create markdown link using unified function
+    const markdownLink = createFileMarkdownLink(relativePath);
     
     if (activeEditor && activeEditor.element && 
         document.contains(activeEditor.element) && 

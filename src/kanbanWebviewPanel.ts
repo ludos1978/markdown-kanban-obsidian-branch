@@ -597,14 +597,12 @@ export class KanbanWebviewPanel {
 
     /**
      * Normalize include path for consistent storage/lookup
-     * Handles URL decoding and adds ./ prefix
+     * PathResolver.normalize() handles URL decoding and adds ./ prefix
      */
     private _normalizeIncludePath(relativePath: string): string {
         if (!relativePath) return '';
-        // Decode URL encoding (e.g., %20 to space)
-        const decoded = decodeURIComponent(relativePath);
-        // Add ./ prefix if not present
-        return PathResolver.normalize(decoded);
+        // PathResolver.normalize() now handles URL decoding internally
+        return PathResolver.normalize(relativePath);
     }
 
     /**

@@ -1,5 +1,6 @@
 import { IdGenerator } from './utils/idGenerator';
 import { PresentationParser } from './presentationParser';
+import { PathResolver } from './services/PathResolver';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -161,7 +162,7 @@ export class MarkdownKanbanParser {
             // Generate tasks from included files
             const includeTasks: KanbanTask[] = [];
             for (const filePath of includeFiles) {
-              const resolvedPath = basePath ? path.resolve(basePath, filePath) : filePath;
+              const resolvedPath = basePath ? PathResolver.resolve(basePath, filePath) : filePath;
               try {
                 if (fs.existsSync(resolvedPath)) {
                   const fileContent = fs.readFileSync(resolvedPath, 'utf8');
@@ -295,7 +296,7 @@ export class MarkdownKanbanParser {
           let includeDescription = '';
 
           for (const filePath of includeFiles) {
-            const resolvedPath = basePath ? path.resolve(basePath, filePath) : filePath;
+            const resolvedPath = basePath ? PathResolver.resolve(basePath, filePath) : filePath;
             try {
               if (fs.existsSync(resolvedPath)) {
                 const fileContent = fs.readFileSync(resolvedPath, 'utf8');
