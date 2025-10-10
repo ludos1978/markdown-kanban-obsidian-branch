@@ -1374,16 +1374,6 @@ function renderBoard() {
             return a.index - b.index;
         });
 
-    // Debug: Log column ordering
-    console.log('[renderBoard] Original column order:');
-    window.cachedBoard.columns.forEach((col, idx) => {
-        console.log(`  [${idx}] "${col.title}" -> row ${getColumnRow(col.title)}`);
-    });
-    console.log('[renderBoard] Sorted column order:');
-    sortedColumns.forEach((item, idx) => {
-        console.log(`  [${idx}] "${item.column.title}" -> row ${item.row} (orig index: ${item.index})`);
-    });
-
     // Group sorted columns by row
     const columnsByRow = {};
     for (let row = 1; row <= numRows; row++) {
