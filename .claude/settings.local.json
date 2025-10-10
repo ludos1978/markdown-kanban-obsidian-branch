@@ -43,7 +43,8 @@
       "Bash(git diff:*)",
       "Bash(open:*)",
       "Bash(npm test:*)",
-      "Bash(md5:*)"
+      "Bash(md5:*)",
+      "Bash(xargs ls:*)"
     ],
     "deny": [],
     "ask": []

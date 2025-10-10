@@ -76,7 +76,9 @@ export class ExportService {
 
     // Include patterns for different include types
     private static readonly INCLUDE_PATTERN = /!!!include\s*\(([^)]+)\)\s*!!!/g;
-    private static readonly TASK_INCLUDE_PATTERN = /!!!taskinclude\s*\(([^)]+)\)\s*!!!/g;
+    // For taskinclude, match the entire task line including the checkbox prefix
+    // This prevents checkbox duplication when replacing with converted content
+    private static readonly TASK_INCLUDE_PATTERN = /^(\s*)-\s*\[\s*\]\s*!!!taskinclude\s*\(([^)]+)\)\s*!!!/gm;
     private static readonly COLUMN_INCLUDE_PATTERN = /!!!columninclude\s*\(([^)]+)\)\s*!!!/g;
 
     // Track MD5 hashes to detect duplicates
@@ -398,23 +400,26 @@ export class ExportService {
         const includePatterns = [
             {
                 pattern: this.INCLUDE_PATTERN,
-                replacement: (filename: string) => `!!!include(${filename})!!!`,
-                shouldWriteSeparateFile: !mergeIncludes
+                replacement: (filename: string, indentation: string = '') => `!!!include(${filename})!!!`,
+                shouldWriteSeparateFile: !mergeIncludes,
+                isTaskInclude: false
             },
             {
                 pattern: this.TASK_INCLUDE_PATTERN,
-                replacement: (filename: string) => `!!!taskinclude(${filename})!!!`,
-                shouldWriteSeparateFile: !mergeIncludes
+                replacement: (filename: string, indentation: string = '') => `${indentation}- [ ] !!!taskinclude(${filename})!!!`,
+                shouldWriteSeparateFile: !mergeIncludes,
+                isTaskInclude: true
             },
             {
                 pattern: this.COLUMN_INCLUDE_PATTERN,
-                replacement: (filename: string) => `!!!columninclude(${filename})!!!`,
-                shouldWriteSeparateFile: !mergeIncludes
+                replacement: (filename: string, indentation: string = '') => `!!!columninclude(${filename})!!!`,
+                shouldWriteSeparateFile: !mergeIncludes,
+                isTaskInclude: false
             }
         ];
 
         // Process each include pattern
-        for (const { pattern, replacement, shouldWriteSeparateFile } of includePatterns) {
+        for (const { pattern, replacement, shouldWriteSeparateFile, isTaskInclude } of includePatterns) {
             const regex = new RegExp(pattern.source, pattern.flags);
             console.log(`[kanban.exportService.processIncludedFiles] Searching with pattern: ${pattern.source}`);
 
@@ -429,7 +434,12 @@ export class ExportService {
             for (let i = matches.length - 1; i >= 0; i--) {
                 match = matches[i];
                 console.log(`[kanban.exportService.processIncludedFiles] Found match: ${match[0]}`);
-                const includePath = match[1].trim();
+
+                // For taskinclude pattern, match[1] is indentation, match[2] is path
+                // For other patterns, match[1] is path
+                const indentation = isTaskInclude ? match[1] : '';
+                const includePath = (isTaskInclude ? match[2] : match[1]).trim();
+
                 console.log(`[kanban.exportService.processIncludedFiles]   includePath: "${includePath}"`);
                 // PathResolver.resolve() handles URL decoding
                 const resolvedPath = PathResolver.resolve(sourceDir, includePath);
@@ -550,16 +560,25 @@ export class ExportService {
                         // Update the marker to reference the exported file
                         processedContent = processedContent.replace(
                             match[0],
-                            replacement(exportedRelativePath)
+                            replacement(exportedRelativePath, indentation)
                         );
                     } else {
                         // Mode: Merge includes into main file
                         // Replace the marker with the actual content
                         console.log(`[kanban.exportService.processIncludedFiles]   Merging content inline (${exportedContent.length} chars)`);
                         console.log(`[kanban.exportService.processIncludedFiles]   First 200 chars: ${exportedContent.substring(0, 200)}`);
+
+                        // For taskinclude, apply indentation to each line of merged content
+                        let contentToInsert = exportedContent;
+                        if (isTaskInclude && indentation) {
+                            contentToInsert = exportedContent.split('\n')
+                                .map(line => line ? indentation + line : line)
+                                .join('\n');
+                        }
+
                         processedContent = processedContent.replace(
                             match[0],
-                            exportedContent
+                            contentToInsert
                         );
                     }
                 }
@@ -1232,7 +1251,9 @@ export class ExportService {
             // Convert remaining slides to tasks
             const tasks = PresentationParser.slidesToTasks(slides.slice(1));
             for (const task of tasks) {
-                kanbanContent += `- [ ] ${task.title}\n`;
+                // Remove any existing checkbox from title to avoid duplication
+                const cleanTitle = task.title.replace(/^-\s*\[\s*\]\s*/, '').trim();
+                kanbanContent += `- [ ] ${cleanTitle}\n`;
                 if (task.description) {
                     // Indent description lines
                     const descLines = task.description.split('\n');
