@@ -4213,8 +4213,8 @@ s {
 .included-content-inline {
     /* Inline included content should blend seamlessly */
     display: block;
-    border-top: 1px solid gray;
-    border-bottom: 1px solid gray;
+    border-top: 1px dashed gray;
+    border-bottom: 1px dashed gray;
     position: relative;
     padding-right: 25px; /* Make room for the icon in top-right */
     padding-top: 5px;

@@ -79,7 +79,9 @@ export class ExportService {
     // For taskinclude, match the entire task line including the checkbox prefix
     // This prevents checkbox duplication when replacing with converted content
     private static readonly TASK_INCLUDE_PATTERN = /^(\s*)-\s*\[\s*\]\s*!!!taskinclude\s*\(([^)]+)\)\s*!!!/gm;
-    private static readonly COLUMN_INCLUDE_PATTERN = /!!!columninclude\s*\(([^)]+)\)\s*!!!/g;
+    // For columninclude, match the entire column header line
+    // Captures: prefix title, file path, and suffix (tags/other content)
+    private static readonly COLUMN_INCLUDE_PATTERN = /^##\s+(.*?)!!!columninclude\s*\(([^)]+)\)\s*!!!(.*?)$/gm;
 
     // Track MD5 hashes to detect duplicates
     private static fileHashMap = new Map<string, string>();
@@ -400,26 +402,26 @@ export class ExportService {
         const includePatterns = [
             {
                 pattern: this.INCLUDE_PATTERN,
-                replacement: (filename: string, indentation: string = '') => `!!!include(${filename})!!!`,
+                replacement: (filename: string, prefixTitle: string = '', suffix: string = '') => `!!!include(${filename})!!!`,
                 shouldWriteSeparateFile: !mergeIncludes,
-                isTaskInclude: false
+                includeType: 'include'
             },
             {
                 pattern: this.TASK_INCLUDE_PATTERN,
-                replacement: (filename: string, indentation: string = '') => `${indentation}- [ ] !!!taskinclude(${filename})!!!`,
+                replacement: (filename: string, prefixTitle: string = '', suffix: string = '') => `${prefixTitle}- [ ] !!!taskinclude(${filename})!!!`,
                 shouldWriteSeparateFile: !mergeIncludes,
-                isTaskInclude: true
+                includeType: 'taskinclude'
             },
             {
                 pattern: this.COLUMN_INCLUDE_PATTERN,
-                replacement: (filename: string, indentation: string = '') => `!!!columninclude(${filename})!!!`,
+                replacement: (filename: string, prefixTitle: string = '', suffix: string = '') => `## ${prefixTitle}!!!columninclude(${filename})!!!${suffix}`,
                 shouldWriteSeparateFile: !mergeIncludes,
-                isTaskInclude: false
+                includeType: 'columninclude'
             }
         ];
 
         // Process each include pattern
-        for (const { pattern, replacement, shouldWriteSeparateFile, isTaskInclude } of includePatterns) {
+        for (const { pattern, replacement, shouldWriteSeparateFile, includeType } of includePatterns) {
             const regex = new RegExp(pattern.source, pattern.flags);
             console.log(`[kanban.exportService.processIncludedFiles] Searching with pattern: ${pattern.source}`);
 
@@ -435,10 +437,24 @@ export class ExportService {
                 match = matches[i];
                 console.log(`[kanban.exportService.processIncludedFiles] Found match: ${match[0]}`);
 
-                // For taskinclude pattern, match[1] is indentation, match[2] is path
-                // For other patterns, match[1] is path
-                const indentation = isTaskInclude ? match[1] : '';
-                const includePath = (isTaskInclude ? match[2] : match[1]).trim();
+                // Extract data based on include type
+                // taskinclude: match[1]=indentation, match[2]=path
+                // columninclude: match[1]=prefixTitle, match[2]=path, match[3]=suffix
+                // include: match[1]=path
+                let prefixTitle = '';
+                let suffix = '';
+                let includePath = '';
+
+                if (includeType === 'taskinclude') {
+                    prefixTitle = match[1]; // indentation
+                    includePath = match[2].trim();
+                } else if (includeType === 'columninclude') {
+                    prefixTitle = match[1].trim();
+                    includePath = match[2].trim();
+                    suffix = match[3].trim();
+                } else {
+                    includePath = match[1].trim();
+                }
 
                 console.log(`[kanban.exportService.processIncludedFiles]   includePath: "${includePath}"`);
                 // PathResolver.resolve() handles URL decoding
@@ -560,7 +576,7 @@ export class ExportService {
                         // Update the marker to reference the exported file
                         processedContent = processedContent.replace(
                             match[0],
-                            replacement(exportedRelativePath, indentation)
+                            replacement(exportedRelativePath, prefixTitle, suffix)
                         );
                     } else {
                         // Mode: Merge includes into main file
@@ -568,12 +584,21 @@ export class ExportService {
                         console.log(`[kanban.exportService.processIncludedFiles]   Merging content inline (${exportedContent.length} chars)`);
                         console.log(`[kanban.exportService.processIncludedFiles]   First 200 chars: ${exportedContent.substring(0, 200)}`);
 
-                        // For taskinclude, apply indentation to each line of merged content
                         let contentToInsert = exportedContent;
-                        if (isTaskInclude && indentation) {
+
+                        // Handle different include types
+                        if (includeType === 'taskinclude' && prefixTitle) {
+                            // For taskinclude, apply indentation to each line of merged content
                             contentToInsert = exportedContent.split('\n')
-                                .map(line => line ? indentation + line : line)
+                                .map(line => line ? prefixTitle + line : line)
                                 .join('\n');
+                        } else if (includeType === 'columninclude') {
+                            // For columninclude, reconstruct the column header
+                            // Get filename from path
+                            const filename = path.basename(includePath);
+                            const reconstructedHeader = `## ${prefixTitle}${prefixTitle ? ' ' : ''}${filename}${suffix ? ' ' + suffix : ''}`;
+                            // Content should be tasks only (no ## header), so just prepend the header
+                            contentToInsert = `${reconstructedHeader}\n${exportedContent}`;
                         }
 
                         processedContent = processedContent.replace(
@@ -1241,19 +1266,15 @@ export class ExportService {
         const slides = PresentationParser.parsePresentation(presentationContent);
 
         if (isColumnInclude) {
-            // Convert slides to a kanban column
-            // First slide title becomes column title, rest become tasks
+            // Convert slides to tasks ONLY (no column header)
+            // The column header is reconstructed in processIncludedFiles using the prefix title, filename, and suffix
+            // All slides become tasks (including the first one)
             if (slides.length === 0) return '';
 
-            const columnTitle = slides[0].title || slides[0].content.split('\n')[0] || 'Column';
-            let kanbanContent = `## ${columnTitle}\n`;
-
-            // Convert remaining slides to tasks
-            const tasks = PresentationParser.slidesToTasks(slides.slice(1));
+            let kanbanContent = '';
+            const tasks = PresentationParser.slidesToTasks(slides);
             for (const task of tasks) {
-                // Remove any existing checkbox from title to avoid duplication
-                const cleanTitle = task.title.replace(/^-\s*\[\s*\]\s*/, '').trim();
-                kanbanContent += `- [ ] ${cleanTitle}\n`;
+                kanbanContent += `- [ ] ${task.title}\n`;
                 if (task.description) {
                     // Indent description lines
                     const descLines = task.description.split('\n');
@@ -1263,7 +1284,7 @@ export class ExportService {
                 }
             }
 
-            console.log(`[kanban.exportService.convertPresentationToKanban] Converted ${slides.length} slides to column with ${tasks.length} tasks`);
+            console.log(`[kanban.exportService.convertPresentationToKanban] Converted ${slides.length} slides to ${tasks.length} tasks (columninclude - no header)`);
             return kanbanContent;
 
         } else if (isTaskInclude) {
