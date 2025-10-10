@@ -452,11 +452,11 @@ export class BoardOperations {
     // Helper method to extract row number from column title
     public getColumnRow(column: KanbanColumn): number {
         if (!column.title) {return 1;}
-        
+
         const rowMatch = column.title.match(/#row(\d+)\b/i);
         if (rowMatch) {
             const rowNum = parseInt(rowMatch[1]);
-            return Math.min(Math.max(rowNum, 1), 4); // Clamp between 1 and 4
+            return Math.max(rowNum, 1); // No upper limit - support unlimited rows
         }
         return 1;
     }

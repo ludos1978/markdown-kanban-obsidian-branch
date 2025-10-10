@@ -1497,20 +1497,20 @@ function detectRowsFromBoard(board) {
         }
     });
 
-    return Math.min(maxRow, 6); // Cap at 6 rows
+    return maxRow; // No cap - support unlimited rows
 }
 
 // Function to get column row from title
 function getColumnRow(title) {
     if (!title) {return 1;}
-    
+
     // More comprehensive regex to find row tags
     const rowMatches = title.match(/#row(\d+)\b/gi);
     if (rowMatches && rowMatches.length > 0) {
         // Get the last match in case there are multiple (shouldn't happen, but just in case)
         const lastMatch = rowMatches[rowMatches.length - 1];
         const rowNum = parseInt(lastMatch.replace(/#row/i, ''));
-        return Math.min(Math.max(rowNum, 1), 6); // Ensure it's between 1 and 6
+        return Math.max(rowNum, 1); // No upper limit - support unlimited rows
     }
     return 1;
 }
