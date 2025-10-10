@@ -3,6 +3,7 @@
 ## Executive Summary
 
 This document outlines a complete redesign of the save/backup/export system to:
+
 - **Eliminate 80% of duplicate code** (8 file write locations → 1, 6 path resolvers → 1, 2 conversion systems → 1)
 - **Unify save/backup/export** into a single pipeline with configurable options
 - **Add "keep file formats" option** to preserve source formats during export
@@ -15,13 +16,13 @@ This document outlines a complete redesign of the save/backup/export system to:
 
 ### 1.1 Code Duplication Summary
 
-| Issue | Current | Target | Savings |
-|-------|---------|--------|---------|
-| File write locations | 8 places | 1 service | -7 duplicates |
-| Path resolution logic | 6 places | 1 utility | -5 duplicates |
-| Conversion functions | 8 functions | 3 functions | -5 functions |
-| Backup strategies | 3 different | 1 unified | -2 patterns |
-| Include processing | 3 places | 1 processor | -2 duplicates |
+| Issue                 | Current     | Target      | Savings       |
+| --------------------- | ----------- | ----------- | ------------- |
+| File write locations  | 8 places    | 1 service   | -7 duplicates |
+| Path resolution logic | 6 places    | 1 utility   | -5 duplicates |
+| Conversion functions  | 8 functions | 3 functions | -5 functions  |
+| Backup strategies     | 3 different | 1 unified   | -2 patterns   |
+| Include processing    | 3 places    | 1 processor | -2 duplicates |
 
 **Total estimated reduction:** ~2,000 lines of code
 
@@ -40,6 +41,7 @@ This document outlines a complete redesign of the save/backup/export system to:
 ### 2.1 Core Concept
 
 **Single Pipeline Approach:**
+
 ```
 Source Content
     ↓
@@ -91,6 +93,7 @@ Output Files
 ### 2.3 New Services
 
 #### A. **ContentPipelineService** (Core Orchestrator)
+
 ```typescript
 class ContentPipelineService {
     async process(options: PipelineOptions): Promise<PipelineResult> {
@@ -136,6 +139,7 @@ class ContentPipelineService {
 ```
 
 #### B. **FormatConverter** (Unified Conversion)
+
 ```typescript
 class FormatConverter {
     // Main conversion method
@@ -216,6 +220,7 @@ class FormatConverter {
 ```
 
 #### C. **FileWriter** (Unified File Operations)
+
 ```typescript
 class FileWriter {
     async write(
@@ -262,6 +267,7 @@ class FileWriter {
 ```
 
 #### D. **PathResolver** (Unified Path Logic)
+
 ```typescript
 class PathResolver {
     // Replaces 6 path resolution patterns
@@ -289,6 +295,7 @@ class PathResolver {
 ```
 
 #### E. **IncludeProcessor** (Simplified)
+
 ```typescript
 class IncludeProcessor {
     async process(
@@ -350,6 +357,7 @@ type FormatStrategy =
 ### 3.2 How "Keep" Works
 
 When `type: 'keep'`:
+
 - No format conversion happens
 - Each file maintains its source format
 - Presentation includes stay as presentation
@@ -357,6 +365,7 @@ When `type: 'keep'`:
 - Main file format is preserved
 
 **Example:**
+
 ```
 Main file: kanban format
   ├─ Column include: presentation format
@@ -371,11 +380,13 @@ Export with "keep":
 ### 3.3 How "Convert All" Works
 
 When `type: 'kanban'` or `type: 'presentation'`:
+
 - ALL files are converted to target format
 - Includes are converted before merging (if merge mode)
 - Output is uniform format
 
 **Example:**
+
 ```
 Main file: kanban format
   ├─ Column include: presentation format
@@ -392,6 +403,7 @@ Export with "presentation" + merge:
 ### 4.1 Current Problem
 
 **Split structure:**
+
 ```typescript
 interface KanbanTask {
     title: string;           // First line only
@@ -404,6 +416,7 @@ interface KanbanTask {
 ### 4.2 Proposed Solution
 
 **Unified structure:**
+
 ```typescript
 interface KanbanTask {
     content: string;         // Full markdown content (unified)
@@ -417,6 +430,7 @@ interface KanbanTask {
 ```
 
 **Display title derivation:**
+
 ```typescript
 class TaskRenderer {
     getDisplayTitle(task: KanbanTask): string {
@@ -546,13 +560,13 @@ class OperationDefaults {
 
 ### 6.1 Functions to Remove
 
-| Function | Location | Reason | Replaced By |
-|----------|----------|--------|-------------|
-| `tasksToPresentation` | presentationParser.ts:100 | Duplicate | `FormatConverter.toPresentation()` |
-| `convertToPresentationFormat` | exportService.ts:1233 | Duplicate | `FormatConverter.toPresentation()` |
-| `slidesToTasks` | presentationParser.ts:80 | Duplicate | `FormatConverter.toKanban()` |
-| `convertPresentationToKanban` | exportService.ts:1164 | Duplicate | `FormatConverter.toKanban()` |
-| `parseMarkdownToTasks` | presentationParser.ts:130 | Wrapper | Direct call to `FormatConverter` |
+| Function                        | Location                  | Reason    | Replaced By                          |
+| ------------------------------- | ------------------------- | --------- | ------------------------------------ |
+| `tasksToPresentation`         | presentationParser.ts:100 | Duplicate | `FormatConverter.toPresentation()` |
+| `convertToPresentationFormat` | exportService.ts:1233     | Duplicate | `FormatConverter.toPresentation()` |
+| `slidesToTasks`               | presentationParser.ts:80  | Duplicate | `FormatConverter.toKanban()`       |
+| `convertPresentationToKanban` | exportService.ts:1164     | Duplicate | `FormatConverter.toKanban()`       |
+| `parseMarkdownToTasks`        | presentationParser.ts:130 | Wrapper   | Direct call to `FormatConverter`   |
 
 **Total:** 5 functions removed (~250 lines)
 
@@ -560,14 +574,14 @@ class OperationDefaults {
 
 All 8 `fs.writeFileSync` calls replaced by `FileWriter.write()`:
 
-| Location | Function | Lines Removed |
-|----------|----------|---------------|
-| kanbanWebviewPanel.ts:2772 | saveColumnIncludeChanges | ~20 |
-| kanbanWebviewPanel.ts:3006 | saveTaskIncludeChanges | ~20 |
-| exportService.ts:165 | exportWithAssets | ~15 |
-| exportService.ts:278 | exportColumn | ~15 |
-| exportService.ts:493 | processIncludedFiles | ~10 |
-| exportService.ts:1477 | exportUnified | ~15 |
+| Location                   | Function                 | Lines Removed |
+| -------------------------- | ------------------------ | ------------- |
+| kanbanWebviewPanel.ts:2772 | saveColumnIncludeChanges | ~20           |
+| kanbanWebviewPanel.ts:3006 | saveTaskIncludeChanges   | ~20           |
+| exportService.ts:165       | exportWithAssets         | ~15           |
+| exportService.ts:278       | exportColumn             | ~15           |
+| exportService.ts:493       | processIncludedFiles     | ~10           |
+| exportService.ts:1477      | exportUnified            | ~15           |
 
 **Total:** ~95 lines removed
 
@@ -575,13 +589,13 @@ All 8 `fs.writeFileSync` calls replaced by `FileWriter.write()`:
 
 All 6 path resolution patterns replaced by `PathResolver`:
 
-| Location | Pattern | Lines |
-|----------|---------|-------|
-| kanbanWebviewPanel.ts:2659 | `path.resolve` | ~5 |
-| kanbanWebviewPanel.ts:2950 | `path.resolve` | ~5 |
-| exportService.ts:424 | `path.resolve` + normalize | ~8 |
-| markdownParser.ts:164 | `path.resolve` + normalize | ~10 |
-| markdownParser.ts:298 | `path.resolve` + normalize | ~10 |
+| Location                   | Pattern                      | Lines |
+| -------------------------- | ---------------------------- | ----- |
+| kanbanWebviewPanel.ts:2659 | `path.resolve`             | ~5    |
+| kanbanWebviewPanel.ts:2950 | `path.resolve`             | ~5    |
+| exportService.ts:424       | `path.resolve` + normalize | ~8    |
+| markdownParser.ts:164      | `path.resolve` + normalize | ~10   |
+| markdownParser.ts:298      | `path.resolve` + normalize | ~10   |
 
 **Total:** ~38 lines removed
 
@@ -593,14 +607,14 @@ Current `processIncludedFiles` (~140 lines) → New `IncludeProcessor` (~60 line
 
 ### 6.5 Total Code Reduction
 
-| Category | Lines Removed |
-|----------|---------------|
-| Conversion functions | ~250 |
-| File write operations | ~95 |
-| Path resolution | ~38 |
-| Include processing | ~80 |
-| Backup duplication | ~50 |
-| **TOTAL** | **~513 lines** |
+| Category              | Lines Removed        |
+| --------------------- | -------------------- |
+| Conversion functions  | ~250                 |
+| File write operations | ~95                  |
+| Path resolution       | ~38                  |
+| Include processing    | ~80                  |
+| Backup duplication    | ~50                  |
+| **TOTAL**       | **~513 lines** |
 
 Additional simplification from unified architecture: ~500 lines
 
@@ -620,6 +634,7 @@ Additional simplification from unified architecture: ~500 lines
 4. Add tests for each
 
 **Success criteria:**
+
 - All tests pass
 - New services work independently
 - Old code still functional
@@ -634,6 +649,7 @@ Additional simplification from unified architecture: ~500 lines
 4. Create `OperationOptions` system
 
 **Success criteria:**
+
 - Pipeline can handle full export
 - All options work correctly
 - Performance is acceptable
@@ -648,6 +664,7 @@ Additional simplification from unified architecture: ~500 lines
 4. Remove old save code
 
 **Success criteria:**
+
 - All saves work through pipeline
 - Backups still work
 - Include tracking works
@@ -661,6 +678,7 @@ Additional simplification from unified architecture: ~500 lines
 3. Update UI to use new options
 
 **Success criteria:**
+
 - All export scopes work
 - All format options work
 - Asset packing works
@@ -675,6 +693,7 @@ Additional simplification from unified architecture: ~500 lines
 4. Update all imports
 
 **Success criteria:**
+
 - No duplicate code remains
 - All tests pass
 - Codebase is smaller
@@ -686,6 +705,7 @@ Additional simplification from unified architecture: ~500 lines
 ### 8.1 Export Dialog Enhancement
 
 **Add format option:**
+
 ```
 ┌─────────────────────────────────────┐
 │ Export Kanban Board                 │
@@ -715,6 +735,7 @@ Additional simplification from unified architecture: ~500 lines
 ### 8.2 Save Options (Simplified)
 
 Save always uses:
+
 - Scope: Full
 - Format: Keep source formats
 - Includes: Separate files
@@ -802,12 +823,12 @@ No UI needed - just "Save" button.
 
 ### 11.1 Risks
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Breaking existing saves | HIGH | Phase migration, keep old code until tested |
-| Performance degradation | MEDIUM | Benchmark before/after, optimize if needed |
-| Include handling bugs | HIGH | Comprehensive tests for all include types |
-| User confusion | LOW | Clear UI labels, good defaults |
+| Risk                    | Impact | Mitigation                                  |
+| ----------------------- | ------ | ------------------------------------------- |
+| Breaking existing saves | HIGH   | Phase migration, keep old code until tested |
+| Performance degradation | MEDIUM | Benchmark before/after, optimize if needed  |
+| Include handling bugs   | HIGH   | Comprehensive tests for all include types   |
+| User confusion          | LOW    | Clear UI labels, good defaults              |
 
 ### 11.2 Rollback Plan
 
@@ -855,6 +876,7 @@ No UI needed - just "Save" button.
 ### First Implementation
 
 Start with Phase 1 (Core Services):
+
 1. Implement `PathResolver`
 2. Add tests
 3. Use in one location to validate
@@ -867,6 +889,7 @@ Start with Phase 1 (Core Services):
 ### A.1 Using New Pipeline for Save
 
 **Before (kanbanWebviewPanel.ts):**
+
 ```typescript
 private async saveToMarkdown() {
     await this.saveAllColumnIncludeChanges();
@@ -878,6 +901,7 @@ private async saveToMarkdown() {
 ```
 
 **After:**
+
 ```typescript
 private async saveToMarkdown() {
     const options = OperationDefaults.forSave();
@@ -893,6 +917,7 @@ private async saveToMarkdown() {
 ### A.2 Using New Pipeline for Export
 
 **Before (exportService.ts):**
+
 ```typescript
 public static async exportUnified(doc, options) {
     const content = extractContent(...);
@@ -904,6 +929,7 @@ public static async exportUnified(doc, options) {
 ```
 
 **After:**
+
 ```typescript
 public static async exportUnified(doc, options) {
     return await this.contentPipeline.process({
@@ -991,6 +1017,7 @@ const result = await pipeline.process({
 ## Conclusion
 
 This architecture plan provides a clear path to:
+
 1. **Eliminate duplication** - reduce codebase by ~1,000 lines
 2. **Unify operations** - single pipeline for save/backup/export
 3. **Add flexibility** - new format options and better configuration

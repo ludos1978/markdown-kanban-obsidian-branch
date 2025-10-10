@@ -11,11 +11,11 @@ This checklist guides the testing and migration of the unified architecture befo
 ### PathResolver Integration Testing
 
 **Test: Include File Path Resolution**
-- [ ] Load a kanban file with `!!!include(./path/file.md)!!!`
-- [ ] Load a kanban file with `!!!include(path/file.md)!!!` (no ./)
-- [ ] Load a kanban file with URL-encoded paths
-- [ ] Verify all paths resolve correctly
-- [ ] Check that files are loaded properly
+- [x] Load a kanban file with `!!!include(./path/file.md)!!!`
+- [x] Load a kanban file with `!!!include(path/file.md)!!!` (no ./)
+- [x] Load a kanban file with URL-encoded paths
+- [x] Verify all paths resolve correctly
+- [x] Check that files are loaded properly
 
 **Test: Column Include Paths**
 - [ ] Create column with `!!!columninclude(./slides.md)!!!`
