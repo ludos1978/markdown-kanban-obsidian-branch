@@ -4,100 +4,56 @@ kanban-plugin: board
 
 ---
 
-## ## Title
+## #todo
 
-## In Progress #inprogress #feature #stack
-- [ ] # h1 #blue
-- [ ] ## h2 #cyan
-- [ ] ### h3 #green
-- [ ] #### h4 #yellow
-- [ ] ##### h5 #orange
-- [ ] ###### h6 #red
-- [ ] ####### h7  #lime
+## #inprogress #stack
 
-## Review #review #stack
-- [ ] #teal
-- [ ] #indigo
-- [ ] #lime
-- [ ] #amber
+## #done #stack
 
-## TODO #todo
+## #transferred #stack
 
-## #blocked #stack
+## #blocked
+
+## #stack #review
 
 ## #testing #stack
 
 ## #wip #stack
 
-## #done #stack
+## #urgent #row2
 
-## #review #stack
-- [ ] test
+## #high #row2 #stack
 
-## # Title #row2
+## #medium #row2 #stack
 
-## #enhancement #row2
+## #low #row2
 
-## #feature #row2
+## #row2 #stack #delayed
 
-## Column A #bug #blocked #row2
-- [ ] #bug #research
-- [ ] #enhancement
-- [ ] #research
+## #row2 #stack #stopped
 
-## #blocked #row2
-- [ ] #orange
-- [ ] #purple
-- [ ] #pink
-- [ ] #brown
-- [ ] #gray
+## #bug #row3
 
-## #documentation #row2
+## #feature #row3 #stack
 
-## #research #row2
+## #enhancement #row3 #stack
 
-## #refactor #row2
+## #documentation #row3 #stack
 
-## #release #row2
-- [ ] test #feature
-- [ ] test #release #help #hotfix
+## #research #row3 #stack
 
-## #hotfix #row2
+## #refactor #row3 #stack
 
-## #epic #row2
+## #hotfix #row3
 
-## #spike #row2
+## #release #row3 #stack
 
-## #help #epic #release #row2
+## #epic #row3 #stack
 
-## #idea #row2
+## #spike #row3 #stack
 
-## # Title #row3
+## #help #row3 #stack
 
-## #low #row3 #stack
-
-## #urgent #row3 #stack
-
-## #medium #row3
-
-## #high #row3 #stack
-
-## # Title #row4
-
-## #ux #row4 #stack
-
-## #backend #row4 #stack
-
-## #security #row4 #stack
-
-## #database #row4
-
-## #ui #row4 #stack
-
-## #frontend #row4 #stack
-
-## #api #row4 #stack
-
-## #performance #row4 #stack
+## #idea #row3 #stack
 
 
