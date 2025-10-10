@@ -28,6 +28,21 @@ function getEditorBackground() {
     return cachedEditorBg;
 }
 
+/**
+ * Gets the column ID for any element by traversing up the DOM tree
+ * This avoids storing redundant data-column-id on task elements
+ * @param {HTMLElement} element - Any element within a column
+ * @returns {string|null} The column ID, or null if not found
+ */
+function getColumnIdFromElement(element) {
+    if (!element) return null;
+    const columnElement = element.closest('.kanban-full-height-column');
+    return columnElement?.dataset.columnId || null;
+}
+
+// Make it globally accessible
+window.getColumnIdFromElement = getColumnIdFromElement;
+
 // extractFirstTag function now in utils/tagUtils.js
 
 
@@ -1194,7 +1209,7 @@ function renderBoard() {
 
     // Apply tag styles first
     applyTagStyles();
-    
+
     // Check if we're currently editing - if so, skip the render
     if (window.taskEditor && window.taskEditor.currentEditor) {
         return;
@@ -1902,9 +1917,8 @@ function createTaskElement(task, columnId, taskIndex) {
     const footerBarsHtml = footerBarsData.html || '';
     
     return `
-        <div class="${['task-item', isCollapsed ? 'collapsed' : '', headerClasses || '', footerClasses || ''].filter(cls => cls && cls.trim()).join(' ')}" 
-             data-task-id="${task.id}" 
-             data-column-id="${columnId}" 
+        <div class="${['task-item', isCollapsed ? 'collapsed' : '', headerClasses || '', footerClasses || ''].filter(cls => cls && cls.trim()).join(' ')}"
+             data-task-id="${task.id}"
              data-task-index="${taskIndex}"${tagAttribute}${allTagsAttribute}
              style="${paddingTopStyle} ${paddingBottomStyle}">
             ${headerBarsHtml}
@@ -1914,11 +1928,9 @@ function createTaskElement(task, columnId, taskIndex) {
                 <span class="task-collapse-toggle ${isCollapsed ? 'rotated' : ''}" onclick="toggleTaskCollapse('${task.id}'); updateFoldAllButton('${columnId}')">▶</span>
                 <div class="task-title-container" onclick="handleTaskTitleClick(event, this, '${task.id}', '${columnId}')">
                 <div class="task-title-display markdown-content"
-                            data-task-id="${task.id}"
-                            data-column-id="${columnId}">${renderedTitle}</div>
-                    <textarea class="task-title-edit" 
-                                data-task-id="${task.id}" 
-                                data-column-id="${columnId}"
+                            data-task-id="${task.id}">${renderedTitle}</div>
+                    <textarea class="task-title-edit"
+                                data-task-id="${task.id}"
                                 data-field="title"
                                 placeholder="Task title (Markdown supported)..."
                                 style="display: none;">${escapeHtml(task.title || '')}</textarea>
@@ -1933,10 +1945,10 @@ function createTaskElement(task, columnId, taskIndex) {
                             <div class="donut-menu-divider"></div>
                             <button class="donut-menu-item" onclick="copyTaskAsMarkdown('${task.id}', '${columnId}')">Copy as markdown</button>
                             <div class="donut-menu-divider"></div>
-                            <div class="donut-menu-item has-submenu" data-submenu-type="move" data-id="${task.id}" data-type="task" data-column-id="${columnId}">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="move" data-id="${task.id}" data-type="task">
                                 Move
                             </div>
-                            <div class="donut-menu-item has-submenu" data-submenu-type="move-to-list" data-id="${task.id}" data-type="task" data-column-id="${columnId}">
+                            <div class="donut-menu-item has-submenu" data-submenu-type="move-to-list" data-id="${task.id}" data-type="task">
                                 Move to list
                             </div>
                             <div class="donut-menu-divider"></div>
@@ -1957,11 +1969,9 @@ function createTaskElement(task, columnId, taskIndex) {
             <div class="task-description-container">
                 <div class="task-description-display markdown-content"
                         data-task-id="${task.id}"
-                        data-column-id="${columnId}"
                         onclick="handleDescriptionClick(event, this, '${task.id}', '${columnId}')">${renderedDescription}</div>
-                <textarea class="task-description-edit" 
-                            data-task-id="${task.id}" 
-                            data-column-id="${columnId}"
+                <textarea class="task-description-edit"
+                            data-task-id="${task.id}"
                             data-field="description"
                             placeholder="Add description (Markdown supported)..."
                             style="display: none;">${escapeHtml(getTaskEditContent(task))}</textarea>
@@ -2936,17 +2946,30 @@ function handleColumnTitleClick(event, columnId) {
     event.preventDefault();
     event.stopPropagation();
 
-    const column = document.querySelector(`[data-column-id="${columnId}"]`);
-    if (column && isColumnCollapsed(column)) {
+    // Use DOM traversal from clicked element - this is guaranteed to be the correct column
+    const columnElement = event.target.closest('.kanban-full-height-column');
+    if (!columnElement) {
+        console.error(`[handleColumnTitleClick] Could not find column element from click target`);
+        return;
+    }
+
+    // Get the actual column ID from the DOM element (source of truth)
+    const actualColumnId = columnElement.dataset.columnId;
+    if (actualColumnId !== columnId) {
+        console.warn(`[handleColumnTitleClick] Column ID mismatch - onclick: "${columnId}", DOM: "${actualColumnId}". Using DOM value.`);
+        columnId = actualColumnId; // Use the DOM value as source of truth
+    }
+
+    if (isColumnCollapsed(columnElement)) {
         // Unfold the column first
         toggleColumnCollapse(columnId);
         // Use a short delay to allow the unfold animation to start, then enter edit mode
         setTimeout(() => {
-            editColumnTitle(columnId);
+            editColumnTitle(columnId, columnElement);
         }, 50);
     } else {
         // Column is already unfolded, edit immediately
-        editColumnTitle(columnId);
+        editColumnTitle(columnId, columnElement);
     }
 }
 

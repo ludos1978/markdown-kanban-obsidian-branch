@@ -20,13 +20,13 @@ class SubmenuGenerator {
                 content = this.createTagGroupContent(group, id, type, columnId);
                 break;
             case 'move':
-                content = this.createMoveContent(menuItem.dataset.taskId || id, menuItem.dataset.columnId || columnId);
+                content = this.createMoveContent(menuItem.dataset.taskId || id, window.getColumnIdFromElement(menuItem) || columnId);
                 break;
             case 'move-to-list':
-                content = this.createMoveToListContent(menuItem.dataset.taskId || id, menuItem.dataset.columnId || columnId);
+                content = this.createMoveToListContent(menuItem.dataset.taskId || id, window.getColumnIdFromElement(menuItem) || columnId);
                 break;
             case 'sort':
-                content = this.createSortContent(menuItem.dataset.columnId || columnId);
+                content = this.createSortContent(window.getColumnIdFromElement(menuItem) || columnId);
                 break;
         }
         

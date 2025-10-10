@@ -499,7 +499,6 @@ class TaskEditor {
             if (column && column.title) {
                 // Always show full title in editor so users can see and edit tags
                 editElement.value = column.title;
-
                 // Store the original full title so we can reconstruct it properly when saving
                 editElement.setAttribute('data-original-title', column.title);
             }
@@ -540,7 +539,7 @@ class TaskEditor {
             displayElement: displayElement,
             type: type,
             taskId: taskId || editElement.dataset.taskId,
-            columnId: columnId || editElement.dataset.columnId,
+            columnId: columnId || window.getColumnIdFromElement(editElement),
             originalValue: editElement.value
         };
         
@@ -717,8 +716,9 @@ class TaskEditor {
 
     saveCurrentField() {
         if (!this.currentEditor) {return;}
-        
-        const { element, type, taskId, columnId } = this.currentEditor;
+
+        const { element, type, taskId } = this.currentEditor;
+        let columnId = this.currentEditor.columnId; // Don't destructure - we may need to update this
         const value = element.value;
 
         // Update local state for immediate feedback
@@ -887,9 +887,23 @@ class TaskEditor {
                     
                 }
             } else if (type === 'task-title' || type === 'task-description') {
-                const column = window.cachedBoard.columns.find(c => c.id === columnId);
-                const task = column?.tasks.find(t => t.id === taskId);
-                
+                let column = window.cachedBoard.columns.find(c => c.id === columnId);
+                let task = column?.tasks.find(t => t.id === taskId);
+
+                // If task not found in expected column, search all columns (task may have been moved)
+                if (!task) {
+                    for (const col of window.cachedBoard.columns) {
+                        task = col.tasks.find(t => t.id === taskId);
+                        if (task) {
+                            column = col;
+                            // Update BOTH the editor's reference AND the local variable
+                            this.currentEditor.columnId = column.id;
+                            columnId = column.id; // CRITICAL: Update local variable too!
+                            break;
+                        }
+                    }
+                }
+
                 if (task) {
                     // Capture original values before making changes
                     const originalTitle = task.title || '';
@@ -1394,17 +1408,25 @@ function editDescription(element, taskId, columnId) {
  * Purpose: Public API for starting column title edit
  * Used by: onclick handlers in column HTML
  * @param {string} columnId - Column ID to edit
+ * @param {HTMLElement} columnElement - Optional: The column DOM element (avoids searching)
  */
-function editColumnTitle(columnId) {
+function editColumnTitle(columnId, columnElement = null) {
     // Don't start editing if we're already editing this column
     if (taskEditor.currentEditor &&
         taskEditor.currentEditor.type === 'column-title' &&
         taskEditor.currentEditor.columnId === columnId) {
         return; // Already editing this column title
     }
-    const column = document.querySelector(`[data-column-id="${columnId}"]`);
-    if (column) {
-        taskEditor.startEdit(column, 'column-title', null, columnId);
+
+    // If column element not provided, find it using specific selector
+    if (!columnElement) {
+        columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
+    }
+
+    if (columnElement) {
+        taskEditor.startEdit(columnElement, 'column-title', null, columnId);
+    } else {
+        console.error(`[editColumnTitle] No column element found for columnId: "${columnId}"`);
     }
 }
 

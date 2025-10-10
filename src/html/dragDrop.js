@@ -1234,7 +1234,7 @@ function setupTaskDragHandle(handle) {
         if (taskItem) {
             e.stopPropagation();
             const taskId = taskItem.dataset.taskId;
-            const columnId = taskItem.dataset.columnId;
+            const columnId = window.getColumnIdFromElement(taskItem);
 
             // Store original position
             dragState.draggedTask = taskItem;
@@ -1300,11 +1300,11 @@ function setupTaskDragHandle(handle) {
                         const skipUnfold = dragState.altKeyPressed; // Skip unfolding if Alt key was pressed
                         unfoldColumnIfCollapsed(finalColumnId, skipUnfold);
                     }
-                    
+
                     // NEW CACHE SYSTEM: Update cached board directly
                     if (window.cachedBoard) {
                         const taskId = taskItem.dataset.taskId;
-                        
+
                         // SAVE UNDO STATE BEFORE MAKING CHANGES (for both same-column and cross-column moves)
                         vscode.postMessage({ 
                             type: 'saveUndoState', 

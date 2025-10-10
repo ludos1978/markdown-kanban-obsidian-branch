@@ -1511,40 +1511,67 @@ function toggleTaskIncludeMode(taskId, columnId) {
 }
 
 // Task operations
-function duplicateTask(taskId, columnId) {
-    // Close all menus properly
-    closeAllMenus();
-    
-    // Cache-first: Only update cached board, no automatic save
-    if (window.cachedBoard) {
-        const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
-        if (targetColumn) {
-            const originalTask = targetColumn.tasks.find(task => task.id === taskId);
-            if (originalTask) {
-                const duplicatedTask = {
-                    id: `temp-duplicate-${Date.now()}`,
-                    title: originalTask.title,
-                    description: originalTask.description
-                };
-                
-                // Insert after the original task
-                const originalIndex = targetColumn.tasks.findIndex(task => task.id === taskId);
-                updateCacheForNewTask(columnId, duplicatedTask, originalIndex + 1);
+/**
+ * Helper function to find a task in the board, handling stale column IDs
+ * Searches the expected column first, then all columns if not found
+ * @param {string} taskId - Task ID to find
+ * @param {string} expectedColumnId - Column ID from DOM (may be stale)
+ * @returns {{task: object, column: object, columnId: string} | null}
+ */
+function findTaskInBoard(taskId, expectedColumnId) {
+    if (!window.cachedBoard) return null;
+
+    // Try expected column first
+    let column = window.cachedBoard.columns.find(c => c.id === expectedColumnId);
+    let task = column?.tasks.find(t => t.id === taskId);
+
+    // If not found, search all columns (task may have been moved)
+    if (!task) {
+        for (const col of window.cachedBoard.columns) {
+            task = col.tasks.find(t => t.id === taskId);
+            if (task) {
+                column = col;
+                break;
             }
         }
     }
-    
+
+    return task && column ? { task, column, columnId: column.id } : null;
+}
+
+function duplicateTask(taskId, columnId) {
+    // Close all menus properly
+    closeAllMenus();
+
+    // Cache-first: Only update cached board, no automatic save
+    if (window.cachedBoard) {
+        const found = findTaskInBoard(taskId, columnId);
+        if (found) {
+            const { task: originalTask, column: targetColumn, columnId: actualColumnId } = found;
+            const duplicatedTask = {
+                id: `temp-duplicate-${Date.now()}`,
+                title: originalTask.title,
+                description: originalTask.description
+            };
+
+            // Insert after the original task
+            const originalIndex = targetColumn.tasks.findIndex(task => task.id === taskId);
+            updateCacheForNewTask(actualColumnId, duplicatedTask, originalIndex + 1);
+        }
+    }
+
     // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 function insertTaskBefore(taskId, columnId) {
     // Close all menus properly
     closeAllMenus();
-    
+
     // Cache-first: Only update cached board, no automatic save
     if (window.cachedBoard) {
-        const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
-        if (targetColumn) {
+        const found = findTaskInBoard(taskId, columnId);
+        if (found) {
+            const { column: targetColumn, columnId: actualColumnId } = found;
             const targetIndex = targetColumn.tasks.findIndex(task => task.id === taskId);
             if (targetIndex >= 0) {
                 const newTask = {
@@ -1552,23 +1579,24 @@ function insertTaskBefore(taskId, columnId) {
                     title: '',
                     description: ''
                 };
-                
-                updateCacheForNewTask(columnId, newTask, targetIndex);
+
+                updateCacheForNewTask(actualColumnId, newTask, targetIndex);
             }
         }
     }
-    
+
     // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 function insertTaskAfter(taskId, columnId) {
     // Close all menus properly
     closeAllMenus();
-    
+
     // Cache-first: Only update cached board, no automatic save
     if (window.cachedBoard) {
-        const targetColumn = window.cachedBoard.columns.find(col => col.id === columnId);
-        if (targetColumn) {
+        const found = findTaskInBoard(taskId, columnId);
+        if (found) {
+            const { column: targetColumn, columnId: actualColumnId } = found;
             const targetIndex = targetColumn.tasks.findIndex(task => task.id === taskId);
             if (targetIndex >= 0) {
                 const newTask = {
@@ -1576,131 +1604,135 @@ function insertTaskAfter(taskId, columnId) {
                     title: '',
                     description: ''
                 };
-                
-                updateCacheForNewTask(columnId, newTask, targetIndex + 1);
+
+                updateCacheForNewTask(actualColumnId, newTask, targetIndex + 1);
             }
         }
     }
-    
+
     // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 function moveTaskToTop(taskId, columnId) {
-    
+
     // NEW CACHE SYSTEM: Update cached board directly
     if (window.cachedBoard) {
-        const column = window.cachedBoard.columns.find(col => col.id === columnId);
-        if (column) {
+        const found = findTaskInBoard(taskId, columnId);
+        if (found) {
+            const { column } = found;
             const taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex > 0) {
                 const task = column.tasks.splice(taskIndex, 1)[0];
                 column.tasks.unshift(task);
-                
+
                 // Re-render UI to reflect changes
                 if (typeof renderBoard === 'function') {
                     renderBoard();
                 }
-                
+
                 markUnsavedChanges();
             }
         }
     }
-    
+
     // Cache-first: No automatic save, UI updated via cache update above
     // vscode.postMessage({ type: 'moveTaskToTop', taskId, columnId });
-    
+
     // Close all menus
     closeAllMenus();
-    
+
 }
 
 function moveTaskUp(taskId, columnId) {
-    
+
     // NEW CACHE SYSTEM: Update cached board directly
     if (window.cachedBoard) {
-        const column = window.cachedBoard.columns.find(col => col.id === columnId);
-        if (column) {
+        const found = findTaskInBoard(taskId, columnId);
+        if (found) {
+            const { column } = found;
             const taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex > 0) {
                 const task = column.tasks[taskIndex];
                 column.tasks[taskIndex] = column.tasks[taskIndex - 1];
                 column.tasks[taskIndex - 1] = task;
-                
+
                 // Re-render UI to reflect changes
                 if (typeof renderBoard === 'function') {
                     renderBoard();
                 }
-                
+
                 markUnsavedChanges();
             }
         }
     }
-    
+
     // Cache-first: No automatic save, UI updated via cache update above
     // vscode.postMessage({ type: 'moveTaskUp', taskId, columnId });
-    
+
     // Close all menus
     closeAllMenus();
-    
+
 }
 
 function moveTaskDown(taskId, columnId) {
-    
+
     // NEW CACHE SYSTEM: Update cached board directly
     if (window.cachedBoard) {
-        const column = window.cachedBoard.columns.find(col => col.id === columnId);
-        if (column) {
+        const found = findTaskInBoard(taskId, columnId);
+        if (found) {
+            const { column } = found;
             const taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex >= 0 && taskIndex < column.tasks.length - 1) {
                 const task = column.tasks[taskIndex];
                 column.tasks[taskIndex] = column.tasks[taskIndex + 1];
                 column.tasks[taskIndex + 1] = task;
-                
+
                 // Re-render UI to reflect changes
                 if (typeof renderBoard === 'function') {
                     renderBoard();
                 }
-                
+
                 markUnsavedChanges();
             }
         }
     }
-    
+
     // Cache-first: No automatic save, UI updated via cache update above
     // vscode.postMessage({ type: 'moveTaskDown', taskId, columnId });
-    
+
     // Close all menus
     closeAllMenus();
-    
+
 }
 
 function moveTaskToBottom(taskId, columnId) {
-    
+
     // NEW CACHE SYSTEM: Update cached board directly
     if (window.cachedBoard) {
-        const column = window.cachedBoard.columns.find(col => col.id === columnId);
-        if (column) {
+        const found = findTaskInBoard(taskId, columnId);
+        if (found) {
+            const { column } = found;
             const taskIndex = column.tasks.findIndex(t => t.id === taskId);
             if (taskIndex >= 0 && taskIndex < column.tasks.length - 1) {
                 const task = column.tasks.splice(taskIndex, 1)[0];
                 column.tasks.push(task);
-                
+
                 // Re-render UI to reflect changes
                 if (typeof renderBoard === 'function') {
                     renderBoard();
                 }
-                
+
                 markUnsavedChanges();
             }
         }
     }
-    
+
     // Cache-first: No automatic save, UI updated via cache update above
     // vscode.postMessage({ type: 'moveTaskToBottom', taskId, columnId });
-    
+
     // Close all menus
     closeAllMenus();
-    
+
 }
 
 /**
@@ -1713,26 +1745,34 @@ function moveTaskToBottom(taskId, columnId) {
  * Side effects: Flushes pending changes, unfolds target
  */
 function moveTaskToColumn(taskId, fromColumnId, toColumnId) {
-    
+    console.log(`[moveTaskToColumn] Moving task ${taskId}`);
+    console.log(`[moveTaskToColumn]   FROM column: ${fromColumnId}`);
+    console.log(`[moveTaskToColumn]   TO column: ${toColumnId}`);
+
     // Unfold the destination column if it's collapsed BEFORE any DOM changes
     unfoldColumnIfCollapsed(toColumnId);
-    
+
     // NEW CACHE SYSTEM: Update cached board directly
     if (window.cachedBoard) {
         const fromColumn = window.cachedBoard.columns.find(col => col.id === fromColumnId);
         const toColumn = window.cachedBoard.columns.find(col => col.id === toColumnId);
-        
+
+        console.log(`[moveTaskToColumn] Found FROM column:`, fromColumn ? fromColumn.title : 'NOT FOUND');
+        console.log(`[moveTaskToColumn] Found TO column:`, toColumn ? toColumn.title : 'NOT FOUND');
+
         if (fromColumn && toColumn) {
             const taskIndex = fromColumn.tasks.findIndex(t => t.id === taskId);
             if (taskIndex >= 0) {
                 const task = fromColumn.tasks.splice(taskIndex, 1)[0];
                 toColumn.tasks.push(task);
-                
+
+                console.log(`[moveTaskToColumn] Task moved successfully, calling renderBoard()`);
+
                 // Re-render UI to reflect changes
                 if (typeof renderBoard === 'function') {
                     renderBoard();
                 }
-                
+
                 markUnsavedChanges();
             }
         }

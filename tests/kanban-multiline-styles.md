@@ -23,6 +23,8 @@ kanban-plugin: board
 
 ## TODO #todo
 
+## #blocked #stack
+
 ## #testing #stack
 
 ## #wip #stack
@@ -31,8 +33,6 @@ kanban-plugin: board
 
 ## #review #stack
 - [ ] test
-
-## #blocked
 
 ## # Title #row2
 
@@ -74,30 +74,30 @@ kanban-plugin: board
 
 ## # Title #row3
 
-## #urgent #row3
+## #low #row3 #stack
 
-## #low #row3
-
-## #high #row3
+## #urgent #row3 #stack
 
 ## #medium #row3
 
+## #high #row3 #stack
+
 ## # Title #row4
 
-## #ux #row4
+## #ux #row4 #stack
 
-## #backend #row4
+## #backend #row4 #stack
+
+## #security #row4 #stack
 
 ## #database #row4
 
-## #ui #row4
+## #ui #row4 #stack
 
-## #frontend #row4
+## #frontend #row4 #stack
 
-## #security #row4
+## #api #row4 #stack
 
-## #performance #row4
-
-## #api #row4
+## #performance #row4 #stack
 
 
