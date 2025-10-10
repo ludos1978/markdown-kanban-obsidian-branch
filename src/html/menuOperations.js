@@ -740,18 +740,28 @@ function insertColumnAfter(columnId) {
     const referenceColumn = window.cachedBoard?.columns[referenceIndex];
 
     // Extract row tag from reference column (e.g., #row2)
-    let rowTag = '';
+    let tags = '';
     if (referenceColumn && referenceColumn.title) {
         const rowMatch = referenceColumn.title.match(/#row(\d+)\b/i);
         if (rowMatch) {
-            rowTag = ` ${rowMatch[0]}`;
+            tags = ` ${rowMatch[0]}`;
+        }
+
+        // Check if reference column is in a stack (has #stack tag or next column has #stack)
+        const hasStackTag = /#stack\b/i.test(referenceColumn.title);
+        const nextColumn = window.cachedBoard?.columns[referenceIndex + 1];
+        const nextHasStackTag = nextColumn && /#stack\b/i.test(nextColumn.title);
+
+        // If inserting after a column that's in a stack, add #stack tag
+        if (hasStackTag || nextHasStackTag) {
+            tags += ' #stack';
         }
     }
 
     // Cache-first: Create new column and insert after reference column
     const newColumn = {
         id: `temp-column-after-${Date.now()}`,
-        title: rowTag.trim(), // Start with just the row tag if present
+        title: tags.trim(), // Include row tag and #stack tag if needed
         tasks: []
     };
 
