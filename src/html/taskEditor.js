@@ -726,8 +726,19 @@ class TaskEditor {
             if (type === 'column-title') {
                 const column = window.cachedBoard.columns.find(c => c.id === columnId);
                 if (column) {
+                    // Reconstruct the full title by merging user input with preserved hidden tags
+                    // Do this BEFORE the change check so newTitle is always defined
+                    let newTitle;
+                    try {
+                        newTitle = this.reconstructColumnTitle(value.trim(), element.getAttribute('data-original-title') || column.title);
+                    } catch (error) {
+                        console.error('[TaskEditor] Error in reconstructColumnTitle:', error);
+                        // Fallback to simple value if reconstruction fails
+                        newTitle = value.trim();
+                    }
+
                     // Check if the title actually changed
-                    if (column.title !== value) {
+                    if (column.title !== newTitle) {
                         // Create context for this edit
                         const editContext = `column-title-${columnId}`;
 
@@ -735,16 +746,6 @@ class TaskEditor {
                         this.saveUndoStateImmediately('editColumnTitle', null, columnId);
 
                         this.lastEditContext = editContext;
-
-                        // Reconstruct the full title by merging user input with preserved hidden tags
-                        let newTitle;
-                        try {
-                            newTitle = this.reconstructColumnTitle(value.trim(), element.getAttribute('data-original-title') || column.title);
-                        } catch (error) {
-                            console.error('[TaskEditor] Error in reconstructColumnTitle:', error);
-                            // Fallback to simple value if reconstruction fails
-                            newTitle = value.trim();
-                        }
 
                         // Check for column include syntax changes
                         const oldIncludeMatches = (column.title || '').match(/!!!columninclude\(([^)]+)\)!!!/g) || [];
