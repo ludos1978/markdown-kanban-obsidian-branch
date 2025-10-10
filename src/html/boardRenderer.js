@@ -2239,6 +2239,11 @@ function toggleColumnCollapse(columnId, event) {
 function applyStackedColumnStyles() {
     enforceFoldModesForStacks();
     recalculateStackHeights();
+
+    // Update bottom drop zones after layout changes
+    if (typeof window.updateStackBottomDropZones === 'function') {
+        window.updateStackBottomDropZones();
+    }
 }
 window.applyStackedColumnStyles = applyStackedColumnStyles;
 

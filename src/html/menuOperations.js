@@ -705,34 +705,58 @@ function positionFileBarDropdown(triggerButton, dropdown) {
 function insertColumnBefore(columnId) {
     // Close all menus properly
     closeAllMenus();
-    
+
+    // Get reference column and its row
+    const referenceIndex = window.cachedBoard?.columns.findIndex(col => col.id === columnId) || 0;
+    const referenceColumn = window.cachedBoard?.columns[referenceIndex];
+
+    // Extract row tag from reference column (e.g., #row2)
+    let rowTag = '';
+    if (referenceColumn && referenceColumn.title) {
+        const rowMatch = referenceColumn.title.match(/#row(\d+)\b/i);
+        if (rowMatch) {
+            rowTag = ` ${rowMatch[0]}`;
+        }
+    }
+
     // Cache-first: Create new column and insert before reference column
     const newColumn = {
         id: `temp-column-before-${Date.now()}`,
-        title: '',
+        title: rowTag.trim(), // Start with just the row tag if present
         tasks: []
     };
-    
-    const referenceIndex = window.cachedBoard?.columns.findIndex(col => col.id === columnId) || 0;
+
     updateCacheForNewColumn(newColumn, referenceIndex, columnId);
-    
+
     // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 
 function insertColumnAfter(columnId) {
     // Close all menus properly
     closeAllMenus();
-    
+
+    // Get reference column and its row
+    const referenceIndex = window.cachedBoard?.columns.findIndex(col => col.id === columnId) || 0;
+    const referenceColumn = window.cachedBoard?.columns[referenceIndex];
+
+    // Extract row tag from reference column (e.g., #row2)
+    let rowTag = '';
+    if (referenceColumn && referenceColumn.title) {
+        const rowMatch = referenceColumn.title.match(/#row(\d+)\b/i);
+        if (rowMatch) {
+            rowTag = ` ${rowMatch[0]}`;
+        }
+    }
+
     // Cache-first: Create new column and insert after reference column
     const newColumn = {
         id: `temp-column-after-${Date.now()}`,
-        title: '',
+        title: rowTag.trim(), // Start with just the row tag if present
         tasks: []
     };
-    
-    const referenceIndex = window.cachedBoard?.columns.findIndex(col => col.id === columnId) || 0;
+
     updateCacheForNewColumn(newColumn, referenceIndex + 1, columnId);
-    
+
     // No VS Code message - cache-first system requires explicit save via Cmd+S
 }
 

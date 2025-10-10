@@ -1664,6 +1664,90 @@ function createDropZoneStack(dropZoneClass) {
 }
 
 /**
+ * Creates or updates transparent drop zones below the last column in each stack
+ * These zones allow dropping columns to stack them vertically
+ */
+function updateStackBottomDropZones() {
+    const stacks = document.querySelectorAll('.kanban-column-stack:not(.column-drop-zone-stack)');
+
+    stacks.forEach(stack => {
+        // Remove existing bottom drop zone if any
+        const existingZone = stack.querySelector('.stack-bottom-drop-zone');
+        if (existingZone) {
+            existingZone.remove();
+        }
+
+        // Check if stack has columns
+        const columns = stack.querySelectorAll('.kanban-full-height-column');
+        if (columns.length === 0) {return;}
+
+        // Create transparent drop zone element that fills remaining stack height
+        // Position it absolutely using same calculation as column sticky positioning
+        const dropZone = document.createElement('div');
+        dropZone.className = 'stack-bottom-drop-zone';
+
+        // Calculate top position by summing up heights of all columns' elements
+        // This matches the calculation in recalculateStackHeights()
+        let cumulativeTop = 0;
+        columns.forEach(col => {
+            const columnMargin = col.querySelector('.column-margin');
+            const columnHeader = col.querySelector('.column-header');
+            const columnTitle = col.querySelector('.column-title');
+            const columnFooter = col.querySelector('.column-footer');
+
+            if (columnMargin) {cumulativeTop += columnMargin.offsetHeight;}
+            if (columnHeader) {cumulativeTop += columnHeader.offsetHeight;}
+            if (columnTitle) {cumulativeTop += columnTitle.offsetHeight;}
+            if (columnFooter) {cumulativeTop += columnFooter.offsetHeight;}
+        });
+
+        dropZone.style.cssText = `
+            position: absolute;
+            top: ${cumulativeTop}px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: auto;
+            z-index: 1;
+        `;
+
+        // Add dragover handler for this drop zone
+        dropZone.addEventListener('dragover', e => {
+            if (!dragState.draggedColumn) {return;}
+            e.preventDefault();
+
+            console.log('[kanban.dragDrop.bottom-zone] dragover on bottom zone');
+
+            // Place dragged column at the end of this stack
+            if (dragState.draggedColumn !== stack.lastElementChild ||
+                dragState.draggedColumn.previousElementSibling !== columns[columns.length - 1]) {
+
+                // Insert before the drop zone (which is last)
+                stack.insertBefore(dragState.draggedColumn, dropZone);
+
+                console.log('[kanban.dragDrop.bottom-zone] moved column to stack bottom');
+
+                // Update styles
+                if (!dragState.styleUpdatePending && typeof window.applyStackedColumnStyles === 'function') {
+                    dragState.styleUpdatePending = true;
+                    requestAnimationFrame(() => {
+                        window.applyStackedColumnStyles();
+                        updateStackBottomDropZones();
+                        dragState.styleUpdatePending = false;
+                    });
+                }
+            }
+        });
+
+        // Append to stack
+        stack.appendChild(dropZone);
+    });
+}
+
+// Make it globally accessible for layout updates
+window.updateStackBottomDropZones = updateStackBottomDropZones;
+
+/**
  * Updates the visual column title display in the DOM after modifying the data model
  * @param {string} columnId - The ID of the column to update
  */
@@ -1806,6 +1890,7 @@ function setupColumnDragAndDrop() {
                 });
             }
 
+
         });
 
         dragHandle.addEventListener('dragend', e => {
@@ -1857,6 +1942,7 @@ function setupColumnDragAndDrop() {
 
             // Clean up visual feedback
             columnElement.classList.remove('dragging', 'drag-preview');
+
             document.querySelectorAll('.kanban-full-height-column').forEach(col => {
                 col.classList.remove('drag-over', 'drag-transitioning');
             });
@@ -2133,14 +2219,53 @@ function setupColumnDragAndDrop() {
     document.addEventListener('dragover', e => {
         if (!dragState.draggedColumn) {return;}
 
-        // Check if hovering over a stack (but not over a column or drop zone)
-        const stack = e.target.closest('.kanban-column-stack');
-        if (!stack || stack.classList.contains('column-drop-zone-stack')) {return;}
-
         // Don't interfere if directly over a column or drop zone
         if (e.target.classList.contains('kanban-full-height-column') ||
             e.target.closest('.kanban-full-height-column') ||
             e.target.classList.contains('column-drop-zone')) {
+            return;
+        }
+
+        // First try to find stack directly
+        let stack = e.target.closest('.kanban-column-stack');
+
+        console.log('[kanban.dragDrop.stack-bottom] target:', e.target.className, 'stack:', !!stack);
+
+        // If not hovering over stack, check if hovering over row below a stack
+        if (!stack) {
+            const row = e.target.closest('.kanban-row');
+            console.log('[kanban.dragDrop.stack-bottom] row:', !!row);
+            if (!row) {return;}
+
+            // Find all stacks in this row and check if mouse is below any of them
+            const stacks = Array.from(row.querySelectorAll('.kanban-column-stack'));
+            console.log('[kanban.dragDrop.stack-bottom] stacks:', stacks.length);
+
+            for (const candidateStack of stacks) {
+                if (candidateStack.classList.contains('column-drop-zone-stack')) {continue;}
+
+                const columns = Array.from(candidateStack.querySelectorAll('.kanban-full-height-column'));
+                if (columns.length === 0) {continue;}
+
+                const lastColumn = columns[columns.length - 1];
+                const lastRect = lastColumn.getBoundingClientRect();
+                const stackRect = candidateStack.getBoundingClientRect();
+
+                console.log('[kanban.dragDrop.stack-bottom] check - x:', e.clientX, 'left:', stackRect.left, 'right:', stackRect.right, 'y:', e.clientY, 'bottom:', lastRect.bottom);
+
+                // Check if mouse is horizontally within stack bounds and vertically below last column
+                if (e.clientX >= stackRect.left &&
+                    e.clientX <= stackRect.right &&
+                    e.clientY > lastRect.bottom) {
+                    stack = candidateStack;
+                    console.log('[kanban.dragDrop.stack-bottom] MATCH');
+                    break;
+                }
+            }
+        }
+
+        if (!stack || stack.classList.contains('column-drop-zone-stack')) {
+            console.log('[kanban.dragDrop.stack-bottom] no stack, exit');
             return;
         }
 
@@ -2153,6 +2278,8 @@ function setupColumnDragAndDrop() {
         const lastColumn = columns[columns.length - 1];
         const lastRect = lastColumn.getBoundingClientRect();
 
+        console.log('[kanban.dragDrop.stack-bottom] final - y:', e.clientY, 'bottom:', lastRect.bottom);
+
         // Only handle vertical drops below the last column
         if (e.clientY > lastRect.bottom) {
             const targetKey = 'stack-bottom-' + Array.from(stack.children).indexOf(dragState.draggedColumn);
@@ -2160,6 +2287,7 @@ function setupColumnDragAndDrop() {
                 dragState.lastDropTarget = targetKey;
 
                 if (dragState.draggedColumn !== stack.lastElementChild) {
+                    console.log('[kanban.dragDrop.stack-bottom] APPEND');
                     stack.appendChild(dragState.draggedColumn);
 
                     // Schedule style update if not already pending
