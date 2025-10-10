@@ -1357,52 +1357,87 @@ function renderBoard() {
     // Use DocumentFragment to batch DOM insertions for better performance
     const fragment = document.createDocumentFragment();
 
-    // Create row containers
+    // Sort columns by row first, then by their original index within each row
+    // This ensures row 1 columns come before row 2 columns in the DOM
+    const sortedColumns = window.cachedBoard.columns
+        .map((column, index) => ({
+            column,
+            index,
+            row: getColumnRow(column.title)
+        }))
+        .sort((a, b) => {
+            // First sort by row number
+            if (a.row !== b.row) {
+                return a.row - b.row;
+            }
+            // Within same row, maintain original order
+            return a.index - b.index;
+        });
+
+    // Debug: Log column ordering
+    console.log('[renderBoard] Original column order:');
+    window.cachedBoard.columns.forEach((col, idx) => {
+        console.log(`  [${idx}] "${col.title}" -> row ${getColumnRow(col.title)}`);
+    });
+    console.log('[renderBoard] Sorted column order:');
+    sortedColumns.forEach((item, idx) => {
+        console.log(`  [${idx}] "${item.column.title}" -> row ${item.row} (orig index: ${item.index})`);
+    });
+
+    // Group sorted columns by row
+    const columnsByRow = {};
+    for (let row = 1; row <= numRows; row++) {
+        columnsByRow[row] = [];
+    }
+
+    sortedColumns.forEach(({ column, index, row }) => {
+        columnsByRow[row].push({ column, index });
+    });
+
+    // Create row containers in order
     for (let row = 1; row <= numRows; row++) {
             const rowContainer = document.createElement('div');
             rowContainer.className = 'kanban-row';
             rowContainer.setAttribute('data-row-number', row);
-            
+
             // Add row header
             // const rowHeader = document.createElement('div');
             // rowHeader.className = 'kanban-row-header';
             // rowHeader.textContent = `Row ${row}`;
             // rowContainer.appendChild(rowHeader);
-            
+
             // Add columns for this row with stacking support
             let currentStackContainer = null;
             let lastColumnElement = null;
 
-            window.cachedBoard.columns.forEach((column, index) => {
-                const columnRow = getColumnRow(column.title);
-                if (columnRow === row) {
-                    const columnElement = createColumnElement(column, index);
-                    const isStacked = /#stack\b/i.test(column.title);
+            // Process columns in the order they appear in the board data
+            columnsByRow[row].forEach(({ column, index }) => {
+                const columnElement = createColumnElement(column, index);
+                const isStacked = /#stack\b/i.test(column.title);
 
-                    if (isStacked && lastColumnElement) {
-                        // This column should be stacked below the previous one
-                        if (!currentStackContainer) {
-                            // Create a new stack container and move the previous column into it
-                            currentStackContainer = document.createElement('div');
-                            currentStackContainer.className = 'kanban-column-stack';
+                if (isStacked && lastColumnElement) {
+                    // This column should be stacked below the previous one
+                    if (!currentStackContainer) {
+                        // Create a new stack container and move the previous column into it
+                        currentStackContainer = document.createElement('div');
+                        currentStackContainer.className = 'kanban-column-stack';
 
-                            // Replace the previous column's wrapper with the stack container
-                            const lastWrapper = lastColumnElement.parentNode;
-                            lastWrapper.parentNode.replaceChild(currentStackContainer, lastWrapper);
-                            currentStackContainer.appendChild(lastColumnElement);
-                        }
-
-                        // Add the current stacked column to the stack
-                        currentStackContainer.appendChild(columnElement);
-                    } else {
-                        // Regular column - wrap in its own stack container
-                        const stackContainer = document.createElement('div');
-                        stackContainer.className = 'kanban-column-stack';
-                        stackContainer.appendChild(columnElement);
-                        rowContainer.appendChild(stackContainer);
-                        currentStackContainer = null;
-                        lastColumnElement = columnElement;
+                        // Replace the previous column's wrapper with the stack container
+                        const lastWrapper = lastColumnElement.parentNode;
+                        lastWrapper.parentNode.replaceChild(currentStackContainer, lastWrapper);
+                        currentStackContainer.appendChild(lastColumnElement);
                     }
+
+                    // Add the current stacked column to the stack
+                    currentStackContainer.appendChild(columnElement);
+                } else {
+                    // Regular column - wrap in its own stack container
+                    const stackContainer = document.createElement('div');
+                    stackContainer.className = 'kanban-column-stack';
+                    stackContainer.appendChild(columnElement);
+                    rowContainer.appendChild(stackContainer);
+                    currentStackContainer = null;
+                    lastColumnElement = columnElement;
                 }
             });
 

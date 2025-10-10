@@ -1,6 +1,7 @@
 import { IdGenerator } from './utils/idGenerator';
 import { PresentationParser } from './presentationParser';
 import { PathResolver } from './services/PathResolver';
+import { sortColumnsByRow } from './utils/columnUtils';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -369,8 +370,12 @@ export class MarkdownKanbanParser {
     //   markdown += `# ${board.title}\n\n`;
     // }
 
+    // Sort columns by row before saving to ensure correct order in file
+    // This maintains row 1 columns before row 2 columns in the saved markdown
+    const sortedColumns = sortColumnsByRow(board.columns);
+
     // Add columns (no ID persistence - runtime only)
-    for (const column of board.columns) {
+    for (const column of sortedColumns) {
       if (column.includeMode) {
         // For include columns, use the current title (which may have been updated with tags)
         // column.title should contain the include syntax plus any added tags
