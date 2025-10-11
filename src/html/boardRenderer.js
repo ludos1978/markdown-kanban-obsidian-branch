@@ -3884,3 +3884,161 @@ window.getUserAddedTags = getUserAddedTags;
 window.wrapTaskSections = wrapTaskSections;
 
 window.handleLinkOrImageOpen = handleLinkOrImageOpen;
+
+/**
+ * Incrementally adds a single task to a column without redrawing everything
+ * Purpose: Optimize performance when adding new tasks
+ * @param {string} columnId - Column to add task to
+ * @param {object} task - Task data
+ * @param {number} insertIndex - Position to insert at (-1 for end)
+ * @returns {HTMLElement} - The created task element
+ */
+function addSingleTaskToDOM(columnId, task, insertIndex = -1) {
+    const tasksContainer = document.querySelector(`#tasks-${columnId}`);
+    if (!tasksContainer) {
+        return null;
+    }
+
+    const column = window.cachedBoard?.columns.find(c => c.id === columnId);
+    if (!column) {
+        return null;
+    }
+
+    // Get the task index within the column
+    const taskIndex = insertIndex >= 0 ? insertIndex : column.tasks.length - 1;
+
+    // Create the task element HTML
+    const taskHtml = createTaskElement(task, columnId, taskIndex);
+
+    // Create a temporary container to parse HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = taskHtml;
+    const taskElement = tempDiv.firstElementChild;
+
+    try {
+        // The "+ Add Task" button is inside the tasks container, so we need to insert before it
+        const addTaskBtn = tasksContainer.querySelector('.add-task-btn');
+
+        // Insert the task at the correct position
+        if (insertIndex >= 0 && insertIndex < tasksContainer.children.length) {
+            const referenceNode = tasksContainer.children[insertIndex];
+            if (referenceNode && referenceNode.parentNode === tasksContainer) {
+                tasksContainer.insertBefore(taskElement, referenceNode);
+            } else {
+                tasksContainer.appendChild(taskElement);
+            }
+        } else {
+            // Insert before the "+ Add Task" button if it exists, otherwise append to end
+            if (addTaskBtn) {
+                tasksContainer.insertBefore(taskElement, addTaskBtn);
+                // Remove the button after adding the first task (matches createColumnElement behavior)
+                addTaskBtn.remove();
+            } else {
+                tasksContainer.appendChild(taskElement);
+            }
+        }
+    } catch (error) {
+        console.error('[addSingleTaskToDOM] Error inserting task:', error);
+        // On error, try appending to end as fallback
+        try {
+            tasksContainer.appendChild(taskElement);
+        } catch (appendError) {
+            console.error('[addSingleTaskToDOM] Error appending task:', appendError);
+            return null;
+        }
+    }
+
+    // Update image sources
+    if (typeof updateImageSources === 'function') {
+        updateImageSources();
+    }
+
+    // Setup drag & drop for the new task
+    const dragHandle = taskElement.querySelector('.task-drag-handle');
+    if (dragHandle && typeof setupTaskDragHandle === 'function') {
+        setupTaskDragHandle(dragHandle);
+    }
+
+    // Update visual tag elements (headers/footers/badges)
+    if (window.injectStackableBars) {
+        window.injectStackableBars(taskElement);
+    }
+    if (window.updateCornerBadgesImmediate) {
+        const combinedText = [task.title, task.description].filter(Boolean).join(' ');
+        window.updateCornerBadgesImmediate(task.id, 'task', combinedText);
+    }
+
+    // Update column task count
+    updateColumnTaskCount(columnId);
+
+    return taskElement;
+}
+
+/**
+ * Incrementally adds a single column to the board without redrawing everything
+ * Purpose: Optimize performance when adding new columns
+ * @param {object} column - Column data
+ * @param {number} insertIndex - Position to insert at (-1 for end)
+ * @returns {HTMLElement} - The created column element
+ */
+function addSingleColumnToDOM(column, insertIndex = -1) {
+    const boardElement = getBoardElement();
+    if (!boardElement) {
+        return null;
+    }
+
+    // Get the column index
+    const columnIndex = insertIndex >= 0 ? insertIndex : window.cachedBoard?.columns.length - 1;
+
+    // Create the column element
+    const columnElement = createColumnElement(column, columnIndex);
+
+    // Find all direct children of boardElement (including stacks and columns)
+    // We need to insert at the right position among the board's direct children
+    const directChildren = Array.from(boardElement.children).filter(child =>
+        child.classList.contains('kanban-full-height-column') ||
+        child.classList.contains('kanban-column-stack') ||
+        child.classList.contains('column-drop-zone-stack')
+    );
+
+    try {
+        if (insertIndex >= 0 && insertIndex < directChildren.length) {
+            // Verify the reference node is still a child of boardElement
+            const referenceNode = directChildren[insertIndex];
+            if (referenceNode && referenceNode.parentNode === boardElement) {
+                boardElement.insertBefore(columnElement, referenceNode);
+            } else {
+                // Reference node is not valid, append to end
+                boardElement.appendChild(columnElement);
+            }
+        } else {
+            // Append to the end
+            boardElement.appendChild(columnElement);
+        }
+    } catch (error) {
+        console.error('[addSingleColumnToDOM] Error inserting column:', error);
+        // On error, try appending to end as fallback
+        try {
+            boardElement.appendChild(columnElement);
+        } catch (appendError) {
+            console.error('[addSingleColumnToDOM] Error appending column:', appendError);
+            return null;
+        }
+    }
+
+    // Update image sources
+    if (typeof updateImageSources === 'function') {
+        updateImageSources();
+    }
+
+    // Setup drag & drop for the new column
+    if (typeof setupColumnDragAndDrop === 'function') {
+        setupColumnDragAndDrop();
+    }
+
+    return columnElement;
+}
+
+// Expose incremental rendering functions
+window.addSingleTaskToDOM = addSingleTaskToDOM;
+window.addSingleColumnToDOM = addSingleColumnToDOM;

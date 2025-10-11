@@ -1963,9 +1963,26 @@ function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
             // Mark as unsaved since we added a task
             markUnsavedChanges();
 
-            // Update the UI to reflect the cached changes
-            if (typeof renderBoard === 'function') {
-                renderBoard();
+            // Use incremental DOM update instead of full redraw
+            if (typeof window.addSingleTaskToDOM === 'function') {
+                const taskElement = window.addSingleTaskToDOM(columnId, newTask, insertIndex);
+
+                // Focus the newly created task and start editing
+                if (taskElement) {
+                    setTimeout(() => {
+                        taskElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        // Start editing the title
+                        const titleContainer = taskElement.querySelector('.task-title-container');
+                        if (titleContainer && window.editTitle) {
+                            window.editTitle(titleContainer, newTask.id, columnId);
+                        }
+                    }, 50);
+                }
+            } else {
+                // Fallback to full render if incremental function not available
+                if (typeof renderBoard === 'function') {
+                    renderBoard();
+                }
             }
 
         }
@@ -1975,15 +1992,18 @@ function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
 // Helper function to update cache when creating columns
 function updateCacheForNewColumn(newColumn, insertIndex = -1, referenceColumnId = null) {
     if (window.cachedBoard) {
+        let actualInsertIndex = insertIndex;
+
         if (referenceColumnId) {
             // Insert relative to reference column
             const referenceIndex = window.cachedBoard.columns.findIndex(col => col.id === referenceColumnId);
             if (referenceIndex >= 0) {
-                const actualIndex = insertIndex >= 0 ? insertIndex : referenceIndex + 1;
-                window.cachedBoard.columns.splice(actualIndex, 0, newColumn);
+                actualInsertIndex = insertIndex >= 0 ? insertIndex : referenceIndex + 1;
+                window.cachedBoard.columns.splice(actualInsertIndex, 0, newColumn);
             } else {
                 // Fallback: add to end
                 window.cachedBoard.columns.push(newColumn);
+                actualInsertIndex = window.cachedBoard.columns.length - 1;
             }
         } else {
             // Simple insertion
@@ -1991,18 +2011,34 @@ function updateCacheForNewColumn(newColumn, insertIndex = -1, referenceColumnId 
                 window.cachedBoard.columns.splice(insertIndex, 0, newColumn);
             } else {
                 window.cachedBoard.columns.push(newColumn);
+                actualInsertIndex = window.cachedBoard.columns.length - 1;
             }
         }
-        
-        
-        // Update the UI to reflect the cached changes
-        if (typeof renderBoard === 'function') {
-            renderBoard();
-        }
-        
+
         // Mark as unsaved
         if (typeof markUnsavedChanges === 'function') {
             markUnsavedChanges();
+        }
+
+        // Use incremental DOM update instead of full redraw
+        if (typeof window.addSingleColumnToDOM === 'function') {
+            const columnElement = window.addSingleColumnToDOM(newColumn, actualInsertIndex);
+
+            // Focus the newly created column and start editing its title
+            if (columnElement) {
+                setTimeout(() => {
+                    columnElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // Start editing the column title
+                    if (window.editColumnTitle) {
+                        window.editColumnTitle(newColumn.id, columnElement);
+                    }
+                }, 50);
+            }
+        } else {
+            // Fallback to full render if incremental function not available
+            if (typeof renderBoard === 'function') {
+                renderBoard();
+            }
         }
     }
 }
