@@ -37,6 +37,8 @@ export class MessageHandler {
     private _markUnsavedChanges: (hasChanges: boolean, cachedBoard?: any) => void;
     private _previousBoardForFocus?: KanbanBoard;
     private _activeOperations = new Map<string, { type: string, startTime: number }>();
+    private _autoExportSettings: any = null;
+    private _autoExportWatcher: vscode.Disposable | null = null;
 
     constructor(
         fileManager: FileManager,
@@ -658,6 +660,14 @@ export class MessageHandler {
 
             case 'reloadIndividualFile':
                 await this.handleReloadIndividualFile(message.filePath, message.isMainFile);
+                break;
+
+            case 'startAutoExport':
+                await this.handleStartAutoExport(message.settings);
+                break;
+
+            case 'stopAutoExport':
+                await this.handleStopAutoExport();
                 break;
 
             default:

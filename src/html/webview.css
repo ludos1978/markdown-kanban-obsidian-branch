@@ -114,6 +114,7 @@ body {
 .file-info-right .sort-btn,
 .file-info-right .font-size-btn,
 .file-info-right .refresh-btn,
+.file-info-right .auto-export-btn,
 .file-info-right .layout-presets-btn,
 .file-info-right .file-bar-menu-btn {
   border: 1px solid var(--vscode-button-border, transparent);
@@ -155,6 +156,36 @@ body {
   border-color: var(--vscode-inputValidation-infoBorder);
 }
 
+/* Auto Export Button */
+.auto-export-btn {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.auto-export-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.auto-export-btn.active {
+  background: var(--vscode-inputValidation-infoBackground);
+  color: var(--vscode-inputValidation-infoForeground);
+  border-color: var(--vscode-inputValidation-infoBorder);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.auto-export-icon,
+.auto-export-text {
+  font-size: 12px;
+}
 
 /* Layout Presets Menu */
 .layout-presets-menu-container {

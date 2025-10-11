@@ -46,12 +46,6 @@ export class MarpExtensionService {
      * @returns Promise that resolves when preview is opened
      */
     static async openInMarpPreview(filePath: string): Promise<void> {
-        // Check if extension is installed
-        if (!this.isMarpExtensionInstalled()) {
-            await this.promptInstallMarpExtension();
-            return;
-        }
-
         // Ensure file exists
         if (!fs.existsSync(filePath)) {
             throw new Error(`File not found: ${filePath}`);
@@ -59,20 +53,29 @@ export class MarpExtensionService {
 
         const uri = vscode.Uri.file(filePath);
 
-        try {
-            // Try to use Marp's quick pick command first
-            await vscode.commands.executeCommand('marp.showQuickPick', uri);
-        } catch (err) {
-            console.warn('[kanban.MarpExtensionService] marp.showQuickPick failed, trying markdown.showPreview:', err);
+        // Open the document
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc, { preview: false });
 
-            try {
-                // Fallback: open in markdown preview (Marp should enhance it)
-                await vscode.commands.executeCommand('markdown.showPreview', uri);
-            } catch (err2) {
-                console.error('[kanban.MarpExtensionService] Failed to open preview:', err2);
-                throw new Error('Failed to open Marp preview. Please ensure the Marp extension is properly installed.');
-            }
+        // Check if extension is installed
+        const extensionInstalled = this.isMarpExtensionInstalled();
+
+        if (!extensionInstalled) {
+            // Extension not installed - show install prompt
+            const choice = await this.promptInstallMarpExtension();
+
+            vscode.window.showInformationMessage(
+                'Marp presentation file opened. After installing the Marp extension, click the preview button in the editor toolbar to start the presentation.',
+                'OK'
+            );
+            return;
         }
+
+        // Extension is installed - show helpful message
+        vscode.window.showInformationMessage(
+            'Marp presentation file opened. Click the preview button (top-right) or use Cmd+K V to preview.',
+            'OK'
+        );
     }
 
     /**

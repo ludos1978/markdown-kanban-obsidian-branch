@@ -2615,11 +2615,9 @@ window.addEventListener('message', event => {
             break;
         case 'exportDefaultFolder':
             setExportDefaultFolder(message.folderPath);
-            setColumnExportDefaultFolder(message.folderPath);
             break;
         case 'exportFolderSelected':
             setSelectedExportFolder(message.folderPath);
-            setSelectedColumnExportFolder(message.folderPath);
             break;
         case 'exportResult':
             handleExportResult(message.result);
@@ -4256,6 +4254,10 @@ function executeUnifiedExport() {
     // Get merge includes option
     const mergeIncludes = document.getElementById('merge-includes')?.checked || false;
 
+    // Get new export behavior options
+    const autoExportOnSave = document.getElementById('auto-export-on-save')?.checked || false;
+    const openAfterExport = document.getElementById('open-after-export')?.checked || false;
+
     // Close modal
     closeExportModal();
 
@@ -4265,24 +4267,31 @@ function executeUnifiedExport() {
 
         // Export each selected item with Marp
         selectedItems.forEach(item => {
+            const options = {
+                targetFolder: folderInput.value.trim(),
+                scope: item.scope,
+                format: format,
+                tagVisibility: tagVisibility,
+                packAssets: packAssets,
+                packOptions: packOptions,
+                mergeIncludes: mergeIncludes,
+                marpTheme: marpTheme,
+                autoExportOnSave: autoExportOnSave,
+                openAfterExport: openAfterExport,
+                selection: {
+                    rowNumber: item.rowNumber,
+                    stackIndex: item.stackIndex,
+                    columnIndex: item.columnIndex,
+                    columnId: item.columnId
+                }
+            };
+
+            // Save last export settings for quick re-export
+            lastExportSettings = options;
+
             vscode.postMessage({
                 type: 'exportWithMarp',
-                options: {
-                    targetFolder: folderInput.value.trim(),
-                    scope: item.scope,
-                    format: format,
-                    tagVisibility: tagVisibility,
-                    packAssets: packAssets,
-                    packOptions: packOptions,
-                    mergeIncludes: mergeIncludes,
-                    marpTheme: marpTheme,
-                    selection: {
-                        rowNumber: item.rowNumber,
-                        stackIndex: item.stackIndex,
-                        columnIndex: item.columnIndex,
-                        columnId: item.columnId
-                    }
-                }
+                options: options
             });
         });
     } else {
@@ -4296,6 +4305,8 @@ function executeUnifiedExport() {
                 packAssets: packAssets,
                 packOptions: packOptions,
                 mergeIncludes: mergeIncludes,
+                autoExportOnSave: autoExportOnSave,
+                openAfterExport: openAfterExport,
                 selection: {
                     rowNumber: item.rowNumber,
                     stackIndex: item.stackIndex,
@@ -4304,11 +4315,35 @@ function executeUnifiedExport() {
                 }
             };
 
+            // Save last export settings for quick re-export
+            lastExportSettings = options;
+
             // Send unified export request
             vscode.postMessage({
                 type: 'unifiedExport',
                 options: options
             });
+        });
+    }
+
+    // Update auto-export mode tracking
+    autoExportBrowserMode = openAfterExport;
+
+    // Show the auto-export button after first export
+    const autoExportBtn = document.getElementById('auto-export-btn');
+    if (autoExportBtn && lastExportSettings) {
+        autoExportBtn.style.display = '';
+        updateAutoExportButton();
+    }
+
+    // If auto-export checkbox was enabled in dialog, start auto-export immediately
+    if (autoExportOnSave && lastExportSettings) {
+        autoExportActive = true;
+        updateAutoExportButton();
+
+        vscode.postMessage({
+            type: 'startAutoExport',
+            settings: lastExportSettings
         });
     }
 }
@@ -4393,49 +4428,117 @@ function handleMarpStatus(status) {
 }
 
 /**
- * Start presentation with Marp
+ * Store last export settings for quick re-export
  */
-function presentWithMarp() {
-    // Get selected items
-    const selectedItems = exportTreeUI ? exportTreeUI.getSelectedItems() : [];
-    if (selectedItems.length === 0) {
+let lastExportSettings = null;
+
+/**
+ * Auto-export state
+ */
+let autoExportActive = false;
+let autoExportBrowserMode = false; // true if openAfterExport was enabled
+
+/**
+ * Toggle auto-export on/off
+ */
+function toggleAutoExport() {
+    if (!lastExportSettings) {
         vscode.postMessage({
-            type: 'showError',
-            message: 'Please select content to present'
+            type: 'showInfo',
+            message: 'No previous export settings found. Please export first to enable auto-export.'
         });
+        showExportDialog();
         return;
     }
 
-    const marpTheme = document.getElementById('marp-theme')?.value || 'default';
-    const tagVisibility = document.getElementById('export-tag-visibility')?.value || 'allexcludinglayout';
+    autoExportActive = !autoExportActive;
+    updateAutoExportButton();
 
-    // Use first selected item for presentation
-    const item = selectedItems[0];
+    if (autoExportActive) {
+        // Start auto-export
+        vscode.postMessage({
+            type: 'startAutoExport',
+            settings: lastExportSettings
+        });
 
-    vscode.postMessage({
-        type: 'presentWithMarp',
-        options: {
-            scope: item.scope,
-            selection: {
-                rowNumber: item.rowNumber,
-                stackIndex: item.stackIndex,
-                columnIndex: item.columnIndex,
-                columnId: item.columnId
-            },
-            tagVisibility: tagVisibility,
-            marpTheme: marpTheme
-        }
-    });
+        vscode.postMessage({
+            type: 'showInfo',
+            message: 'Auto-export started. File will export automatically on save.'
+        });
+    } else {
+        // Stop auto-export
+        vscode.postMessage({
+            type: 'stopAutoExport'
+        });
 
-    // Close the export dialog
-    closeExportModal();
+        vscode.postMessage({
+            type: 'showInfo',
+            message: 'Auto-export stopped.'
+        });
+    }
+}
+
+/**
+ * Update auto-export button appearance
+ */
+function updateAutoExportButton() {
+    const btn = document.getElementById('auto-export-btn');
+    const icon = document.getElementById('auto-export-icon');
+    const text = document.getElementById('auto-export-text');
+
+    if (!btn || !icon || !text) return;
+
+    if (autoExportActive) {
+        btn.classList.add('active');
+        icon.textContent = '■'; // Stop icon
+        text.textContent = autoExportBrowserMode ? 'Stop Live' : 'Stop Auto';
+        btn.title = 'Stop auto-export';
+    } else {
+        btn.classList.remove('active');
+        icon.textContent = '▶'; // Play icon
+        text.textContent = autoExportBrowserMode ? 'Start Live' : 'Auto Export';
+        btn.title = 'Start auto-export with last settings';
+    }
+}
+
+/**
+ * Execute export with current settings (called by auto-export or manual trigger)
+ */
+function executeQuickExport() {
+    if (!lastExportSettings) {
+        vscode.postMessage({
+            type: 'showInfo',
+            message: 'No previous export settings found. Please use Export dialog first.'
+        });
+        showExportDialog();
+        return;
+    }
+
+    // Re-export with last settings
+    const format = lastExportSettings.format;
+
+    if (format && format.startsWith('marp')) {
+        vscode.postMessage({
+            type: 'exportWithMarp',
+            options: lastExportSettings
+        });
+    } else {
+        vscode.postMessage({
+            type: 'unifiedExport',
+            options: lastExportSettings
+        });
+    }
+
+    // Show activity indicator only if not auto-exporting
+    if (!autoExportActive) {
+        vscode.postMessage({
+            type: 'showInfo',
+            message: 'Updating export...'
+        });
+    }
 }
 
 // Column Export Functions
-let selectedColumnIndex = -1;
-let selectedColumnTitle = '';
-let selectedColumnId = '';
-
 window.exportColumn = function exportColumn(columnId) {
     // Find the column in the current board
     if (!window.cachedBoard || !window.cachedBoard.columns) {
@@ -4460,85 +4563,6 @@ window.exportColumn = function exportColumn(columnId) {
     // Use unified export dialog with this column pre-selected
     showExportDialogWithSelection('column', columnIndex, columnId);
 };
-
-function showColumnExportDialog(columnIndex, columnTitle) {
-    selectedColumnIndex = columnIndex;
-    selectedColumnTitle = columnTitle || `Column ${columnIndex + 1}`;
-
-    // Update the column info display
-    document.getElementById('column-export-info').textContent = selectedColumnTitle;
-
-    // Request default folder from backend
-    vscode.postMessage({ type: 'getExportDefaultFolder' });
-
-    // Show the modal
-    const modal = document.getElementById('column-export-modal');
-    modal.style.display = 'block';
-}
-
-function closeColumnExportModal() {
-    const modal = document.getElementById('column-export-modal');
-    modal.style.display = 'none';
-    selectedColumnIndex = -1;
-    selectedColumnTitle = '';
-}
-
-function selectColumnExportFolder() {
-    vscode.postMessage({ type: 'selectExportFolder' });
-}
-
-function setSelectedColumnExportFolder(folderPath) {
-    const input = document.getElementById('column-export-folder');
-    if (input) {
-        input.value = folderPath;
-    }
-}
-
-function setColumnExportDefaultFolder(folderPath) {
-    const input = document.getElementById('column-export-folder');
-    if (input && !input.value) {
-        input.value = folderPath;
-    }
-}
-
-function executeColumnExport() {
-    if (selectedColumnIndex === -1) {
-        vscode.postMessage({
-            type: 'showError',
-            message: 'No column selected for export'
-        });
-        return;
-    }
-
-    const folderPath = document.getElementById('column-export-folder').value;
-    if (!folderPath) {
-        vscode.postMessage({
-            type: 'showError',
-            message: 'Please select an export folder'
-        });
-        return;
-    }
-
-    const options = {
-        targetFolder: folderPath,
-        columnIndex: selectedColumnIndex,
-        columnTitle: selectedColumnTitle,
-        includeFiles: document.getElementById('column-include-files').checked,
-        includeImages: document.getElementById('column-include-images').checked,
-        includeVideos: document.getElementById('column-include-videos').checked,
-        includeOtherMedia: document.getElementById('column-include-other-media').checked,
-        includeDocuments: document.getElementById('column-include-documents').checked,
-        fileSizeLimitMB: parseInt(document.getElementById('column-file-size-limit').value) || 100,
-        tagVisibility: document.getElementById('column-export-tag-visibility')?.value || 'all'
-    };
-
-    vscode.postMessage({
-        type: 'exportColumn',
-        options: options
-    });
-
-    closeColumnExportModal();
-}
 
 /**
  * Handle clicks on columninclude filename links

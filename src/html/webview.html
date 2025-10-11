@@ -74,6 +74,11 @@
                     <span class="refresh-text">Refresh</span>
                 </button>
 
+                <button id="auto-export-btn" class="auto-export-btn" style="display: none;" onmousedown="event.preventDefault();" onclick="toggleAutoExport()" title="Start/stop auto-export">
+                    <span id="auto-export-icon" class="auto-export-icon">▶</span>
+                    <span id="auto-export-text" class="auto-export-text">Auto Export</span>
+                </button>
+
                 <div class="layout-presets-menu-container">
                     <button id="layout-presets-btn" class="layout-presets-btn" onclick="toggleLayoutPresetsMenu()" title="Layout Presets">
                         <span class="layout-presets-icon">🎨</span>
@@ -306,8 +311,20 @@
 														</div>
 												</div>
 										</div>
-										<div class="export-actions-secondary">
-												<button type="button" class="btn btn-secondary" onclick="presentWithMarp()">🎬 Present with Marp</button>
+								</div>
+
+								<!-- Export Behavior Options -->
+								<div class="export-field">
+										<label>Export Behavior:</label>
+										<div class="export-checkboxes">
+												<label class="export-checkbox">
+														<input type="checkbox" id="auto-export-on-save">
+														<span>Auto-export on save</span>
+												</label>
+												<label class="export-checkbox">
+														<input type="checkbox" id="open-after-export">
+														<span>Open in browser after export</span>
+												</label>
 										</div>
 								</div>
 
@@ -370,75 +387,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Column Export dialog (DEPRECATED - now uses unified export dialog) -->
-    <!-- <div id="column-export-modal" class="modal">
-        <div class="modal-content export-modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Export Column</h3>
-                <button class="close-btn" onclick="closeColumnExportModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="export-field">
-                    <label for="column-export-folder">Export Folder:</label>
-                    <div class="export-folder-input">
-                        <input type="text" id="column-export-folder" class="form-input" placeholder="Select folder..." readonly />
-                        <button type="button" class="btn btn-secondary" onclick="selectColumnExportFolder()">Browse</button>
-                    </div>
-                </div>
-                <div class="export-field">
-                    <label>Column:</label>
-                    <div class="export-info">
-                        <span id="column-export-info">No column selected</span>
-                    </div>
-                </div>
-                <div class="export-field">
-                    <label>Include Assets:</label>
-                    <div class="export-checkboxes">
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="column-include-files" checked>
-                            <span>Included Files</span>
-                        </label>
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="column-include-images" checked>
-                            <span>Images</span>
-                        </label>
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="column-include-videos" checked>
-                            <span>Videos</span>
-                        </label>
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="column-include-other-media" checked>
-                            <span>Other Media</span>
-                        </label>
-                        <label class="export-checkbox">
-                            <input type="checkbox" id="column-include-documents" checked>
-                            <span>Documents</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="export-field">
-                    <label for="column-file-size-limit">File Size Limit (MB):</label>
-                    <input type="number" id="column-file-size-limit" class="form-input" value="100" min="1" max="1000" />
-                </div>
-
-                <div class="export-field">
-                    <label for="column-export-tag-visibility">Tag Visibility:</label>
-                    <select id="column-export-tag-visibility" class="form-input">
-                        <option value="all">All Tags</option>
-                        <option value="allexcludinglayout">All Excluding Layout</option>
-                        <option value="customonly">Custom Tags Only</option>
-                        <option value="mentionsonly">@ Tags Only</option>
-                        <option value="none">No Tags</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeColumnExportModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="executeColumnExport()">Export Column</button>
-            </div>
-        </div>
-    </div> -->
 
     <!-- JavaScript modules in dependency order -->
     <!-- Initialize vscode API first -->

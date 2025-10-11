@@ -52,6 +52,10 @@ export interface UnifiedExportOptions {
         taskId?: string;
         columnId?: string;
     };
+    // New export behavior options
+    autoExportOnSave?: boolean;  // If true, automatically re-export when file is saved
+    openAfterExport?: boolean;   // If true, open exported file in browser/viewer after export
+    marpTheme?: string;           // Marp theme (for Marp exports)
 }
 
 export interface AssetInfo {
@@ -1900,25 +1904,20 @@ export class ExportService {
                 tagVisibility: options.tagVisibility
             });
 
-            // Parse kanban board for conversion to Marp
-            const hasYaml = processedContent.trim().startsWith('---');
-            const contentToParse = hasYaml ? processedContent : '---\nkanban-plugin: board\n---\n\n' + processedContent;
-            const { board } = MarkdownKanbanParser.parseMarkdown(contentToParse);
+            // FIRST: Convert kanban to presentation format (slides separated by ---)
+            // This matches the "Convert to Presentation Format" export option
+            console.log('[kanban.exportService.exportWithMarp] Converting to presentation format first');
+            processedContent = this.convertToPresentationFormat(processedContent, false);
 
-            // Convert to Marp format
+            // THEN: Add Marp directives (frontmatter) on top of the presentation content
             const marpOptions: MarpConversionOptions = {
                 theme: options.marpTheme,
                 tagVisibility: options.tagVisibility,
                 preserveYaml: true
             };
 
-            let marpMarkdown: string;
-            if (board.valid && board.columns.length > 0) {
-                marpMarkdown = MarpConverter.kanbanToMarp(board, marpOptions);
-            } else {
-                // If not a valid kanban board, just add Marp directives
-                marpMarkdown = MarpConverter.addMarpDirectives(processedContent, marpOptions);
-            }
+            // Just add Marp frontmatter to the already-converted presentation content
+            const marpMarkdown = MarpConverter.addMarpDirectives(processedContent, marpOptions);
 
             // Determine output format and path
             let outputFormat: MarpOutputFormat;
