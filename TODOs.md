@@ -6,11 +6,11 @@ kanban-plugin: board
 
 
 
-- when placing the cursor in an title of an card or and column, place the text cursor in front of the first tag + one space character. when adding #row{number} or #stack tags we should add a space in front of them if there isnt one (specifically applies to when it's the first characters in the title).
+- [x] when placing the cursor in an title of an card or and column, place the text cursor in front of the first tag + one space character. when adding #row{number} or #stack tags we should add a space in front of them if there isnt one (specifically applies to when it's the first characters in the title).
 
-- i get the error: "console.ts:137 [Extension Host] Cannot save: no document or invalid board (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:175:30205))" i think it happens after the board is reloaded
+- [ ] i get the error: "console.ts:137 [Extension Host] Cannot save: no document or invalid board (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:175:30205))" i think it happens after the board is reloaded
 
-- [ ] when i create a new card it seems to completely redraw the kanban. can you only update the changed parts without a complete redraw? also focus the added column or task when it's added.
+- [x] when i create a new card it seems to completely redraw the kanban. can you only update the changed parts without a complete redraw? also focus the added column or task when it's added.
 
 - [x] tags still show with white text and i dont know where this happens. all text in the light mode should be black.
 
