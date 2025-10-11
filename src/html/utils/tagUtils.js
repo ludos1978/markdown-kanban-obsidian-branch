@@ -12,9 +12,9 @@ class TagUtils {
             atTags: /@([a-zA-Z0-9_&-]+)/g,
 
             // Layout-specific tags
-            rowTag: /#row(\d+)\b/i,
-            spanTag: /#span(\d+)\b/i,
-            stackTag: /#stack\b/i,
+            rowTag: /#row(\d+)\b/gi,
+            spanTag: /#span(\d+)\b/gi,
+            stackTag: /#stack\b/gi,
             includeTag: /#include:([^\s]+)/i,
 
             // Special gather tags
@@ -466,20 +466,22 @@ class TagUtils {
                 return text;
             case 'standard':
             case 'allexcludinglayout':
-                // Hide layout tags only (#span, #row, #stack)
-                return this.removeTagsFromText(text, {
-                    removeHash: false,
-                    removeAt: false,
-                    keepLayout: false
-                }).replace(this.patterns.rowTag, '').replace(this.patterns.spanTag, '').replace(this.patterns.stackTag, '').trim();
+                // Hide layout tags only (#span, #row, #stack) - direct replacement
+                return text
+                    .replace(this.patterns.rowTag, '')
+                    .replace(this.patterns.spanTag, '')
+                    .replace(this.patterns.stackTag, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
             case 'custom':
             case 'customonly':
-                // Hide layout tags only (configured tag filtering happens in CSS)
-                return this.removeTagsFromText(text, {
-                    removeHash: false,
-                    removeAt: false,
-                    keepLayout: false
-                }).replace(this.patterns.rowTag, '').replace(this.patterns.spanTag, '').replace(this.patterns.stackTag, '').trim();
+                // Hide layout tags only (configured tag filtering happens in CSS) - direct replacement
+                return text
+                    .replace(this.patterns.rowTag, '')
+                    .replace(this.patterns.spanTag, '')
+                    .replace(this.patterns.stackTag, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
             case 'mentions':
             case 'mentionsonly':
                 // Hide all # tags, keep @ tags
@@ -537,6 +539,54 @@ class TagUtils {
             default:
                 // Default to allexcludinglayout behavior
                 return this.filterTagsForExport(text, 'allexcludinglayout');
+        }
+    }
+
+    /**
+     * Get display title for a column, handling columninclude specially
+     * @param {Object} column - Column object with title, includeMode, includeFiles, displayTitle
+     * @param {Function} filterFn - Tag filtering function (e.g., window.filterTagsFromText)
+     * @returns {string} HTML string for display
+     */
+    getColumnDisplayTitle(column, filterFn) {
+        if (column.includeMode && column.includeFiles && column.includeFiles.length > 0) {
+            // For columninclude, show as "include(...path/filename.md)" format
+            const fileName = column.includeFiles[0];
+            const parts = fileName.split('/').length > 1 ? fileName.split('/') : fileName.split('\\');
+            const baseFileName = parts[parts.length - 1];
+
+            // Get path (everything except filename), limit to 10 characters
+            let pathPart = '';
+            if (parts.length > 1) {
+                const fullPath = parts.slice(0, -1).join('/');
+                if (fullPath.length > 10) {
+                    // Show last 10 characters with ... prefix
+                    pathPart = '...' + fullPath.slice(-10);
+                } else {
+                    pathPart = fullPath;
+                }
+            }
+
+            // Format: "include(path/filename.md)" or "include(filename.md)" if no path
+            const displayText = pathPart ? `include(${pathPart}/${baseFileName})` : `include(${baseFileName})`;
+
+            const escapeHtml = (text) => text.replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+            const linkHtml = `<span class="columninclude-link" data-file-path="${escapeHtml(fileName)}" onclick="handleColumnIncludeClick(event, '${escapeHtml(fileName)}')" title="Alt+click to open file: ${escapeHtml(fileName)}">${escapeHtml(displayText)}</span>`;
+
+            const fileNameWithoutExt = baseFileName.replace(/\.[^/.]+$/, '');
+            const additionalTitle = (column.displayTitle && column.displayTitle !== fileNameWithoutExt) ? column.displayTitle : '';
+
+            if (additionalTitle) {
+                const renderFn = window.renderMarkdown || (typeof renderMarkdown !== 'undefined' ? renderMarkdown : null);
+                return `${linkHtml} ${renderFn ? renderFn(additionalTitle) : additionalTitle}`;
+            } else {
+                return linkHtml;
+            }
+        } else {
+            // Normal column - filter tags and render
+            const displayTitle = filterFn ? filterFn(column.title) : column.title;
+            const renderFn = window.renderMarkdown || (typeof renderMarkdown !== 'undefined' ? renderMarkdown : null);
+            return renderFn ? renderFn(displayTitle) : displayTitle;
         }
     }
 }

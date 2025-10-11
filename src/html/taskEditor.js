@@ -790,16 +790,9 @@ class TaskEditor {
                     }
                     
                     if (this.currentEditor.displayElement) {
-                        // Display with tag filtering based on visibility setting
-                        const displayTitle = window.filterTagsFromText(column.title);
-                        this.currentEditor.displayElement.innerHTML = renderMarkdown(displayTitle);
-
-                        // Add row indicator if needed (always show in edit mode)
-                        const rowMatch = column.title.match(/#row(\d+)\b/i);
-                        const currentRow = rowMatch ? parseInt(rowMatch[1], 10) : 1;
-                        if (currentRow > 1) {
-                            this.currentEditor.displayElement.innerHTML += `<span class="column-row-tag">Row ${currentRow}</span>`;
-                        }
+                        // Get display title using shared utility function
+                        const renderedTitle = window.tagUtils ? window.tagUtils.getColumnDisplayTitle(column, window.filterTagsFromText) : (column.title || '');
+                        this.currentEditor.displayElement.innerHTML = renderedTitle;
                     }
 
                     // Update column CSS classes for span tags

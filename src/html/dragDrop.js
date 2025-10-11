@@ -1765,17 +1765,13 @@ function updateColumnTitleDisplay(columnId) {
         return;
     }
 
-    // Filter tags and render markdown (same logic as createColumnElement)
-    const displayTitle = column.displayTitle || (column.title ? window.filterTagsFromText(column.title) : '');
-    const renderedTitle = displayTitle ? window.renderMarkdown(displayTitle) : '';
+    // Get display title using shared utility function
+    const renderedTitle = window.tagUtils ? window.tagUtils.getColumnDisplayTitle(column, window.filterTagsFromText) : (column.title || '');
 
     // Update the column title DOM element
     const titleElement = columnElement.querySelector('.column-title-text.markdown-content');
     if (titleElement) {
-        // Preserve row indicator if it exists
-        const rowIndicator = titleElement.querySelector('.column-row-tag');
-        const rowIndicatorHtml = rowIndicator ? rowIndicator.outerHTML : '';
-        titleElement.innerHTML = renderedTitle + rowIndicatorHtml;
+        titleElement.innerHTML = renderedTitle;
     } else {
         console.warn('[dragDrop-updateTitle] Title element not found for:', columnId);
     }
@@ -2070,13 +2066,12 @@ function setupColumnDragAndDrop() {
                 }
             }
 
-            // Update the visual display
+            // Update the visual display using shared function
             const titleElement = columnElement.querySelector('.column-title-text');
             if (titleElement && window.cachedBoard) {
                 const columnData = window.cachedBoard.columns.find(col => col.id === columnId);
                 if (columnData) {
-                    const displayTitle = window.filterTagsFromText ? window.filterTagsFromText(columnData.title) : columnData.title;
-                    const renderedTitle = window.renderMarkdown ? window.renderMarkdown(displayTitle) : displayTitle;
+                    const renderedTitle = window.tagUtils ? window.tagUtils.getColumnDisplayTitle(columnData, window.filterTagsFromText) : (columnData.title || '');
                     titleElement.innerHTML = renderedTitle;
                 }
             }

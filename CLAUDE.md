@@ -25,7 +25,9 @@
 - Keep a FUNCTIONS.md actual and update after each modification, the file keeps track of all functions in the code in front and backend. Each functions is described as: 
 	- path_to_filename-classname_functionname or -functionname when it's not in a class.
 	- a description of the functionality in 1 or 2 lines of keywords or sentences.
-- Be very careful and think carefully when i type in capital letters! Be extremely careful and check at least three times with different aspects when i use swear-words.
+- Be very careful and think carefully when i type in capital letters! Be extremely careful and check at least three times with different aspects when i use swear-words.$
+- NEVER ADD ANYTHING I DONT ASK FOR!
+- When replacing or removing something, allways analyze what it was used for.
 
 ## Error handling:
 - allways check for compile errors

@@ -1337,35 +1337,13 @@ function filterTagsFromText(text) {
 
     const setting = currentTagVisibility || 'standard';
 
-    // Use TagUtils for proper tag filtering including #stack
-    if (window.tagUtils && typeof window.tagUtils.filterTagsFromText === 'function') {
-        return window.tagUtils.filterTagsFromText(text, setting);
+    // Always use TagUtils - no fallback
+    if (!window.tagUtils || typeof window.tagUtils.filterTagsFromText !== 'function') {
+        console.error('[filterTagsFromText] tagUtils not available!');
+        return text;
     }
 
-    // Fallback to basic filtering if TagUtils not available
-    switch (setting) {
-        case 'all':
-            // Show all tags - don't filter anything
-            return text;
-        case 'standard':
-        case 'allexcludinglayout':
-            // Hide #span, #row, and #stack tags only
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').replace(/#stack\b/gi, '').trim();
-        case 'custom':
-        case 'customonly':
-            // Hide #span, #row, #stack, and configured tags (but show @ tags)
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').replace(/#stack\b/gi, '').trim();
-        case 'mentions':
-        case 'mentionsonly':
-            // Hide all tags except @ tags
-            return text.replace(/#\w+/gi, '').trim();
-        case 'none':
-            // Hide all tags
-            return text.replace(/#\w+/gi, '').replace(/@\w+/gi, '').trim();
-        default:
-            // Default to standard behavior
-            return text.replace(/#row\d+/gi, '').replace(/#span\d+/gi, '').replace(/#stack\b/gi, '').trim();
-    }
+    return window.tagUtils.filterTagsFromText(text, setting);
 }
 
 function applyTagVisibility(setting) {
@@ -1598,11 +1576,10 @@ function updateColumnRowTag(columnId, newRow) {
     if (columnElement) {
         columnElement.setAttribute('data-row', newRow);
         
-        // Update the displayed title
+        // Update the displayed title using shared function
         const titleElement = columnElement.querySelector('.column-title-text');
         if (titleElement) {
-            const displayTitle = window.filterTagsFromText(column.title);
-            const renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
+            const renderedTitle = window.tagUtils ? window.tagUtils.getColumnDisplayTitle(column, window.filterTagsFromText) : (column.title || '');
             titleElement.innerHTML = renderedTitle;
         }
         

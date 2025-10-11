@@ -930,11 +930,14 @@ function changeColumnSpan(columnId, delta) {
             columnElement.classList.add(`column-span-${newSpan}`);
         }
 
-        // Update the title display (without span tags)
-        const titleElement = columnElement.querySelector('.column-title-display');
-        if (titleElement) {
-            const displayTitle = window.filterTagsFromText(newTitle);
-            titleElement.innerHTML = renderMarkdown(displayTitle);
+        // Update the title display using shared function (fixed selector)
+        const titleElement = columnElement.querySelector('.column-title-text');
+        if (titleElement && window.cachedBoard) {
+            const columnData = window.cachedBoard.columns.find(c => c.id === columnId);
+            if (columnData) {
+                const renderedTitle = window.tagUtils ? window.tagUtils.getColumnDisplayTitle(columnData, window.filterTagsFromText) : (columnData.title || '');
+                titleElement.innerHTML = renderedTitle;
+            }
         }
 
         // Update the span value display in the menu
@@ -990,11 +993,14 @@ function toggleColumnStack(columnId) {
     // Update the column element immediately
     const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
     if (columnElement) {
-        // Update the title display (without stack tags if they're hidden)
-        const titleElement = columnElement.querySelector('.column-title-display');
-        if (titleElement) {
-            const displayTitle = window.filterTagsFromText(newTitle);
-            titleElement.innerHTML = renderMarkdown(displayTitle);
+        // Update the title display using shared function (fixed selector)
+        const titleElement = columnElement.querySelector('.column-title-text');
+        if (titleElement && window.cachedBoard) {
+            const columnData = window.cachedBoard.columns.find(c => c.id === columnId);
+            if (columnData) {
+                const renderedTitle = window.tagUtils ? window.tagUtils.getColumnDisplayTitle(columnData, window.filterTagsFromText) : (columnData.title || '');
+                titleElement.innerHTML = renderedTitle;
+            }
         }
 
         // Update the stack toggle button
@@ -2359,14 +2365,14 @@ function updateColumnDisplayImmediate(columnId, newTitle, isActive, tagName) {
         return;
     }
     
-    // Update title display
+    // Update title display using shared function
     const titleElement = columnElement.querySelector('.column-title-text');
-    if (titleElement) {
-        const displayTitle = window.filterTagsFromText ? window.filterTagsFromText(newTitle) : newTitle;
-        const renderedTitle = displayTitle ?
-            (window.renderMarkdown ? window.renderMarkdown(displayTitle) : displayTitle) :
-            '';
-        titleElement.innerHTML = renderedTitle;
+    if (titleElement && window.cachedBoard) {
+        const columnData = window.cachedBoard.columns.find(c => c.id === columnId);
+        if (columnData) {
+            const renderedTitle = window.tagUtils ? window.tagUtils.getColumnDisplayTitle(columnData, window.filterTagsFromText) : (columnData.title || '');
+            titleElement.innerHTML = renderedTitle;
+        }
     }
     
     // Update edit field if it exists

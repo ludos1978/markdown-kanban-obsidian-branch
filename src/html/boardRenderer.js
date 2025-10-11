@@ -1706,34 +1706,8 @@ function createColumnElement(column, columnIndex) {
     // Corner badges handled by immediate update system
     const cornerBadgesHtml = '';
 
-    // Handle columninclude specially - show filename as clickable link
-    let displayTitle;
-    let renderedTitle = '';
-
-    if (column.includeMode && column.includeFiles && column.includeFiles.length > 0) {
-        // For columninclude, show filename as a clickable link
-        const fileName = column.includeFiles[0]; // Use the first include file
-        const baseFileName = fileName.split('/').pop().split('\\').pop(); // Get just the filename
-
-        // Create a clickable link that handles Alt+click to open file
-        const linkHtml = `<span class="columninclude-link" data-file-path="${escapeHtml(fileName)}" onclick="handleColumnIncludeClick(event, '${escapeHtml(fileName)}')" title="Alt+click to open file">${escapeHtml(baseFileName)}</span>`;
-
-        // Use displayTitle from backend (which already has include syntax removed)
-        // If displayTitle is the filename without extension, don't show it again
-        const fileNameWithoutExt = baseFileName.replace(/\.[^/.]+$/, '');
-        const additionalTitle = (column.displayTitle && column.displayTitle !== fileNameWithoutExt) ? column.displayTitle : '';
-
-        if (additionalTitle) {
-            renderedTitle = `${linkHtml} ${renderMarkdown(additionalTitle)}`;
-        } else {
-            renderedTitle = linkHtml;
-        }
-    } else {
-        // Normal column - use displayTitle or filter tags based on tagVisibility
-        // Tags like #stack and #row will be rendered as <span class="kanban-tag"> by markdown
-        displayTitle = column.displayTitle || (column.title ? window.filterTagsFromText(column.title) : '');
-        renderedTitle = displayTitle ? renderMarkdown(displayTitle) : '';
-    }
+    // Get display title using shared utility function
+    const renderedTitle = window.tagUtils ? window.tagUtils.getColumnDisplayTitle(column, window.filterTagsFromText) : (column.title || '');
 
     // For editing, always use the full title including include syntax
     const editTitle = column.title || '';
@@ -3386,9 +3360,11 @@ function generateTagStyles() {
                         const headerText = config.headerBar.label || '';
 
                         // Calculate automatic text color from header bar background
+                        // ALWAYS use automatic calculation, ignore configured labelColor
                         const opaqueHeaderColor = headerColor.length === 9 ? headerColor.substring(0, 7) : headerColor;
-                        const headerTextColor = config.headerBar.labelColor || (window.colorUtils ? window.colorUtils.getContrastText(opaqueHeaderColor) : '#000000');
-                        
+                        const headerTextColor = window.colorUtils ? window.colorUtils.getContrastText(opaqueHeaderColor) : '#ffffff';
+                        const headerTextShadow = window.colorUtils ? window.colorUtils.getContrastShadow(headerTextColor, opaqueHeaderColor) : '';
+
                         // Create a unique class for this header bar - always solid color
                         styles += `.header-bar-${lowerTagName} {
                             /* position: absolute; */
@@ -3398,12 +3374,12 @@ function generateTagStyles() {
                             background: ${headerColor};
                             z-index: 1;
                             ${headerText ? `
-                                color: ${headerTextColor};
+                                color: ${headerTextColor} !important;
                                 font-size: 10px;
                                 font-weight: bold;
                                 display: flex;
                                 align-items: center;
-                                justify-content: center;
+                                justify-content: center;${headerTextShadow ? `\n                                text-shadow: ${headerTextShadow};` : ''}
                             ` : ''}
                         }\n`;
                         
@@ -3432,9 +3408,11 @@ function generateTagStyles() {
                         const footerText = config.footerBar.label || '';
 
                         // Calculate automatic text color from footer bar background
+                        // ALWAYS use automatic calculation, ignore configured labelColor
                         const opaqueFooterColor = footerColor.length === 9 ? footerColor.substring(0, 7) : footerColor;
-                        const footerTextColor = config.footerBar.labelColor || (window.colorUtils ? window.colorUtils.getContrastText(opaqueFooterColor) : '#000000');
-                        
+                        const footerTextColor = window.colorUtils ? window.colorUtils.getContrastText(opaqueFooterColor) : '#ffffff';
+                        const footerTextShadow = window.colorUtils ? window.colorUtils.getContrastShadow(footerTextColor, opaqueFooterColor) : '';
+
                         // Create a unique class for this footer bar
                         styles += `.footer-bar-${lowerTagName} {
                             /* position: absolute; */
@@ -3444,12 +3422,12 @@ function generateTagStyles() {
                             background: ${footerColor};
                             z-index: 1;
                             ${footerText ? `
-                                color: ${footerTextColor};
+                                color: ${footerTextColor} !important;
                                 font-size: 10px;
                                 font-weight: bold;
                                 display: flex;
                                 align-items: center;
-                                justify-content: center;
+                                justify-content: center;${footerTextShadow ? `\n                                text-shadow: ${footerTextShadow};` : ''}
                             ` : ''}
                         }\n`;
                         
@@ -3476,8 +3454,9 @@ function generateTagStyles() {
                         const badgeColor = config.cornerBadge.color || themeColors.background;
 
                         // Calculate automatic text color from badge background
+                        // ALWAYS use automatic calculation, ignore configured labelColor
                         const opaqueBadgeColor = badgeColor.length === 9 ? badgeColor.substring(0, 7) : badgeColor;
-                        const badgeTextColor = config.cornerBadge.labelColor || (window.colorUtils ? window.colorUtils.getContrastText(opaqueBadgeColor) : '#000000');
+                        const badgeTextColor = window.colorUtils ? window.colorUtils.getContrastText(opaqueBadgeColor) : '#ffffff';
 
                         const badgeStyle = config.cornerBadge.style || 'circle';
                         const badgeImage = config.cornerBadge.image || '';

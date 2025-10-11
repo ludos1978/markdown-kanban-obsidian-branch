@@ -4,6 +4,8 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] when i create a new card it seems to completely redraw the kanban. can you only update the changed parts without a complete redraw?
+
 - [ ] tags still show with white text and i dont know where this happens. all text in the light mode should be black.
 
 - [x] the time format is 2 hours off, i think you are using gmt which is not our local time format.
