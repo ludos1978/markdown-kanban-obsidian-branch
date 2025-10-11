@@ -10,6 +10,37 @@ if (typeof window !== 'undefined') {
 // Global state
 let activeTagMenu = null;
 
+/**
+ * Scrolls an element into view only if it's outside the viewport
+ * @param {HTMLElement} element - Element to check and potentially scroll
+ * @param {string} type - 'task' or 'column' for logging purposes
+ */
+function scrollToElementIfNeeded(element, type = 'element') {
+    if (!element) return;
+
+    const rect = element.getBoundingClientRect();
+
+    // For columns, check horizontal visibility
+    // For tasks, check vertical visibility
+    let isVisible;
+    if (type === 'column') {
+        isVisible = rect.left >= 0 && rect.right <= window.innerWidth;
+    } else {
+        isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+    }
+
+    console.log(`[scrollToElementIfNeeded] ${type} visibility check:`, {
+        isVisible,
+        rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        willScroll: !isVisible
+    });
+
+    if (!isVisible) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
 // Simple Menu Manager - handles all menu types
 class SimpleMenuManager {
     constructor() {
@@ -1970,20 +2001,7 @@ function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
                 // Focus the newly created task and start editing
                 if (taskElement) {
                     setTimeout(() => {
-                        // Only scroll if element is outside the viewport
-                        const rect = taskElement.getBoundingClientRect();
-                        const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-
-                        console.log('[addTask] Task visibility check:', {
-                            isVisible,
-                            rect: { top: rect.top, bottom: rect.bottom },
-                            viewport: { height: window.innerHeight },
-                            willScroll: !isVisible
-                        });
-
-                        if (!isVisible) {
-                            taskElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        }
+                        scrollToElementIfNeeded(taskElement, 'task');
 
                         // Start editing the title
                         const titleContainer = taskElement.querySelector('.task-title-container');
@@ -2041,20 +2059,7 @@ function updateCacheForNewColumn(newColumn, insertIndex = -1, referenceColumnId 
             // Focus the newly created column and start editing its title
             if (columnElement) {
                 setTimeout(() => {
-                    // Only scroll if element is outside the viewport
-                    const rect = columnElement.getBoundingClientRect();
-                    const isVisible = rect.left >= 0 && rect.right <= window.innerWidth;
-
-                    console.log('[addColumn] Column visibility check:', {
-                        isVisible,
-                        rect: { left: rect.left, right: rect.right },
-                        viewport: { width: window.innerWidth },
-                        willScroll: !isVisible
-                    });
-
-                    if (!isVisible) {
-                        columnElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
+                    scrollToElementIfNeeded(columnElement, 'column');
 
                     // Start editing the column title
                     if (window.editColumnTitle) {
@@ -2132,7 +2137,6 @@ function addColumn(rowNumber) {
  * Side effects: Updates pending changes, triggers visual updates
  */
 function toggleColumnTag(columnId, tagName, event) {
-
     // Enhanced duplicate prevention with stronger key and longer timeout
     const key = `column-${columnId}-${tagName}`;
     const now = Date.now();
@@ -2231,22 +2235,40 @@ function toggleColumnTag(columnId, tagName, event) {
 
     // Mark as unsaved since we made a change
     markUnsavedChanges();
-    
+
+    // Check if element is visible BEFORE any layout changes
+    const rect = domElement.getBoundingClientRect();
+    const isVisible = rect.left >= 0 && rect.right <= window.innerWidth;
+
     // Update DOM immediately using unique ID
     updateColumnDisplayImmediate(columnId, title, !wasActive, tagName);
-    
+
     // Update tag button appearance immediately
     updateTagButtonAppearance(columnId, 'column', tagName, !wasActive);
-    
+
     // Update tag category counts in menu
     updateTagCategoryCounts(columnId, 'column');
-    
+
     // Update corner badges immediately
     updateCornerBadgesImmediate(columnId, 'column', title);
 
-    // Recalculate stacked column heights after tag modification
-    if (typeof window.applyStackedColumnStyles === 'function') {
-        window.applyStackedColumnStyles();
+    // Only recalculate stack heights if this tag change affects visual elements (headers/footers)
+    // that change the column height
+    const visualTagsBefore = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(oldTitle) : [];
+    const visualTagsAfter = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(title) : [];
+
+    // If the number of visual tags changed, heights may have changed
+    if (visualTagsBefore.length !== visualTagsAfter.length) {
+        if (typeof window.applyStackedColumnStyles === 'function') {
+            window.applyStackedColumnStyles();
+        }
+    }
+
+    // Check if we need to scroll to element (only if it was not visible)
+    if (!isVisible) {
+        requestAnimationFrame(() => {
+            scrollToElementIfNeeded(domElement, 'column');
+        });
     }
 
     // NEW CACHE SYSTEM: Changes are already in cachedBoard, mark as unsaved
@@ -2386,22 +2408,40 @@ function toggleTaskTag(taskId, columnId, tagName, event) {
     
     // Mark as unsaved since we made a change
     markUnsavedChanges();
-    
+
+    // Check if element is visible BEFORE any layout changes
+    const rect = domElement.getBoundingClientRect();
+    const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+
     // Update DOM immediately using unique ID
     updateTaskDisplayImmediate(taskId, title, !wasActive, tagName);
-    
+
     // Update tag button appearance immediately
     updateTagButtonAppearance(taskId, 'task', tagName, !wasActive);
-    
+
     // Update tag category counts in menu
     updateTagCategoryCounts(taskId, 'task', columnId);
-    
+
     // Update corner badges immediately
     updateCornerBadgesImmediate(taskId, 'task', title);
 
-    // Recalculate stacked column heights after tag modification
-    if (typeof window.applyStackedColumnStyles === 'function') {
-        window.applyStackedColumnStyles();
+    // Only recalculate stack heights if this tag change affects visual elements (headers/footers)
+    // that change the task height
+    const visualTagsBefore = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(oldTitle) : [];
+    const visualTagsAfter = window.getActiveTagsInTitle ? window.getActiveTagsInTitle(title) : [];
+
+    // If the number of visual tags changed, heights may have changed
+    if (visualTagsBefore.length !== visualTagsAfter.length) {
+        if (typeof window.applyStackedColumnStyles === 'function') {
+            window.applyStackedColumnStyles();
+        }
+    }
+
+    // Check if we need to scroll to element (only if it was not visible)
+    if (!isVisible) {
+        requestAnimationFrame(() => {
+            scrollToElementIfNeeded(domElement, 'task');
+        });
     }
 
     // NEW CACHE SYSTEM: Changes are already in cachedBoard, mark as unsaved

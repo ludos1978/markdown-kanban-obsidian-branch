@@ -2174,12 +2174,23 @@ function toggleColumnCollapse(columnId, event) {
  * For new code, use enforceFoldModesForStacks() and recalculateStackHeights() separately
  */
 function applyStackedColumnStyles() {
+    // Preserve scroll position during layout changes
+    const kanbanBoard = document.getElementById('kanban-board');
+    const scrollLeft = kanbanBoard ? kanbanBoard.scrollLeft : 0;
+    const scrollTop = kanbanBoard ? kanbanBoard.scrollTop : 0;
+
     enforceFoldModesForStacks();
     recalculateStackHeights();
 
     // Update bottom drop zones after layout changes
     if (typeof window.updateStackBottomDropZones === 'function') {
         window.updateStackBottomDropZones();
+    }
+
+    // Restore scroll position immediately
+    if (kanbanBoard) {
+        kanbanBoard.scrollLeft = scrollLeft;
+        kanbanBoard.scrollTop = scrollTop;
     }
 }
 window.applyStackedColumnStyles = applyStackedColumnStyles;
