@@ -2181,13 +2181,11 @@ function applyStackedColumnStyles() {
     const scrollLeft = kanbanBoard ? kanbanBoard.scrollLeft : 0;
     const scrollTop = kanbanBoard ? kanbanBoard.scrollTop : 0;
 
-    console.log('[applyStackedColumnStyles] START - scroll:', { scrollLeft, scrollTop }, 'activeElement:', document.activeElement?.tagName, document.activeElement?.className);
-
     enforceFoldModesForStacks();
-    console.log('[applyStackedColumnStyles] After enforceFoldModesForStacks - scroll:', kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null, 'activeElement:', document.activeElement?.tagName);
-
+    // CRITICAL FIX: Use immediate version instead of debounced to prevent scroll issues
+    // The debounced version would delay layout changes until after scroll restoration,
+    // causing the browser to auto-scroll to focused elements
     recalculateStackHeightsImmediate();
-    console.log('[applyStackedColumnStyles] After recalculateStackHeightsImmediate - scroll:', kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null, 'activeElement:', document.activeElement?.tagName);
 
     // Update bottom drop zones after layout changes
     if (typeof window.updateStackBottomDropZones === 'function') {
@@ -2198,13 +2196,7 @@ function applyStackedColumnStyles() {
     if (kanbanBoard) {
         kanbanBoard.scrollLeft = scrollLeft;
         kanbanBoard.scrollTop = scrollTop;
-        console.log('[applyStackedColumnStyles] RESTORED scroll to:', { scrollLeft, scrollTop });
     }
-
-    // Check again after a tick to see if something else is changing it
-    setTimeout(() => {
-        console.log('[applyStackedColumnStyles] 10ms later - scroll:', kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null, 'activeElement:', document.activeElement?.tagName);
-    }, 10);
 }
 window.applyStackedColumnStyles = applyStackedColumnStyles;
 

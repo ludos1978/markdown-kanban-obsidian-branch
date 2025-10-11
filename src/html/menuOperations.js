@@ -458,23 +458,11 @@ class SimpleMenuManager {
                     const isInMovedDropdown = activeElement?.closest('.donut-menu-dropdown.moved-to-body, .file-bar-menu-dropdown.moved-to-body');
 
                     if (isInMovedDropdown) {
-                        console.log('[hover timeout] NOT closing menu - active element is in moved dropdown');
                         return; // Don't close the menu
                     }
 
                     document.querySelectorAll('.donut-menu.active').forEach(menu => {
-                        const kanbanBoard = document.getElementById('kanban-board');
-                        console.log('[hover timeout] Removing active class from menu - scroll BEFORE:', {
-                            left: kanbanBoard?.scrollLeft,
-                            top: kanbanBoard?.scrollTop
-                        });
-
                         menu.classList.remove('active');
-
-                        console.log('[hover timeout] Removed active class from menu - scroll AFTER:', {
-                            left: kanbanBoard?.scrollLeft,
-                            top: kanbanBoard?.scrollTop
-                        });
 
                         // Clean up any moved dropdowns - check both in menu and moved to body
                         let dropdown = menu.querySelector('.donut-menu-dropdown, .file-bar-menu-dropdown');
@@ -523,37 +511,12 @@ window.menuManager = new SimpleMenuManager();
  */
 function cleanupDropdown(dropdown) {
     if (dropdown._originalParent && dropdown.parentElement === document.body) {
-        const kanbanBoard = document.getElementById('kanban-board');
-        const scrollBeforeCleanup = kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null;
-
-        // Check if the original parent is in a folded column
-        const originalParentColumn = dropdown._originalParent.closest('.kanban-full-height-column');
-        const isParentFolded = originalParentColumn?.classList.contains('vertically-folded');
-        const parentRect = dropdown._originalParent.getBoundingClientRect();
-        const kanbanRect = kanbanBoard?.getBoundingClientRect();
-
-        console.log('[cleanupDropdown] BEFORE moving dropdown back:', {
-            scrollBeforeCleanup,
-            isParentFolded,
-            parentVisible: parentRect && kanbanRect ?
-                (parentRect.top >= kanbanRect.top && parentRect.bottom <= kanbanRect.bottom) : null,
-            parentPosition: parentRect ? { top: parentRect.top, left: parentRect.left } : null,
-            activeElement: document.activeElement?.tagName
-        });
-
         // Restore to original position
         if (dropdown._originalNextSibling) {
             dropdown._originalParent.insertBefore(dropdown, dropdown._originalNextSibling);
         } else {
             dropdown._originalParent.appendChild(dropdown);
         }
-
-        const scrollAfterCleanup = kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null;
-        console.log('[cleanupDropdown] AFTER moving dropdown back:', {
-            scrollAfterCleanup,
-            scrollChanged: scrollBeforeCleanup && scrollAfterCleanup ?
-                (scrollBeforeCleanup.top !== scrollAfterCleanup.top || scrollBeforeCleanup.left !== scrollAfterCleanup.left) : null
-        });
 
         // Clean up tracking properties and CSS classes
         delete dropdown._originalParent;
@@ -2286,34 +2249,17 @@ function toggleColumnTag(columnId, tagName, event) {
     const rect = domElement.getBoundingClientRect();
     const isVisible = rect.left >= 0 && rect.right <= window.innerWidth;
 
-    // DEBUG: Track scroll position after each operation
-    const kanbanBoard = document.getElementById('kanban-board');
-    const logScroll = (label) => {
-        if (kanbanBoard) {
-            console.log(`[toggleColumnTag] ${label} - scroll:`, {
-                left: kanbanBoard.scrollLeft,
-                top: kanbanBoard.scrollTop
-            });
-        }
-    };
-
-    logScroll('START');
-
     // Update DOM immediately using unique ID
     updateColumnDisplayImmediate(columnId, title, !wasActive, tagName);
-    logScroll('After updateColumnDisplayImmediate');
 
     // Update tag button appearance immediately
     updateTagButtonAppearance(columnId, 'column', tagName, !wasActive);
-    logScroll('After updateTagButtonAppearance');
 
     // Update tag category counts in menu
     updateTagCategoryCounts(columnId, 'column');
-    logScroll('After updateTagCategoryCounts');
 
     // Update corner badges immediately
     updateCornerBadgesImmediate(columnId, 'column', title);
-    logScroll('After updateCornerBadgesImmediate');
 
     // Only recalculate stack heights if this tag change affects visual elements (headers/footers)
     // that change the column height
@@ -2322,16 +2268,9 @@ function toggleColumnTag(columnId, tagName, event) {
 
     // If the number of visual tags changed, heights may have changed
     if (visualTagsBefore.length !== visualTagsAfter.length) {
-        console.log('[toggleColumnTag] CALLING applyStackedColumnStyles - visualTagsBefore:', visualTagsBefore.length, 'visualTagsAfter:', visualTagsAfter.length);
-        console.log('[toggleColumnTag] BEFORE applyStackedColumnStyles - activeElement:', document.activeElement?.tagName, document.activeElement?.className);
-        logScroll('BEFORE applyStackedColumnStyles');
-
         if (typeof window.applyStackedColumnStyles === 'function') {
             window.applyStackedColumnStyles();
         }
-
-        logScroll('AFTER applyStackedColumnStyles');
-        console.log('[toggleColumnTag] AFTER applyStackedColumnStyles - activeElement:', document.activeElement?.tagName, document.activeElement?.className);
     }
 
     // Check if we need to scroll to element (only if it was not visible)
@@ -3538,41 +3477,7 @@ window.handleColumnTagClick = (columnId, tagName, event) => {
     // Set dropdown state to prevent the hover timeout from closing the menu
     window._inDropdown = true;
 
-    const kanbanBoard = document.getElementById('kanban-board');
-
-    // Get the column element to understand its state
-    const columnElement = document.querySelector(`.kanban-full-height-column[data-column-id="${columnId}"]`);
-    const isFolded = columnElement?.classList.contains('vertically-folded');
-    const columnRect = columnElement?.getBoundingClientRect();
-    const kanbanRect = kanbanBoard?.getBoundingClientRect();
-
-    console.log('[handleColumnTagClick] BEFORE toggleColumnTag:', {
-        scroll: { left: kanbanBoard?.scrollLeft, top: kanbanBoard?.scrollTop },
-        columnId,
-        isFolded,
-        columnVisible: columnRect && kanbanRect ?
-            (columnRect.top >= kanbanRect.top && columnRect.bottom <= kanbanRect.bottom) : null,
-        columnPosition: columnRect ? { top: columnRect.top, left: columnRect.left, bottom: columnRect.bottom } : null,
-        kanbanPosition: kanbanRect ? { top: kanbanRect.top, scrollHeight: kanbanBoard.scrollHeight, clientHeight: kanbanBoard.clientHeight } : null
-    });
-
-    // Execute the tag toggle
-    const result = toggleColumnTag(columnId, tagName, event);
-
-    console.log('[handleColumnTagClick] AFTER toggleColumnTag - scroll:', {
-        left: kanbanBoard?.scrollLeft,
-        top: kanbanBoard?.scrollTop
-    });
-
-    // Check scroll after a delay to see if something async is changing it
-    setTimeout(() => {
-        console.log('[handleColumnTagClick] 100ms after toggleColumnTag - scroll:', {
-            left: kanbanBoard?.scrollLeft,
-            top: kanbanBoard?.scrollTop
-        });
-    }, 100);
-
-    return result;
+    return toggleColumnTag(columnId, tagName, event);
 };
 window.handleTaskTagClick = (taskId, columnId, tagName, event) => {
     // CRITICAL: Clear any pending hover timeouts to prevent menu from closing
