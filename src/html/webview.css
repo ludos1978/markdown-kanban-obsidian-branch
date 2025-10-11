@@ -3300,18 +3300,19 @@ blockquote {
 
 /* HTML Comment Markers */
 .html-comment-marker {
-  color: var(--vscode-descriptionForeground, #6c7a89);
-  background-color: var(--vscode-editor-inactiveSelectionBackground, rgba(108, 122, 137, 0.15));
-  padding: 1px 4px;
+  color: var(--vscode-editor-foreground, #cccccc);
+  background-color: var(--vscode-input-background, rgba(60, 120, 60, 0.25));
+  padding: 2px 6px;
   border-radius: 3px;
-  font-size: 0.80em;
+  font-size: 0.85em;
   font-family: 'Courier New', monospace;
-  font-style: italic;
+  font-style: normal;
+  font-weight: 500;
   white-space: pre-wrap;
   word-break: break-all;
   user-select: none;
-  border: 1px dashed var(--vscode-descriptionForeground, #999);
-  opacity: 0.7;
+  border: 1px solid var(--vscode-editorInfo-foreground, #4a9eff);
+  opacity: 0.9;
   transition: all 0.2s ease;
   display: inline;
   vertical-align: middle;
@@ -3319,7 +3320,8 @@ blockquote {
 
 .html-comment-marker:hover {
   opacity: 1;
-  background-color: var(--vscode-editor-selectionBackground, rgba(108, 122, 137, 0.25));
+  background-color: var(--vscode-input-background, rgba(60, 120, 60, 0.4));
+  border-color: var(--vscode-focusBorder, #007acc);
 }
 
 /* Hide HTML comments when showHtmlComments config is false */

@@ -315,18 +315,42 @@ function htmlCommentPlugin(md, options = {}) {
     // Register the inline rule - before 'html_inline' to capture comments first
     md.inline.ruler.before('html_inline', 'html_comment', parseHtmlComment);
 
+    // Also register as block rule to catch block-level comments
+    md.block.ruler.before('html_block', 'html_comment_block', parseHtmlComment);
+
     // Render rule
     md.renderer.rules.html_comment = function(tokens, idx) {
         const token = tokens[idx];
         const content = token.content;
 
         if (!showComments) {
-            // Return actual HTML comment (invisible)
-            return `<!--${escapeHtml(content)}-->`;
+            // Hide comment completely (don't return HTML comment as it's invisible anyway)
+            return '';
         }
 
-        // Return visible comment marker
-        return `<span class="html-comment-marker" title="HTML Comment"><!--${escapeHtml(content)}--></span>`;
+        // Return visible comment marker (escaped so it shows as text, not as HTML comment)
+        return `<span class="html-comment-marker" title="HTML Comment">&lt;!--${escapeHtml(content)}--&gt;</span>`;
+    };
+
+    // Override default html_block renderer to handle comments
+    const originalHtmlBlock = md.renderer.rules.html_block;
+    md.renderer.rules.html_block = function(tokens, idx, options, env, self) {
+        const token = tokens[idx];
+        const content = token.content;
+
+        // Check if this is an HTML comment
+        if (content.trim().startsWith('<!--') && content.trim().endsWith('-->')) {
+            const commentContent = content.trim().slice(4, -3).trim();
+
+            if (!showComments) {
+                return '';
+            }
+
+            return `<div class="html-comment-marker" title="HTML Comment">&lt;!--${escapeHtml(commentContent)}--&gt;</div>`;
+        }
+
+        // Not a comment, use original renderer
+        return originalHtmlBlock ? originalHtmlBlock(tokens, idx, options, env, self) : content;
     };
 }
 

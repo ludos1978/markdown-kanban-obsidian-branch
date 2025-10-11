@@ -22,9 +22,9 @@ kanban-plugin: board
 
 - [ ] add the ability to export as pdf. could we integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly?
 
-- [ ] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
+- [x] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
  
-- [ ] make the hidden html tag <!-- --> show up when it's used in the tasks content, title or column title. show it similar to the markers that show the style of elements. add an option to the main-burger menu that allows showing and hiding of the html-comments. make sure it's accessable from the layout presets.
+- [x] make the hidden html tag <!-- --> show up when it's used in the tasks content, title or column title. show it similar to the markers that show the style of elements. add an option to the main-burger menu that allows showing and hiding of the html-comments. make sure it's accessable from the layout presets.
 
 - [x] can you make a concept for the tags and colors. One of the core aspects i want, is for designing teaching materials. 
 - where each task is a slide on a topic. so the task may need to be improved, might be obsolete, might be more or less important, also think of other situations i might forget about right now.
