@@ -159,6 +159,104 @@ class ColorUtils {
 
         return this.rgbToHex(r, g, b);
     }
+
+    /**
+     * Calculate relative luminance of a color (WCAG standard)
+     * @param {string} color - Color in any format
+     * @returns {number} Luminance value (0-1)
+     */
+    getLuminance(color) {
+        const rgb = this.parseToRgb(color);
+        if (!rgb) return 0.5; // Default to mid luminance if parsing fails
+
+        // Convert RGB to linear RGB
+        const toLinear = (val) => {
+            const normalized = val / 255;
+            return normalized <= 0.03928
+                ? normalized / 12.92
+                : Math.pow((normalized + 0.055) / 1.055, 2.4);
+        };
+
+        const r = toLinear(rgb.r);
+        const g = toLinear(rgb.g);
+        const b = toLinear(rgb.b);
+
+        // Calculate relative luminance using WCAG formula
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    /**
+     * Determine if dark text should be used on a background color
+     * Uses WCAG contrast guidelines
+     * @param {string} backgroundColor - Background color
+     * @returns {boolean} True if dark text should be used
+     */
+    shouldUseDarkText(backgroundColor) {
+        const luminance = this.getLuminance(backgroundColor);
+        // If luminance is above 0.5, use dark text
+        // This threshold ensures good contrast
+        return luminance > 0.5;
+    }
+
+    /**
+     * Get appropriate text color (black or white) for a background
+     * @param {string} backgroundColor - Background color
+     * @returns {string} Either '#000000' or '#ffffff'
+     */
+    getContrastText(backgroundColor) {
+        return this.shouldUseDarkText(backgroundColor) ? '#000000' : '#ffffff';
+    }
+
+    /**
+     * Calculate contrast ratio between two colors (WCAG standard)
+     * @param {string} color1 - First color
+     * @param {string} color2 - Second color
+     * @returns {number} Contrast ratio (1-21)
+     */
+    getContrastRatio(color1, color2) {
+        const lum1 = this.getLuminance(color1);
+        const lum2 = this.getLuminance(color2);
+
+        const lighter = Math.max(lum1, lum2);
+        const darker = Math.min(lum1, lum2);
+
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    /**
+     * Check if contrast between text and background is sufficient
+     * @param {string} textColor - Text color
+     * @param {string} backgroundColor - Background color
+     * @param {number} minRatio - Minimum contrast ratio (default 4.5 for normal text)
+     * @returns {boolean} True if contrast is sufficient
+     */
+    hasGoodContrast(textColor, backgroundColor, minRatio = 4.5) {
+        const ratio = this.getContrastRatio(textColor, backgroundColor);
+        return ratio >= minRatio;
+    }
+
+    /**
+     * Get text shadow for better contrast
+     * Creates an outline effect when contrast is poor
+     * @param {string} textColor - Text color
+     * @param {string} backgroundColor - Background color
+     * @returns {string} CSS text-shadow value or empty string
+     */
+    getContrastShadow(textColor, backgroundColor) {
+        const ratio = this.getContrastRatio(textColor, backgroundColor);
+
+        // If contrast is good (ratio >= 4.5), no shadow needed
+        if (ratio >= 4.5) {
+            return '';
+        }
+
+        // For poor contrast, add outline shadow
+        // Use the opposite color of the text for the outline
+        const outlineColor = this.shouldUseDarkText(backgroundColor) ? '#ffffff' : '#000000';
+
+        // Create a multi-directional outline effect
+        return `0 0 2px ${outlineColor}, 0 0 2px ${outlineColor}, 0 0 2px ${outlineColor}`;
+    }
 }
 
 // Create singleton instance

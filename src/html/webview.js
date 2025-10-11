@@ -172,6 +172,11 @@ const baseOptions = {
         { label: "@ Tags Only", value: "mentionsonly", description: "Show only @ tags" },
         { label: "No Tags", value: "none", description: "Hide all tags" }
     ],
+    // HTML Comments visibility options
+    showHtmlComments: [
+        { label: "Show", value: true, description: "Show HTML comments as visible markers" },
+        { label: "Hide", value: false, description: "Hide HTML comments (default HTML behavior)" }
+    ],
     // Arrow key focus scroll options
     arrowKeyFocusScroll: [
         { label: "Center", value: "center", css: "center", description: "Center the focused item in the viewport" },
@@ -225,7 +230,7 @@ const menuConfig = {
 
 // Generate menu configurations from base options
 // Simple generator for most menu types
-['columnWidth', 'cardHeight', 'sectionMaxHeight', 'rowHeight', 'whitespace', 'fontSize', 'layoutRows', 'stickyStackMode', 'tagVisibility', 'arrowKeyFocusScroll'].forEach(key => {
+['columnWidth', 'cardHeight', 'sectionMaxHeight', 'rowHeight', 'whitespace', 'fontSize', 'layoutRows', 'stickyStackMode', 'tagVisibility', 'showHtmlComments', 'arrowKeyFocusScroll'].forEach(key => {
     if (baseOptions[key]) {
         menuConfig[key] = baseOptions[key].map(option => {
             const result = {
@@ -273,6 +278,8 @@ function getCurrentSettingValue(configKey) {
             return window.currentStickyStackMode || 'titleonly';
         case 'tagVisibility':
             return window.currentTagVisibility || 'allexcludinglayout';
+        case 'showHtmlComments':
+            return window.currentShowHtmlComments !== undefined ? window.currentShowHtmlComments : false;
         case 'arrowKeyFocusScroll':
             return window.currentArrowKeyFocusScroll || 'center';
         default:
@@ -292,7 +299,8 @@ function updateAllMenuIndicators() {
         { selector: '[data-menu="layoutRows"]', config: 'layoutRows', function: 'setLayoutRows' },
         { selector: '[data-menu="rowHeight"]', config: 'rowHeight', function: 'setRowHeight' },
         { selector: '[data-menu="stickyStackMode"]', config: 'stickyStackMode', function: 'setStickyStackMode' },
-        { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' }
+        { selector: '[data-menu="tagVisibility"]', config: 'tagVisibility', function: 'setTagVisibility' },
+        { selector: '[data-menu="showHtmlComments"]', config: 'showHtmlComments', function: 'setShowHtmlComments' }
     ];
 
     menuMappings.forEach(mapping => {
@@ -1388,6 +1396,41 @@ function setTagVisibility(setting) {
     applyAndSaveSetting('tagVisibility', setting, applyTagVisibility);
 }
 
+// HTML Comments visibility
+function applyShowHtmlComments(show) {
+    // Store current setting (convert to boolean)
+    const showBool = show === true || show === 'true';
+    window.currentShowHtmlComments = showBool;
+
+    // Update body class for CSS visibility control
+    if (showBool) {
+        document.body.classList.add('show-html-comments');
+    } else {
+        document.body.classList.remove('show-html-comments');
+    }
+
+    // Update config manager cache if available
+    if (window.configManager) {
+        window.configManager.cache.set('showHtmlComments', showBool);
+    }
+
+    // Trigger re-render to apply changes
+    if (window.cachedBoard) {
+        renderBoard(window.cachedBoard, { skipRender: false });
+
+        // Preserve column width after re-render
+        setTimeout(() => {
+            if (window.currentColumnWidth && window.applyColumnWidth) {
+                window.applyColumnWidth(window.currentColumnWidth, true);
+            }
+        }, 50);
+    }
+}
+
+function setShowHtmlComments(show) {
+    applyAndSaveSetting('showHtmlComments', show, applyShowHtmlComments);
+}
+
 // Helper function to filter tags from text based on export tag visibility setting
 function filterTagsForExport(text, tagVisibility = 'allexcludinglayout') {
     if (!text) return text;
@@ -2279,6 +2322,13 @@ window.addEventListener('message', event => {
                     applyTagVisibility(tagVisibility);
                 } else {
                     applyTagVisibility('allexcludinglayout'); // Default fallback
+                }
+
+                // Update HTML comments visibility with the value from configuration
+                if (message.showHtmlComments !== undefined) {
+                    applyShowHtmlComments(message.showHtmlComments);
+                } else {
+                    applyShowHtmlComments(false); // Default fallback
                 }
 
                 // Update arrow key focus scroll with the value from configuration
@@ -3959,6 +4009,9 @@ function applyLayoutPreset(presetKey) {
                 break;
             case 'tagVisibility':
                 setTagVisibility(value);
+                break;
+            case 'showHtmlComments':
+                setShowHtmlComments(value);
                 break;
             case 'whitespace':
                 setWhitespace(value);

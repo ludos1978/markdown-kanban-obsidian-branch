@@ -3090,11 +3090,17 @@ function generateTagStyles() {
         // Default column styles (gated)
         if (defaultConfig.column && (defaultConfig.column.applyBackground === true || defaultConfig.column.enable === true)) {
             const columnColors = defaultConfig.column[themeKey] || defaultConfig.column.light || {};
-            if (columnColors.text && columnColors.background) {
+            if (columnColors.background) {
                 const editorBg = getEditorBackground();
                 const bgDark = columnColors.backgroundDark || columnColors.background;
-                
+
                 const columnBg = interpolateColor(editorBg, bgDark, 0.15);
+
+                // Calculate automatic text color from the opaque background (not interpolated)
+                // Strip alpha channel like we do for tags
+                const opaqueDefaultBg = columnColors.background.length === 9 ? columnColors.background.substring(0, 7) : columnColors.background;
+                const defaultColumnTextColor = window.colorUtils ? window.colorUtils.getContrastText(opaqueDefaultBg) : '#000000';
+                const defaultColumnTextShadow = window.colorUtils ? window.colorUtils.getContrastShadow(defaultColumnTextColor, opaqueDefaultBg) : '';
 
                 // Default column header background
                 styles += `.kanban-full-height-column:not([data-column-tag]) .column-header {
@@ -3105,17 +3111,32 @@ function generateTagStyles() {
                     background-color: ${columnBg} !important;
                 }\n`;
 
+                // Default column title text color - higher specificity
+                styles += `.kanban-full-height-column:not([data-column-tag]) .column-title .column-title-text,
+.kanban-full-height-column:not([data-column-tag]) .column-title .column-title-text * {
+                    color: ${defaultColumnTextColor} !important;${defaultColumnTextShadow ? `\n                    text-shadow: ${defaultColumnTextShadow} !important;` : ''}
+                }\n`;
+
                 // Default column content background
                 styles += `.kanban-full-height-column:not([data-column-tag]) .column-content {
                     background-color: ${columnBg} !important;
                 }\n`;
 
-                // Default column footer background
+                // Default column footer background and text
                 styles += `.kanban-full-height-column:not([data-column-tag]) .column-footer {
                     background-color: ${columnBg} !important;
                 }\n`;
 
+                styles += `.kanban-full-height-column:not([data-column-tag]) .column-footer,
+.kanban-full-height-column:not([data-column-tag]) .column-footer * {
+                    color: ${defaultColumnTextColor} !important;${defaultColumnTextShadow ? `\n                    text-shadow: ${defaultColumnTextShadow} !important;` : ''}
+                }\n`;
+
                 const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
+
+                // Use the same text color as default columns for collapsed state
+                const defaultCollapsedTextColor = defaultColumnTextColor;
+                const defaultCollapsedTextShadow = defaultColumnTextShadow;
 
                 // Default collapsed column header background
                 styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-header {
@@ -3126,9 +3147,20 @@ function generateTagStyles() {
                     background-color: ${columnCollapsedBg} !important;
                 }\n`;
 
-                // Default collapsed column footer background
+                // Default collapsed title text color - higher specificity
+                styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-title .column-title-text,
+.kanban-full-height-column.collapsed:not([data-column-tag]) .column-title .column-title-text * {
+                    color: ${defaultCollapsedTextColor} !important;${defaultCollapsedTextShadow ? `\n                    text-shadow: ${defaultCollapsedTextShadow} !important;` : ''}
+                }\n`;
+
+                // Default collapsed column footer background and text
                 styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-footer {
                     background-color: ${columnCollapsedBg} !important;
+                }\n`;
+
+                styles += `.kanban-full-height-column.collapsed:not([data-column-tag]) .column-footer,
+.kanban-full-height-column.collapsed:not([data-column-tag]) .column-footer * {
+                    color: ${defaultCollapsedTextColor} !important;${defaultCollapsedTextShadow ? `\n                    text-shadow: ${defaultCollapsedTextShadow} !important;` : ''}
                 }\n`;
             }
         }
@@ -3178,12 +3210,20 @@ function generateTagStyles() {
                 const themeColors = config[themeKey] || config.light || {};
                 const lowerTagName = tagName.toLowerCase();
 
-                // Tag pill styles (the tag text itself) - only if we have both text and background
-                if (themeColors.text && themeColors.background) {
+                // Tag pill styles (the tag text itself) - only if background is configured
+                if (themeColors.background) {
+                    // Strip alpha channel from background for luminance calculation
+                    // Alpha affects blending but not the opaque color's luminance
+                    const opaqueBackground = themeColors.background.length === 9 ? themeColors.background.substring(0, 7) : themeColors.background;
+
+                    // Calculate automatic text color based on background luminance
+                    const tagTextColor = window.colorUtils ? window.colorUtils.getContrastText(opaqueBackground) : '#000000';
+                    const tagTextShadow = window.colorUtils ? window.colorUtils.getContrastShadow(tagTextColor, opaqueBackground) : '';
+
                     styles += `.kanban-tag[data-tag="${lowerTagName}"] {
-                        color: ${themeColors.text} !important;
+                        color: ${tagTextColor} !important;
                         background-color: ${themeColors.background} !important;
-                        border: 1px solid ${themeColors.background};
+                        border: 1px solid ${themeColors.background};${tagTextShadow ? `\n                        text-shadow: ${tagTextShadow};` : ''}
                     }\n`;
 
                     // Highlight lines/paragraphs containing this tag in descriptions
@@ -3201,11 +3241,16 @@ function generateTagStyles() {
                     // Get the base background color (or use editor background as default)
                     const editorBg = getEditorBackground();
                     const bgDark = themeColors.backgroundDark || themeColors.background;
-                    
+
                     // Column background styles - only for primary tag
                     // Interpolate 15% towards the darker color
                     const columnBg = interpolateColor(editorBg, bgDark, 0.15);
-                    
+
+                    // Use the same text color as tags for all headers/footers
+                    // This ensures consistency across tags, headers, and footers
+                    const columnTextColor = tagTextColor;
+                    const columnTextShadow = tagTextShadow;
+
                     // Column header background
                     styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-header {
                         background-color: ${columnBg} !important;
@@ -3215,18 +3260,34 @@ function generateTagStyles() {
                         background-color: ${columnBg} !important;
                     }\n`;
 
+                    // Column title text color - higher specificity to override base CSS
+                    styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-title .column-title-text,
+.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-title .column-title-text * {
+                        color: ${columnTextColor} !important;${columnTextShadow ? `\n                        text-shadow: ${columnTextShadow} !important;` : ''}
+                    }\n`;
+
                     // Column content background
                     styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-content {
                         background-color: ${columnBg} !important;
                     }\n`;
 
-                    // Column footer background
+                    // Column footer background and text
                     styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-footer {
                         background-color: ${columnBg} !important;
                     }\n`;
 
+                    styles += `.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-footer,
+.kanban-full-height-column[data-column-tag="${lowerTagName}"] .column-footer * {
+                        color: ${columnTextColor} !important;${columnTextShadow ? `\n                        text-shadow: ${columnTextShadow} !important;` : ''}
+                    }\n`;
+
                     // Column collapsed state - interpolate 20% towards the darker color
                     const columnCollapsedBg = interpolateColor(editorBg, bgDark, 0.2);
+
+                    // Use the same text color as tags for collapsed state
+                    // This ensures consistency across all states
+                    const collapsedTextColor = tagTextColor;
+                    const collapsedTextShadow = tagTextShadow;
 
                     // Collapsed column header background
                     styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-header {
@@ -3237,9 +3298,20 @@ function generateTagStyles() {
                         background-color: ${columnCollapsedBg} !important;
                     }\n`;
 
-                    // Collapsed column footer background
+                    // Collapsed title text color - higher specificity
+                    styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-title .column-title-text,
+.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-title .column-title-text * {
+                        color: ${collapsedTextColor} !important;${collapsedTextShadow ? `\n                        text-shadow: ${collapsedTextShadow} !important;` : ''}
+                    }\n`;
+
+                    // Collapsed column footer background and text
                     styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-footer {
                         background-color: ${columnCollapsedBg} !important;
+                    }\n`;
+
+                    styles += `.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-footer,
+.kanban-full-height-column.collapsed[data-column-tag="${lowerTagName}"] .column-footer * {
+                        color: ${collapsedTextColor} !important;${collapsedTextShadow ? `\n                        text-shadow: ${collapsedTextShadow} !important;` : ''}
                     }\n`;
                     
                     // Card background styles - only for primary tag
@@ -3312,7 +3384,10 @@ function generateTagStyles() {
                         const headerColor = config.headerBar.color || themeColors.background;
                         const headerHeight = config.headerBar.label ? '20px' : (config.headerBar.height || '4px');
                         const headerText = config.headerBar.label || '';
-                        const headerTextColor = config.headerBar.labelColor || themeColors.text;
+
+                        // Calculate automatic text color from header bar background
+                        const opaqueHeaderColor = headerColor.length === 9 ? headerColor.substring(0, 7) : headerColor;
+                        const headerTextColor = config.headerBar.labelColor || (window.colorUtils ? window.colorUtils.getContrastText(opaqueHeaderColor) : '#000000');
                         
                         // Create a unique class for this header bar - always solid color
                         styles += `.header-bar-${lowerTagName} {
@@ -3355,7 +3430,10 @@ function generateTagStyles() {
                         const footerColor = config.footerBar.color || themeColors.background;
                         const footerHeight = config.footerBar.label ? '20px' : (config.footerBar.height || '3px');
                         const footerText = config.footerBar.label || '';
-                        const footerTextColor = config.footerBar.labelColor || themeColors.text;
+
+                        // Calculate automatic text color from footer bar background
+                        const opaqueFooterColor = footerColor.length === 9 ? footerColor.substring(0, 7) : footerColor;
+                        const footerTextColor = config.footerBar.labelColor || (window.colorUtils ? window.colorUtils.getContrastText(opaqueFooterColor) : '#000000');
                         
                         // Create a unique class for this footer bar
                         styles += `.footer-bar-${lowerTagName} {
@@ -3396,7 +3474,11 @@ function generateTagStyles() {
                     // Corner badge styles with image support
                     if (config.cornerBadge) {
                         const badgeColor = config.cornerBadge.color || themeColors.background;
-                        const badgeTextColor = config.cornerBadge.labelColor || themeColors.text;
+
+                        // Calculate automatic text color from badge background
+                        const opaqueBadgeColor = badgeColor.length === 9 ? badgeColor.substring(0, 7) : badgeColor;
+                        const badgeTextColor = config.cornerBadge.labelColor || (window.colorUtils ? window.colorUtils.getContrastText(opaqueBadgeColor) : '#000000');
+
                         const badgeStyle = config.cornerBadge.style || 'circle';
                         const badgeImage = config.cornerBadge.image || '';
                         

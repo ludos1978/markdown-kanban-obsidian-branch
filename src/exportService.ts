@@ -946,17 +946,20 @@ export class ExportService {
 
     /**
      * Generate default export folder name based on source filename and timestamp
-     * Format: {filename}-YYYYMMDD-HHmm
+     * Format: {filename}-YYYYMMDD-HHmm (using local time)
      */
     public static generateDefaultExportFolder(sourceDocumentPath: string): string {
         const sourceDir = path.dirname(sourceDocumentPath);
         const sourceBasename = path.basename(sourceDocumentPath, '.md');
         const now = new Date();
-        const timestamp = now.toISOString()
-            .replace(/[-:]/g, '')  // Remove dashes and colons
-            .replace(/\..+/, '')   // Remove milliseconds and timezone
-            .replace('T', '-')     // Replace T with single dash
-            .substring(0, 13);     // YYYYMMDD-HHmm
+
+        // Use local time instead of UTC (toISOString uses UTC/GMT)
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const timestamp = `${year}${month}${day}-${hours}${minutes}`;  // YYYYMMDD-HHmm
 
         return path.join(sourceDir, `${sourceBasename}-${timestamp}`);
     }

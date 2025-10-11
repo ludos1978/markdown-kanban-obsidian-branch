@@ -736,18 +736,32 @@ function insertColumnBefore(columnId) {
     const referenceColumn = window.cachedBoard?.columns[referenceIndex];
 
     // Extract row tag from reference column (e.g., #row2)
-    let rowTag = '';
+    let tags = '';
     if (referenceColumn && referenceColumn.title) {
         const rowMatch = referenceColumn.title.match(/#row(\d+)\b/i);
         if (rowMatch) {
-            rowTag = ` ${rowMatch[0]}`;
+            tags = ` ${rowMatch[0]}`;
+        }
+
+        // If reference column has #stack tag:
+        // 1. New column should also have #stack tag
+        // 2. Reference column must keep its #stack tag (ensure it's there)
+        const hasStackTag = /#stack\b/i.test(referenceColumn.title);
+        if (hasStackTag) {
+            tags += ' #stack';
+
+            // Ensure reference column has #stack tag (it should already, but make sure)
+            if (!/#stack\b/i.test(referenceColumn.title)) {
+                // Add #stack to reference column if somehow missing
+                referenceColumn.title = `${referenceColumn.title} #stack`.trim();
+            }
         }
     }
 
     // Cache-first: Create new column and insert before reference column
     const newColumn = {
         id: `temp-column-before-${Date.now()}`,
-        title: rowTag.trim(), // Start with just the row tag if present
+        title: tags.trim(), // Include row tag and #stack tag if needed
         tasks: []
     };
 
@@ -772,13 +786,9 @@ function insertColumnAfter(columnId) {
             tags = ` ${rowMatch[0]}`;
         }
 
-        // Check if reference column is in a stack (has #stack tag or next column has #stack)
+        // If reference column has #stack tag, new column should also have #stack tag
         const hasStackTag = /#stack\b/i.test(referenceColumn.title);
-        const nextColumn = window.cachedBoard?.columns[referenceIndex + 1];
-        const nextHasStackTag = nextColumn && /#stack\b/i.test(nextColumn.title);
-
-        // If inserting after a column that's in a stack, add #stack tag
-        if (hasStackTag || nextHasStackTag) {
+        if (hasStackTag) {
             tags += ' #stack';
         }
     }

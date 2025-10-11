@@ -3298,6 +3298,35 @@ blockquote {
   }
 } */
 
+/* HTML Comment Markers */
+.html-comment-marker {
+  color: var(--vscode-descriptionForeground, #6c7a89);
+  background-color: var(--vscode-editor-inactiveSelectionBackground, rgba(108, 122, 137, 0.15));
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.80em;
+  font-family: 'Courier New', monospace;
+  font-style: italic;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: none;
+  border: 1px dashed var(--vscode-descriptionForeground, #999);
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  display: inline;
+  vertical-align: middle;
+}
+
+.html-comment-marker:hover {
+  opacity: 1;
+  background-color: var(--vscode-editor-selectionBackground, rgba(108, 122, 137, 0.25));
+}
+
+/* Hide HTML comments when showHtmlComments config is false */
+body:not(.show-html-comments) .html-comment-marker {
+  display: none;
+}
+
 /* Tags */
 .kanban-tag {
   color: var(--vscode-badge-foreground);

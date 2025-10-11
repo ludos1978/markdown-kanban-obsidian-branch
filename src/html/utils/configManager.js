@@ -34,7 +34,8 @@ class ConfigManager {
             tagVisibility: 'visible',
             exportTagVisibility: true,
             arrowKeyFocusScroll: 'center',
-            tagColors: {}
+            tagColors: {},
+            showHtmlComments: false
         };
     }
 

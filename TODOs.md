@@ -4,11 +4,11 @@ kanban-plugin: board
 
 ## Open Bugs
 
-- [ ] we need even more contrast. have the text black by default not white in light mode. make the dark colors light
+- [ ] tags still show with white text and i dont know where this happens. all text in the light mode should be black.
 
 - [x] the time format is 2 hours off, i think you are using gmt which is not our local time format.
 
-- [ ] when exporting to presentation mode with "Merge Includes into Main File" the title of a task should not be separated into as a single slide in the export. Also dont remove ## from the lines.
+- [x] when exporting to presentation mode with "Merge Includes into Main File" the title of a task should not be separated into as a single slide in the export. Also dont remove ## from the lines.
 
 - [ ] can we integrate marp (maybe using the marp plugin in vscode). to directly start presentations from the kanban viewer? also the different export options of marp would be interesting. we would need to integrate the markdown-it plugins into the marp workflow. we could require the user to install marp and just deliver the engine.js and the node modules required.
 

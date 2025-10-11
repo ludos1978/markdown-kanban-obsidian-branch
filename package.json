@@ -263,6 +263,11 @@
             "Hide all tags"
           ]
         },
+        "markdown-kanban.showHtmlComments": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show HTML comments (<!-- -->) as visible markers in the kanban view"
+        },
         "markdown-kanban.layoutPreset": {
           "type": "string",
           "default": "normal",
@@ -529,7 +534,7 @@
                   "position": "left",
                   "color": "#17a2b8"
                 },
-                "footerBar": {
+                "headerBar": {
                   "height": "20px",
                   "label": "TRANSFERRED",
                   "color": "#17a2b8",
@@ -846,11 +851,6 @@
                   "label": "DB",
                   "labelColor": "#000000"
                 },
-                "footerBar": {
-                  "height": "20px",
-                  "label": "DATABASE",
-                  "labelColor": "#000000"
-                },
                 "cornerBadge": {
                   "label": "🗄",
                   "position": "top-left",
@@ -867,12 +867,6 @@
                   "text": "#ffffff",
                   "background": "#81ecec",
                   "backgroundDark": "#4d8e8e"
-                },
-                "headerBar": {
-                  "height": "20px",
-                  "style": "solid",
-                  "label": "API",
-                  "labelColor": "#000000"
                 },
                 "cornerBadge": {
                   "label": "🔌",
@@ -897,16 +891,6 @@
                   "position": "full",
                   "color": "#ff0000"
                 },
-                "headerBar": {
-                  "height": "20px",
-                  "label": "SECURITY",
-                  "color": "#ff0000",
-                  "labelColor": "#000000"
-                },
-                "footerBar": {
-                  "height": "3px",
-                  "color": "#ff0000"
-                },
                 "cornerBadge": {
                   "label": "🔒",
                   "position": "top-left",
@@ -925,10 +909,6 @@
                   "text": "#ffffff",
                   "background": "#ffeaa7",
                   "backgroundDark": "#998c64"
-                },
-                "headerBar": {
-                  "height": "3px",
-                  "color": "#fdcb6e"
                 },
                 "border": {
                   "style": "solid",
@@ -960,12 +940,6 @@
                   "width": "2px",
                   "position": "left",
                   "color": "#e83e8c"
-                },
-                "footerBar": {
-                  "height": "20px",
-                  "label": "UX DESIGN",
-                  "color": "#e83e8c",
-                  "labelColor": "#000000"
                 },
                 "cornerBadge": {
                   "label": "👤",
@@ -1002,186 +976,538 @@
             },
             "dark-colors": {
               "dark-red": {
-                "light": { "text": "#000000", "background": "#8B0000", "backgroundDark": "#5A0000" },
-                "dark": { "text": "#ffffff", "background": "#CD5C5C", "backgroundDark": "#8B3A3A" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#8B0000",
+                  "backgroundDark": "#5A0000"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#CD5C5C",
+                  "backgroundDark": "#8B3A3A"
+                }
               },
               "dark-orange": {
-                "light": { "text": "#000000", "background": "#CC5500", "backgroundDark": "#994400" },
-                "dark": { "text": "#ffffff", "background": "#FF8C42", "backgroundDark": "#B36330" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#CC5500",
+                  "backgroundDark": "#994400"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FF8C42",
+                  "backgroundDark": "#B36330"
+                }
               },
               "dark-yellow": {
-                "light": { "text": "#000000", "background": "#B8860B", "backgroundDark": "#8B6914" },
-                "dark": { "text": "#ffffff", "background": "#FFD700", "backgroundDark": "#B39700" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#B8860B",
+                  "backgroundDark": "#8B6914"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FFD700",
+                  "backgroundDark": "#B39700"
+                }
               },
               "dark-green": {
-                "light": { "text": "#000000", "background": "#006400", "backgroundDark": "#004400" },
-                "dark": { "text": "#ffffff", "background": "#228B22", "backgroundDark": "#165216" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#006400",
+                  "backgroundDark": "#004400"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#228B22",
+                  "backgroundDark": "#165216"
+                }
               },
               "dark-cyan": {
-                "light": { "text": "#000000", "background": "#008B8B", "backgroundDark": "#006565" },
-                "dark": { "text": "#ffffff", "background": "#00CED1", "backgroundDark": "#009193" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#008B8B",
+                  "backgroundDark": "#006565"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#00CED1",
+                  "backgroundDark": "#009193"
+                }
               },
               "dark-blue": {
-                "light": { "text": "#000000", "background": "#00008B", "backgroundDark": "#000065" },
-                "dark": { "text": "#ffffff", "background": "#4682B4", "backgroundDark": "#2E5A7A" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#00008B",
+                  "backgroundDark": "#000065"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#4682B4",
+                  "backgroundDark": "#2E5A7A"
+                }
               },
               "dark-purple": {
-                "light": { "text": "#000000", "background": "#4B0082", "backgroundDark": "#330059" },
-                "dark": { "text": "#ffffff", "background": "#9370DB", "backgroundDark": "#664D99" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#4B0082",
+                  "backgroundDark": "#330059"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#9370DB",
+                  "backgroundDark": "#664D99"
+                }
               },
               "dark-pink": {
-                "light": { "text": "#000000", "background": "#C71585", "backgroundDark": "#8B0A57" },
-                "dark": { "text": "#ffffff", "background": "#FF69B4", "backgroundDark": "#B34880" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#C71585",
+                  "backgroundDark": "#8B0A57"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FF69B4",
+                  "backgroundDark": "#B34880"
+                }
               },
               "dark-brown": {
-                "light": { "text": "#000000", "background": "#654321", "backgroundDark": "#4A3016" },
-                "dark": { "text": "#ffffff", "background": "#A0826D", "backgroundDark": "#705B4C" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#654321",
+                  "backgroundDark": "#4A3016"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#A0826D",
+                  "backgroundDark": "#705B4C"
+                }
               },
               "dark-gray": {
-                "light": { "text": "#000000", "background": "#404040", "backgroundDark": "#2B2B2B" },
-                "dark": { "text": "#ffffff", "background": "#808080", "backgroundDark": "#5A5A5A" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#404040",
+                  "backgroundDark": "#2B2B2B"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#808080",
+                  "backgroundDark": "#5A5A5A"
+                }
               },
               "black": {
-                "light": { "text": "#000000", "background": "#000000", "backgroundDark": "#000000" },
-                "dark": { "text": "#ffffff", "background": "#333333", "backgroundDark": "#1A1A1A" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#000000",
+                  "backgroundDark": "#000000"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#333333",
+                  "backgroundDark": "#1A1A1A"
+                }
               },
               "dark-charcoal": {
-                "light": { "text": "#000000", "background": "#1C1C1C", "backgroundDark": "#0D0D0D" },
-                "dark": { "text": "#ffffff", "background": "#4A4A4A", "backgroundDark": "#2E2E2E" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#1C1C1C",
+                  "backgroundDark": "#0D0D0D"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#4A4A4A",
+                  "backgroundDark": "#2E2E2E"
+                }
               }
             },
             "colors": {
               "red": {
-                "light": { "text": "#000000", "background": "#DC3545", "backgroundDark": "#842029" },
-                "dark": { "text": "#ffffff", "background": "#FF8787", "backgroundDark": "#995151" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#DC3545",
+                  "backgroundDark": "#842029"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FF8787",
+                  "backgroundDark": "#995151"
+                }
               },
               "orange": {
-                "light": { "text": "#000000", "background": "#FD7E14", "backgroundDark": "#984C0C" },
-                "dark": { "text": "#ffffff", "background": "#FFC078", "backgroundDark": "#997348" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#FD7E14",
+                  "backgroundDark": "#984C0C"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FFC078",
+                  "backgroundDark": "#997348"
+                }
               },
               "yellow": {
-                "light": { "text": "#000000", "background": "#FFC107", "backgroundDark": "#997404" },
-                "dark": { "text": "#ffffff", "background": "#FFE066", "backgroundDark": "#99863D" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#FFC107",
+                  "backgroundDark": "#997404"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FFE066",
+                  "backgroundDark": "#99863D"
+                }
               },
               "green": {
-                "light": { "text": "#000000", "background": "#198754", "backgroundDark": "#0F5132" },
-                "dark": { "text": "#ffffff", "background": "#8CE99A", "backgroundDark": "#548C5C" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#198754",
+                  "backgroundDark": "#0F5132"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#8CE99A",
+                  "backgroundDark": "#548C5C"
+                }
               },
               "cyan": {
-                "light": { "text": "#000000", "background": "#0DCAF0", "backgroundDark": "#087990" },
-                "dark": { "text": "#ffffff", "background": "#99E9F2", "backgroundDark": "#5C8C91" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#0DCAF0",
+                  "backgroundDark": "#087990"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#99E9F2",
+                  "backgroundDark": "#5C8C91"
+                }
               },
               "blue": {
-                "light": { "text": "#000000", "background": "#0056B3", "backgroundDark": "#003D82" },
-                "dark": { "text": "#ffffff", "background": "#5A8DEE", "backgroundDark": "#36548E" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#0056B3",
+                  "backgroundDark": "#003D82"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#5A8DEE",
+                  "backgroundDark": "#36548E"
+                }
               },
               "purple": {
-                "light": { "text": "#000000", "background": "#6F42C1", "backgroundDark": "#432874" },
-                "dark": { "text": "#ffffff", "background": "#B197FC", "backgroundDark": "#6A5B97" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#6F42C1",
+                  "backgroundDark": "#432874"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#B197FC",
+                  "backgroundDark": "#6A5B97"
+                }
               },
               "pink": {
-                "light": { "text": "#000000", "background": "#E83E8C", "backgroundDark": "#A61E69" },
-                "dark": { "text": "#ffffff", "background": "#FCC2D7", "backgroundDark": "#977481" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#E83E8C",
+                  "backgroundDark": "#A61E69"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FCC2D7",
+                  "backgroundDark": "#977481"
+                }
               },
               "brown": {
-                "light": { "text": "#000000", "background": "#795548", "backgroundDark": "#49332B" },
-                "dark": { "text": "#ffffff", "background": "#A1887F", "backgroundDark": "#61524C" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#795548",
+                  "backgroundDark": "#49332B"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#A1887F",
+                  "backgroundDark": "#61524C"
+                }
               },
               "gray": {
-                "light": { "text": "#000000", "background": "#ADB5BD", "backgroundDark": "#6C757D" },
-                "dark": { "text": "#ffffff", "background": "#DEE2E6", "backgroundDark": "#868A8E" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#ADB5BD",
+                  "backgroundDark": "#6C757D"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#DEE2E6",
+                  "backgroundDark": "#868A8E"
+                }
               },
               "teal": {
-                "light": { "text": "#000000", "background": "#20C997", "backgroundDark": "#13795B" },
-                "dark": { "text": "#ffffff", "background": "#63E6BE", "backgroundDark": "#3B8A72" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#20C997",
+                  "backgroundDark": "#13795B"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#63E6BE",
+                  "backgroundDark": "#3B8A72"
+                }
               },
               "indigo": {
-                "light": { "text": "#000000", "background": "#6610F2", "backgroundDark": "#4A0A91" },
-                "dark": { "text": "#ffffff", "background": "#9775FA", "backgroundDark": "#5B4696" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#6610F2",
+                  "backgroundDark": "#4A0A91"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#9775FA",
+                  "backgroundDark": "#5B4696"
+                }
               }
             },
             "light-colors": {
               "light-red": {
-                "light": { "text": "#000000", "background": "#FFB3BA", "backgroundDark": "#FF7E85" },
-                "dark": { "text": "#ffffff", "background": "#FFD6D9", "backgroundDark": "#B39699" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#FFB3BA",
+                  "backgroundDark": "#FF7E85"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FFD6D9",
+                  "backgroundDark": "#B39699"
+                }
               },
               "light-orange": {
-                "light": { "text": "#000000", "background": "#FFCC99", "backgroundDark": "#FFA04D" },
-                "dark": { "text": "#ffffff", "background": "#FFE5CC", "backgroundDark": "#B39E8F" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#FFCC99",
+                  "backgroundDark": "#FFA04D"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FFE5CC",
+                  "backgroundDark": "#B39E8F"
+                }
               },
               "light-yellow": {
-                "light": { "text": "#000000", "background": "#FFEB99", "backgroundDark": "#FFDC4D" },
-                "dark": { "text": "#ffffff", "background": "#FFF8CC", "backgroundDark": "#B3AD8F" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#FFEB99",
+                  "backgroundDark": "#FFDC4D"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FFF8CC",
+                  "backgroundDark": "#B3AD8F"
+                }
               },
               "light-green": {
-                "light": { "text": "#000000", "background": "#B8FFB8", "backgroundDark": "#7DFF7D" },
-                "dark": { "text": "#ffffff", "background": "#D6FFD6", "backgroundDark": "#96B396" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#B8FFB8",
+                  "backgroundDark": "#7DFF7D"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#D6FFD6",
+                  "backgroundDark": "#96B396"
+                }
               },
               "light-cyan": {
-                "light": { "text": "#000000", "background": "#99F2F2", "backgroundDark": "#4DE5E5" },
-                "dark": { "text": "#ffffff", "background": "#CCFCFC", "backgroundDark": "#8FB3B3" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#99F2F2",
+                  "backgroundDark": "#4DE5E5"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#CCFCFC",
+                  "backgroundDark": "#8FB3B3"
+                }
               },
               "light-blue": {
-                "light": { "text": "#000000", "background": "#A3D3FF", "backgroundDark": "#57B3FF" },
-                "dark": { "text": "#ffffff", "background": "#CCE5FF", "backgroundDark": "#8F9EB3" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#A3D3FF",
+                  "backgroundDark": "#57B3FF"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#CCE5FF",
+                  "backgroundDark": "#8F9EB3"
+                }
               },
               "light-purple": {
-                "light": { "text": "#000000", "background": "#E0CCFF", "backgroundDark": "#C799FF" },
-                "dark": { "text": "#ffffff", "background": "#F0E5FF", "backgroundDark": "#A89FB3" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#E0CCFF",
+                  "backgroundDark": "#C799FF"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#F0E5FF",
+                  "backgroundDark": "#A89FB3"
+                }
               },
               "light-pink": {
-                "light": { "text": "#000000", "background": "#FFD6EB", "backgroundDark": "#FFA3D1" },
-                "dark": { "text": "#ffffff", "background": "#FFEBF5", "backgroundDark": "#B39FAB" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#FFD6EB",
+                  "backgroundDark": "#FFA3D1"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FFEBF5",
+                  "backgroundDark": "#B39FAB"
+                }
               },
               "light-brown": {
-                "light": { "text": "#000000", "background": "#DCC7B8", "backgroundDark": "#C7A68F" },
-                "dark": { "text": "#ffffff", "background": "#F0E5DB", "backgroundDark": "#A89C94" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#DCC7B8",
+                  "backgroundDark": "#C7A68F"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#F0E5DB",
+                  "backgroundDark": "#A89C94"
+                }
               },
               "light-gray": {
-                "light": { "text": "#000000", "background": "#E8E8E8", "backgroundDark": "#CCCCCC" },
-                "dark": { "text": "#ffffff", "background": "#F5F5F5", "backgroundDark": "#ABABAB" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#E8E8E8",
+                  "backgroundDark": "#CCCCCC"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#F5F5F5",
+                  "backgroundDark": "#ABABAB"
+                }
               },
               "white": {
-                "light": { "text": "#000000", "background": "#FFFFFF", "backgroundDark": "#E6E6E6" },
-                "dark": { "text": "#ffffff", "background": "#FAFAFA", "backgroundDark": "#B0B0B0" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#FFFFFF",
+                  "backgroundDark": "#E6E6E6"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FAFAFA",
+                  "backgroundDark": "#B0B0B0"
+                }
               },
               "light-beige": {
-                "light": { "text": "#000000", "background": "#F5F5DC", "backgroundDark": "#DCDCAA" },
-                "dark": { "text": "#ffffff", "background": "#FAFAF0", "backgroundDark": "#ADADAA" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#F5F5DC",
+                  "backgroundDark": "#DCDCAA"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FAFAF0",
+                  "backgroundDark": "#ADADAA"
+                }
               }
             },
             "accessible-colors": {
               "accessible-indigo": {
-                "light": { "text": "#000000", "background": "#332288", "backgroundDark": "#1A113F" },
-                "dark": { "text": "#ffffff", "background": "#5544BB", "backgroundDark": "#332266" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#332288",
+                  "backgroundDark": "#1A113F"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#5544BB",
+                  "backgroundDark": "#332266"
+                }
               },
               "accessible-green": {
-                "light": { "text": "#000000", "background": "#117733", "backgroundDark": "#0A4D22" },
-                "dark": { "text": "#ffffff", "background": "#22AA55", "backgroundDark": "#147733" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#117733",
+                  "backgroundDark": "#0A4D22"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#22AA55",
+                  "backgroundDark": "#147733"
+                }
               },
               "accessible-teal": {
-                "light": { "text": "#000000", "background": "#44AA99", "backgroundDark": "#2D7166" },
-                "dark": { "text": "#ffffff", "background": "#66CCBB", "backgroundDark": "#3D7A70" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#44AA99",
+                  "backgroundDark": "#2D7166"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#66CCBB",
+                  "backgroundDark": "#3D7A70"
+                }
               },
               "accessible-cyan": {
-                "light": { "text": "#000000", "background": "#88CCEE", "backgroundDark": "#5A8A9F" },
-                "dark": { "text": "#ffffff", "background": "#AADDFF", "backgroundDark": "#6688AA" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#88CCEE",
+                  "backgroundDark": "#5A8A9F"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#AADDFF",
+                  "backgroundDark": "#6688AA"
+                }
               },
               "accessible-yellow": {
-                "light": { "text": "#000000", "background": "#DDCC77", "backgroundDark": "#9B8A4F" },
-                "dark": { "text": "#ffffff", "background": "#FFEE99", "backgroundDark": "#B3A066" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#DDCC77",
+                  "backgroundDark": "#9B8A4F"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FFEE99",
+                  "backgroundDark": "#B3A066"
+                }
               },
               "accessible-rose": {
-                "light": { "text": "#000000", "background": "#CC6677", "backgroundDark": "#88434F" },
-                "dark": { "text": "#ffffff", "background": "#FF99AA", "backgroundDark": "#B36677" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#CC6677",
+                  "backgroundDark": "#88434F"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#FF99AA",
+                  "backgroundDark": "#B36677"
+                }
               },
               "accessible-purple": {
-                "light": { "text": "#000000", "background": "#AA4499", "backgroundDark": "#732E66" },
-                "dark": { "text": "#ffffff", "background": "#CC77BB", "backgroundDark": "#884C77" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#AA4499",
+                  "backgroundDark": "#732E66"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#CC77BB",
+                  "backgroundDark": "#884C77"
+                }
               },
               "accessible-magenta": {
-                "light": { "text": "#000000", "background": "#882255", "backgroundDark": "#5A1638" },
-                "dark": { "text": "#ffffff", "background": "#BB4488", "backgroundDark": "#772A55" }
+                "light": {
+                  "text": "#000000",
+                  "background": "#882255",
+                  "backgroundDark": "#5A1638"
+                },
+                "dark": {
+                  "text": "#ffffff",
+                  "background": "#BB4488",
+                  "backgroundDark": "#772A55"
+                }
               }
             },
             "workflow": {
@@ -1658,39 +1984,39 @@
             },
             "content-type-teaching": {
               "slide": {
+                "light": {
+                  "text": "#000000",
+                  "background": "#FF006E80",
+                  "backgroundDark": "#FF006E"
+                },
+                "dark": {
+                  "background": "#FF006E80",
+                  "text": "#ffffff",
+                  "backgroundDark": "#FF006E"
+                },
                 "border": {
                   "style": "solid",
                   "width": "2px",
                   "position": "full",
                   "color": "#88CCEE"
-                },
-                "light": {
-                  "background": "#FF006E80",
-                  "text": "#000000",
-                  "backgroundDark": "#FF006E"
-                },
-                "dark": {
-                  "background": "#FF006E80",
-                  "text": "#ffffff",
-                  "backgroundDark": "#FF006E"
                 }
               },
               "video": {
+                "light": {
+                  "text": "#000000",
+                  "background": "#3A86FF80",
+                  "backgroundDark": "#3A86FF"
+                },
+                "dark": {
+                  "background": "#3A86FF80",
+                  "text": "#ffffff",
+                  "backgroundDark": "#3A86FF"
+                },
                 "border": {
                   "style": "solid",
                   "width": "2px",
                   "position": "full",
                   "color": "#332288"
-                },
-                "light": {
-                  "background": "#3A86FF80",
-                  "text": "#000000",
-                  "backgroundDark": "#3A86FF"
-                },
-                "dark": {
-                  "background": "#3A86FF80",
-                  "text": "#ffffff",
-                  "backgroundDark": "#3A86FF"
                 }
               },
               "reading": {
@@ -3391,7 +3717,17 @@
               "impact"
             ]
           },
-          "default": ["workflow", "organization", "importance", "type", "category", "colors", "content-type-teaching", "content-type-product", "complexity"],
+          "default": [
+            "workflow",
+            "organization",
+            "importance",
+            "type",
+            "category",
+            "colors",
+            "content-type-teaching",
+            "content-type-product",
+            "complexity"
+          ],
           "uniqueItems": true,
           "markdownDescription": "**Column Tag Categories** - Select which categories appear in column burger menus. All 21 categories available. See 'Tag Category Reference' above for details.\n\n**Column Defaults (9):** workflow, organization, importance, type, category, colors, content-type-teaching, content-type-product, complexity"
         },
@@ -3423,7 +3759,20 @@
               "impact"
             ]
           },
-          "default": ["priority", "status", "importance", "type", "colors", "review-status", "time-estimate", "testing-status", "platform-teaching", "platform-product", "version", "impact"],
+          "default": [
+            "priority",
+            "status",
+            "importance",
+            "type",
+            "colors",
+            "review-status",
+            "time-estimate",
+            "testing-status",
+            "platform-teaching",
+            "platform-product",
+            "version",
+            "impact"
+          ],
           "uniqueItems": true,
           "markdownDescription": "**Task Tag Categories** - Select which categories appear in task burger menus. All 21 categories available. See 'Tag Category Reference' above for details.\n\n**Task Defaults (12):** priority, status, importance, type, colors, review-status, time-estimate, testing-status, platform-teaching, platform-product, version, impact"
         },

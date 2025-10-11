@@ -27,6 +27,7 @@ export interface KanbanConfiguration {
     layoutPresets: { [key: string]: any };
     tagVisibility: string;
     exportTagVisibility: boolean;
+    showHtmlComments: boolean;
     arrowKeyFocusScroll: string;
 }
 
@@ -50,6 +51,7 @@ export interface ConfigurationDefaults {
     layoutPreset: string;
     tagVisibility: string;
     exportTagVisibility: boolean;
+    showHtmlComments: boolean;
     arrowKeyFocusScroll: string;
 }
 
@@ -79,6 +81,7 @@ export class ConfigurationService {
         layoutPreset: 'default',
         tagVisibility: 'visible',
         exportTagVisibility: true,
+        showHtmlComments: false,
         arrowKeyFocusScroll: 'center'
     };
 

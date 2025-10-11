@@ -265,10 +265,78 @@ function enhancedStrikethroughPlugin(md) {
     };
 }
 
+// HTML Comment Visibility Plugin
+// Makes HTML comments visible similar to style markers
+function htmlCommentPlugin(md, options = {}) {
+    const showComments = options.showComments !== false; // Default to true if not specified
+
+    // Parse HTML comments as inline tokens
+    function parseHtmlComment(state, silent) {
+        let pos = state.pos;
+
+        // Check for opening <!--
+        if (pos + 3 >= state.posMax) {return false;}
+        if (state.src.charCodeAt(pos) !== 0x3C /* < */) {return false;}
+        if (state.src.charCodeAt(pos + 1) !== 0x21 /* ! */) {return false;}
+        if (state.src.charCodeAt(pos + 2) !== 0x2D /* - */) {return false;}
+        if (state.src.charCodeAt(pos + 3) !== 0x2D /* - */) {return false;}
+
+        pos += 4;
+
+        // Find closing -->
+        let found = false;
+        let content = '';
+        let contentStart = pos;
+
+        while (pos < state.posMax - 2) {
+            if (state.src.charCodeAt(pos) === 0x2D /* - */ &&
+                state.src.charCodeAt(pos + 1) === 0x2D /* - */ &&
+                state.src.charCodeAt(pos + 2) === 0x3E /* > */) {
+                found = true;
+                content = state.src.slice(contentStart, pos);
+                break;
+            }
+            pos++;
+        }
+
+        if (!found) {return false;}
+
+        if (silent) {return true;}
+
+        // Create token
+        const token = state.push('html_comment', 'span', 0);
+        token.content = content.trim();
+        token.markup = '<!--';
+
+        state.pos = pos + 3; // Skip closing -->
+        return true;
+    }
+
+    // Register the inline rule - before 'html_inline' to capture comments first
+    md.inline.ruler.before('html_inline', 'html_comment', parseHtmlComment);
+
+    // Render rule
+    md.renderer.rules.html_comment = function(tokens, idx) {
+        const token = tokens[idx];
+        const content = token.content;
+
+        if (!showComments) {
+            // Return actual HTML comment (invisible)
+            return `<!--${escapeHtml(content)}-->`;
+        }
+
+        // Return visible comment marker
+        return `<span class="html-comment-marker" title="HTML Comment"><!--${escapeHtml(content)}--></span>`;
+    };
+}
+
 function renderMarkdown(text) {
     if (!text) {return '';}
-    
+
     try {
+        // Get HTML comment visibility setting
+        const showHtmlComments = window.configManager?.getConfig('showHtmlComments', false) ?? false;
+
         // Initialize markdown-it with enhanced wiki links and tags plugins
         const md = window.markdownit({
             html: true,
@@ -283,7 +351,10 @@ function renderMarkdown(text) {
             tagColors: window.tagColors || {}
         })
         .use(datePersonTagPlugin) // Add this line
-        .use(enhancedStrikethroughPlugin); // Add enhanced strikethrough with delete buttons
+        .use(enhancedStrikethroughPlugin) // Add enhanced strikethrough with delete buttons
+        .use(htmlCommentPlugin, {
+            showComments: showHtmlComments
+        }); // HTML comment visibility
 
         // Add plugins that are available from CDN (CSP-compliant)
         if (typeof window.markdownitEmoji !== 'undefined') {
