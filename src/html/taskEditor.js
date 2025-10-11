@@ -408,7 +408,11 @@ class TaskEditor {
             }
             
             // Only close menus if clicking outside both menu and editor
-            if (!e.target.closest('.donut-menu')) {
+            // Also check if clicking inside moved dropdowns
+            const inDonutMenu = e.target.closest('.donut-menu');
+            const inMovedDropdown = e.target.closest('.donut-menu-dropdown.moved-to-body, .file-bar-menu-dropdown.moved-to-body');
+
+            if (!inDonutMenu && !inMovedDropdown) {
                 document.querySelectorAll('.donut-menu.active').forEach(menu => {
                     menu.classList.remove('active');
                 });

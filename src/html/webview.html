@@ -60,16 +60,16 @@
             </div>
             <div class="file-info-right">
 
-                <button id="global-fold-btn" class="global-fold-btn fold-mixed" onclick="toggleAllColumns()" title="Fold/unfold all columns">
+                <button id="global-fold-btn" class="global-fold-btn fold-mixed" onmousedown="event.preventDefault();" onclick="toggleAllColumns()" title="Fold/unfold all columns">
                     <span id="global-fold-icon" class="global-fold-icon">▽</span>
                     <span class="global-fold-text">Columns</span>
                 </button>
-                <button id="sort-btn" class="sort-btn" onclick="performSort()" title="Sort cards based on column tags">
+                <button id="sort-btn" class="sort-btn" onmousedown="event.preventDefault();" onclick="performSort()" title="Sort cards based on column tags">
                     <span class="sort-icon">⇅</span>
                     <span class="sort-text">Sort</span>
                 </button>
 
-                <button id="refresh-btn" class="refresh-btn" onclick="manualRefresh()" onmouseenter="if(window.scheduleDebugOverlayShow) window.scheduleDebugOverlayShow()" onmouseleave="if(window.cancelDebugOverlayShow) window.cancelDebugOverlayShow(); if(window.hideDebugOverlayDelayed) window.hideDebugOverlayDelayed()" title="Refresh from source markdown&#13;&#10;Hover to see debug info">
+                <button id="refresh-btn" class="refresh-btn" onmousedown="event.preventDefault();" onclick="manualRefresh()" onmouseenter="if(window.scheduleDebugOverlayShow) window.scheduleDebugOverlayShow()" onmouseleave="if(window.cancelDebugOverlayShow) window.cancelDebugOverlayShow(); if(window.hideDebugOverlayDelayed) window.hideDebugOverlayDelayed()" title="Refresh from source markdown&#13;&#10;Hover to see debug info">
                     <span class="refresh-icon">↻</span>
                     <span class="refresh-text">Refresh</span>
                 </button>

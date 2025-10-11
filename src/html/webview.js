@@ -1745,6 +1745,53 @@ function updateDocumentUri(newUri) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // DEBUG: Track all focus events to understand scroll behavior
+    document.addEventListener('focus', (e) => {
+        const kanbanBoard = document.getElementById('kanban-board');
+        console.log('[FOCUS EVENT]', {
+            target: e.target,
+            targetTag: e.target?.tagName,
+            targetClass: e.target?.className,
+            scrollBefore: kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null
+        });
+
+        // Check scroll after focus event completes
+        setTimeout(() => {
+            console.log('[FOCUS EVENT - AFTER]', {
+                target: e.target,
+                scrollAfter: kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null
+            });
+        }, 0);
+    }, true); // Use capture phase to catch all focus events
+
+    // DEBUG: Track blur events too
+    document.addEventListener('blur', (e) => {
+        const kanbanBoard = document.getElementById('kanban-board');
+        console.log('[BLUR EVENT]', {
+            target: e.target,
+            targetTag: e.target?.tagName,
+            targetClass: e.target?.className,
+            scrollAt: kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null,
+            newActiveElement: document.activeElement,
+            newActiveElementTag: document.activeElement?.tagName
+        });
+    }, true);
+
+    // DEBUG: Track scroll events to see what triggers scrolling
+    const kanbanBoard = document.getElementById('kanban-board');
+    if (kanbanBoard) {
+        kanbanBoard.addEventListener('scroll', (e) => {
+            console.log('[SCROLL EVENT]', {
+                scrollLeft: kanbanBoard.scrollLeft,
+                scrollTop: kanbanBoard.scrollTop,
+                activeElement: document.activeElement,
+                activeElementTag: document.activeElement?.tagName,
+                activeElementClass: document.activeElement?.className,
+                stackTrace: new Error().stack
+            });
+        });
+    }
+
     // Theme observer is set up later in the file
 
     // Initialize clipboard card source - handled by HTML ondragstart/ondragend attributes
@@ -1887,8 +1934,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Close menus when clicking outside (but don't interfere with editing)
     document.addEventListener('click', (e) => {
-        // Check if clicking outside menus
-        if (!e.target.closest('.donut-menu') && !e.target.closest('.file-bar-menu')) {
+        // Check if clicking outside menus - also check if clicking inside moved dropdowns
+        const inDonutMenu = e.target.closest('.donut-menu');
+        const inFileBarMenu = e.target.closest('.file-bar-menu');
+        const inMovedDropdown = e.target.closest('.donut-menu-dropdown.moved-to-body, .file-bar-menu-dropdown.moved-to-body');
+
+        if (!inDonutMenu && !inFileBarMenu && !inMovedDropdown) {
             // Don't automatically flush changes when clicking outside menus
             // Changes will only be saved when user explicitly saves (Cmd+S)
             // if (typeof flushPendingTagChanges === 'function') {

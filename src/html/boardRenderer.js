@@ -1024,6 +1024,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
                     data-tag="${tagName.toLowerCase()}"
                     data-tag-name="${tagName}"
                     data-tag-type="${type}"
+                    onmousedown="event.preventDefault();"
                     onclick="window.tagHandlers['${buttonId}'](event); return false;"
                     title="${title}">
                 <span class="tag-chip-check">${checkbox}</span>
@@ -1060,12 +1061,13 @@ function generateFlatTagItems(tags, id, type, columnId = null) {
     return tags.map(tagName => {
         const isActive = activeTags.includes(tagName.toLowerCase());
         const checkbox = isActive ? '✓' : '';
-        const onclick = type === 'column' 
-            ? `toggleColumnTag('${id}', '${tagName}')`
-            : `toggleTaskTag('${id}', '${columnId}', '${tagName}')`;
-        
+        const onclick = type === 'column'
+            ? `handleColumnTagClick('${id}', '${tagName}', event)`
+            : `handleTaskTagClick('${id}', '${columnId}', '${tagName}', event)`;
+
         return `
-            <button class="donut-menu-tag-chip ${isActive ? 'active' : ''}" 
+            <button class="donut-menu-tag-chip ${isActive ? 'active' : ''}"
+                    onmousedown="event.preventDefault();"
                     onclick="${onclick}"
                     data-element-id="${id}"
                     data-tag-name="${tagName}"
@@ -1738,7 +1740,7 @@ function createColumnElement(column, columnIndex) {
 								</span>
 								<button class="collapsed-add-task-btn" onclick="addTaskAndUnfold('${column.id}')" title="Add task and unfold column">+</button>
 								<div class="donut-menu">
-										<button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
+										<button class="donut-menu-btn" onmousedown="event.preventDefault();" onclick="toggleDonutMenu(event, this)">⋯</button>
 										<div class="donut-menu-dropdown">
 												<button class="donut-menu-item" onclick="insertColumnBefore('${column.id}')">Insert list before</button>
 												<button class="donut-menu-item" onclick="insertColumnAfter('${column.id}')">Insert list after</button>
@@ -1914,7 +1916,7 @@ function createTaskElement(task, columnId, taskIndex) {
                 </div>
                 <div class="task-menu-container">
                     <div class="donut-menu">
-                        <button class="donut-menu-btn" onclick="toggleDonutMenu(event, this)">⋯</button>
+                        <button class="donut-menu-btn" onmousedown="event.preventDefault();" onclick="toggleDonutMenu(event, this)">⋯</button>
                         <div class="donut-menu-dropdown">
                             <button class="donut-menu-item" onclick="insertTaskBefore('${task.id}', '${columnId}')">Insert card before</button>
                             <button class="donut-menu-item" onclick="insertTaskAfter('${task.id}', '${columnId}')">Insert card after</button>
@@ -2179,8 +2181,13 @@ function applyStackedColumnStyles() {
     const scrollLeft = kanbanBoard ? kanbanBoard.scrollLeft : 0;
     const scrollTop = kanbanBoard ? kanbanBoard.scrollTop : 0;
 
+    console.log('[applyStackedColumnStyles] START - scroll:', { scrollLeft, scrollTop }, 'activeElement:', document.activeElement?.tagName, document.activeElement?.className);
+
     enforceFoldModesForStacks();
-    recalculateStackHeights();
+    console.log('[applyStackedColumnStyles] After enforceFoldModesForStacks - scroll:', kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null, 'activeElement:', document.activeElement?.tagName);
+
+    recalculateStackHeightsImmediate();
+    console.log('[applyStackedColumnStyles] After recalculateStackHeightsImmediate - scroll:', kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null, 'activeElement:', document.activeElement?.tagName);
 
     // Update bottom drop zones after layout changes
     if (typeof window.updateStackBottomDropZones === 'function') {
@@ -2191,7 +2198,13 @@ function applyStackedColumnStyles() {
     if (kanbanBoard) {
         kanbanBoard.scrollLeft = scrollLeft;
         kanbanBoard.scrollTop = scrollTop;
+        console.log('[applyStackedColumnStyles] RESTORED scroll to:', { scrollLeft, scrollTop });
     }
+
+    // Check again after a tick to see if something else is changing it
+    setTimeout(() => {
+        console.log('[applyStackedColumnStyles] 10ms later - scroll:', kanbanBoard ? { left: kanbanBoard.scrollLeft, top: kanbanBoard.scrollTop } : null, 'activeElement:', document.activeElement?.tagName);
+    }, 10);
 }
 window.applyStackedColumnStyles = applyStackedColumnStyles;
 
