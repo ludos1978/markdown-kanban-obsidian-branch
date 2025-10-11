@@ -4,11 +4,11 @@ kanban-plugin: board
 
 ## Open Bugs
 
-
-
-- [x] when placing the cursor in an title of an card or and column, place the text cursor in front of the first tag + one space character. when adding #row{number} or #stack tags we should add a space in front of them if there isnt one (specifically applies to when it's the first characters in the title).
+- [ ] can you analyze the ability to export as pdf. maybe we could even integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly? the export feature does most of the preparation. do a tourough analysis before we start working on it.also we could integrate marp (maybe using the marp plugin in vscode). to directly start presentations from the kanban viewer? also the different export options of marp would be interesting. we would need to integrate the markdown-it plugins into the marp workflow. we could require the user to install marp and just deliver the engine.js and the node modules required. ultrathink think plan
 
 - [ ] i get the error: "console.ts:137 [Extension Host] Cannot save: no document or invalid board (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:175:30205))" i think it happens after the board is reloaded
+
+- [x] when placing the cursor in an title of an card or and column, place the text cursor in front of the first tag + one space character. when adding #row{number} or #stack tags we should add a space in front of them if there isnt one (specifically applies to when it's the first characters in the title).
 
 - [x] when i create a new card it seems to completely redraw the kanban. can you only update the changed parts without a complete redraw? also focus the added column or task when it's added.
 
@@ -18,9 +18,9 @@ kanban-plugin: board
 
 - [x] when exporting to presentation mode with "Merge Includes into Main File" the title of a task should not be separated into as a single slide in the export. Also dont remove ## from the lines.
 
-- [ ] can we integrate marp (maybe using the marp plugin in vscode). to directly start presentations from the kanban viewer? also the different export options of marp would be interesting. we would need to integrate the markdown-it plugins into the marp workflow. we could require the user to install marp and just deliver the engine.js and the node modules required.
 
-- [ ] add the ability to export as pdf. could we integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly?
+
+- [x] can you analyze the ability to export as pdf. maybe we could even integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly? the export feature does most of the preparation. do a tourough analysis before we start working on it.
 
 - [x] combine the title and the content while editing. when the columns is folded it only shows the title, while unfolded it shows the full content as markdown rendered style.
  
@@ -40,7 +40,7 @@ add grays to the colors. ultrathink think and plan again to verify the usability
 
 create me the tag list with the colors, think about which ones are better suited for tasks/slides/todos vs categories/topics and assign the headers/footers/stickers and border colors accordingly! make good use of the categories
 
-- [ ] there should be 4 groups of colors. dark colors, normal colors, light colors that have 12 colors and a gray and accessible colors (#332288, #117733, #44AA99, #88CCEE, #DDCC77, #CC6677, #AA4499, #882255) make sure they still have dark and light styles as required in the 
+- [x] there should be 4 groups of colors. dark colors, normal colors, light colors that have 12 colors and a gray and accessible colors (#332288, #117733, #44AA99, #88CCEE, #DDCC77, #CC6677, #AA4499, #882255) make sure they still have dark and light styles as required in the 
 
 - [x] sometimes i cant drop an column after the last column in a row into a stack, why? dont modify only research.
 - [x] when adding a new column after a column in a stack, add #stack as default tag (add it to the stack below)
