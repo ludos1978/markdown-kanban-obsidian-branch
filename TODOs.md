@@ -4,6 +4,8 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- when placing the cursor in an title of an card or and column, place the text cursor in front of the first tag + one space character. when adding #row{number} or #stack tags we should add a space in front of them if there isnt one (specifically applies to when it's the first characters in the title).
+
 - [ ] when i create a new card it seems to completely redraw the kanban. can you only update the changed parts without a complete redraw? also focus the added column or task when it's added.
 
 - [x] tags still show with white text and i dont know where this happens. all text in the light mode should be black.

@@ -1970,7 +1970,21 @@ function updateCacheForNewTask(columnId, newTask, insertIndex = -1) {
                 // Focus the newly created task and start editing
                 if (taskElement) {
                     setTimeout(() => {
-                        taskElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        // Only scroll if element is outside the viewport
+                        const rect = taskElement.getBoundingClientRect();
+                        const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+
+                        console.log('[addTask] Task visibility check:', {
+                            isVisible,
+                            rect: { top: rect.top, bottom: rect.bottom },
+                            viewport: { height: window.innerHeight },
+                            willScroll: !isVisible
+                        });
+
+                        if (!isVisible) {
+                            taskElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+
                         // Start editing the title
                         const titleContainer = taskElement.querySelector('.task-title-container');
                         if (titleContainer && window.editTitle) {
@@ -2027,7 +2041,21 @@ function updateCacheForNewColumn(newColumn, insertIndex = -1, referenceColumnId 
             // Focus the newly created column and start editing its title
             if (columnElement) {
                 setTimeout(() => {
-                    columnElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // Only scroll if element is outside the viewport
+                    const rect = columnElement.getBoundingClientRect();
+                    const isVisible = rect.left >= 0 && rect.right <= window.innerWidth;
+
+                    console.log('[addColumn] Column visibility check:', {
+                        isVisible,
+                        rect: { left: rect.left, right: rect.right },
+                        viewport: { width: window.innerWidth },
+                        willScroll: !isVisible
+                    });
+
+                    if (!isVisible) {
+                        columnElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+
                     // Start editing the column title
                     if (window.editColumnTitle) {
                         window.editColumnTitle(newColumn.id, columnElement);
