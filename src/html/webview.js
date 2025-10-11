@@ -1559,9 +1559,10 @@ function updateColumnRowTag(columnId, newRow) {
     // Update the column title
     if (newRow > 1) {
         // Add row tag for rows 2, 3, 4
-        column.title = cleanTitle + ` #row${newRow}`;
+        // Ensure space before #row tag if title is not empty
+        column.title = cleanTitle ? cleanTitle + ` #row${newRow}` : ` #row${newRow}`;
         if (cachedColumn) {
-            cachedColumn.title = cleanTitle + ` #row${newRow}`;
+            cachedColumn.title = cleanTitle ? cleanTitle + ` #row${newRow}` : ` #row${newRow}`;
         }
     } else {
         // For row 1, just use the clean title without any row tag

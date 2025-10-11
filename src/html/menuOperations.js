@@ -793,7 +793,9 @@ function insertColumnBefore(columnId) {
             // Ensure reference column has #stack tag (it should already, but make sure)
             if (!/#stack\b/i.test(referenceColumn.title)) {
                 // Add #stack to reference column if somehow missing
-                referenceColumn.title = `${referenceColumn.title} #stack`.trim();
+                const trimmedTitle = referenceColumn.title.trim();
+                // Ensure space before #stack if title is not empty
+                referenceColumn.title = trimmedTitle ? `${trimmedTitle} #stack` : ' #stack';
             }
         }
     }

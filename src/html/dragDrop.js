@@ -1871,13 +1871,17 @@ function setupColumnDragAndDrop() {
                         if (window.cachedBoard) {
                             const cachedCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (cachedCol && !/#stack\b/i.test(cachedCol.title)) {
-                                cachedCol.title = cachedCol.title.trim() + ' #stack';
+                                const trimmedTitle = cachedCol.title.trim();
+                                // Ensure space before #stack if title is not empty
+                                cachedCol.title = trimmedTitle ? trimmedTitle + ' #stack' : ' #stack';
                             }
                         }
                         if (window.cachedBoard) {
                             const currentCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (currentCol && !/#stack\b/i.test(currentCol.title)) {
-                                currentCol.title = currentCol.title.trim() + ' #stack';
+                                const trimmedTitle = currentCol.title.trim();
+                                // Ensure space before #stack if title is not empty
+                                currentCol.title = trimmedTitle ? trimmedTitle + ' #stack' : ' #stack';
                             }
                         }
                         // DELAY: Update visual display after dragstart to avoid canceling drag
@@ -1973,7 +1977,8 @@ function setupColumnDragAndDrop() {
                         .trim();
 
                     if (newRow > 1) {
-                        cachedColumn.title = cleanTitle + ` #row${newRow}`;
+                        // Ensure space before #row tag if title is not empty
+                        cachedColumn.title = cleanTitle ? cleanTitle + ` #row${newRow}` : ` #row${newRow}`;
                     } else {
                         cachedColumn.title = cleanTitle;
                     }
@@ -1992,7 +1997,8 @@ function setupColumnDragAndDrop() {
                         .trim();
 
                     if (newRow > 1) {
-                        currentColumn.title = cleanTitle + ` #row${newRow}`;
+                        // Ensure space before #row tag if title is not empty
+                        currentColumn.title = cleanTitle ? cleanTitle + ` #row${newRow}` : ` #row${newRow}`;
                     } else {
                         currentColumn.title = cleanTitle;
                     }
@@ -2033,13 +2039,17 @@ function setupColumnDragAndDrop() {
                         if (window.cachedBoard) {
                             const cachedCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (cachedCol && !/#stack\b/i.test(cachedCol.title)) {
-                                cachedCol.title = cachedCol.title.trim() + ' #stack';
+                                const trimmedTitle = cachedCol.title.trim();
+                                // Ensure space before #stack if title is not empty
+                                cachedCol.title = trimmedTitle ? trimmedTitle + ' #stack' : ' #stack';
                             }
                         }
                         if (window.cachedBoard) {
                             const currentCol = window.cachedBoard.columns.find(c => c.id === colId);
                             if (currentCol && !/#stack\b/i.test(currentCol.title)) {
-                                currentCol.title = currentCol.title.trim() + ' #stack';
+                                const trimmedTitle = currentCol.title.trim();
+                                // Ensure space before #stack if title is not empty
+                                currentCol.title = trimmedTitle ? trimmedTitle + ' #stack' : ' #stack';
                             }
                         }
                         // Update the visual display

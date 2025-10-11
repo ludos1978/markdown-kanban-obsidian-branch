@@ -438,6 +438,29 @@ class TaskEditor {
     }
 
     /**
+     * Finds the position before the first tag in a title string
+     * Purpose: Position cursor intelligently before tags when editing
+     * @param {string} text - The title text to analyze
+     * @returns {number} - The position to place the cursor (before first tag + 1 space)
+     */
+    findPositionBeforeFirstTag(text) {
+        // Match any hashtag (including #row, #stack, #span, etc.)
+        const tagMatch = text.match(/#\w+/);
+        if (tagMatch && tagMatch.index !== undefined) {
+            const tagPosition = tagMatch.index;
+            // Position cursor before the space that precedes the tag
+            // If there's a space before the tag, position before that space
+            if (tagPosition > 0 && text[tagPosition - 1] === ' ') {
+                return tagPosition - 1;
+            }
+            // If tag is at start or no space before it, position at the tag
+            return tagPosition;
+        }
+        // No tags found, position at end
+        return text.length;
+    }
+
+    /**
      * Starts editing mode for an element
      * Purpose: Switch from display to edit mode
      * Used by: Click handlers on editable elements
@@ -534,8 +557,12 @@ class TaskEditor {
         if (!preserveCursor) {
             // Default behavior: move cursor to end
             editElement.setSelectionRange(editElement.value.length, editElement.value.length);
+        } else if (type === 'task-title' || type === 'column-title') {
+            // For title fields, position cursor before first tag + one space
+            const cursorPosition = this.findPositionBeforeFirstTag(editElement.value);
+            editElement.setSelectionRange(cursorPosition, cursorPosition);
         }
-        // If preserveCursor is true, don't move cursor - it will stay where the user clicked
+        // For description fields with preserveCursor=true, don't move cursor - it will stay where the user clicked
 
         // Store current editor info
         this.currentEditor = {
@@ -1419,7 +1446,7 @@ function editColumnTitle(columnId, columnElement = null) {
     }
 
     if (columnElement) {
-        taskEditor.startEdit(columnElement, 'column-title', null, columnId);
+        taskEditor.startEdit(columnElement, 'column-title', null, columnId, true); // preserveCursor=true
     } else {
         console.error(`[editColumnTitle] No column element found for columnId: "${columnId}"`);
     }
