@@ -991,55 +991,7 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         
         // Create unique ID for this button
         const buttonId = `tag-chip-${type}-${id}-${tagName}`.replace(/[^a-zA-Z0-9-]/g, '-');
-        
-        // Get tag config for color (only for configured tags)
-        let bgColor = '#666';
-        let textColor = '#fff';
-        let bgDark = null;
-        
-        if (isConfigured) {
-            const config = getTagConfig(tagName);
-            if (config) {
-                const isDarkTheme = document.body.classList.contains('vscode-dark') || 
-                                   document.body.classList.contains('vscode-high-contrast');
-                const themeKey = isDarkTheme ? 'dark' : 'light';
-                
-                // Use the appropriate color config based on type (card or column)
-                let colorConfig = null;
-                if (type === 'column' && config.column) {
-                    colorConfig = config.column[themeKey] || config.column.light || {};
-                    bgDark = colorConfig.backgroundDark || colorConfig.background;
-                } else if (type === 'task' && config.card) {
-                    colorConfig = config.card[themeKey] || config.card.light || {};
-                    bgDark = colorConfig.backgroundDark || colorConfig.background;
-                } else {
-                    // Fallback to basic theme colors if specific type not found
-                    colorConfig = config[themeKey] || config.light || {};
-                }
-                
-                bgColor = colorConfig.background || '#666';
-                textColor = colorConfig.text || '#fff';
-                
-                // If we have a backgroundDark, interpolate it for a subtle effect
-                if (bgDark) {
-                    const editorBg = getEditorBackground();
-                    // Use a lighter interpolation for the button background when active
-                    bgColor = interpolateColor(editorBg, bgDark, isActive ? 0.25 : 0.1);
-                }
-            }
-        } else {
-            // Default colors for user-added tags
-            const isDarkTheme = document.body.classList.contains('vscode-dark') || 
-                               document.body.classList.contains('vscode-high-contrast');
-            if (isDarkTheme) {
-                bgColor = '#555';
-                textColor = '#ddd';
-            } else {
-                bgColor = '#999';
-                textColor = '#fff';
-            }
-        }
-        
+
         const displayName = isConfigured ? tagName : tagName;
         const title = isConfigured ? tagName : `Custom tag: ${tagName}`;
         
@@ -1068,17 +1020,14 @@ function generateGroupTagItems(tags, id, type, columnId = null, isConfigured = t
         
         return `
             <button id="${buttonId}"
-                    class="donut-menu-tag-chip ${isActive ? 'active' : ''} ${isConfigured ? '' : 'custom-tag'}"
+                    class="donut-menu-tag-chip kanban-tag ${isActive ? 'active' : ''} ${isConfigured ? '' : 'custom-tag'}"
+                    data-tag="${tagName.toLowerCase()}"
                     data-tag-name="${tagName}"
                     data-tag-type="${type}"
                     onclick="window.tagHandlers['${buttonId}'](event); return false;"
-                    style="background-color: ${isActive ? bgColor : 'transparent'}; 
-                           color: ${isActive ? textColor : (bgDark ? bgDark : 'inherit')};
-                           border-color: ${bgDark || bgColor};
-                           ${!isActive && bgDark ? `border: 2px solid ${bgDark};` : ''}"
                     title="${title}">
                 <span class="tag-chip-check">${checkbox}</span>
-                <span class="tag-chip-name" style="${!isActive && bgDark ? `color: ${bgDark};` : ''}">${displayName}</span>
+                <span class="tag-chip-name">${displayName}</span>
             </button>
         `;
     }).join('');
@@ -3227,10 +3176,10 @@ function generateTagStyles() {
             // Skip if this is a group (has nested objects with light/dark themes)
             if (config.light || config.dark) {
                 const themeColors = config[themeKey] || config.light || {};
+                const lowerTagName = tagName.toLowerCase();
+
+                // Tag pill styles (the tag text itself) - only if we have both text and background
                 if (themeColors.text && themeColors.background) {
-                    const lowerTagName = tagName.toLowerCase();
-                    
-                    // Tag pill styles (the tag text itself)
                     styles += `.kanban-tag[data-tag="${lowerTagName}"] {
                         color: ${themeColors.text} !important;
                         background-color: ${themeColors.background} !important;
@@ -3306,9 +3255,10 @@ function generateTagStyles() {
                     styles += `.task-item[data-task-tag="${lowerTagName}"]:hover {
                         background-color: ${cardHoverBg} !important;
                     }\n`;
-                    
-                    // Stackable border styles using data-all-tags
-                    if (config.border) {
+                }
+
+                // Stackable border styles using data-all-tags - works even without background colors
+                if (config.border) {
                         const borderColor = config.border.color || themeColors.background;
                         const borderWidth = config.border.width || '2px';
                         const borderStyle = config.border.style || 'solid';
@@ -3475,7 +3425,6 @@ function generateTagStyles() {
                             ` : ''}
                         }\n`;
                     }
-                }
             }
         }
     };
