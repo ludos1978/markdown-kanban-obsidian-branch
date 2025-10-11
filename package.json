@@ -3832,6 +3832,31 @@
           "minimum": 1,
           "maximum": 50,
           "description": "Maximum number of backups to keep per file (older backups will be deleted)"
+        },
+        "markdown-kanban.marp.enginePath": {
+          "type": "string",
+          "default": "./marp-engine/engine.js",
+          "description": "Path to custom Marp engine.js file with markdown-it plugins"
+        },
+        "markdown-kanban.marp.defaultTheme": {
+          "type": "string",
+          "default": "default",
+          "description": "Default Marp theme for presentations and exports",
+          "enum": [
+            "default",
+            "gaia",
+            "uncover"
+          ],
+          "enumDescriptions": [
+            "Default Marp theme",
+            "Gaia theme (modern and clean)",
+            "Uncover theme (revealing animations)"
+          ]
+        },
+        "markdown-kanban.marp.allowLocalFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow Marp to access local files (required for images and assets)"
         }
       }
     },
@@ -3957,16 +3982,28 @@
     "markdown-it-underline": "^1.0.1",
     "mermaid-it": "^0.5.2",
     "npm-run-all": "^4.1.5",
+    "tslib": "^2.8.1",
     "typescript": "^4.9.4"
   },
   "dependencies": {
+    "@marp-team/marp-cli": "^4.2.3",
+    "@marp-team/marp-core": "^4.1.0",
+    "emitter": "^0.0.5",
     "markdown-it": "^14.1.0",
     "markdown-it-abbr": "^2.0.0",
     "markdown-it-container": "^4.0.0",
+    "markdown-it-deflist": "^3.0.0",
+    "markdown-it-emph": "^1.1.0",
+    "markdown-it-figure-caption": "^0.1.0",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-html5-embed": "^1.0.0",
+    "markdown-it-image-caption": "^1.0.0",
     "markdown-it-ins": "^4.0.0",
     "markdown-it-mark": "^4.0.0",
+    "markdown-it-markmap": "^0.1.0",
     "markdown-it-sub": "^2.0.0",
-    "markdown-it-sup": "^2.0.0"
+    "markdown-it-sup": "^2.0.0",
+    "markdown-it-video": "^0.6.3"
   },
   "extensionDependencies": [
     "vscode.markdown"

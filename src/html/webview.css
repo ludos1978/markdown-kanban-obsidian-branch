@@ -2355,6 +2355,47 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   margin: 0;
 }
 
+/* Marp Status Indicator */
+.marp-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.status-label {
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.status-text {
+  font-weight: 400;
+}
+
+.status-success {
+  color: var(--vscode-testing-iconPassed, #73c991);
+}
+
+.status-warning {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.status-pending {
+  color: var(--vscode-foreground);
+  opacity: 0.7;
+}
+
+/* Marp Export Actions */
+.export-actions-secondary {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
 /* Export Visual Selector (Kanban-style layout) */
 .export-tree-container {
   flex: 1;

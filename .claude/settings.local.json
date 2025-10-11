@@ -44,7 +44,8 @@
       "Bash(open:*)",
       "Bash(npm test:*)",
       "Bash(md5:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []

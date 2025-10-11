@@ -266,10 +266,14 @@
 								<div class="export-field-row">
 										<div class="export-field-half">
 												<label for="export-format">Export Format:</label>
-												<select id="export-format" class="form-input">
+												<select id="export-format" class="form-input" onchange="handleFormatChange()">
 														<option value="keep" selected>Keep Original Format</option>
 														<option value="kanban">Convert to Kanban Format</option>
 														<option value="presentation">Convert to Presentation Format</option>
+														<option value="marp">Marp Markdown (Presentation)</option>
+														<option value="marp-pdf">PDF via Marp</option>
+														<option value="marp-pptx">PowerPoint via Marp</option>
+														<option value="marp-html">HTML via Marp</option>
 												</select>
 										</div>
 										<div class="export-field-half">
@@ -281,6 +285,29 @@
 														<option value="mentionsonly">@ Tags Only</option>
 														<option value="none">No Tags</option>
 												</select>
+										</div>
+								</div>
+
+								<!-- Marp Options (shown when Marp format is selected) -->
+								<div id="marp-options" class="export-field" style="display: none;">
+										<div class="export-field-row">
+												<div class="export-field-half">
+														<label for="marp-theme">Marp Theme:</label>
+														<select id="marp-theme" class="form-input">
+																<option value="default" selected>Default</option>
+																<option value="gaia">Gaia (Modern)</option>
+																<option value="uncover">Uncover (Reveal)</option>
+														</select>
+												</div>
+												<div class="export-field-half">
+														<div id="marp-status" class="marp-status">
+																<span class="status-label">Marp Status:</span>
+																<span id="marp-status-text" class="status-pending">Checking...</span>
+														</div>
+												</div>
+										</div>
+										<div class="export-actions-secondary">
+												<button type="button" class="btn btn-secondary" onclick="presentWithMarp()">🎬 Present with Marp</button>
 										</div>
 								</div>
 

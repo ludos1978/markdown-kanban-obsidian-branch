@@ -2624,6 +2624,9 @@ window.addEventListener('message', event => {
         case 'exportResult':
             handleExportResult(message.result);
             break;
+        case 'marpStatus':
+            handleMarpStatus(message.status);
+            break;
         case 'columnExportResult':
             handleColumnExportResult(message.result);
             break;
@@ -4086,6 +4089,9 @@ function showExportDialogWithSelection(scope, index, id) {
         type: 'getExportDefaultFolder'
     });
 
+    // Check Marp status when opening dialog
+    checkMarpStatus();
+
     modal.style.display = 'block';
 }
 
@@ -4253,30 +4259,58 @@ function executeUnifiedExport() {
     // Close modal
     closeExportModal();
 
-    // Export each selected item
-    selectedItems.forEach(item => {
-        const options = {
-            targetFolder: folderInput.value.trim(),
-            scope: item.scope,
-            format: format,
-            tagVisibility: tagVisibility,
-            packAssets: packAssets,
-            packOptions: packOptions,
-            mergeIncludes: mergeIncludes,
-            selection: {
-                rowNumber: item.rowNumber,
-                stackIndex: item.stackIndex,
-                columnIndex: item.columnIndex,
-                columnId: item.columnId
-            }
-        };
+    // Check if this is a Marp export
+    if (format.startsWith('marp')) {
+        const marpTheme = document.getElementById('marp-theme')?.value || 'default';
 
-        // Send unified export request
-        vscode.postMessage({
-            type: 'unifiedExport',
-            options: options
+        // Export each selected item with Marp
+        selectedItems.forEach(item => {
+            vscode.postMessage({
+                type: 'exportWithMarp',
+                options: {
+                    targetFolder: folderInput.value.trim(),
+                    scope: item.scope,
+                    format: format,
+                    tagVisibility: tagVisibility,
+                    packAssets: packAssets,
+                    packOptions: packOptions,
+                    mergeIncludes: mergeIncludes,
+                    marpTheme: marpTheme,
+                    selection: {
+                        rowNumber: item.rowNumber,
+                        stackIndex: item.stackIndex,
+                        columnIndex: item.columnIndex,
+                        columnId: item.columnId
+                    }
+                }
+            });
         });
-    });
+    } else {
+        // Export each selected item with standard export
+        selectedItems.forEach(item => {
+            const options = {
+                targetFolder: folderInput.value.trim(),
+                scope: item.scope,
+                format: format,
+                tagVisibility: tagVisibility,
+                packAssets: packAssets,
+                packOptions: packOptions,
+                mergeIncludes: mergeIncludes,
+                selection: {
+                    rowNumber: item.rowNumber,
+                    stackIndex: item.stackIndex,
+                    columnIndex: item.columnIndex,
+                    columnId: item.columnId
+                }
+            };
+
+            // Send unified export request
+            vscode.postMessage({
+                type: 'unifiedExport',
+                options: options
+            });
+        });
+    }
 }
 
 /**
@@ -4302,6 +4336,99 @@ function handleExportResult(result) {
             message: result.message
         });
     }
+}
+
+/**
+ * Handle export format change - show/hide Marp options
+ */
+function handleFormatChange() {
+    const formatSelect = document.getElementById('export-format');
+    const marpOptions = document.getElementById('marp-options');
+
+    if (formatSelect && marpOptions) {
+        const format = formatSelect.value;
+        const isMarpFormat = format.startsWith('marp');
+
+        if (isMarpFormat) {
+            marpOptions.style.display = 'block';
+            // Check Marp status when showing options
+            checkMarpStatus();
+        } else {
+            marpOptions.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Check Marp CLI and extension status
+ */
+function checkMarpStatus() {
+    vscode.postMessage({
+        type: 'checkMarpStatus'
+    });
+}
+
+/**
+ * Handle Marp status response from backend
+ */
+function handleMarpStatus(status) {
+    const statusText = document.getElementById('marp-status-text');
+    if (!statusText) return;
+
+    statusText.className = 'status-text';
+
+    if (status.cliAvailable && status.extensionInstalled) {
+        statusText.textContent = '✓ Ready';
+        statusText.classList.add('status-success');
+    } else if (!status.cliAvailable && !status.extensionInstalled) {
+        statusText.textContent = '⚠ CLI & Extension Missing';
+        statusText.classList.add('status-warning');
+    } else if (!status.cliAvailable) {
+        statusText.textContent = '⚠ CLI Missing';
+        statusText.classList.add('status-warning');
+    } else if (!status.extensionInstalled) {
+        statusText.textContent = '⚠ Extension Missing';
+        statusText.classList.add('status-warning');
+    }
+}
+
+/**
+ * Start presentation with Marp
+ */
+function presentWithMarp() {
+    // Get selected items
+    const selectedItems = exportTreeUI ? exportTreeUI.getSelectedItems() : [];
+    if (selectedItems.length === 0) {
+        vscode.postMessage({
+            type: 'showError',
+            message: 'Please select content to present'
+        });
+        return;
+    }
+
+    const marpTheme = document.getElementById('marp-theme')?.value || 'default';
+    const tagVisibility = document.getElementById('export-tag-visibility')?.value || 'allexcludinglayout';
+
+    // Use first selected item for presentation
+    const item = selectedItems[0];
+
+    vscode.postMessage({
+        type: 'presentWithMarp',
+        options: {
+            scope: item.scope,
+            selection: {
+                rowNumber: item.rowNumber,
+                stackIndex: item.stackIndex,
+                columnIndex: item.columnIndex,
+                columnId: item.columnId
+            },
+            tagVisibility: tagVisibility,
+            marpTheme: marpTheme
+        }
+    });
+
+    // Close the export dialog
+    closeExportModal();
 }
 
 // Column Export Functions
@@ -4361,12 +4488,15 @@ function selectColumnExportFolder() {
 }
 
 function setSelectedColumnExportFolder(folderPath) {
-    document.getElementById('column-export-folder').value = folderPath;
+    const input = document.getElementById('column-export-folder');
+    if (input) {
+        input.value = folderPath;
+    }
 }
 
 function setColumnExportDefaultFolder(folderPath) {
     const input = document.getElementById('column-export-folder');
-    if (!input.value) {
+    if (input && !input.value) {
         input.value = folderPath;
     }
 }

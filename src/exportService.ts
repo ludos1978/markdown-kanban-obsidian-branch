@@ -8,9 +8,11 @@ import { PresentationParser } from './presentationParser';
 import { ContentPipelineService } from './services/ContentPipelineService';
 import { OperationOptionsBuilder, OperationOptions, FormatStrategy } from './services/OperationOptions';
 import { PathResolver } from './services/PathResolver';
+import { MarpConverter, MarpConversionOptions } from './services/MarpConverter';
+import { MarpExportService, MarpOutputFormat } from './services/MarpExportService';
 
 export type ExportScope = 'full' | 'row' | 'stack' | 'column' | 'task';
-export type ExportFormat = 'keep' | 'kanban' | 'presentation';
+export type ExportFormat = 'keep' | 'kanban' | 'presentation' | 'marp' | 'marp-pdf' | 'marp-pptx' | 'marp-html';
 
 export interface ExportOptions {
     targetFolder: string;
@@ -1823,6 +1825,186 @@ export class ExportService {
             return {
                 success: false,
                 message: `Export failed: ${error instanceof Error ? error.message : String(error)}`
+            };
+        }
+    }
+
+    /**
+     * Export using Marp (markdown, PDF, PPTX, or HTML)
+     * @param sourceDocument Source document to export from
+     * @param options Export options
+     * @returns Export result
+     */
+    public static async exportWithMarp(
+        sourceDocument: vscode.TextDocument,
+        options: UnifiedExportOptions & {
+            marpTheme?: string;
+            marpEnginePath?: string;
+        }
+    ): Promise<{ success: boolean; message: string; exportedPath?: string }> {
+        try {
+            const sourcePath = sourceDocument.uri.fsPath;
+
+            // Read source content
+            if (!fs.existsSync(sourcePath)) {
+                throw new Error(`Source file not found: ${sourcePath}`);
+            }
+            const fullContent = fs.readFileSync(sourcePath, 'utf8');
+
+            // Extract content based on scope
+            let content: string | null = null;
+            switch (options.scope) {
+                case 'full':
+                    content = fullContent;
+                    break;
+                case 'row':
+                    if (options.selection.rowNumber === undefined) {
+                        throw new Error('Row number required for row scope');
+                    }
+                    content = this.extractRowContent(fullContent, options.selection.rowNumber);
+                    break;
+                case 'stack':
+                    if (options.selection.rowNumber === undefined || options.selection.stackIndex === undefined) {
+                        throw new Error('Row number and stack index required for stack scope');
+                    }
+                    content = this.extractStackContent(fullContent, options.selection.rowNumber, options.selection.stackIndex);
+                    break;
+                case 'column':
+                    if (options.selection.columnIndex === undefined) {
+                        throw new Error('Column index required for column scope');
+                    }
+                    content = this.extractColumnContent(fullContent, options.selection.columnIndex);
+                    break;
+                case 'task':
+                    if (options.selection.columnIndex === undefined) {
+                        throw new Error('Column index required for task scope');
+                    }
+                    const columnContent = this.extractColumnContent(fullContent, options.selection.columnIndex);
+                    content = columnContent ? this.extractTaskContent(columnContent, options.selection.taskId) : null;
+                    break;
+            }
+
+            if (!content) {
+                throw new Error(`Could not extract content for scope: ${options.scope}`);
+            }
+
+            // Apply tag filtering
+            let processedContent = this.applyTagFiltering(content, {
+                targetFolder: '',
+                includeFiles: false,
+                includeImages: false,
+                includeVideos: false,
+                includeOtherMedia: false,
+                includeDocuments: false,
+                fileSizeLimitMB: 100,
+                tagVisibility: options.tagVisibility
+            });
+
+            // Parse kanban board for conversion to Marp
+            const hasYaml = processedContent.trim().startsWith('---');
+            const contentToParse = hasYaml ? processedContent : '---\nkanban-plugin: board\n---\n\n' + processedContent;
+            const { board } = MarkdownKanbanParser.parseMarkdown(contentToParse);
+
+            // Convert to Marp format
+            const marpOptions: MarpConversionOptions = {
+                theme: options.marpTheme,
+                tagVisibility: options.tagVisibility,
+                preserveYaml: true
+            };
+
+            let marpMarkdown: string;
+            if (board.valid && board.columns.length > 0) {
+                marpMarkdown = MarpConverter.kanbanToMarp(board, marpOptions);
+            } else {
+                // If not a valid kanban board, just add Marp directives
+                marpMarkdown = MarpConverter.addMarpDirectives(processedContent, marpOptions);
+            }
+
+            // Determine output format and path
+            let outputFormat: MarpOutputFormat;
+            let outputPath: string;
+
+            if (!options.targetFolder) {
+                throw new Error('Target folder is required for Marp export');
+            }
+
+            const sourceBasename = path.basename(sourcePath, '.md');
+
+            // Build scope suffix
+            let scopeSuffix = '';
+            if (options.scope !== 'full') {
+                const parts: string[] = [];
+                if (options.selection.rowNumber !== undefined) {
+                    parts.push(`row${options.selection.rowNumber}`);
+                }
+                if (options.selection.stackIndex !== undefined) {
+                    parts.push(`stack${options.selection.stackIndex}`);
+                }
+                if (options.selection.columnIndex !== undefined) {
+                    parts.push(`col${options.selection.columnIndex}`);
+                }
+                scopeSuffix = parts.length > 0 ? `-${parts.join('-')}` : `-${options.scope}`;
+            }
+
+            const targetBasename = `${sourceBasename}${scopeSuffix}`;
+
+            // Ensure target folder exists
+            if (!fs.existsSync(options.targetFolder)) {
+                fs.mkdirSync(options.targetFolder, { recursive: true });
+            }
+
+            // Determine output format from options.format
+            switch (options.format) {
+                case 'marp':
+                    outputFormat = 'markdown';
+                    outputPath = path.join(options.targetFolder, `${targetBasename}-marp.md`);
+                    // Just save the Marp markdown
+                    fs.writeFileSync(outputPath, marpMarkdown, 'utf-8');
+                    return {
+                        success: true,
+                        message: `Marp markdown exported to ${outputPath}`,
+                        exportedPath: outputPath
+                    };
+
+                case 'marp-pdf':
+                    outputFormat = 'pdf';
+                    outputPath = path.join(options.targetFolder, `${targetBasename}.pdf`);
+                    break;
+
+                case 'marp-pptx':
+                    outputFormat = 'pptx';
+                    outputPath = path.join(options.targetFolder, `${targetBasename}.pptx`);
+                    break;
+
+                case 'marp-html':
+                    outputFormat = 'html';
+                    outputPath = path.join(options.targetFolder, `${targetBasename}.html`);
+                    break;
+
+                default:
+                    throw new Error(`Unsupported Marp export format: ${options.format}`);
+            }
+
+            // Export using Marp CLI
+            await MarpExportService.export(marpMarkdown, {
+                format: outputFormat,
+                outputPath,
+                enginePath: options.marpEnginePath,
+                theme: options.marpTheme,
+                allowLocalFiles: true
+            });
+
+            return {
+                success: true,
+                message: `Successfully exported to ${outputFormat.toUpperCase()}: ${outputPath}`,
+                exportedPath: outputPath
+            };
+
+        } catch (error) {
+            console.error('[kanban.exportService.exportWithMarp] Export failed:', error);
+            return {
+                success: false,
+                message: `Marp export failed: ${error instanceof Error ? error.message : String(error)}`
             };
         }
     }

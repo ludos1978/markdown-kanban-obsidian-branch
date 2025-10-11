@@ -8,6 +8,8 @@ import { configService } from './configurationService';
 import { ExportService } from './exportService';
 import { getFileStateManager } from './fileStateManager';
 import { PathResolver } from './services/PathResolver';
+import { MarpExtensionService } from './services/MarpExtensionService';
+import { MarpExportService } from './services/MarpExportService';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -583,6 +585,31 @@ export class MessageHandler {
                     await this.endOperation(columnExportId);
                     throw error;
                 }
+                break;
+
+            // Marp export operations
+            case 'exportWithMarp':
+                const marpExportId = `marp_export_${Date.now()}`;
+                await this.startOperation(marpExportId, 'export', 'Exporting with Marp...');
+                try {
+                    await this.handleExportWithMarp(message.options, marpExportId);
+                    await this.endOperation(marpExportId);
+                } catch (error) {
+                    await this.endOperation(marpExportId);
+                    throw error;
+                }
+                break;
+
+            case 'openInMarpPreview':
+                await this.handleOpenInMarpPreview(message.filePath);
+                break;
+
+            case 'checkMarpStatus':
+                await this.handleCheckMarpStatus();
+                break;
+
+            case 'presentWithMarp':
+                await this.handlePresentWithMarp(message.options);
                 break;
 
             case 'generateCopyContent':
@@ -2609,6 +2636,146 @@ export class MessageHandler {
         } catch (error) {
             console.error('🗑️ Backend: Error updating column title from strikethrough deletion:', error);
             vscode.window.showErrorMessage('Failed to update column title');
+        }
+    }
+
+    /**
+     * Handle Marp export
+     */
+    private async handleExportWithMarp(options: any, operationId?: string): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                throw new Error('No document available for Marp export');
+            }
+
+            if (operationId) {
+                await this.updateOperationProgress(operationId, 25, 'Converting to Marp format...');
+            }
+
+            // Call the exportWithMarp method from ExportService
+            const result = await ExportService.exportWithMarp(document, {
+                scope: options.scope || 'full',
+                format: options.format || 'marp',
+                tagVisibility: options.tagVisibility || 'all',
+                packAssets: options.packAssets || false,
+                mergeIncludes: options.mergeIncludes,
+                targetFolder: options.targetFolder,
+                selection: options.selection || {},
+                packOptions: options.packOptions,
+                marpTheme: options.marpTheme,
+                marpEnginePath: options.marpEnginePath
+            });
+
+            if (operationId) {
+                await this.updateOperationProgress(operationId, 100, 'Export completed');
+            }
+
+            const panel = this._getWebviewPanel();
+            if (panel && panel.webview) {
+                panel.webview.postMessage({
+                    type: 'exportComplete',
+                    success: result.success,
+                    message: result.message,
+                    exportedPath: result.exportedPath
+                });
+            }
+
+            if (result.success) {
+                vscode.window.showInformationMessage(result.message);
+            } else {
+                vscode.window.showErrorMessage(result.message);
+            }
+        } catch (error) {
+            console.error('[kanban.messageHandler.handleExportWithMarp] Error:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+
+            const panel = this._getWebviewPanel();
+            if (panel && panel.webview) {
+                panel.webview.postMessage({
+                    type: 'exportComplete',
+                    success: false,
+                    message: `Marp export failed: ${errorMessage}`
+                });
+            }
+
+            vscode.window.showErrorMessage(`Marp export failed: ${errorMessage}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Open a markdown file in Marp preview
+     */
+    private async handleOpenInMarpPreview(filePath: string): Promise<void> {
+        try {
+            await MarpExtensionService.openInMarpPreview(filePath);
+        } catch (error) {
+            console.error('[kanban.messageHandler.handleOpenInMarpPreview] Error:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Failed to open Marp preview: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * Check Marp status and send to frontend
+     */
+    private async handleCheckMarpStatus(): Promise<void> {
+        try {
+            const marpExtensionStatus = MarpExtensionService.getMarpStatus();
+            const marpCliAvailable = await MarpExportService.isMarpCliAvailable();
+            const engineFileExists = MarpExportService.engineFileExists();
+
+            const panel = this._getWebviewPanel();
+            if (panel && panel.webview) {
+                panel.webview.postMessage({
+                    type: 'marpStatus',
+                    extensionInstalled: marpExtensionStatus.installed,
+                    extensionVersion: marpExtensionStatus.version,
+                    cliAvailable: marpCliAvailable,
+                    engineFileExists: engineFileExists
+                });
+            }
+        } catch (error) {
+            console.error('[kanban.messageHandler.handleCheckMarpStatus] Error:', error);
+        }
+    }
+
+    /**
+     * Present kanban content with Marp
+     */
+    private async handlePresentWithMarp(options: any): Promise<void> {
+        try {
+            const document = this._fileManager.getDocument();
+            if (!document) {
+                throw new Error('No document available for presentation');
+            }
+
+            // First, export to Marp format
+            const result = await ExportService.exportWithMarp(document, {
+                scope: options.scope || 'full',
+                format: 'marp', // Always export to Marp markdown for presentation
+                tagVisibility: options.tagVisibility || 'all',
+                packAssets: false,
+                mergeIncludes: options.mergeIncludes,
+                targetFolder: options.targetFolder || path.join(os.tmpdir(), 'marp-kanban-preview'),
+                selection: options.selection || {},
+                marpTheme: options.marpTheme,
+                marpEnginePath: options.marpEnginePath
+            });
+
+            if (!result.success || !result.exportedPath) {
+                throw new Error(result.message);
+            }
+
+            // Open the exported Marp markdown in Marp preview
+            await MarpExtensionService.openInMarpPreview(result.exportedPath);
+
+            vscode.window.showInformationMessage('Opened presentation in Marp preview');
+        } catch (error) {
+            console.error('[kanban.messageHandler.handlePresentWithMarp] Error:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Failed to start presentation: ${errorMessage}`);
         }
     }
 }
