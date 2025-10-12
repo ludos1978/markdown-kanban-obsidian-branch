@@ -4,8 +4,9 @@ kanban-plugin: board
 
 ## Open Bugs
 
+- [ ] when the mouse cursor leaves the view during a drag&drop and reenters it doesnt keep drag&dropping anymore. can we solve this issue somehow and cleanly handle it? can we still receive mouse button releases outside the view?
 
-- [ ] when clicking "add column" it should allways create a new column in a new stack, dont do the same as when "insert list after" is clicked. also it seems that it sometimes puts the columns in other rows then where i create them. ultrathink
+- [x] when clicking "add column" it should allways create a new column in a new stack, dont do the same as when "insert list after" is clicked. also it seems that it sometimes puts the columns in other rows then where i create them. ultrathink
 
 - [ ] i get the error: "console.ts:137 [Extension Host] Cannot save: no document or invalid board (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:175:30205))" i think it happens after the board is reloaded
 

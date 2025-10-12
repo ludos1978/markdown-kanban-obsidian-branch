@@ -4,6 +4,14 @@ let lastIndicatorUpdate = 0;
 const INDICATOR_UPDATE_THROTTLE = 100; // milliseconds
 const DEBUG_DROP = false;
 
+// Create smart logger for drag and drop
+const dragLogger = window.createSmartLogger ? window.createSmartLogger('DragDrop') : {
+    log: () => {},
+    always: console.log.bind(console, '[DragDrop]'),
+    clear: () => {},
+    once: () => {}
+};
+
 // Track if drag/drop is already set up to prevent multiple listeners
 let dragDropInitialized = false;
 let isProcessingDrop = false; // Prevent multiple simultaneous drops
@@ -52,7 +60,11 @@ if (!dragState) {
         finalRowNumber: null,
 
         // Modifier keys
-        altKeyPressed: false
+        altKeyPressed: false,
+
+        // View tracking
+        leftView: false,
+        leftViewTimestamp: null
     };
     window.dragState = dragState;
 } else if (!dragState.originalColumnIndex) {
@@ -79,7 +91,11 @@ if (!dragState) {
         finalRowNumber: null,
 
         // Modifier keys
-        altKeyPressed: false
+        altKeyPressed: false,
+
+        // View tracking
+        leftView: false,
+        leftViewTimestamp: null
     });
 }
 
@@ -459,43 +475,664 @@ function setupGlobalDragAndDrop() {
             hideExternalDropIndicator();
         }
     }, false);
-    
-    // Global dragend handler to ensure cleanup
-    document.addEventListener('dragend', function(e) {
-        
-        // Clean up any lingering indicators when drag ends
+
+    // ============================================================================
+    // UNIFIED DRAGEND HELPER FUNCTIONS
+    // ============================================================================
+
+    function restoreTaskToOriginalPosition() {
+        if (!dragState.draggedTask || !dragState.originalTaskParent) {
+            return;
+        }
+
+        dragLogger.always('Restoring task to original position');
+
+        // Check if originalTaskNextSibling is still valid
+        const nextSiblingStillValid = dragState.originalTaskNextSibling &&
+            dragState.originalTaskNextSibling.parentNode === dragState.originalTaskParent;
+
+        // Remove from current position
+        if (dragState.draggedTask.parentNode) {
+            dragState.draggedTask.parentNode.removeChild(dragState.draggedTask);
+        }
+
+        // Restore to original position
+        if (nextSiblingStillValid) {
+            dragState.originalTaskParent.insertBefore(dragState.draggedTask, dragState.originalTaskNextSibling);
+        } else if (dragState.originalTaskIndex >= 0) {
+            // Use index as fallback
+            const children = Array.from(dragState.originalTaskParent.children);
+            const taskItems = children.filter(c => c.classList.contains('task-item'));
+            if (dragState.originalTaskIndex < taskItems.length) {
+                dragState.originalTaskParent.insertBefore(dragState.draggedTask, taskItems[dragState.originalTaskIndex]);
+            } else {
+                dragState.originalTaskParent.appendChild(dragState.draggedTask);
+            }
+        } else {
+            dragState.originalTaskParent.appendChild(dragState.draggedTask);
+        }
+    }
+
+    function restoreColumnToOriginalPosition() {
+        if (!dragState.draggedColumn || !dragState.originalColumnParent) {
+            return;
+        }
+
+        dragLogger.always('Restoring column to original position');
+
+        // Check if originalColumnNextSibling is still valid
+        const nextSiblingStillValid = dragState.originalColumnNextSibling &&
+            dragState.originalColumnNextSibling.parentNode === dragState.originalColumnParent;
+
+        // Remove from current position
+        if (dragState.draggedColumn.parentNode) {
+            dragState.draggedColumn.parentNode.removeChild(dragState.draggedColumn);
+        }
+
+        // Restore to original position
+        if (nextSiblingStillValid) {
+            dragState.originalColumnParent.insertBefore(dragState.draggedColumn, dragState.originalColumnNextSibling);
+        } else {
+            dragState.originalColumnParent.appendChild(dragState.draggedColumn);
+        }
+    }
+
+    function processTaskDrop() {
+        const taskItem = dragState.draggedTask;
+        if (!taskItem) {
+            return;
+        }
+
+        // Get the final position
+        const finalParent = taskItem.parentNode;
+        const finalColumnElement = finalParent?.closest('.kanban-full-height-column');
+        const finalColumnId = finalColumnElement?.dataset.columnId;
+
+        if (!finalParent || !finalColumnId) {
+            return;
+        }
+
+        const originalColumnElement = dragState.originalTaskParent?.closest('.kanban-full-height-column');
+        const originalColumnId = originalColumnElement?.dataset.columnId;
+
+        const finalIndex = Array.from(finalParent.children).indexOf(taskItem);
+
+        // Check if position actually changed
+        const positionChanged = finalParent !== dragState.originalTaskParent ||
+                               finalIndex !== dragState.originalTaskIndex;
+
+        if (!positionChanged || !originalColumnId) {
+            return;
+        }
+
+        // Calculate the proper index for the data model
+        const dropIndex = finalIndex >= 0 ? finalIndex : 0;
+
+        // Unfold the destination column if it's collapsed (unless Alt key was pressed during drag)
+        if (typeof unfoldColumnIfCollapsed === 'function') {
+            const skipUnfold = dragState.altKeyPressed;
+            unfoldColumnIfCollapsed(finalColumnId, skipUnfold);
+        }
+
+        // Update cached board
+        if (window.cachedBoard) {
+            const taskId = taskItem.dataset.taskId;
+
+            // Save undo state
+            vscode.postMessage({
+                type: 'saveUndoState',
+                operation: originalColumnId !== finalColumnId ? 'moveTaskViaDrag' : 'reorderTaskViaDrag',
+                taskId: taskId,
+                fromColumnId: originalColumnId,
+                toColumnId: finalColumnId,
+                currentBoard: window.cachedBoard
+            });
+
+            // Find and remove task from original column
+            const originalColumn = window.cachedBoard.columns.find(col => col.id === originalColumnId);
+            const finalColumn = window.cachedBoard.columns.find(col => col.id === finalColumnId);
+
+            if (originalColumn && finalColumn) {
+                const taskIndex = originalColumn.tasks.findIndex(t => t.id === taskId);
+                if (taskIndex >= 0) {
+                    const [task] = originalColumn.tasks.splice(taskIndex, 1);
+
+                    // Add task to new column at correct position
+                    const insertIndex = Math.min(dropIndex, finalColumn.tasks.length);
+                    finalColumn.tasks.splice(insertIndex, 0, task);
+
+                    // Update column displays after task move
+                    if (typeof window.updateColumnDisplay === 'function') {
+                        window.updateColumnDisplay(originalColumnId);
+                        if (originalColumnId !== finalColumnId) {
+                            window.updateColumnDisplay(finalColumnId);
+                        }
+                    }
+
+                    // Check empty state for both columns
+                    if (typeof updateColumnEmptyState === 'function') {
+                        updateColumnEmptyState(originalColumnId);
+                        if (originalColumnId !== finalColumnId) {
+                            updateColumnEmptyState(finalColumnId);
+                        }
+                    }
+
+                    // Update the task element's onclick handlers to reference the new columnId
+                    if (originalColumnId !== finalColumnId) {
+                        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                        if (taskElement) {
+                            const taskItemEl = taskElement.closest('.task-item');
+                            if (taskItemEl) {
+                                // Update task-title-container onclick
+                                const titleContainer = taskItemEl.querySelector('.task-title-container');
+                                if (titleContainer) {
+                                    const oldOnclick = titleContainer.getAttribute('onclick');
+                                    if (oldOnclick) {
+                                        const newOnclick = oldOnclick.replace(
+                                            `'${originalColumnId}'`,
+                                            `'${finalColumnId}'`
+                                        );
+                                        titleContainer.setAttribute('onclick', newOnclick);
+                                    }
+                                }
+
+                                // Update task-description onclick
+                                const descContainer = taskItemEl.querySelector('.task-description');
+                                if (descContainer) {
+                                    const oldOnclick = descContainer.getAttribute('onclick');
+                                    if (oldOnclick) {
+                                        const newOnclick = oldOnclick.replace(
+                                            `'${originalColumnId}'`,
+                                            `'${finalColumnId}'`
+                                        );
+                                        descContainer.setAttribute('onclick', newOnclick);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Mark as unsaved
+        if (typeof markUnsavedChanges === 'function') {
+            markUnsavedChanges();
+        }
+
+        // Recalculate stack heights if needed
+        if (originalColumnId !== finalColumnId && typeof window.recalculateStackHeights === 'function') {
+            requestAnimationFrame(() => {
+                const originalCol = originalColumnElement;
+                const finalCol = finalColumnElement;
+
+                const originalStack = originalCol?.closest('.kanban-column-stack');
+                const finalStack = finalCol?.closest('.kanban-column-stack');
+
+                if (originalStack) {
+                    window.recalculateStackHeights(originalStack);
+                }
+                if (finalStack && finalStack !== originalStack) {
+                    window.recalculateStackHeights(finalStack);
+                }
+            });
+        }
+    }
+
+    function processColumnDrop() {
+        const columnElement = dragState.draggedColumn;
+        const columnId = dragState.draggedColumnId;
+
+        if (!columnElement || !columnId) {
+            return;
+        }
+
+        const boardElement = document.getElementById('kanban-board');
+        if (!boardElement) {
+            return;
+        }
+
+        // Process pending drop zone if hovering over one
+        if (dragState.pendingDropZone) {
+            const dropZone = dragState.pendingDropZone;
+            const dropZoneStack = dropZone.parentNode;
+
+            if (dropZoneStack && dropZoneStack.parentNode) {
+                const rowOrBoard = dropZoneStack.parentNode;
+                const currentStack = dragState.draggedColumn.parentNode;
+
+                if (currentStack && currentStack.classList.contains('kanban-column-stack')) {
+                    // Extract column from current stack
+                    currentStack.removeChild(dragState.draggedColumn);
+                    cleanupEmptyStack(currentStack);
+
+                    // Remove drop zone element
+                    if (dropZone.parentNode === dropZoneStack) {
+                        dropZoneStack.removeChild(dropZone);
+                    }
+
+                    // Convert drop zone stack to regular stack
+                    dropZoneStack.classList.remove('column-drop-zone-stack');
+                    dropZoneStack.appendChild(dragState.draggedColumn);
+
+                    // Recreate drop zones
+                    cleanupAndRecreateDropZones(rowOrBoard);
+                }
+            }
+
+            dragState.pendingDropZone = null;
+        }
+
+        // Clean up any duplicate or orphaned elements in the DOM
+        const allColumnsForCleanup = document.querySelectorAll('.kanban-full-height-column');
+        const seenColumnIds = new Set();
+        allColumnsForCleanup.forEach(col => {
+            const colId = col.getAttribute('data-column-id');
+            if (seenColumnIds.has(colId)) {
+                col.remove();
+            } else {
+                seenColumnIds.add(colId);
+            }
+        });
+
+        // Calculate target position based on where the column is in the DOM now
+        const allColumns = Array.from(boardElement.querySelectorAll('.kanban-full-height-column'));
+        const newOrder = allColumns.map(col => col.getAttribute('data-column-id'));
+
+        // Get row number
+        const parentRow = columnElement.closest('.kanban-row');
+        const newRow = parentRow ? parseInt(parentRow.getAttribute('data-row-number') || '1') : 1;
+
+        // Update the column's row tag in the data
+        if (window.cachedBoard) {
+            const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+            if (cachedColumn) {
+                let cleanTitle = cachedColumn.title
+                    .replace(/#row\d+\b/gi, '')
+                    .replace(/\s+#row\d+/gi, '')
+                    .replace(/#row\d+\s+/gi, '')
+                    .replace(/\s+#row\d+\s+/gi, '')
+                    .trim();
+
+                if (newRow > 1) {
+                    cachedColumn.title = cleanTitle ? cleanTitle + ` #row${newRow}` : ` #row${newRow}`;
+                } else {
+                    cachedColumn.title = cleanTitle;
+                }
+            }
+        }
+
+        // Update stack tags in destination stack
+        const destinationStack = columnElement.closest('.kanban-column-stack');
+        if (destinationStack) {
+            const allColumnsInStack = Array.from(destinationStack.querySelectorAll('.kanban-full-height-column'));
+            const columnsInDestStack = allColumnsInStack.filter(col => {
+                return col.closest('.kanban-column-stack') === destinationStack;
+            });
+
+            columnsInDestStack.forEach((col, idx) => {
+                const colId = col.getAttribute('data-column-id');
+
+                if (idx === 0) {
+                    // First column - remove #stack tag
+                    if (window.cachedBoard) {
+                        const cachedCol = window.cachedBoard.columns.find(c => c.id === colId);
+                        if (cachedCol) {
+                            cachedCol.title = cachedCol.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
+                        }
+                    }
+                    updateColumnTitleDisplay(colId);
+                } else {
+                    // Other columns - ensure they have #stack tag
+                    if (window.cachedBoard) {
+                        const cachedCol = window.cachedBoard.columns.find(c => c.id === colId);
+                        if (cachedCol && !/#stack\b/i.test(cachedCol.title)) {
+                            const trimmedTitle = cachedCol.title.trim();
+                            cachedCol.title = trimmedTitle ? trimmedTitle + ' #stack' : ' #stack';
+                        }
+                    }
+                    updateColumnTitleDisplay(colId);
+                }
+            });
+        }
+
+        // Handle the edge case where column is not in any stack
+        const stackContainer = columnElement.closest('.kanban-column-stack');
+        if (!stackContainer) {
+            if (window.cachedBoard) {
+                const cachedColumn = window.cachedBoard.columns.find(col => col.id === columnId);
+                if (cachedColumn) {
+                    cachedColumn.title = cachedColumn.title.replace(/#stack\b/gi, '').replace(/\s+/g, ' ').trim();
+                }
+            }
+        }
+
+        // Update the visual display
+        const titleElement = columnElement.querySelector('.column-title-text');
+        if (titleElement && window.cachedBoard) {
+            const columnData = window.cachedBoard.columns.find(col => col.id === columnId);
+            if (columnData) {
+                const renderedTitle = window.tagUtils ? window.tagUtils.getColumnDisplayTitle(columnData, window.filterTagsFromText) : (columnData.title || '');
+                titleElement.innerHTML = renderedTitle;
+            }
+        }
+
+        // Reorder columns in cached board to match DOM order
+        if (window.cachedBoard) {
+            const reorderedColumns = newOrder.map(colId =>
+                window.cachedBoard.columns.find(col => col.id === colId)
+            ).filter(Boolean);
+
+            window.cachedBoard.columns = reorderedColumns;
+        }
+
+        // Mark as unsaved
+        if (typeof markUnsavedChanges === 'function') {
+            markUnsavedChanges();
+        }
+
+        // Recalculate stacked column styles after drag
+        if (typeof window.applyStackedColumnStyles === 'function') {
+            window.applyStackedColumnStyles();
+        }
+    }
+
+    function cleanupDragVisuals() {
+        // Remove visual feedback from tasks
+        if (dragState.draggedTask) {
+            dragState.draggedTask.classList.remove('dragging', 'drag-preview');
+        }
+
+        // Remove visual feedback from columns
+        if (dragState.draggedColumn) {
+            dragState.draggedColumn.classList.remove('dragging', 'drag-preview');
+        }
+
+        const boardElement = document.getElementById('kanban-board');
+        if (boardElement) {
+            // Clean up task styles
+            boardElement.querySelectorAll('.task-item').forEach(task => {
+                task.classList.remove('drag-transitioning');
+            });
+
+            // Clean up column styles
+            boardElement.querySelectorAll('.kanban-full-height-column').forEach(col => {
+                col.classList.remove('drag-over-append', 'drag-over', 'drag-transitioning', 'external-drag-over');
+            });
+
+            // Clean up row styles
+            boardElement.querySelectorAll('.kanban-row').forEach(row => {
+                row.classList.remove('drag-over');
+            });
+        }
+
+        // Clean up drop zone styles
+        document.querySelectorAll('.column-drop-zone.drag-over').forEach(dz => {
+            dz.classList.remove('drag-over');
+        });
+
+        // Hide drop feedback and indicators
         hideDropFeedback();
         hideExternalDropIndicator();
-        
-        // Clean up any lingering drag highlights
-        document.querySelectorAll('.kanban-full-height-column').forEach(col => {
-            col.classList.remove('external-drag-over');
-        });
-        
-        // Reset ALL drag states to ensure clean state
-        if (dragState.draggedClipboardCard) {
-            dragState.draggedClipboardCard = null;
+    }
+
+    function resetDragState() {
+        // Reset all drag state properties
+        dragState.draggedClipboardCard = null;
+        dragState.draggedEmptyCard = null;
+        dragState.draggedTask = null;
+        dragState.originalTaskParent = null;
+        dragState.originalTaskNextSibling = null;
+        dragState.originalTaskIndex = -1;
+        dragState.draggedColumn = null;
+        dragState.draggedColumnId = null;
+        dragState.originalDataIndex = -1;
+        dragState.originalColumnParent = null;
+        dragState.originalColumnNextSibling = null;
+        dragState.isDragging = false;
+        dragState.lastDropTarget = null;
+        dragState.leftView = false;
+        dragState.leftViewTimestamp = null;
+    }
+
+    // ============================================================================
+    // UNIFIED GLOBAL DRAGEND HANDLER
+    // ============================================================================
+
+    // Global dragend handler - UNIFIED APPROACH
+    document.addEventListener('dragend', function(e) {
+        // 1. CAPTURE STATE BEFORE ANY CLEANUP
+        const wasTask = !!dragState.draggedTask;
+        const wasColumn = !!dragState.draggedColumn;
+        const wasDragging = dragState.isDragging;
+        const droppedOutside = e.dataTransfer?.dropEffect === 'none';
+        const leftView = dragState.leftView;
+
+        // Get current position for debugging
+        const currentTaskParent = wasTask ? dragState.draggedTask?.parentNode : null;
+        const currentColumnParent = wasColumn ? dragState.draggedColumn?.parentNode : null;
+
+        // Log for debugging (only if state changed)
+        const timeSinceLeftView = dragState.leftViewTimestamp ? Date.now() - dragState.leftViewTimestamp : null;
+        const logData = {
+            dropEffect: e.dataTransfer?.dropEffect,
+            wasDragging: wasDragging,
+            wasTask: wasTask,
+            wasColumn: wasColumn,
+            leftView: leftView,
+            timeSinceLeftView: timeSinceLeftView,
+            taskMovedFromOriginal: wasTask && currentTaskParent !== dragState.originalTaskParent,
+            columnMovedFromOriginal: wasColumn && currentColumnParent !== dragState.originalColumnParent
+        };
+
+        // Only log if leftView was true (debugging restoration case)
+        if (leftView) {
+            console.log('[DragDrop] dragend fired with leftView=true:', logData);
         }
-        if (dragState.draggedEmptyCard) {
-            dragState.draggedEmptyCard = null;
+
+        // 2. DECIDE: RESTORE OR PROCESS
+        let shouldRestore = false;
+
+        if (wasDragging) {
+            // Restore if explicitly dropped outside OR if cursor left view and never came back
+            shouldRestore = droppedOutside || leftView;
+
+            if (shouldRestore) {
+                dragLogger.always('Restoring to original position', {
+                    reason: droppedOutside ? 'dropped outside' : 'cursor left view'
+                });
+            }
         }
-        if (dragState.draggedTask) {
+
+        // 3. EXECUTE RESTORATION OR PROCESSING
+        if (shouldRestore) {
+            // RESTORE - user dragged outside or cancelled
+            if (wasTask) {
+                restoreTaskToOriginalPosition();
+            }
+            if (wasColumn) {
+                restoreColumnToOriginalPosition();
+            }
+        } else if (wasDragging) {
+            // PROCESS - valid drop, process the changes
+            if (wasTask) {
+                processTaskDrop();
+            }
+            if (wasColumn) {
+                processColumnDrop();
+            }
+        }
+
+        // 4. VISUAL CLEANUP (always, regardless of restore or process)
+        cleanupDragVisuals();
+
+        // 5. STATE CLEANUP (always, at the very end)
+        resetDragState();
+
+    }, false);
+
+    // Handle cursor leaving the window during drag
+    // This helps detect when the drag operation is lost
+    document.addEventListener('dragleave', function(e) {
+        if (dragState.isDragging) {
+            // Use smart logger to avoid spam - only log when relatedTarget changes
+            const logKey = 'dragleave-' + (e.relatedTarget ? 'element' : 'null');
+            dragLogger.log(logKey, {
+                targetTag: e.target?.tagName,
+                relatedTarget: e.relatedTarget,
+                clientX: e.clientX,
+                clientY: e.clientY
+            }, 'dragleave event');
+
+            // Check if we're leaving the document entirely
+            // relatedTarget is null when leaving the window
+            if (e.relatedTarget === null) {
+                dragLogger.once('cursorLeftView', '*** CURSOR LEFT VIEW *** leftView = true');
+                dragState.leftView = true;
+                dragState.leftViewTimestamp = Date.now();
+            }
+        }
+    }, false);
+
+    // Handle cursor re-entering the window during drag
+    // Resume drag preview when cursor comes back
+    document.addEventListener('dragenter', function(e) {
+        if (dragState.isDragging) {
+            // Use smart logger
+            const logKey = 'dragenter-leftView-' + dragState.leftView;
+            dragLogger.log(logKey, {
+                targetTag: e.target?.tagName,
+                leftView: dragState.leftView,
+                relatedTarget: e.relatedTarget
+            }, 'dragenter event');
+
+            if (dragState.leftView) {
+                dragLogger.once('cursorReentered', '*** CURSOR RE-ENTERED VIEW *** resuming drag');
+
+                // Clear leftView - allow dragging to continue normally
+                // Will only restore if user leaves AGAIN or drops outside
+                dragState.leftView = false;
+
+                // Re-add dragging classes if they were removed
+                if (dragState.draggedTask && !dragState.draggedTask.classList.contains('dragging')) {
+                    dragState.draggedTask.classList.add('dragging', 'drag-preview');
+                }
+                if (dragState.draggedColumn && !dragState.draggedColumn.classList.contains('dragging')) {
+                    dragState.draggedColumn.classList.add('dragging', 'drag-preview');
+                }
+            }
+        }
+    }, false);
+
+    // Handle mouseup outside the webview
+    // This catches cases where the drag ends outside the window
+    document.addEventListener('mouseup', function(e) {
+        // If we were dragging and mouseup fires, clean up
+        if (dragState.isDragging) {
+            dragLogger.always('Mouse released during drag - cleaning up');
+
+            // Restore the task to its original position if it was moved
+            if (dragState.draggedTask && dragState.originalTaskParent) {
+
+                // Check if originalTaskNextSibling is still in the DOM
+                const nextSiblingStillValid = dragState.originalTaskNextSibling &&
+                    dragState.originalTaskNextSibling.parentNode === dragState.originalTaskParent;
+
+                // Remove from current position
+                if (dragState.draggedTask.parentNode) {
+                    dragState.draggedTask.parentNode.removeChild(dragState.draggedTask);
+                }
+
+                // Restore to original position
+                if (nextSiblingStillValid) {
+                    dragState.originalTaskParent.insertBefore(dragState.draggedTask, dragState.originalTaskNextSibling);
+                } else {
+                    // Next sibling might have been moved/deleted, use index instead
+                    const children = Array.from(dragState.originalTaskParent.children);
+                    const taskItems = children.filter(c => c.classList.contains('task-item'));
+
+                    if (dragState.originalTaskIndex >= 0 && dragState.originalTaskIndex < taskItems.length) {
+                        dragState.originalTaskParent.insertBefore(dragState.draggedTask, taskItems[dragState.originalTaskIndex]);
+                    } else {
+                        dragState.originalTaskParent.appendChild(dragState.draggedTask);
+                    }
+                }
+
+                // Remove drag classes
+                dragState.draggedTask.classList.remove('dragging', 'drag-preview');
+            }
+
+            // Restore the column to its original position if it was moved
+            if (dragState.draggedColumn && dragState.originalColumnParent) {
+                // Check if originalColumnNextSibling is still in the DOM
+                const nextSiblingStillValid = dragState.originalColumnNextSibling &&
+                    dragState.originalColumnNextSibling.parentNode === dragState.originalColumnParent;
+
+                // Remove from current position
+                if (dragState.draggedColumn.parentNode) {
+                    dragState.draggedColumn.parentNode.removeChild(dragState.draggedColumn);
+                }
+
+                // Restore to original position
+                if (nextSiblingStillValid) {
+                    dragState.originalColumnParent.insertBefore(dragState.draggedColumn, dragState.originalColumnNextSibling);
+                } else {
+                    // Next sibling might have been moved, append to original parent
+                    dragState.originalColumnParent.appendChild(dragState.draggedColumn);
+                }
+
+                // Remove drag classes
+                dragState.draggedColumn.classList.remove('dragging', 'drag-preview');
+            }
+
+            // Clean up all visual feedback
+            hideDropFeedback();
+            hideExternalDropIndicator();
+
+            // Reset drag state
             dragState.draggedTask = null;
+            dragState.draggedColumn = null;
+            dragState.draggedColumnId = null;
             dragState.originalTaskParent = null;
             dragState.originalTaskNextSibling = null;
             dragState.originalTaskIndex = -1;
+            dragState.originalColumnParent = null;
+            dragState.originalColumnNextSibling = null;
+            dragState.originalDataIndex = -1;
+            dragState.isDragging = false;
         }
-        if (dragState.draggedColumn) {
+    }, false);
+
+    // Handle visibility change (when tab loses focus or window is minimized)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden && dragState.isDragging) {
+            dragLogger.always('Document hidden during drag - cleaning up');
+
+            // Clean up drag state when document becomes hidden
+            if (dragState.draggedTask) {
+                dragState.draggedTask.classList.remove('dragging', 'drag-preview');
+            }
+            if (dragState.draggedColumn) {
+                dragState.draggedColumn.classList.remove('dragging', 'drag-preview');
+            }
+
+            hideDropFeedback();
+            hideExternalDropIndicator();
+
+            // Reset state
+            dragState.isDragging = false;
+            dragState.draggedTask = null;
             dragState.draggedColumn = null;
             dragState.draggedColumnId = null;
+            dragState.originalTaskParent = null;
+            dragState.originalTaskNextSibling = null;
+            dragState.originalTaskIndex = -1;
+            dragState.originalColumnParent = null;
+            dragState.originalColumnNextSibling = null;
             dragState.originalDataIndex = -1;
         }
-        
-        // Always reset the main flags
-        dragState.isDragging = false;
-        
     }, false);
-    
+
 }
 
 
@@ -1255,189 +1892,8 @@ function setupTaskDragHandle(handle) {
         }
     });
 
-    handle.addEventListener('dragend', e => {
-        const taskItem = e.target && e.target.closest ? e.target.closest('.task-item') : null;
-        if (taskItem) {
-            // Clean up drag state FIRST
-            dragState.isDragging = false;
+    // NOTE: Task dragend handler removed - now handled by unified global dragend handler
 
-            // Remove all visual feedback
-            taskItem.classList.remove('dragging', 'drag-preview');
-            // Scope cleanup to kanban board instead of entire document for performance
-            const boardElement = document.getElementById('kanban-board');
-            if (boardElement) {
-                boardElement.querySelectorAll('.task-item').forEach(task => {
-                    task.classList.remove('drag-transitioning');
-                });
-                // Clean up column drag-over styles
-                boardElement.querySelectorAll('.kanban-full-height-column').forEach(col => {
-                    col.classList.remove('drag-over-append');
-                });
-            }
-            
-            // Get the final position
-            const finalParent = taskItem.parentNode;
-            const finalColumnElement = finalParent?.closest('.kanban-full-height-column');
-            const finalColumnId = finalColumnElement?.dataset.columnId;
-            
-            if (finalParent && finalColumnId) {
-                const originalColumnElement = dragState.originalTaskParent?.closest('.kanban-full-height-column');
-                const originalColumnId = originalColumnElement?.dataset.columnId;
-                
-                const finalIndex = Array.from(finalParent.children).indexOf(taskItem);
-                
-                // Check if position actually changed
-                const positionChanged = finalParent !== dragState.originalTaskParent ||
-                                       finalIndex !== dragState.originalTaskIndex;
-
-                if (positionChanged && originalColumnId) {
-                    // DON'T restore position - keep the preview position
-                    // Calculate the proper index for the data model
-                    const dropIndex = finalIndex >= 0 ? finalIndex : 0;
-
-                    // Unfold the destination column if it's collapsed (unless Alt key was pressed during drag)
-                    if (typeof unfoldColumnIfCollapsed === 'function') {
-                        const skipUnfold = dragState.altKeyPressed; // Skip unfolding if Alt key was pressed
-                        unfoldColumnIfCollapsed(finalColumnId, skipUnfold);
-                    }
-
-                    // NEW CACHE SYSTEM: Update cached board directly
-                    if (window.cachedBoard) {
-                        const taskId = taskItem.dataset.taskId;
-
-                        // SAVE UNDO STATE BEFORE MAKING CHANGES (for both same-column and cross-column moves)
-                        vscode.postMessage({ 
-                            type: 'saveUndoState', 
-                            operation: originalColumnId !== finalColumnId ? 'moveTaskViaDrag' : 'reorderTaskViaDrag', 
-                            taskId: taskId,
-                            fromColumnId: originalColumnId,
-                            toColumnId: finalColumnId,
-                            currentBoard: window.cachedBoard
-                        });
-                        
-                        // Find and remove task from original column
-                        const originalColumn = window.cachedBoard.columns.find(col => col.id === originalColumnId);
-                        const finalColumn = window.cachedBoard.columns.find(col => col.id === finalColumnId);
-                        
-                        if (originalColumn && finalColumn) {
-                            const taskIndex = originalColumn.tasks.findIndex(t => t.id === taskId);
-                            if (taskIndex >= 0) {
-                                const [task] = originalColumn.tasks.splice(taskIndex, 1);
-                                
-                                // Add task to new column at correct position
-                                const insertIndex = Math.min(dropIndex, finalColumn.tasks.length);
-                                finalColumn.tasks.splice(insertIndex, 0, task);
-                                
-                                if (originalColumnId !== finalColumnId) {
-                                } else {
-                                }
-                                
-                                // Also update currentBoard for compatibility
-                                if (window.cachedBoard !== window.cachedBoard) {
-                                    const currentOriginal = window.cachedBoard.columns.find(col => col.id === originalColumnId);
-                                    const currentFinal = window.cachedBoard.columns.find(col => col.id === finalColumnId);
-                                    if (currentOriginal && currentFinal) {
-                                        const currentTaskIndex = currentOriginal.tasks.findIndex(t => t.id === taskId);
-                                        if (currentTaskIndex >= 0) {
-                                            const [currentTask] = currentOriginal.tasks.splice(currentTaskIndex, 1);
-                                            currentFinal.tasks.splice(insertIndex, 0, currentTask);
-                                        }
-                                    }
-                                }
-
-                                // Update column displays after task move
-                                if (typeof window.updateColumnDisplay === 'function') {
-                                    // Update both source and destination columns
-                                    window.updateColumnDisplay(originalColumnId);
-                                    if (originalColumnId !== finalColumnId) {
-                                        window.updateColumnDisplay(finalColumnId);
-                                    }
-                                }
-
-                                // Check empty state for both columns
-                                if (typeof updateColumnEmptyState === 'function') {
-                                    updateColumnEmptyState(originalColumnId);
-                                    if (originalColumnId !== finalColumnId) {
-                                        updateColumnEmptyState(finalColumnId);
-                                    }
-                                }
-
-                                // Update the task element's onclick handlers to reference the new columnId
-                                if (originalColumnId !== finalColumnId) {
-                                    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
-                                    if (taskElement) {
-                                        const taskItem = taskElement.closest('.task-item');
-                                        if (taskItem) {
-                                            // Update task-title-container onclick
-                                            const titleContainer = taskItem.querySelector('.task-title-container');
-                                            if (titleContainer) {
-                                                const oldOnclick = titleContainer.getAttribute('onclick');
-                                                if (oldOnclick) {
-                                                    const newOnclick = oldOnclick.replace(
-                                                        `'${originalColumnId}'`,
-                                                        `'${finalColumnId}'`
-                                                    );
-                                                    titleContainer.setAttribute('onclick', newOnclick);
-                                                }
-                                            }
-
-                                            // Update task-description onclick
-                                            const descContainer = taskItem.querySelector('.task-description');
-                                            if (descContainer) {
-                                                const oldOnclick = descContainer.getAttribute('onclick');
-                                                if (oldOnclick) {
-                                                    const newOnclick = oldOnclick.replace(
-                                                        `'${originalColumnId}'`,
-                                                        `'${finalColumnId}'`
-                                                    );
-                                                    descContainer.setAttribute('onclick', newOnclick);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                    }
-
-                    // NEW CACHE SYSTEM: Mark as unsaved
-                    if (typeof markUnsavedChanges === 'function') {
-                        markUnsavedChanges();
-                    }
-                }
-
-                // OPTIMIZED: Only recalculate stack heights if columns are in stacks (NO fold enforcement needed)
-                if (originalColumnId !== finalColumnId && typeof window.recalculateStackHeights === 'function') {
-                    // Cross-column move: check if either column is in a stack
-                    requestAnimationFrame(() => {
-                        const originalCol = originalColumnElement;
-                        const finalCol = finalColumnElement;
-
-                        const originalStack = originalCol?.closest('.kanban-column-stack');
-                        const finalStack = finalCol?.closest('.kanban-column-stack');
-
-                        if (originalStack) {
-                            window.recalculateStackHeights(originalStack);
-                        }
-                        if (finalStack && finalStack !== originalStack) {
-                            window.recalculateStackHeights(finalStack);
-                        }
-                    });
-                }
-                // Same-column move: NO recalculation needed at all!
-            }
-            
-            // At the very end:
-            dragState.draggedTask = null;
-            dragState.originalTaskParent = null;
-            dragState.originalTaskNextSibling = null;
-            dragState.originalTaskIndex = -1;
-            dragState.isDragging = false; // Extra safety
-            dragState.altKeyPressed = false; // Reset Alt key state
-        }
-    });
-    
     // Add ESC key handler to cancel task drag
     if (!handle.hasEscListener) {
         handle.hasEscListener = true;
@@ -1716,16 +2172,12 @@ function updateStackBottomDropZones() {
             if (!dragState.draggedColumn) {return;}
             e.preventDefault();
 
-            console.log('[kanban.dragDrop.bottom-zone] dragover on bottom zone');
-
             // Place dragged column at the end of this stack
             if (dragState.draggedColumn !== stack.lastElementChild ||
                 dragState.draggedColumn.previousElementSibling !== columns[columns.length - 1]) {
 
                 // Insert before the drop zone (which is last)
                 stack.insertBefore(dragState.draggedColumn, dropZone);
-
-                console.log('[kanban.dragDrop.bottom-zone] moved column to stack bottom');
 
                 // Update styles
                 if (!dragState.styleUpdatePending && typeof window.applyStackedColumnStyles === 'function') {
@@ -1823,6 +2275,7 @@ function setupColumnDragAndDrop() {
             dragState.draggedColumnId = columnId;
             dragState.originalDataIndex = originalIndex;
             dragState.originalColumnParent = columnElement.parentNode; // Store original stack
+            dragState.originalColumnNextSibling = columnElement.nextSibling; // Store position in stack
             dragState.isDragging = true;
             dragState.lastDropTarget = null;  // Track last drop position
             dragState.styleUpdatePending = false;  // Track if style update is needed
@@ -1893,11 +2346,12 @@ function setupColumnDragAndDrop() {
 
         });
 
-        dragHandle.addEventListener('dragend', e => {
-            const columnElement = column;
-            const columnId = dragState.draggedColumnId;
+        // NOTE: Column dragend handler removed - now handled by unified global dragend handler
 
-            // Process pending drop zone if hovering over one (only for column drags)
+        column.addEventListener('dragover', e => {
+            if (!dragState.draggedColumn || dragState.draggedColumn === column) {return;}
+
+            // Don't handle if we're currently over a drop zone - let the drop zone handle it
             if (dragState.pendingDropZone && dragState.draggedColumn) {
                 const dropZone = dragState.pendingDropZone;
                 const dropZoneStack = dropZone.parentNode;
@@ -2234,17 +2688,13 @@ function setupColumnDragAndDrop() {
         // First try to find stack directly
         let stack = e.target.closest('.kanban-column-stack');
 
-        console.log('[kanban.dragDrop.stack-bottom] target:', e.target.className, 'stack:', !!stack);
-
         // If not hovering over stack, check if hovering over row below a stack
         if (!stack) {
             const row = e.target.closest('.kanban-row');
-            console.log('[kanban.dragDrop.stack-bottom] row:', !!row);
             if (!row) {return;}
 
             // Find all stacks in this row and check if mouse is below any of them
             const stacks = Array.from(row.querySelectorAll('.kanban-column-stack'));
-            console.log('[kanban.dragDrop.stack-bottom] stacks:', stacks.length);
 
             for (const candidateStack of stacks) {
                 if (candidateStack.classList.contains('column-drop-zone-stack')) {continue;}
@@ -2256,21 +2706,17 @@ function setupColumnDragAndDrop() {
                 const lastRect = lastColumn.getBoundingClientRect();
                 const stackRect = candidateStack.getBoundingClientRect();
 
-                console.log('[kanban.dragDrop.stack-bottom] check - x:', e.clientX, 'left:', stackRect.left, 'right:', stackRect.right, 'y:', e.clientY, 'bottom:', lastRect.bottom);
-
                 // Check if mouse is horizontally within stack bounds and vertically below last column
                 if (e.clientX >= stackRect.left &&
                     e.clientX <= stackRect.right &&
                     e.clientY > lastRect.bottom) {
                     stack = candidateStack;
-                    console.log('[kanban.dragDrop.stack-bottom] MATCH');
                     break;
                 }
             }
         }
 
         if (!stack || stack.classList.contains('column-drop-zone-stack')) {
-            console.log('[kanban.dragDrop.stack-bottom] no stack, exit');
             return;
         }
 
@@ -2283,8 +2729,6 @@ function setupColumnDragAndDrop() {
         const lastColumn = columns[columns.length - 1];
         const lastRect = lastColumn.getBoundingClientRect();
 
-        console.log('[kanban.dragDrop.stack-bottom] final - y:', e.clientY, 'bottom:', lastRect.bottom);
-
         // Only handle vertical drops below the last column
         if (e.clientY > lastRect.bottom) {
             const targetKey = 'stack-bottom-' + Array.from(stack.children).indexOf(dragState.draggedColumn);
@@ -2292,7 +2736,6 @@ function setupColumnDragAndDrop() {
                 dragState.lastDropTarget = targetKey;
 
                 if (dragState.draggedColumn !== stack.lastElementChild) {
-                    console.log('[kanban.dragDrop.stack-bottom] APPEND');
                     stack.appendChild(dragState.draggedColumn);
 
                     // Schedule style update if not already pending
@@ -2338,12 +2781,7 @@ function setupColumnDragAndDrop() {
         dragState.pendingDropZone = dropZone;
     });
 
-    // Clean up drag-over state on dragend
-    document.addEventListener('dragend', () => {
-        document.querySelectorAll('.column-drop-zone.drag-over').forEach(dz => {
-            dz.classList.remove('drag-over');
-        });
-    });
+    // NOTE: Drop zone cleanup dragend handler removed - now handled by unified global dragend handler (cleanupDragVisuals)
 }
 
 function calculateColumnNewPosition(draggedColumn) {

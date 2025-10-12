@@ -1905,6 +1905,7 @@ export class KanbanWebviewPanel {
             'utils/activityIndicator.js',
             'utils/exportTreeBuilder.js',
             'utils/exportTreeUI.js',
+            'utils/smartLogger.js',
             'runtime-tracker.js',
             'unifiedOperations.js',
             'markdownRenderer.js',
