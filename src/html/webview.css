@@ -4402,14 +4402,20 @@ s {
     0% {
         background-color: transparent;
         box-shadow: none;
+        outline: 3px solid transparent;
+        outline-offset: -3px;
     }
     50% {
         background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(255, 235, 59, 0.4));
         box-shadow: 0 0 8px var(--vscode-editor-findMatchHighlightBackground, rgba(255, 235, 59, 0.6));
+        outline: 3px solid var(--vscode-focusBorder, #007ACC);
+        outline-offset: -3px;
     }
     100% {
         background-color: transparent;
         box-shadow: none;
+        outline: 3px solid transparent;
+        outline-offset: -3px;
     }
 }
 

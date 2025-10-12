@@ -7,6 +7,13 @@ if (typeof window !== 'undefined') {
     window.handleTaskTagClick = null;
 }
 
+// Smart logger for menuOperations
+const menuLogger = window.createSmartLogger ? window.createSmartLogger('[MenuOps]') : {
+    log: () => {},
+    once: () => {},
+    always: console.log.bind(console, '[MenuOps]')
+};
+
 // Global state
 let activeTagMenu = null;
 
@@ -17,7 +24,23 @@ let activeTagMenu = null;
  * @param {boolean} highlight - Whether to highlight the element after scrolling (default: true)
  */
 function scrollToElementIfNeeded(element, type = 'element', highlight = true) {
-    if (!element) return;
+    menuLogger.always('scrollToElementIfNeeded Called', {
+        hasElement: !!element,
+        type,
+        highlight,
+        elementId: element?.dataset?.columnId || element?.dataset?.taskId,
+        isConnected: element?.isConnected
+    });
+
+    if (!element) {
+        menuLogger.always('scrollToElementIfNeeded ABORTED - no element');
+        return;
+    }
+
+    if (!element.isConnected) {
+        menuLogger.always('scrollToElementIfNeeded ABORTED - element not in DOM');
+        return;
+    }
 
     const rect = element.getBoundingClientRect();
 
@@ -30,35 +53,63 @@ function scrollToElementIfNeeded(element, type = 'element', highlight = true) {
         isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
     }
 
+    menuLogger.log('scrollToElementIfNeeded-visibility', {
+        isVisible,
+        rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom },
+        viewport: { width: window.innerWidth, height: window.innerHeight }
+    }, 'Visibility check');
+
     if (!isVisible) {
         element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        menuLogger.always('scrollToElementIfNeeded Scrolled into view');
     }
 
     // Highlight the element to draw attention
     if (highlight) {
-        // For columns, highlight the column-inner which has the actual background
-        // For tasks, highlight the task element directly
-        let highlightTarget = element;
         if (type === 'column') {
-            const columnInner = element.querySelector('.column-inner');
-            if (columnInner) {
-                highlightTarget = columnInner;
-            }
+            // For columns, highlight all parts: header, title, inner, and footer
+            const parts = [
+                element.querySelector('.column-header'),
+                element.querySelector('.column-title'),
+                element.querySelector('.column-inner'),
+                element.querySelector('.column-footer')
+            ].filter(Boolean);
+
+            menuLogger.always('scrollToElementIfNeeded Applying highlight to column parts', {
+                partsCount: parts.length
+            });
+
+            // Apply animation to all parts
+            parts.forEach(part => {
+                part.style.animation = 'none';
+                void part.offsetWidth; // Force reflow
+                part.style.animation = 'highlightFlash 0.6s ease-in-out 2';
+            });
+
+            menuLogger.always('scrollToElementIfNeeded Highlight applied to all column parts');
+
+            // Clean up after animation completes
+            setTimeout(() => {
+                parts.forEach(part => {
+                    part.style.animation = '';
+                });
+                menuLogger.log('scrollToElementIfNeeded-cleanup', {}, 'Highlight cleaned up');
+            }, 1200);
+        } else {
+            // For tasks, highlight the task element directly
+            menuLogger.always('scrollToElementIfNeeded Applying highlight to task');
+
+            element.style.animation = 'none';
+            void element.offsetWidth;
+            element.style.animation = 'highlightFlash 0.6s ease-in-out 2';
+
+            menuLogger.always('scrollToElementIfNeeded Highlight applied');
+
+            setTimeout(() => {
+                element.style.animation = '';
+                menuLogger.log('scrollToElementIfNeeded-cleanup', {}, 'Highlight cleaned up');
+            }, 1200);
         }
-
-        // Remove any existing highlight animation
-        highlightTarget.style.animation = 'none';
-
-        // Force reflow to restart animation
-        void highlightTarget.offsetWidth;
-
-        // Add visible flash animation with background color
-        highlightTarget.style.animation = 'highlightFlash 0.6s ease-in-out 2';
-
-        // Clean up after animation completes
-        setTimeout(() => {
-            highlightTarget.style.animation = '';
-        }, 1200);
     }
 }
 

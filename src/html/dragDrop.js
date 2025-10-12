@@ -560,31 +560,27 @@ function setupGlobalDragAndDrop() {
         // Store current position before restoration
         const currentParent = dragState.draggedColumn.parentNode;
         const currentIndex = currentParent ? Array.from(currentParent.children).indexOf(dragState.draggedColumn) : -1;
+        const originalIndex = dragState.originalColumnIndex;
 
         dragLogger.always('Restoring column to original position', {
             currentParentClass: currentParent?.className,
             currentIndex: currentIndex,
-            originalParentClass: dragState.originalColumnParent?.className
-        });
-
-        // Check if originalColumnNextSibling is still valid
-        const nextSiblingStillValid = dragState.originalColumnNextSibling &&
-            dragState.originalColumnNextSibling.parentNode === dragState.originalColumnParent;
-
-        // Calculate original index for comparison
-        const originalIndex = dragState.originalColumnNextSibling
-            ? Array.from(dragState.originalColumnParent.children).indexOf(dragState.originalColumnNextSibling)
-            : dragState.originalColumnParent.children.length;
-
-        dragLogger.always('Column restoration check', {
-            nextSiblingStillValid,
-            originalIndex,
-            sameParent: currentParent === dragState.originalColumnParent,
-            needsRestore: currentParent !== dragState.originalColumnParent || currentIndex !== originalIndex
+            originalParentClass: dragState.originalColumnParent?.className,
+            originalIndex: originalIndex
         });
 
         // Check if restoration is actually needed
-        if (currentParent === dragState.originalColumnParent && currentIndex === originalIndex) {
+        const sameParent = currentParent === dragState.originalColumnParent;
+        const needsRestore = !sameParent || currentIndex !== originalIndex;
+
+        dragLogger.always('Column restoration check', {
+            sameParent,
+            needsRestore,
+            originalIndex,
+            currentIndex
+        });
+
+        if (!needsRestore) {
             dragLogger.always('Column already at original position - no restoration needed');
             return;
         }
@@ -595,16 +591,63 @@ function setupGlobalDragAndDrop() {
             dragLogger.always('Removed column from current position');
         }
 
-        // Restore to original position
-        if (nextSiblingStillValid) {
-            dragState.originalColumnParent.insertBefore(dragState.draggedColumn, dragState.originalColumnNextSibling);
-            dragLogger.always('Column restored using insertBefore', {
+        // Restore to original position using the stored index
+        const parentChildren = Array.from(dragState.originalColumnParent.children);
+        if (originalIndex >= parentChildren.length) {
+            // Restore at end
+            dragState.originalColumnParent.appendChild(dragState.draggedColumn);
+            dragLogger.always('Column restored using appendChild (at end)', {
                 finalIndex: Array.from(dragState.originalColumnParent.children).indexOf(dragState.draggedColumn)
             });
         } else {
-            dragState.originalColumnParent.appendChild(dragState.draggedColumn);
-            dragLogger.always('Column restored using appendChild', {
-                finalIndex: Array.from(dragState.originalColumnParent.children).indexOf(dragState.draggedColumn)
+            // Insert at original index
+            const referenceNode = parentChildren[originalIndex];
+            dragState.originalColumnParent.insertBefore(dragState.draggedColumn, referenceNode);
+            dragLogger.always('Column restored using insertBefore', {
+                finalIndex: Array.from(dragState.originalColumnParent.children).indexOf(dragState.draggedColumn),
+                targetIndex: originalIndex
+            });
+        }
+
+        // ALSO restore in the data model (cachedBoard) to prevent re-renders from moving it back
+        const columnId = dragState.draggedColumnId;
+
+        dragLogger.always('Checking data model restoration', {
+            hasCachedBoard: !!window.cachedBoard,
+            hasColumnId: !!columnId,
+            originalDataIndex: dragState.originalDataIndex
+        });
+
+        if (window.cachedBoard && columnId && dragState.originalDataIndex >= 0) {
+            const currentColumnIndex = window.cachedBoard.columns.findIndex(c => c.id === columnId);
+
+            dragLogger.always('Data model column position', {
+                currentColumnIndex,
+                originalDataIndex: dragState.originalDataIndex,
+                needsRestore: currentColumnIndex !== dragState.originalDataIndex
+            });
+
+            if (currentColumnIndex >= 0 && currentColumnIndex !== dragState.originalDataIndex) {
+                // Remove from current position
+                const [column] = window.cachedBoard.columns.splice(currentColumnIndex, 1);
+
+                // Insert at original position
+                const insertIndex = Math.min(dragState.originalDataIndex, window.cachedBoard.columns.length);
+                window.cachedBoard.columns.splice(insertIndex, 0, column);
+
+                dragLogger.always('Column restored in data model', {
+                    from: currentColumnIndex,
+                    to: insertIndex,
+                    originalDataIndex: dragState.originalDataIndex
+                });
+            } else {
+                dragLogger.always('Data model restoration SKIPPED', {
+                    reason: currentColumnIndex < 0 ? 'column not found' : 'already at correct position'
+                });
+            }
+        } else {
+            dragLogger.always('Data model restoration ABORTED', {
+                reason: !window.cachedBoard ? 'no cachedBoard' : !columnId ? 'no columnId' : 'invalid originalDataIndex'
             });
         }
     }
@@ -752,17 +795,26 @@ function setupGlobalDragAndDrop() {
     }
 
     function processColumnDrop() {
+        dragLogger.always('[processColumnDrop] Called', {
+            hasColumn: !!dragState.draggedColumn,
+            columnId: dragState.draggedColumnId
+        });
+
         const columnElement = dragState.draggedColumn;
         const columnId = dragState.draggedColumnId;
 
         if (!columnElement || !columnId) {
+            dragLogger.always('[processColumnDrop] ABORTED - missing column or columnId');
             return;
         }
 
         const boardElement = document.getElementById('kanban-board');
         if (!boardElement) {
+            dragLogger.always('[processColumnDrop] ABORTED - no board element');
             return;
         }
+
+        dragLogger.always('[processColumnDrop] Processing column drop');
 
         // Process pending drop zone if hovering over one
         if (dragState.pendingDropZone) {
@@ -961,6 +1013,7 @@ function setupGlobalDragAndDrop() {
         dragState.originalDataIndex = -1;
         dragState.originalColumnParent = null;
         dragState.originalColumnNextSibling = null;
+        dragState.originalColumnIndex = -1;
         dragState.isDragging = false;
         dragState.lastDropTarget = null;
         dragState.leftView = false;
@@ -973,6 +1026,13 @@ function setupGlobalDragAndDrop() {
 
     // Global dragend handler - UNIFIED APPROACH
     document.addEventListener('dragend', function(e) {
+        dragLogger.always('[dragend] Event fired', {
+            hasTask: !!dragState.draggedTask,
+            hasColumn: !!dragState.draggedColumn,
+            isDragging: dragState.isDragging,
+            dropEffect: e.dataTransfer?.dropEffect
+        });
+
         // 1. CAPTURE STATE BEFORE ANY CLEANUP
         const wasTask = !!dragState.draggedTask;
         const wasColumn = !!dragState.draggedColumn;
@@ -997,10 +1057,7 @@ function setupGlobalDragAndDrop() {
             columnMovedFromOriginal: wasColumn && currentColumnParent !== dragState.originalColumnParent
         };
 
-        // Only log if leftView was true (debugging restoration case)
-        if (leftView) {
-            console.log('[DragDrop] dragend fired with leftView=true:', logData);
-        }
+        dragLogger.always('[dragend] State captured', logData);
 
         // 2. DECIDE: RESTORE OR PROCESS
         let shouldRestore = false;
@@ -1010,16 +1067,18 @@ function setupGlobalDragAndDrop() {
             // Do NOT restore based on leftView since we can't detect re-entry in VS Code webviews
             shouldRestore = droppedOutside;
 
-            if (shouldRestore) {
-                dragLogger.always('Restoring to original position', {
-                    reason: 'dropped outside window'
-                });
-            }
+            dragLogger.always('[dragend] Decision', {
+                shouldRestore,
+                reason: shouldRestore ? 'dropped outside window' : 'process drop'
+            });
+        } else {
+            dragLogger.always('[dragend] SKIPPING - wasDragging is false (already cleaned up by dragleave?)');
         }
 
         // 3. EXECUTE RESTORATION OR PROCESSING
         if (shouldRestore) {
             // RESTORE - user dragged outside or cancelled
+            dragLogger.always('[dragend] Executing RESTORE path');
             if (wasTask) {
                 restoreTaskToOriginalPosition();
             }
@@ -1028,6 +1087,7 @@ function setupGlobalDragAndDrop() {
             }
         } else if (wasDragging) {
             // PROCESS - valid drop, process the changes
+            dragLogger.always('[dragend] Executing PROCESS path');
             if (wasTask) {
                 processTaskDrop();
             }
@@ -1080,6 +1140,12 @@ function setupGlobalDragAndDrop() {
                 if (droppedColumn) {
                     dragLogger.always('Calling restoreColumnToOriginalPosition');
                     restoreColumnToOriginalPosition();
+
+                    // Update stacked column styles after DOM restoration
+                    if (typeof window.applyStackedColumnStyles === 'function') {
+                        window.applyStackedColumnStyles();
+                        dragLogger.always('Applied stacked column styles after restoration');
+                    }
                 }
 
                 // Clean up visuals and state
@@ -1093,8 +1159,28 @@ function setupGlobalDragAndDrop() {
                     }, 100);
                 }
                 if (droppedColumn && typeof scrollToElementIfNeeded === 'function') {
+                    // Verify column position after a delay to see if something moved it
                     setTimeout(() => {
+                        const parent = droppedColumn.parentNode;
+                        const currentIdx = parent ? Array.from(parent.children).indexOf(droppedColumn) : -1;
+                        dragLogger.always('Column position check BEFORE highlight', {
+                            isConnected: droppedColumn.isConnected,
+                            currentIndex: currentIdx,
+                            parentClass: parent?.className
+                        });
+
                         scrollToElementIfNeeded(droppedColumn, 'column');
+
+                        // Check again after highlight
+                        setTimeout(() => {
+                            const parent2 = droppedColumn.parentNode;
+                            const idx2 = parent2 ? Array.from(parent2.children).indexOf(droppedColumn) : -1;
+                            dragLogger.always('Column position check AFTER highlight', {
+                                isConnected: droppedColumn.isConnected,
+                                currentIndex: idx2,
+                                parentClass: parent2?.className
+                            });
+                        }, 200);
                     }, 100);
                 }
             }
@@ -1114,7 +1200,7 @@ function setupGlobalDragAndDrop() {
             }, 'dragenter event');
 
             if (dragState.leftView) {
-                console.log('[DragDrop] *** CURSOR RE-ENTERED VIEW *** resuming drag - clearing leftView');
+                dragLogger.always('[DragDrop] *** CURSOR RE-ENTERED VIEW *** resuming drag - clearing leftView');
 
                 // Clear leftView - allow dragging to continue normally
                 // Will only restore if user leaves AGAIN or drops outside
@@ -2383,6 +2469,7 @@ function setupColumnDragAndDrop() {
             dragState.originalDataIndex = originalIndex;
             dragState.originalColumnParent = columnElement.parentNode; // Store original stack
             dragState.originalColumnNextSibling = columnElement.nextSibling; // Store position in stack
+            dragState.originalColumnIndex = Array.from(columnElement.parentNode.children).indexOf(columnElement); // Store DOM index
             dragState.isDragging = true;
             dragState.lastDropTarget = null;  // Track last drop position
             dragState.styleUpdatePending = false;  // Track if style update is needed
