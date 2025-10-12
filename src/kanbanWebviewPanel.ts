@@ -1906,6 +1906,7 @@ export class KanbanWebviewPanel {
             'utils/exportTreeBuilder.js',
             'utils/exportTreeUI.js',
             'runtime-tracker.js',
+            'unifiedOperations.js',
             'markdownRenderer.js',
             'taskEditor.js',
             'boardRenderer.js',
@@ -2078,6 +2079,13 @@ export class KanbanWebviewPanel {
 
         // Clear panel state
         KanbanWebviewPanel.panelStates.delete(this._panelId);
+
+        // Unregister from SaveEventCoordinator
+        const document = this._fileManager.getDocument();
+        if (document) {
+            const coordinator = SaveEventCoordinator.getInstance();
+            coordinator.unregisterHandler(`panel-${document.uri.fsPath}`);
+        }
 
         // Stop backup timer
         this._backupManager.dispose();

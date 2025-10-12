@@ -10,6 +10,7 @@ import { getFileStateManager } from './fileStateManager';
 import { PathResolver } from './services/PathResolver';
 import { MarpExtensionService } from './services/MarpExtensionService';
 import { MarpExportService } from './services/MarpExportService';
+import { SaveEventCoordinator, SaveEventHandler } from './saveEventCoordinator';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -38,7 +39,6 @@ export class MessageHandler {
     private _previousBoardForFocus?: KanbanBoard;
     private _activeOperations = new Map<string, { type: string, startTime: number }>();
     private _autoExportSettings: any = null;
-    private _autoExportWatcher: vscode.Disposable | null = null;
 
     constructor(
         fileManager: FileManager,
@@ -2796,11 +2796,8 @@ export class MessageHandler {
         try {
             console.log('[kanban.messageHandler.handleStartAutoExport] Starting auto-export with settings:', settings);
 
-            // Stop any existing watcher
-            if (this._autoExportWatcher) {
-                this._autoExportWatcher.dispose();
-                this._autoExportWatcher = null;
-            }
+            // Stop any existing handler
+            this.handleStopAutoExport();
 
             // Store settings
             this._autoExportSettings = settings;
@@ -2812,44 +2809,50 @@ export class MessageHandler {
             }
 
             const docUri = doc.uri;
+            const coordinator = SaveEventCoordinator.getInstance();
 
-            // Create file watcher for save events
-            this._autoExportWatcher = vscode.workspace.onDidSaveTextDocument(async (savedDoc) => {
-                // Only trigger for our kanban file
-                if (savedDoc.uri.toString() === docUri.toString()) {
-                    console.log('[kanban.messageHandler.autoExport] File saved, triggering export...');
+            // Register handler with SaveEventCoordinator
+            const handler: SaveEventHandler = {
+                id: `auto-export-${docUri.fsPath}`,
+                handleSave: async (savedDoc: vscode.TextDocument) => {
+                    // Only trigger for our kanban file
+                    if (savedDoc.uri.toString() === docUri.toString()) {
+                        console.log('[kanban.messageHandler.autoExport] File saved, triggering export...');
 
-                    try {
-                        // Execute export with stored settings
-                        const format = this._autoExportSettings.format;
+                        try {
+                            // Execute export with stored settings
+                            const format = this._autoExportSettings.format;
 
-                        if (format && format.startsWith('marp')) {
-                            const result = await ExportService.exportWithMarp(savedDoc, this._autoExportSettings);
+                            if (format && format.startsWith('marp')) {
+                                const result = await ExportService.exportWithMarp(savedDoc, this._autoExportSettings);
 
-                            // Open in browser if requested
-                            if (result.success && this._autoExportSettings.openAfterExport && result.exportedPath) {
-                                const uri = vscode.Uri.file(result.exportedPath);
-                                await vscode.env.openExternal(uri);
+                                // Open in browser if requested
+                                if (result.success && this._autoExportSettings.openAfterExport && result.exportedPath) {
+                                    const uri = vscode.Uri.file(result.exportedPath);
+                                    await vscode.env.openExternal(uri);
+                                }
+                            } else {
+                                const result = await ExportService.exportUnifiedV2(savedDoc, this._autoExportSettings);
+
+                                // Open in browser if requested
+                                if (result.success && this._autoExportSettings.openAfterExport && result.exportedPath) {
+                                    const uri = vscode.Uri.file(result.exportedPath);
+                                    await vscode.env.openExternal(uri);
+                                }
                             }
-                        } else {
-                            const result = await ExportService.exportUnifiedV2(savedDoc, this._autoExportSettings);
 
-                            // Open in browser if requested
-                            if (result.success && this._autoExportSettings.openAfterExport && result.exportedPath) {
-                                const uri = vscode.Uri.file(result.exportedPath);
-                                await vscode.env.openExternal(uri);
-                            }
+                            console.log('[kanban.messageHandler.autoExport] Auto-export completed');
+                        } catch (error) {
+                            console.error('[kanban.messageHandler.autoExport] Auto-export failed:', error);
+                            vscode.window.showErrorMessage(`Auto-export failed: ${error instanceof Error ? error.message : String(error)}`);
                         }
-
-                        console.log('[kanban.messageHandler.autoExport] Auto-export completed');
-                    } catch (error) {
-                        console.error('[kanban.messageHandler.autoExport] Auto-export failed:', error);
-                        vscode.window.showErrorMessage(`Auto-export failed: ${error instanceof Error ? error.message : String(error)}`);
                     }
                 }
-            });
+            };
 
-            console.log('[kanban.messageHandler.handleStartAutoExport] Auto-export watcher activated');
+            coordinator.registerHandler(handler);
+
+            console.log('[kanban.messageHandler.handleStartAutoExport] Auto-export handler registered');
         } catch (error) {
             console.error('[kanban.messageHandler.handleStartAutoExport] Error:', error);
             throw error;
@@ -2863,9 +2866,11 @@ export class MessageHandler {
         try {
             console.log('[kanban.messageHandler.handleStopAutoExport] Stopping auto-export');
 
-            if (this._autoExportWatcher) {
-                this._autoExportWatcher.dispose();
-                this._autoExportWatcher = null;
+            // Unregister from SaveEventCoordinator
+            const doc = this._fileManager.getDocument();
+            if (doc) {
+                const coordinator = SaveEventCoordinator.getInstance();
+                coordinator.unregisterHandler(`auto-export-${doc.uri.fsPath}`);
             }
 
             this._autoExportSettings = null;

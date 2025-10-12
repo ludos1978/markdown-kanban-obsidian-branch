@@ -4009,36 +4009,88 @@ function addSingleColumnToDOM(column, insertIndex = -1) {
     // Create the column element
     const columnElement = createColumnElement(column, columnIndex);
 
-    // Find all direct children of boardElement (including stacks and columns)
-    // We need to insert at the right position among the board's direct children
-    const directChildren = Array.from(boardElement.children).filter(child =>
-        child.classList.contains('kanban-full-height-column') ||
-        child.classList.contains('kanban-column-stack') ||
-        child.classList.contains('column-drop-zone-stack')
-    );
+    // Check if board is in multi-row mode
+    const isMultiRow = boardElement.classList.contains('multi-row');
 
-    try {
-        if (insertIndex >= 0 && insertIndex < directChildren.length) {
-            // Verify the reference node is still a child of boardElement
-            const referenceNode = directChildren[insertIndex];
-            if (referenceNode && referenceNode.parentNode === boardElement) {
-                boardElement.insertBefore(columnElement, referenceNode);
+    if (isMultiRow) {
+        // In multi-row mode, columns must be inserted into the correct row container
+        // Determine which row this column belongs to based on its title
+        const columnRow = getColumnRow(column.title);
+
+        // Find the row container
+        let rowContainer = boardElement.querySelector(`.kanban-row[data-row-number="${columnRow}"]`);
+
+        // If row doesn't exist, create it
+        if (!rowContainer) {
+            rowContainer = document.createElement('div');
+            rowContainer.className = 'kanban-row';
+            rowContainer.setAttribute('data-row-number', columnRow);
+
+            // Insert the row in the correct position
+            const existingRows = Array.from(boardElement.querySelectorAll('.kanban-row'));
+            const insertBeforeRow = existingRows.find(r => parseInt(r.getAttribute('data-row-number')) > columnRow);
+
+            if (insertBeforeRow) {
+                boardElement.insertBefore(rowContainer, insertBeforeRow);
             } else {
-                // Reference node is not valid, append to end
+                boardElement.appendChild(rowContainer);
+            }
+
+            // Add the "Add Column" button to the new row
+            const addColumnBtn = document.createElement('button');
+            addColumnBtn.className = 'add-column-btn multi-row-add-btn';
+            addColumnBtn.textContent = '+ Add Column';
+            addColumnBtn.onclick = () => addColumn(columnRow);
+            rowContainer.appendChild(addColumnBtn);
+
+            // Add drop zone spacer
+            const dropZoneSpacer = document.createElement('div');
+            dropZoneSpacer.className = 'row-drop-zone-spacer';
+            rowContainer.appendChild(dropZoneSpacer);
+        }
+
+        // Wrap the column in a stack container
+        const stackContainer = document.createElement('div');
+        stackContainer.className = 'kanban-column-stack';
+        stackContainer.appendChild(columnElement);
+
+        // Find the "Add Column" button in this row (it should be at the end)
+        const addColumnBtn = rowContainer.querySelector('.add-column-btn');
+
+        if (addColumnBtn) {
+            // Insert the stack before the "Add Column" button
+            rowContainer.insertBefore(stackContainer, addColumnBtn);
+        } else {
+            // Fallback: append to the end of row
+            rowContainer.appendChild(stackContainer);
+        }
+    } else {
+        // Legacy single-row mode: insert directly into boardElement
+        const directChildren = Array.from(boardElement.children).filter(child =>
+            child.classList.contains('kanban-full-height-column') ||
+            child.classList.contains('kanban-column-stack') ||
+            child.classList.contains('column-drop-zone-stack')
+        );
+
+        try {
+            if (insertIndex >= 0 && insertIndex < directChildren.length) {
+                const referenceNode = directChildren[insertIndex];
+                if (referenceNode && referenceNode.parentNode === boardElement) {
+                    boardElement.insertBefore(columnElement, referenceNode);
+                } else {
+                    boardElement.appendChild(columnElement);
+                }
+            } else {
                 boardElement.appendChild(columnElement);
             }
-        } else {
-            // Append to the end
-            boardElement.appendChild(columnElement);
-        }
-    } catch (error) {
-        console.error('[addSingleColumnToDOM] Error inserting column:', error);
-        // On error, try appending to end as fallback
-        try {
-            boardElement.appendChild(columnElement);
-        } catch (appendError) {
-            console.error('[addSingleColumnToDOM] Error appending column:', appendError);
-            return null;
+        } catch (error) {
+            console.error('[addSingleColumnToDOM] Error inserting column:', error);
+            try {
+                boardElement.appendChild(columnElement);
+            } catch (appendError) {
+                console.error('[addSingleColumnToDOM] Error appending column:', appendError);
+                return null;
+            }
         }
     }
 

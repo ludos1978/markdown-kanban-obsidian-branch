@@ -771,11 +771,10 @@ function insertColumnBefore(columnId) {
     // Close all menus properly
     closeAllMenus();
 
-    // Get reference column and its row
-    const referenceIndex = window.cachedBoard?.columns.findIndex(col => col.id === columnId) || 0;
-    const referenceColumn = window.cachedBoard?.columns[referenceIndex];
+    // UNIFIED APPROACH: Extract tags from reference column and send to backend
+    const referenceColumn = window.cachedBoard?.columns.find(col => col.id === columnId);
 
-    // Extract row tag from reference column (e.g., #row2)
+    // Extract row tag and stack tag from reference column
     let tags = '';
     if (referenceColumn && referenceColumn.title) {
         const rowMatch = referenceColumn.title.match(/#row(\d+)\b/i);
@@ -783,44 +782,37 @@ function insertColumnBefore(columnId) {
             tags = ` ${rowMatch[0]}`;
         }
 
-        // If reference column has #stack tag:
-        // 1. New column should also have #stack tag
-        // 2. Reference column must keep its #stack tag (ensure it's there)
+        // Insert BEFORE rules:
+        // - If reference has #stack: new column gets #stack
+        // - If reference doesn't have #stack: new column gets NO #stack, but reference GETS #stack
         const hasStackTag = /#stack\b/i.test(referenceColumn.title);
         if (hasStackTag) {
             tags += ' #stack';
+        }
 
-            // Ensure reference column has #stack tag (it should already, but make sure)
-            if (!/#stack\b/i.test(referenceColumn.title)) {
-                // Add #stack to reference column if somehow missing
-                const trimmedTitle = referenceColumn.title.trim();
-                // Ensure space before #stack if title is not empty
-                referenceColumn.title = trimmedTitle ? `${trimmedTitle} #stack` : ' #stack';
-            }
+        // Ensure reference column gets #stack tag (if it doesn't have it already)
+        if (!hasStackTag) {
+            // Add #stack to reference column
+            const trimmedTitle = referenceColumn.title.trim();
+            referenceColumn.title = trimmedTitle ? `${trimmedTitle} #stack` : '#stack';
+
+            // Mark as unsaved since we modified the reference column
+            markUnsavedChanges();
         }
     }
 
-    // Cache-first: Create new column and insert before reference column
-    const newColumn = {
-        id: `temp-column-before-${Date.now()}`,
-        title: tags.trim(), // Include row tag and #stack tag if needed
-        tasks: []
-    };
-
-    updateCacheForNewColumn(newColumn, referenceIndex, columnId);
-
-    // No VS Code message - cache-first system requires explicit save via Cmd+S
+    // Use unified operation that communicates with backend
+    insertColumnBefore_unified(columnId, tags.trim());
 }
 
 function insertColumnAfter(columnId) {
     // Close all menus properly
     closeAllMenus();
 
-    // Get reference column and its row
-    const referenceIndex = window.cachedBoard?.columns.findIndex(col => col.id === columnId) || 0;
-    const referenceColumn = window.cachedBoard?.columns[referenceIndex];
+    // UNIFIED APPROACH: Extract tags from reference column and send to backend
+    const referenceColumn = window.cachedBoard?.columns.find(col => col.id === columnId);
 
-    // Extract row tag from reference column (e.g., #row2)
+    // Extract row tag from reference column
     let tags = '';
     if (referenceColumn && referenceColumn.title) {
         const rowMatch = referenceColumn.title.match(/#row(\d+)\b/i);
@@ -828,23 +820,13 @@ function insertColumnAfter(columnId) {
             tags = ` ${rowMatch[0]}`;
         }
 
-        // If reference column has #stack tag, new column should also have #stack tag
-        const hasStackTag = /#stack\b/i.test(referenceColumn.title);
-        if (hasStackTag) {
-            tags += ' #stack';
-        }
+        // Insert AFTER rules:
+        // - ALWAYS add #stack to new column
+        tags += ' #stack';
     }
 
-    // Cache-first: Create new column and insert after reference column
-    const newColumn = {
-        id: `temp-column-after-${Date.now()}`,
-        title: tags.trim(), // Include row tag and #stack tag if needed
-        tasks: []
-    };
-
-    updateCacheForNewColumn(newColumn, referenceIndex + 1, columnId);
-
-    // No VS Code message - cache-first system requires explicit save via Cmd+S
+    // Use unified operation that communicates with backend
+    insertColumnAfter_unified(columnId, tags.trim());
 }
 
 function moveColumnLeft(columnId) {
@@ -1684,50 +1666,16 @@ function insertTaskBefore(taskId, columnId) {
     // Close all menus properly
     closeAllMenus();
 
-    // Cache-first: Only update cached board, no automatic save
-    if (window.cachedBoard) {
-        const found = findTaskInBoard(taskId, columnId);
-        if (found) {
-            const { column: targetColumn, columnId: actualColumnId } = found;
-            const targetIndex = targetColumn.tasks.findIndex(task => task.id === taskId);
-            if (targetIndex >= 0) {
-                const newTask = {
-                    id: `temp-insert-before-${Date.now()}`,
-                    title: '',
-                    description: ''
-                };
-
-                updateCacheForNewTask(actualColumnId, newTask, targetIndex);
-            }
-        }
-    }
-
-    // No VS Code message - cache-first system requires explicit save via Cmd+S
+    // UNIFIED APPROACH: Send to backend instead of manipulating cache directly
+    insertTaskBefore_unified(taskId, columnId);
 }
 
 function insertTaskAfter(taskId, columnId) {
     // Close all menus properly
     closeAllMenus();
 
-    // Cache-first: Only update cached board, no automatic save
-    if (window.cachedBoard) {
-        const found = findTaskInBoard(taskId, columnId);
-        if (found) {
-            const { column: targetColumn, columnId: actualColumnId } = found;
-            const targetIndex = targetColumn.tasks.findIndex(task => task.id === taskId);
-            if (targetIndex >= 0) {
-                const newTask = {
-                    id: `temp-insert-after-${Date.now()}`,
-                    title: '',
-                    description: ''
-                };
-
-                updateCacheForNewTask(actualColumnId, newTask, targetIndex + 1);
-            }
-        }
-    }
-
-    // No VS Code message - cache-first system requires explicit save via Cmd+S
+    // UNIFIED APPROACH: Send to backend instead of manipulating cache directly
+    insertTaskAfter_unified(taskId, columnId);
 }
 
 function moveTaskToTop(taskId, columnId) {
@@ -2090,17 +2038,9 @@ function updateCacheForNewColumn(newColumn, insertIndex = -1, referenceColumnId 
 function addTask(columnId) {
     // Close all menus properly
     closeAllMenus();
-    
-    // Cache-first: Only update cached board, no automatic save
-    const newTask = {
-        id: `temp-menu-${Date.now()}`,
-        title: '',
-        description: ''
-    };
-    
-    updateCacheForNewTask(columnId, newTask);
-    
-    // No VS Code message - cache-first system requires explicit save via Cmd+S
+
+    // UNIFIED APPROACH: Send to backend instead of manipulating cache directly
+    addTask_unified(columnId, { title: '', description: '' });
 }
 
 // Helper function to unfold a column if it's collapsed
@@ -2122,17 +2062,12 @@ function addTaskAndUnfold(columnId) {
 }
 
 function addColumn(rowNumber) {
-    // Cache-first: Create new column and add to end
-    const title = (rowNumber && rowNumber > 1) ? `#row${rowNumber}` : '';
-    const newColumn = {
-        id: `temp-column-${Date.now()}`,
-        title: title,
-        tasks: []
-    };
-    
-    updateCacheForNewColumn(newColumn);
-    
-    // No VS Code message - cache-first system requires explicit save via Cmd+S
+    // UNIFIED APPROACH: Send to backend instead of manipulating cache directly
+    // Always use empty title so column appears in row 1 as standalone column
+    const title = '';
+
+    // Use unified operation that communicates with backend
+    addColumn_unified(title);
 }
 
 // Tag operations - IMPORTANT: Always use unique IDs, never titles!
