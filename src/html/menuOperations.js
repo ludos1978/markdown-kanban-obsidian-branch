@@ -11,11 +11,12 @@ if (typeof window !== 'undefined') {
 let activeTagMenu = null;
 
 /**
- * Scrolls an element into view only if it's outside the viewport
+ * Scrolls an element into view only if it's outside the viewport and highlights it
  * @param {HTMLElement} element - Element to check and potentially scroll
  * @param {string} type - 'task' or 'column' for logging purposes
+ * @param {boolean} highlight - Whether to highlight the element after scrolling (default: true)
  */
-function scrollToElementIfNeeded(element, type = 'element') {
+function scrollToElementIfNeeded(element, type = 'element', highlight = true) {
     if (!element) return;
 
     const rect = element.getBoundingClientRect();
@@ -29,15 +30,35 @@ function scrollToElementIfNeeded(element, type = 'element') {
         isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
     }
 
-    console.log(`[scrollToElementIfNeeded] ${type} visibility check:`, {
-        isVisible,
-        rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
-        viewport: { width: window.innerWidth, height: window.innerHeight },
-        willScroll: !isVisible
-    });
-
     if (!isVisible) {
         element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Highlight the element to draw attention
+    if (highlight) {
+        // For columns, highlight the column-inner which has the actual background
+        // For tasks, highlight the task element directly
+        let highlightTarget = element;
+        if (type === 'column') {
+            const columnInner = element.querySelector('.column-inner');
+            if (columnInner) {
+                highlightTarget = columnInner;
+            }
+        }
+
+        // Remove any existing highlight animation
+        highlightTarget.style.animation = 'none';
+
+        // Force reflow to restart animation
+        void highlightTarget.offsetWidth;
+
+        // Add visible flash animation with background color
+        highlightTarget.style.animation = 'highlightFlash 0.6s ease-in-out 2';
+
+        // Clean up after animation completes
+        setTimeout(() => {
+            highlightTarget.style.animation = '';
+        }, 1200);
     }
 }
 

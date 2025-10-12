@@ -462,11 +462,41 @@ function setupGlobalDragAndDrop() {
     
     // Document level handlers
     document.addEventListener('dragover', function(e) {
+        // If we left the view and now dragover is firing, we're back!
+        if (dragState.isDragging && dragState.leftView) {
+            console.log('[DragDrop] *** DRAGOVER DETECTED AFTER LEAVING *** clearing leftView');
+            dragState.leftView = false;
+        }
+
         if (!boardContainer.contains(e.target) && isExternalFileDrag(e)) {
             e.preventDefault();
         }
     }, false);
-    
+
+    // Use mousemove as a fallback to detect re-entry since dragenter/dragover might not fire
+    document.addEventListener('mousemove', function(e) {
+        if (dragState.isDragging && dragState.leftView) {
+            console.log('[DragDrop] *** MOUSEMOVE DETECTED AFTER LEAVING *** clearing leftView');
+            dragState.leftView = false;
+        }
+    }, false);
+
+    // Try mouseenter on body as another detection method
+    document.body.addEventListener('mouseenter', function(e) {
+        if (dragState.isDragging && dragState.leftView) {
+            console.log('[DragDrop] *** MOUSEENTER ON BODY DETECTED *** clearing leftView');
+            dragState.leftView = false;
+        }
+    }, false);
+
+    // Try pointerenter which works during drag in some browsers
+    document.addEventListener('pointerenter', function(e) {
+        if (dragState.isDragging && dragState.leftView) {
+            console.log('[DragDrop] *** POINTERENTER DETECTED *** clearing leftView');
+            dragState.leftView = false;
+        }
+    }, { capture: true });
+
     document.addEventListener('drop', function(e) {
         if (!boardContainer.contains(e.target)) {
             e.preventDefault();
@@ -514,26 +544,68 @@ function setupGlobalDragAndDrop() {
     }
 
     function restoreColumnToOriginalPosition() {
+        dragLogger.always('restoreColumnToOriginalPosition called', {
+            hasColumn: !!dragState.draggedColumn,
+            hasParent: !!dragState.originalColumnParent,
+            hasSibling: !!dragState.originalColumnNextSibling,
+            columnId: dragState.draggedColumn?.dataset?.columnId,
+            currentParent: dragState.draggedColumn?.parentNode?.className
+        });
+
         if (!dragState.draggedColumn || !dragState.originalColumnParent) {
+            dragLogger.always('restoreColumnToOriginalPosition ABORTED - missing column or parent');
             return;
         }
 
-        dragLogger.always('Restoring column to original position');
+        // Store current position before restoration
+        const currentParent = dragState.draggedColumn.parentNode;
+        const currentIndex = currentParent ? Array.from(currentParent.children).indexOf(dragState.draggedColumn) : -1;
+
+        dragLogger.always('Restoring column to original position', {
+            currentParentClass: currentParent?.className,
+            currentIndex: currentIndex,
+            originalParentClass: dragState.originalColumnParent?.className
+        });
 
         // Check if originalColumnNextSibling is still valid
         const nextSiblingStillValid = dragState.originalColumnNextSibling &&
             dragState.originalColumnNextSibling.parentNode === dragState.originalColumnParent;
 
+        // Calculate original index for comparison
+        const originalIndex = dragState.originalColumnNextSibling
+            ? Array.from(dragState.originalColumnParent.children).indexOf(dragState.originalColumnNextSibling)
+            : dragState.originalColumnParent.children.length;
+
+        dragLogger.always('Column restoration check', {
+            nextSiblingStillValid,
+            originalIndex,
+            sameParent: currentParent === dragState.originalColumnParent,
+            needsRestore: currentParent !== dragState.originalColumnParent || currentIndex !== originalIndex
+        });
+
+        // Check if restoration is actually needed
+        if (currentParent === dragState.originalColumnParent && currentIndex === originalIndex) {
+            dragLogger.always('Column already at original position - no restoration needed');
+            return;
+        }
+
         // Remove from current position
         if (dragState.draggedColumn.parentNode) {
             dragState.draggedColumn.parentNode.removeChild(dragState.draggedColumn);
+            dragLogger.always('Removed column from current position');
         }
 
         // Restore to original position
         if (nextSiblingStillValid) {
             dragState.originalColumnParent.insertBefore(dragState.draggedColumn, dragState.originalColumnNextSibling);
+            dragLogger.always('Column restored using insertBefore', {
+                finalIndex: Array.from(dragState.originalColumnParent.children).indexOf(dragState.draggedColumn)
+            });
         } else {
             dragState.originalColumnParent.appendChild(dragState.draggedColumn);
+            dragLogger.always('Column restored using appendChild', {
+                finalIndex: Array.from(dragState.originalColumnParent.children).indexOf(dragState.draggedColumn)
+            });
         }
     }
 
@@ -934,12 +1006,13 @@ function setupGlobalDragAndDrop() {
         let shouldRestore = false;
 
         if (wasDragging) {
-            // Restore if explicitly dropped outside OR if cursor left view and never came back
-            shouldRestore = droppedOutside || leftView;
+            // Only restore if explicitly dropped outside window (dropEffect === 'none')
+            // Do NOT restore based on leftView since we can't detect re-entry in VS Code webviews
+            shouldRestore = droppedOutside;
 
             if (shouldRestore) {
                 dragLogger.always('Restoring to original position', {
-                    reason: droppedOutside ? 'dropped outside' : 'cursor left view'
+                    reason: 'dropped outside window'
                 });
             }
         }
@@ -987,9 +1060,43 @@ function setupGlobalDragAndDrop() {
             // Check if we're leaving the document entirely
             // relatedTarget is null when leaving the window
             if (e.relatedTarget === null) {
-                dragLogger.once('cursorLeftView', '*** CURSOR LEFT VIEW *** leftView = true');
-                dragState.leftView = true;
-                dragState.leftViewTimestamp = Date.now();
+                dragLogger.always('[DragDrop] *** CURSOR LEFT VIEW - RESTORING TO ORIGINAL POSITION ***');
+
+                // Store references before cleanup
+                const droppedTask = dragState.draggedTask;
+                const droppedColumn = dragState.draggedColumn;
+
+                dragLogger.always('Cursor left view - restoration state', {
+                    hasTask: !!droppedTask,
+                    hasColumn: !!droppedColumn,
+                    isDragging: dragState.isDragging
+                });
+
+                // Restore to original position
+                if (droppedTask) {
+                    dragLogger.always('Calling restoreTaskToOriginalPosition');
+                    restoreTaskToOriginalPosition();
+                }
+                if (droppedColumn) {
+                    dragLogger.always('Calling restoreColumnToOriginalPosition');
+                    restoreColumnToOriginalPosition();
+                }
+
+                // Clean up visuals and state
+                cleanupDragVisuals();
+                resetDragState();
+
+                // Scroll to the restored element if it's outside the viewport
+                if (droppedTask && typeof scrollToElementIfNeeded === 'function') {
+                    setTimeout(() => {
+                        scrollToElementIfNeeded(droppedTask, 'task');
+                    }, 100);
+                }
+                if (droppedColumn && typeof scrollToElementIfNeeded === 'function') {
+                    setTimeout(() => {
+                        scrollToElementIfNeeded(droppedColumn, 'column');
+                    }, 100);
+                }
             }
         }
     }, false);
@@ -1007,7 +1114,7 @@ function setupGlobalDragAndDrop() {
             }, 'dragenter event');
 
             if (dragState.leftView) {
-                dragLogger.once('cursorReentered', '*** CURSOR RE-ENTERED VIEW *** resuming drag');
+                console.log('[DragDrop] *** CURSOR RE-ENTERED VIEW *** resuming drag - clearing leftView');
 
                 // Clear leftView - allow dragging to continue normally
                 // Will only restore if user leaves AGAIN or drops outside

@@ -4398,6 +4398,21 @@ s {
     100% { opacity: 1; }
 }
 
+@keyframes highlightFlash {
+    0% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+    50% {
+        background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(255, 235, 59, 0.4));
+        box-shadow: 0 0 8px var(--vscode-editor-findMatchHighlightBackground, rgba(255, 235, 59, 0.6));
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
 /* Tag Visibility Controls */
 /* Standard Tags: Hide #span, #row, and #stack tags only */
 .tag-visibility-allexcludinglayout .kanban-tag[data-tag^="span"],
