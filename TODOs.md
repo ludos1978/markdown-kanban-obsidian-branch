@@ -6,7 +6,7 @@ kanban-plugin: board
 
 - [ ] can you analyze the ability to export as pdf. maybe we could even integrate marp or require the marp plugin to be installed and use it to create different export formats from the kanban directly? the export feature does most of the preparation. do a tourough analysis before we start working on it.also we could integrate marp (maybe using the marp plugin in vscode). to directly start presentations from the kanban viewer? also the different export options of marp would be interesting. we would need to integrate the markdown-it plugins into the marp workflow. we could require the user to install marp and just deliver the engine.js and the node modules required. ultrathink think plan
 
-- [ ] add the auto export, it should keep an active export icon in the top, maybe a play/stop button which uses the last settings from export. when it's a one time export, it's just exporting again, but if it's a browser opening is play/stop.
+- [x] add the auto export, it should keep an active export icon in the top, maybe a play/stop button which uses the last settings from export. when it's a one time export, it's just exporting again, but if it's a browser opening is play/stop.
 
 - [ ] i get the error: "console.ts:137 [Extension Host] Cannot save: no document or invalid board (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:175:30205))" i think it happens after the board is reloaded
 

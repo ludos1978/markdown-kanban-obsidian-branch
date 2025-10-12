@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { KanbanWebviewPanel } from './kanbanWebviewPanel';
 import { getFileStateManager } from './fileStateManager';
+import { SaveEventCoordinator, SaveEventHandler } from './saveEventCoordinator';
 
 export type FileChangeType = 'modified' | 'deleted' | 'created';
 export type FileType = 'main' | 'include' | 'dependency';
@@ -30,15 +31,14 @@ export class ExternalFileWatcher implements vscode.Disposable {
     private watchedFiles: Map<string, WatchedFile> = new Map();
     private disposables: vscode.Disposable[] = [];
     private fileListenerEnabled: boolean = true;
-    private documentSaveListener: vscode.Disposable | undefined;
 
     // Event emitter for file changes
     private _onFileChanged = new vscode.EventEmitter<FileChangeEvent>();
     public readonly onFileChanged = this._onFileChanged.event;
 
     private constructor() {
-        // Set up document save listener for immediate file change detection
-        this.setupDocumentSaveListener();
+        // Register with SaveEventCoordinator for immediate file change detection
+        this.registerWithSaveCoordinator();
     }
 
     /**
@@ -66,25 +66,27 @@ export class ExternalFileWatcher implements vscode.Disposable {
     }
 
     /**
-     * Set up document save listener for immediate change detection
+     * Register with SaveEventCoordinator for immediate change detection
      */
-    private setupDocumentSaveListener(): void {
-        this.documentSaveListener = vscode.workspace.onDidSaveTextDocument((document) => {
-            if (!this.fileListenerEnabled) {
-                return;
-            }
+    private registerWithSaveCoordinator(): void {
+        const coordinator = SaveEventCoordinator.getInstance();
 
-            const documentPath = document.uri.fsPath;
+        const handler: SaveEventHandler = {
+            id: 'external-file-watcher',
+            handleSave: (document: vscode.TextDocument) => {
+                const documentPath = document.uri.fsPath;
 
-            // Check if this document is in our watched files
-            const watchedFile = this.watchedFiles.get(documentPath);
-            if (watchedFile) {
-                // Fire the change event immediately on save
-                this.handleFileChange(documentPath, 'modified');
-            }
-        });
+                // Check if this document is in our watched files
+                const watchedFile = this.watchedFiles.get(documentPath);
+                if (watchedFile) {
+                    // Fire the change event immediately on save
+                    this.handleFileChange(documentPath, 'modified');
+                }
+            },
+            isEnabled: () => this.fileListenerEnabled
+        };
 
-        this.disposables.push(this.documentSaveListener);
+        coordinator.registerHandler(handler);
     }
 
     /**
@@ -306,8 +308,7 @@ export class ExternalFileWatcher implements vscode.Disposable {
             totalWatchers: this.watchers.size,
             totalWatchedFiles: this.watchedFiles.size,
             watchers: watcherInfo,
-            files: fileInfo,
-            documentSaveListenerActive: !!this.documentSaveListener
+            files: fileInfo
         };
     }
 
@@ -336,11 +337,9 @@ export class ExternalFileWatcher implements vscode.Disposable {
         this.watchers.clear();
         this.watchedFiles.clear();
 
-        // Dispose document save listener
-        if (this.documentSaveListener) {
-            this.documentSaveListener.dispose();
-            this.documentSaveListener = undefined;
-        }
+        // Unregister from SaveEventCoordinator
+        const coordinator = SaveEventCoordinator.getInstance();
+        coordinator.unregisterHandler('external-file-watcher');
 
         // Dispose event emitter
         this._onFileChanged.dispose();

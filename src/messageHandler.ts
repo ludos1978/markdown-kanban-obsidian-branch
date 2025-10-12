@@ -2788,4 +2788,92 @@ export class MessageHandler {
             vscode.window.showErrorMessage(`Failed to start presentation: ${errorMessage}`);
         }
     }
+
+    /**
+     * Start auto-export on file save
+     */
+    private async handleStartAutoExport(settings: any): Promise<void> {
+        try {
+            console.log('[kanban.messageHandler.handleStartAutoExport] Starting auto-export with settings:', settings);
+
+            // Stop any existing watcher
+            if (this._autoExportWatcher) {
+                this._autoExportWatcher.dispose();
+                this._autoExportWatcher = null;
+            }
+
+            // Store settings
+            this._autoExportSettings = settings;
+
+            // Get current document
+            const doc = this._fileManager.getDocument();
+            if (!doc) {
+                throw new Error('No document available for auto-export');
+            }
+
+            const docUri = doc.uri;
+
+            // Create file watcher for save events
+            this._autoExportWatcher = vscode.workspace.onDidSaveTextDocument(async (savedDoc) => {
+                // Only trigger for our kanban file
+                if (savedDoc.uri.toString() === docUri.toString()) {
+                    console.log('[kanban.messageHandler.autoExport] File saved, triggering export...');
+
+                    try {
+                        // Execute export with stored settings
+                        const format = this._autoExportSettings.format;
+
+                        if (format && format.startsWith('marp')) {
+                            const result = await ExportService.exportWithMarp(savedDoc, this._autoExportSettings);
+
+                            // Open in browser if requested
+                            if (result.success && this._autoExportSettings.openAfterExport && result.exportedPath) {
+                                const uri = vscode.Uri.file(result.exportedPath);
+                                await vscode.env.openExternal(uri);
+                            }
+                        } else {
+                            const result = await ExportService.exportUnifiedV2(savedDoc, this._autoExportSettings);
+
+                            // Open in browser if requested
+                            if (result.success && this._autoExportSettings.openAfterExport && result.exportedPath) {
+                                const uri = vscode.Uri.file(result.exportedPath);
+                                await vscode.env.openExternal(uri);
+                            }
+                        }
+
+                        console.log('[kanban.messageHandler.autoExport] Auto-export completed');
+                    } catch (error) {
+                        console.error('[kanban.messageHandler.autoExport] Auto-export failed:', error);
+                        vscode.window.showErrorMessage(`Auto-export failed: ${error instanceof Error ? error.message : String(error)}`);
+                    }
+                }
+            });
+
+            console.log('[kanban.messageHandler.handleStartAutoExport] Auto-export watcher activated');
+        } catch (error) {
+            console.error('[kanban.messageHandler.handleStartAutoExport] Error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Stop auto-export
+     */
+    private async handleStopAutoExport(): Promise<void> {
+        try {
+            console.log('[kanban.messageHandler.handleStopAutoExport] Stopping auto-export');
+
+            if (this._autoExportWatcher) {
+                this._autoExportWatcher.dispose();
+                this._autoExportWatcher = null;
+            }
+
+            this._autoExportSettings = null;
+
+            console.log('[kanban.messageHandler.handleStopAutoExport] Auto-export stopped');
+        } catch (error) {
+            console.error('[kanban.messageHandler.handleStopAutoExport] Error:', error);
+            throw error;
+        }
+    }
 }

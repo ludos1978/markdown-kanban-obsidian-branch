@@ -18,6 +18,7 @@ import { getFileStateManager } from './fileStateManager';
 import { PathResolver } from './services/PathResolver';
 import { FileWriter } from './services/FileWriter';
 import { FormatConverter } from './services/FormatConverter';
+import { SaveEventCoordinator, SaveEventHandler } from './saveEventCoordinator';
 
 interface IncludeFile {
     relativePath: string;
@@ -2338,52 +2339,71 @@ export class KanbanWebviewPanel {
         });
         this._disposables.push(changeDisposable);
 
-        // Listen for document saves to sync version tracking
-        const saveDisposable = vscode.workspace.onDidSaveTextDocument((document) => {
-            const currentDocument = this._fileManager.getDocument();
-            if (currentDocument && document === currentDocument) {
-                // Update FileStateManager that main file was saved
-                fileStateManager.markSaved(document.uri.fsPath, ''); // Content will be updated by save operation
+        // Register with SaveEventCoordinator for document save tracking
+        this.registerSaveHandler();
+    }
 
-                // Document was saved, update our version tracking to match (legacy compatibility)
-                this._lastDocumentVersion = document.version;
-                this._hasExternalUnsavedChanges = false;
-            }
+    /**
+     * Register handler with SaveEventCoordinator for version tracking
+     */
+    private registerSaveHandler(): void {
+        const coordinator = SaveEventCoordinator.getInstance();
+        const document = this._fileManager.getDocument();
+        if (!document) return;
 
-            // Check if this is an included file
-            for (const [relativePath, includeFile] of this._includeFiles) {
-                if (document.uri.fsPath === includeFile.absolutePath) {
-                    // Update FileStateManager that include file was saved
-                    fileStateManager.markSaved(document.uri.fsPath, includeFile.content || '');
+        const handlerId = `panel-${document.uri.fsPath}`;
 
-                    // Clear unsaved state for the included file (legacy compatibility)
-                    includeFile.isUnsavedInEditor = false;
+        const handler: SaveEventHandler = {
+            id: handlerId,
+            handleSave: (savedDocument: vscode.TextDocument) => {
+                const currentDocument = this._fileManager.getDocument();
+                const fileStateManager = getFileStateManager();
 
-                    // Mark that this include file has external changes that need reloading (legacy compatibility)
-                    includeFile.hasExternalChanges = true;
-                    this._includeFilesChanged = true;
-                    this._changedIncludeFiles.add(relativePath);
+                if (currentDocument && savedDocument === currentDocument) {
+                    // Update FileStateManager that main file was saved
+                    fileStateManager.markSaved(savedDocument.uri.fsPath, ''); // Content will be updated by save operation
 
-                    // Notify debug overlay to update
-                    this._panel.webview.postMessage({
-                        type: 'includeFileStateChanged',
-                        filePath: relativePath,
-                        isUnsavedInEditor: false
-                    });
+                    // Document was saved, update our version tracking to match (legacy compatibility)
+                    this._lastDocumentVersion = savedDocument.version;
+                    this._hasExternalUnsavedChanges = false;
+                }
 
-                    // Trigger external change handling which will offer to reload
-                    const changeEvent: import('./externalFileWatcher').FileChangeEvent = {
-                        path: includeFile.absolutePath,
-                        changeType: 'modified',
-                        fileType: 'include',
-                        panels: [this]
-                    };
-                    this.handleExternalFileChange(changeEvent);
-                    break;
+                // Check if this is an included file
+                for (const [relativePath, includeFile] of this._includeFiles) {
+                    if (savedDocument.uri.fsPath === includeFile.absolutePath) {
+                        // Update FileStateManager that include file was saved
+                        fileStateManager.markSaved(savedDocument.uri.fsPath, includeFile.content || '');
+
+                        // Clear unsaved state for the included file (legacy compatibility)
+                        includeFile.isUnsavedInEditor = false;
+
+                        // Mark that this include file has external changes that need reloading (legacy compatibility)
+                        includeFile.hasExternalChanges = true;
+                        this._includeFilesChanged = true;
+                        this._changedIncludeFiles.add(relativePath);
+
+                        // Notify debug overlay to update
+                        this._panel.webview.postMessage({
+                            type: 'includeFileStateChanged',
+                            filePath: relativePath,
+                            isUnsavedInEditor: false
+                        });
+
+                        // Trigger external change handling which will offer to reload
+                        const changeEvent: import('./externalFileWatcher').FileChangeEvent = {
+                            path: includeFile.absolutePath,
+                            changeType: 'modified',
+                            fileType: 'include',
+                            panels: [this]
+                        };
+                        this.handleExternalFileChange(changeEvent);
+                        break;
+                    }
                 }
             }
-        });
-        this._disposables.push(saveDisposable);
+        };
+
+        coordinator.registerHandler(handler);
     }
 
     /**
