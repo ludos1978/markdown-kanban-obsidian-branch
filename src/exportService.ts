@@ -12,7 +12,7 @@ import { MarpConverter, MarpConversionOptions } from './services/MarpConverter';
 import { MarpExportService, MarpOutputFormat } from './services/MarpExportService';
 
 export type ExportScope = 'full' | 'row' | 'stack' | 'column' | 'task';
-export type ExportFormat = 'keep' | 'kanban' | 'presentation' | 'marp' | 'marp-pdf' | 'marp-pptx' | 'marp-html';
+export type ExportFormat = 'keep' | 'kanban' | 'presentation' | 'marp-markdown' | 'marp-pdf' | 'marp-pptx' | 'marp-html';
 
 export interface ExportOptions {
     targetFolder: string;
@@ -1954,7 +1954,7 @@ export class ExportService {
 
             // Determine output format from options.format
             switch (options.format) {
-                case 'marp':
+                case 'marp-markdown':
                     outputFormat = 'markdown';
                     outputPath = path.join(options.targetFolder, `${targetBasename}-marp.md`);
                     // Just save the Marp markdown

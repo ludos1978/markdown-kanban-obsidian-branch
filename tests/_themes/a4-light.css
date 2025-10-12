@@ -1,0 +1,159 @@
+/* @theme a4-light */
+
+
+/* @auto-scaling fittingHeader,math */
+
+@import 'base';
+@import 'atom-one-dark.css';
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
+
+/* A4 by stanfrbd */
+
+section {
+    width: 21cm;
+    height: 29.7cm;
+    font-family: 'Rubik', sans-serif;
+    align-items: stretch;
+    background: white;
+    color: black;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    font-size: 14px;
+    justify-content: left;
+    text-align: justify;
+    padding: 30px 70px;
+}
+
+
+/* Add "Page" prefix and total page number */
+
+section::after {
+    content: attr(data-marpit-pagination) ' / ' attr(data-marpit-pagination-total);
+}
+
+p code {
+    background-color: #f6f8fa;
+    border-radius: .4em;
+    padding: 0.2em 0.5em;
+}
+
+img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+pre {
+    border-radius: .4em;
+    padding: 0.2em 0.5em;
+    line-height: 1.15;
+    overflow-x: auto;
+    background-color: #202228;
+    padding: 0.6em;
+    word-break: break-all;
+    white-space: pre-wrap !important;
+    font-size: 94%;
+}
+
+code {
+    font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    color: #abb2bf;
+    overflow-x: auto;
+}
+
+a {
+    color: #50b3ff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+h1,
+h2 {
+    color: #246;
+}
+
+blockquote {
+    color: #ff33ff;
+    padding: 0 1em;
+    border-left: 0.25em solid#ff33ff;
+}
+
+blockquote>:first-child {
+    margin-top: 0;
+}
+
+blockquote>:last-child {
+    margin-bottom: 0;
+}
+
+header,
+footer {
+    text-align: center;
+    font-size: 18px;
+    color: #0a0a0a;
+}
+
+header {
+    top: 21px;
+}
+
+footer {
+    bottom: 21px;
+}
+
+table {
+    padding: 0;
+    border-spacing: 0;
+    border-collapse: collapse;
+}
+
+table tr {
+    border-top: 1px solid #cccccc;
+    background-color: white;
+    margin: 0;
+    padding: 0;
+}
+
+table tr:nth-child(2n) {
+    background-color: #f6f8fa;
+}
+
+table tr th {
+    font-weight: bold;
+    border: 1px solid #cccccc;
+    text-align: center;
+    margin: 0;
+    padding: 6px 13px;
+}
+
+table tr td {
+    border: 1px solid #cccccc;
+    margin: 0;
+    padding: 6px 13px;
+}
+
+table tr th :first-child,
+table tr td :first-child {
+    margin-top: 0;
+}
+
+table tr th :last-child,
+table tr td :last-child {
+    margin-bottom: 0;
+}
+
+table code {
+    border-radius: .4em;
+    padding: 0.2em 0.5em;
+    background-color: #f6f8fa;
+}
+
+ul li code {
+    border-radius: .4em;
+    padding: 0.2em 0.5em;
+    background-color: #f6f8fa;
+}

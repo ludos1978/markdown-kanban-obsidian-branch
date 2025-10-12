@@ -250,4 +250,85 @@ export class MarpExportService {
             return null;
         }
     }
+
+    /**
+     * Get available Marp themes
+     * @returns Promise that resolves to an array of available theme names
+     */
+    static async getAvailableThemes(): Promise<string[]> {
+        console.log('[kanban.MarpExportService.getAvailableThemes] Starting to get available themes...');
+        try {
+            // Check if Marp CLI is available first
+            const isAvailable = await this.isMarpCliAvailable();
+            console.log('[kanban.MarpExportService.getAvailableThemes] Marp CLI available:', isAvailable);
+            if (!isAvailable) {
+                console.log('[kanban.MarpExportService.getAvailableThemes] Using fallback themes');
+                return ['default']; // Fallback to default theme
+            }
+
+            // Try to get themes from Marp CLI
+            const { marpCli } = await import('@marp-team/marp-cli');
+            
+            // Create a temporary markdown file to probe themes
+            const tempDir = require('os').tmpdir();
+            const tempMdPath = require('path').join(tempDir, '.temp-marp-themes.md');
+            const tempContent = '---\nmarp: true\ntheme: test\n---\n# Test';
+            
+            require('fs').writeFileSync(tempMdPath, tempContent, 'utf-8');
+
+            try {
+                // Try to run Marp CLI with --help to see available options
+                // This is a workaround since Marp CLI doesn't have a direct themes list command
+                const themes = [
+                    'default',
+                    'gaia', 
+                    'uncover',
+                ];
+
+                // Try to detect custom themes by checking common locations
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                console.log('[kanban.MarpExportService.getAvailableThemes] Workspace folders:', workspaceFolders);
+                if (workspaceFolders && workspaceFolders.length > 0) {
+                    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+                    
+                    // Check for custom theme files in common locations
+                    const themePaths = [
+                        require('path').join(workspaceRoot, '.marp/themes'),
+                        require('path').join(workspaceRoot, 'themes'),
+                        require('path').join(workspaceRoot, '_themes'),
+                        require('path').join(workspaceRoot, 'assets/themes')
+                    ];
+
+                    for (const themePath of themePaths) {
+                        if (require('fs').existsSync(themePath)) {
+                            console.log('[kanban.MarpExportService.getAvailableThemes] Found theme directory:', themePath);
+                            const files = require('fs').readdirSync(themePath);
+                            const cssFiles = files.filter((file: string) => file.endsWith('.css') || file.endsWith('.marp.css'));
+                            cssFiles.forEach((file: string) => {
+                                const themeName = file.replace(/\.(css|marp\.css)$/, '');
+                                if (!themes.includes(themeName)) {
+                                    themes.push(themeName);
+                                    console.log('[kanban.MarpExportService.getAvailableThemes] Found custom theme:', themeName);
+                                }
+                            });
+                        }
+                    }
+                }
+
+                const sortedThemes = themes.sort();
+                console.log('[kanban.MarpExportService.getAvailableThemes] Final themes list:', sortedThemes);
+                return sortedThemes;
+            } finally {
+                // Clean up temp file
+                try {
+                    require('fs').unlinkSync(tempMdPath);
+                } catch (err) {
+                    // Ignore cleanup errors
+                }
+            }
+        } catch (err) {
+            console.error('[kanban.MarpExportService.getAvailableThemes] Failed to get available themes:', err);
+            return ['default']; // Fallback to default theme
+        }
+    }
 }

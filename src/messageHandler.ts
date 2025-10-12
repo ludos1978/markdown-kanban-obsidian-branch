@@ -602,6 +602,14 @@ export class MessageHandler {
                 }
                 break;
 
+            case 'getMarpThemes':
+                await this.handleGetMarpThemes();
+                break;
+
+            case 'pollMarpThemes':
+                await this.handlePollMarpThemes();
+                break;
+
             case 'openInMarpPreview':
                 await this.handleOpenInMarpPreview(message.filePath);
                 break;
@@ -2697,7 +2705,7 @@ export class MessageHandler {
             // Call the exportWithMarp method from ExportService
             const result = await ExportService.exportWithMarp(document, {
                 scope: options.scope || 'full',
-                format: options.format || 'marp',
+                format: options.format || 'marp-markdown',
                 tagVisibility: options.tagVisibility || 'all',
                 packAssets: options.packAssets || false,
                 mergeIncludes: options.mergeIncludes,
@@ -2782,6 +2790,89 @@ export class MessageHandler {
     }
 
     /**
+     * Handle get Marp themes request
+     */
+    private async handleGetMarpThemes(): Promise<void> {
+        console.log('[kanban.messageHandler.handleGetMarpThemes] Starting to get Marp themes...');
+        try {
+            const themes = await MarpExportService.getAvailableThemes();
+            console.log('[kanban.messageHandler.handleGetMarpThemes] Got themes:', themes);
+            
+            const panel = this._getWebviewPanel();
+            console.log('[kanban.messageHandler.handleGetMarpThemes] Panel result:', panel);
+            
+            if (panel && panel._panel && panel._panel.webview) {
+                const message = {
+                    type: 'marpThemesAvailable',
+                    themes: themes
+                };
+                console.log('[kanban.messageHandler.handleGetMarpThemes] Sending message:', message);
+                
+                panel._panel.webview.postMessage(message);
+            } else {
+                console.error('[kanban.messageHandler.handleGetMarpThemes] No webview panel available');
+                console.error('[kanban.messageHandler.handleGetMarpThemes] Panel exists:', !!panel);
+                console.error('[kanban.messageHandler.handleGetMarpThemes] Panel._panel exists:', !!(panel?._panel));
+                console.error('[kanban.messageHandler.handleGetMarpThemes] Webview exists:', !!(panel?._panel?.webview));
+            }
+        } catch (error) {
+            console.error('[kanban.messageHandler.handleGetMarpThemes] Error:', error);
+            
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel && panel._panel.webview) {
+                const message = {
+                    type: 'marpThemesAvailable',
+                    themes: ['default'], // Fallback
+                    error: error instanceof Error ? error.message : String(error)
+                };
+                console.log('[kanban.messageHandler.handleGetMarpThemes] Sending error message:', message);
+                panel._panel.webview.postMessage(message);
+            }
+        }
+    }
+
+    /**
+     * Handle poll for Marp themes (fallback mechanism)
+     */
+    private async handlePollMarpThemes(): Promise<void> {
+        console.log('[kanban.messageHandler.handlePollMarpThemes] Polling for Marp themes...');
+        try {
+            // Check if we have cached themes from the previous attempt
+            const cachedThemes = (globalThis as any).pendingMarpThemes;
+            if (cachedThemes) {
+                console.log('[kanban.messageHandler.handlePollMarpThemes] Found cached themes:', cachedThemes);
+                
+                const panel = this._getWebviewPanel();
+                if (panel && panel._panel && panel._panel.webview) {
+                    panel._panel.webview.postMessage({
+                        type: 'marpThemesAvailable',
+                        themes: cachedThemes
+                    });
+                    // Clear the cache
+                    delete (globalThis as any).pendingMarpThemes;
+                    return;
+                }
+            }
+            
+            // If no cached themes, try to get them again
+            const themes = await MarpExportService.getAvailableThemes();
+            console.log('[kanban.messageHandler.handlePollMarpThemes] Got fresh themes:', themes);
+            
+            const panel = this._getWebviewPanel();
+            if (panel && panel._panel && panel._panel.webview) {
+                panel._panel.webview.postMessage({
+                    type: 'marpThemesAvailable',
+                    themes: themes
+                });
+            } else {
+                console.error('[kanban.messageHandler.handlePollMarpThemes] Still no webview panel available');
+            }
+        } catch (error) {
+            console.error('[kanban.messageHandler.handlePollMarpThemes] Error:', error);
+        }
+    }
+
+    /**
      * Open a markdown file in Marp preview
      */
     private async handleOpenInMarpPreview(filePath: string): Promise<void> {
@@ -2804,14 +2895,16 @@ export class MessageHandler {
             const engineFileExists = MarpExportService.engineFileExists();
 
             const panel = this._getWebviewPanel();
-            if (panel && panel.webview) {
-                panel.webview.postMessage({
+            if (panel && panel._panel && panel._panel.webview) {
+                panel._panel.webview.postMessage({
                     type: 'marpStatus',
                     extensionInstalled: marpExtensionStatus.installed,
                     extensionVersion: marpExtensionStatus.version,
                     cliAvailable: marpCliAvailable,
                     engineFileExists: engineFileExists
                 });
+            } else {
+                console.error('[kanban.messageHandler.handleCheckMarpStatus] No webview panel available');
             }
         } catch (error) {
             console.error('[kanban.messageHandler.handleCheckMarpStatus] Error:', error);
@@ -2831,7 +2924,7 @@ export class MessageHandler {
             // First, export to Marp format
             const result = await ExportService.exportWithMarp(document, {
                 scope: options.scope || 'full',
-                format: 'marp', // Always export to Marp markdown for presentation
+                format: 'marp-markdown', // Always export to Marp markdown for presentation
                 tagVisibility: options.tagVisibility || 'all',
                 packAssets: false,
                 mergeIncludes: options.mergeIncludes,

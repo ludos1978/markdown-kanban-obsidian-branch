@@ -2623,7 +2623,19 @@ window.addEventListener('message', event => {
             handleExportResult(message.result);
             break;
         case 'marpStatus':
-            handleMarpStatus(message.status);
+            console.log('[kanban.webview] Received marpStatus message:', message);
+            handleMarpStatus(message);
+            break;
+        case 'marpThemesAvailable':
+            console.log('[kanban.webview] Received marpThemesAvailable message:', message);
+            
+            // Clear the retry timeout
+            if (window.marpThemesTimeout) {
+                clearTimeout(window.marpThemesTimeout);
+                window.marpThemesTimeout = null;
+            }
+            
+            handleMarpThemesAvailable(message.themes, message.error);
             break;
         case 'columnExportResult':
             handleColumnExportResult(message.result);
@@ -4178,6 +4190,17 @@ function initializeExportTree(preSelectNodeId = null) {
     // Render tree
     exportTreeUI.render(tree);
 
+    // Load Marp themes when modal opens
+    loadMarpThemes();
+
+    // Set up Marp theme change listener
+    const marpThemeSelect = document.getElementById('marp-theme');
+    if (marpThemeSelect) {
+        marpThemeSelect.addEventListener('change', () => {
+            localStorage.setItem('kanban-marp-theme', marpThemeSelect.value);
+        });
+    }
+
     // Select either the pre-selected node or full kanban
     if (preSelectNodeId) {
         exportTreeUI.tree = window.ExportTreeBuilder.toggleSelection(exportTreeUI.tree, preSelectNodeId, true);
@@ -4398,6 +4421,7 @@ function handleFormatChange() {
  * Check Marp CLI and extension status
  */
 function checkMarpStatus() {
+    console.log('[kanban.webview] Checking Marp status...');
     vscode.postMessage({
         type: 'checkMarpStatus'
     });
@@ -4407,24 +4431,94 @@ function checkMarpStatus() {
  * Handle Marp status response from backend
  */
 function handleMarpStatus(status) {
+    console.log('[kanban.webview] handleMarpStatus called with:', status);
     const statusText = document.getElementById('marp-status-text');
-    if (!statusText) return;
+    if (!statusText) {
+        console.error('[kanban.webview] marp-status-text element not found');
+        return;
+    }
 
+    console.log('[kanban.webview] Updating Marp status display');
     statusText.className = 'status-text';
 
     if (status.cliAvailable && status.extensionInstalled) {
         statusText.textContent = '✓ Ready';
         statusText.classList.add('status-success');
+        console.log('[kanban.webview] Marp status: Ready');
     } else if (!status.cliAvailable && !status.extensionInstalled) {
         statusText.textContent = '⚠ CLI & Extension Missing';
         statusText.classList.add('status-warning');
+        console.log('[kanban.webview] Marp status: CLI & Extension Missing');
     } else if (!status.cliAvailable) {
         statusText.textContent = '⚠ CLI Missing';
         statusText.classList.add('status-warning');
+        console.log('[kanban.webview] Marp status: CLI Missing');
     } else if (!status.extensionInstalled) {
         statusText.textContent = '⚠ Extension Missing';
         statusText.classList.add('status-warning');
+        console.log('[kanban.webview] Marp status: Extension Missing');
+    } else {
+        statusText.textContent = '⚠ Unknown Status';
+        statusText.classList.add('status-warning');
+        console.log('[kanban.webview] Marp status: Unknown');
     }
+}
+
+/**
+ * Handle Marp themes available response from backend
+ */
+function handleMarpThemesAvailable(themes, error) {
+    console.log('[kanban.webview] handleMarpThemesAvailable called with:', { themes, error });
+    const themeSelect = document.getElementById('marp-theme');
+    if (!themeSelect) {
+        console.error('[kanban.webview] marp-theme select element not found');
+        return;
+    }
+
+    console.log('[kanban.webview] Clearing existing theme options...');
+    // Clear existing options except the first one
+    while (themeSelect.children.length > 1) {
+        themeSelect.removeChild(themeSelect.lastChild);
+    }
+
+    if (error) {
+        console.error('[kanban.webview] Error loading Marp themes:', error);
+        // Add error option
+        const errorOption = document.createElement('option');
+        errorOption.value = 'default';
+        errorOption.textContent = 'Default (Error loading themes)';
+        errorOption.disabled = true;
+        themeSelect.appendChild(errorOption);
+        return;
+    }
+
+    console.log('[kanban.webview] Adding themes to dropdown:', themes);
+    // Add available themes
+    themes.forEach(theme => {
+        const option = document.createElement('option');
+        option.value = theme;
+        option.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+        themeSelect.appendChild(option);
+    });
+
+    // Restore previously selected theme if available
+    const savedTheme = localStorage.getItem('kanban-marp-theme');
+    if (savedTheme && themes.includes(savedTheme)) {
+        themeSelect.value = savedTheme;
+        console.log('[kanban.webview] Restored saved theme:', savedTheme);
+    }
+
+    console.log('[kanban.webview] Theme dropdown updated successfully');
+}
+
+/**
+ * Load Marp themes from backend
+ */
+function loadMarpThemes() {
+    console.log('[kanban.webview] Loading Marp themes...');
+    vscode.postMessage({
+        type: 'getMarpThemes'
+    });
 }
 
 /**

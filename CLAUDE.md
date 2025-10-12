@@ -16,7 +16,7 @@
 		- keep a list of the single points of data in tmp/single-points-of-knowledge.md and update it when adding new data storage.
 - never remove functionality without the users consent.
 - if you cleanup code, allways check what the code does, create a list of these features and reimplement all these features.
-- Never try to add an alternative implementation. 
+- Never try to add an alternative implementation without discussing it with the user. Never add any fallback solutions! The code must run correctly, if you cant get it to work, discuss it with the user.
 - Dont try to add failsaves or backup solutions, we need the general execution to be perfect.
 - Implmement the requested features according to the request. 
 - Keep changes small. 

@@ -316,4 +316,15 @@ markdown
 *   Cards without any @ tags are never moved by gather rules
 *   Multiple gather rules in one column are combined with OR
 
+## Layout Tags
 
+#stack and #row{number} are for layouting purposes.
+
+## marp
+
+put own themes into one of these folders in your workspace.
+
+.marp/themes/
+themes/
+_themes/
+assets/themes/
