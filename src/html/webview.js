@@ -4201,6 +4201,14 @@ function initializeExportTree(preSelectNodeId = null) {
         });
     }
 
+    // Set up Marp browser change listener
+    const marpBrowserSelect = document.getElementById('marp-browser');
+    if (marpBrowserSelect) {
+        marpBrowserSelect.addEventListener('change', () => {
+            localStorage.setItem('kanban-marp-browser', marpBrowserSelect.value);
+        });
+    }
+
     // Select either the pre-selected node or full kanban
     if (preSelectNodeId) {
         exportTreeUI.tree = window.ExportTreeBuilder.toggleSelection(exportTreeUI.tree, preSelectNodeId, true);
@@ -4281,13 +4289,15 @@ function executeUnifiedExport() {
     const autoExportOnSave = document.getElementById('auto-export-on-save')?.checked || false;
     const openAfterExport = document.getElementById('open-after-export')?.checked || false;
 
+    // Get Marp options
+    const marpTheme = document.getElementById('marp-theme')?.value || 'default';
+    const marpBrowser = document.getElementById('marp-browser')?.value || 'chrome';
+
     // Close modal
     closeExportModal();
 
     // Check if this is a Marp export
     if (format.startsWith('marp')) {
-        const marpTheme = document.getElementById('marp-theme')?.value || 'default';
-
         // Export each selected item with Marp
         selectedItems.forEach(item => {
             const options = {
@@ -4299,6 +4309,7 @@ function executeUnifiedExport() {
                 packOptions: packOptions,
                 mergeIncludes: mergeIncludes,
                 marpTheme: marpTheme,
+                marpBrowser: marpBrowser,
                 autoExportOnSave: autoExportOnSave,
                 openAfterExport: openAfterExport,
                 selection: {
@@ -4508,7 +4519,15 @@ function handleMarpThemesAvailable(themes, error) {
         console.log('[kanban.webview] Restored saved theme:', savedTheme);
     }
 
-    console.log('[kanban.webview] Theme dropdown updated successfully');
+    // Restore previously selected browser if available
+    const savedBrowser = localStorage.getItem('kanban-marp-browser');
+    const browserSelect = document.getElementById('marp-browser');
+    if (savedBrowser && browserSelect) {
+        browserSelect.value = savedBrowser;
+        console.log('[kanban.webview] Restored saved browser:', savedBrowser);
+    }
+
+    console.log('[kanban.webview] Theme and browser dropdowns updated successfully');
 }
 
 /**

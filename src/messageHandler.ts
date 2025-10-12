@@ -2713,6 +2713,7 @@ export class MessageHandler {
                 selection: options.selection || {},
                 packOptions: options.packOptions,
                 marpTheme: options.marpTheme,
+                marpBrowser: options.marpBrowser,
                 marpEnginePath: options.marpEnginePath
             });
 

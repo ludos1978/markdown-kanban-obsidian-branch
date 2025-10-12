@@ -3857,6 +3857,18 @@
           "type": "boolean",
           "default": true,
           "description": "Allow Marp to access local files (required for images and assets)"
+        },
+        "markdown-kanban.marp.browser": {
+          "type": "string",
+          "enum": ["auto", "chrome", "edge", "firefox"],
+          "default": "chrome",
+          "description": "Browser to use for Marp preview and export",
+          "enumDescriptions": [
+            "Auto-detect browser (Chrome, Edge, Firefox)",
+            "Google Chrome (recommended, best support)",
+            "Microsoft Edge (good support)",
+            "Mozilla Firefox (experimental, limited support)"
+          ]
         }
       }
     },

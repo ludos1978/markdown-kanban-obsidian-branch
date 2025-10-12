@@ -29,6 +29,13 @@ export interface KanbanConfiguration {
     exportTagVisibility: boolean;
     showHtmlComments: boolean;
     arrowKeyFocusScroll: string;
+    // Marp configuration
+    marp: {
+        enginePath: string;
+        defaultTheme: string;
+        allowLocalFiles: boolean;
+        browser: 'auto' | 'chrome' | 'edge' | 'firefox';
+    };
 }
 
 export interface ConfigurationDefaults {
@@ -53,6 +60,13 @@ export interface ConfigurationDefaults {
     exportTagVisibility: boolean;
     showHtmlComments: boolean;
     arrowKeyFocusScroll: string;
+    // Marp configuration defaults
+    marp: {
+        enginePath: string;
+        defaultTheme: string;
+        allowLocalFiles: boolean;
+        browser: 'auto' | 'chrome' | 'edge' | 'firefox';
+    };
 }
 
 export class ConfigurationService {
@@ -82,7 +96,14 @@ export class ConfigurationService {
         tagVisibility: 'visible',
         exportTagVisibility: true,
         showHtmlComments: false,
-        arrowKeyFocusScroll: 'center'
+        arrowKeyFocusScroll: 'center',
+        // Marp defaults
+        marp: {
+            enginePath: './marp-engine/engine.js',
+            defaultTheme: 'default',
+            allowLocalFiles: true,
+            browser: 'chrome' as 'auto' | 'chrome' | 'edge' | 'firefox'
+        }
     };
 
     private constructor() {

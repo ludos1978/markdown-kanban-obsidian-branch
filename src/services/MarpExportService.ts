@@ -2,6 +2,7 @@ import { marpCli } from '@marp-team/marp-cli';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as vscode from 'vscode';
+import { ConfigurationService } from '../configurationService';
 
 export type MarpOutputFormat = 'pdf' | 'pptx' | 'html' | 'markdown';
 
@@ -52,6 +53,9 @@ export class MarpExportService {
 
             // Log for debugging
             console.log(`[kanban.MarpExportService] Exporting with Marp CLI: ${args.join(' ')}`);
+            console.log(`[kanban.MarpExportService] Full args array:`, args);
+            console.log(`[kanban.MarpExportService] Export options:`, JSON.stringify(options, null, 2));
+            console.log(`[kanban.MarpExportService] Marp CLI command: npx @marp-team/marp-cli ${args.join(' ')}`);
 
             // Execute Marp CLI
             const exitCode = await marpCli(args);
@@ -89,10 +93,12 @@ export class MarpExportService {
             args.push('--pptx');
         } else if (options.format === 'html') {
             args.push('--html');
+            // For HTML export, add preview to open in browser
+            args.push('--preview');
         }
 
-        // Output path (only for non-markdown formats)
-        if (options.format !== 'markdown') {
+        // Output path (only for non-markdown formats, but not for HTML with preview)
+        if (options.format !== 'markdown' && !(options.format === 'html' && args.includes('--preview'))) {
             args.push('--output', options.outputPath);
         }
 
@@ -136,10 +142,43 @@ export class MarpExportService {
             args.push('--allow-local-files');
         }
 
+        // Browser setting - prioritize options.additionalArgs, then config
+        let browser: string | undefined;
+
+        // First, extract browser from additionalArgs if present
+        if (options.additionalArgs) {
+            const browserIndex = options.additionalArgs.findIndex(arg => arg === '--browser');
+            if (browserIndex !== -1 && browserIndex + 1 < options.additionalArgs.length) {
+                browser = options.additionalArgs[browserIndex + 1];
+                // Remove from additionalArgs to avoid duplication
+                options.additionalArgs.splice(browserIndex, 2);
+                console.log(`[kanban.MarpExportService] Using browser from additionalArgs: ${browser}`);
+            }
+        }
+
+        // If no browser in additionalArgs, use from config
+        if (!browser) {
+            const configService = ConfigurationService.getInstance();
+            browser = configService.getNestedConfig('marp.browser', 'chrome');
+            console.log(`[kanban.MarpExportService] Using browser from config: ${browser}`);
+            console.log(`[kanban.MarpExportService] Config service instance:`, !!configService);
+        }
+
+        if (browser && browser !== 'auto') {
+            // Add browser option for all formats that can use it
+            // HTML export uses browser for preview, PDF/PPTX for rendering
+            args.push('--browser', browser);
+            console.log(`[kanban.MarpExportService] Using browser for ${options.format}: ${browser}`);
+        }
+
         // Additional args
         if (options.additionalArgs) {
             args.push(...options.additionalArgs);
         }
+
+        // Final log of all arguments
+        console.log(`[kanban.MarpExportService.buildMarpCliArgs] Final arguments:`, args);
+        console.log(`[kanban.MarpExportService.buildMarpCliArgs] Arguments count: ${args.length}`);
 
         return args;
     }

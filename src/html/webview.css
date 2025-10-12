@@ -2333,7 +2333,12 @@ body.sticky-stack-mode-none .kanban-column-stack .kanban-full-height-column .col
   flex: 1;
 }
 
-.export-field-half label {
+.export-field-third {
+  flex: 1;
+}
+
+.export-field-half label,
+.export-field-third label {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;

@@ -55,7 +55,8 @@ export interface UnifiedExportOptions {
     // New export behavior options
     autoExportOnSave?: boolean;  // If true, automatically re-export when file is saved
     openAfterExport?: boolean;   // If true, open exported file in browser/viewer after export
-    marpTheme?: string;           // Marp theme (for Marp exports)
+    marpTheme?: string;          // Marp theme (for Marp exports)
+    marpBrowser?: string;        // Browser for Marp exports (chrome, edge, firefox, auto)
 }
 
 export interface AssetInfo {
@@ -1985,13 +1986,20 @@ export class ExportService {
             }
 
             // Export using Marp CLI
-            await MarpExportService.export(marpMarkdown, {
+            const exportOptions: any = {
                 format: outputFormat,
                 outputPath,
                 enginePath: options.marpEnginePath,
                 theme: options.marpTheme,
                 allowLocalFiles: true
-            });
+            };
+
+            // Add browser option if specified
+            if (options.marpBrowser && options.marpBrowser !== 'auto') {
+                exportOptions.additionalArgs = [`--browser`, options.marpBrowser];
+            }
+
+            await MarpExportService.export(marpMarkdown, exportOptions);
 
             return {
                 success: true,

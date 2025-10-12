@@ -295,14 +295,24 @@
 								<!-- Marp Options (shown when Marp format is selected) -->
 								<div id="marp-options" class="export-field" style="display: none;">
 										<div class="export-field-row">
-												<div class="export-field-half">
+												<div class="export-field-third">
 														<label for="marp-theme">Marp Theme:</label>
 														<select id="marp-theme" class="form-input">
 																<option value="default" selected>Loading...</option>
 														</select>
 														<small class="form-help">Custom themes will be automatically detected</small>
 												</div>
-												<div class="export-field-half">
+												<div class="export-field-third">
+														<label for="marp-browser">Browser:</label>
+														<select id="marp-browser" class="form-input">
+																<option value="chrome" selected>Chrome (recommended)</option>
+																<option value="edge">Edge</option>
+																<option value="firefox">Firefox (experimental)</option>
+																<option value="auto">Auto-detect</option>
+														</select>
+														<small class="form-help">Chrome has best Marp support</small>
+												</div>
+												<div class="export-field-third">
 														<div id="marp-status" class="marp-status">
 																<span class="status-label">Marp Status:</span>
 																<span id="marp-status-text" class="status-pending">Checking...</span>
