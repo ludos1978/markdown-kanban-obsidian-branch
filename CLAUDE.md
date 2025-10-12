@@ -28,6 +28,7 @@
 - Be very careful and think carefully when i type in capital letters! Be extremely careful and check at least three times with different aspects when i use swear-words.$
 - NEVER ADD ANYTHING I DONT ASK FOR! Do not invent features or requirements when i dont ask for them. If you think they are needed, ask me.
 - When replacing or removing something, allways analyze what it was used for.
+- Allways create completely functional code, never implement any partial, demo or abstract code. Integrate it into the complete codebase.
 
 ## Error handling:
 - allways check for compile errors

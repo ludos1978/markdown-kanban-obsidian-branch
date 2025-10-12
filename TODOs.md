@@ -6,7 +6,7 @@ kanban-plugin: board
 
 - [ ] if i set 2 rows (or any number) and i "+ add column" in the second row, it places the new column in the first row. it also automatically reduces to the number of existing rows. this should not be modified without user intervention.
 
-- [ ] when opening as presentation with "open browser after export" it doesnt open a browser.
+- [x] when opening as presentation with "open browser after export" it doesnt open a browser.
 
 
 - [x] when the mouse cursor leaves the view during a drag&drop and reenters it doesnt keep drag&dropping anymore. can we solve this issue somehow and cleanly handle it? can we still receive mouse button releases outside the view?

@@ -2026,18 +2026,15 @@ export class MessageHandler {
     private async handleUnifiedExport(options: any, operationId?: string): Promise<void> {
         try {
             let document = this._fileManager.getDocument();
-            console.log('[kanban.messageHandler.unifiedExport] FileManager document:', document ? document.uri.fsPath : 'null');
 
             // If document not available from FileManager, try to get the file path and open it
             if (!document) {
                 const filePath = this._fileManager.getFilePath();
-                console.log('[kanban.messageHandler.unifiedExport] FileManager filePath:', filePath || 'null');
 
                 if (filePath) {
                     // Open the document using the file path
                     try {
                         document = await vscode.workspace.openTextDocument(filePath);
-                        console.log('[kanban.messageHandler.unifiedExport] Opened document from file path');
                     } catch (error) {
                         console.error('[kanban.messageHandler.unifiedExport] Failed to open document from file path:', error);
                     }
@@ -2046,10 +2043,8 @@ export class MessageHandler {
                 // If still no document, try active editor as last resort
                 if (!document) {
                     const activeEditor = vscode.window.activeTextEditor;
-                    console.log('[kanban.messageHandler.unifiedExport] Active editor:', activeEditor ? activeEditor.document.fileName : 'null');
                     if (activeEditor && activeEditor.document.fileName.endsWith('.md')) {
                         document = activeEditor.document;
-                        console.log('[kanban.messageHandler.unifiedExport] Using active editor document as fallback');
                     }
                 }
             }
@@ -2084,6 +2079,42 @@ export class MessageHandler {
                         type: 'exportResult',
                         result: result
                     });
+                }
+
+                // Open in browser if requested
+                console.log('[kanban.messageHandler.unifiedExport] Checking browser open conditions:', {
+                    success: result.success,
+                    openAfterExport: options.openAfterExport,
+                    exportedPath: result.exportedPath
+                });
+                
+                if (result.success && options.openAfterExport && result.exportedPath) {
+                    console.log('[kanban.messageHandler.unifiedExport] Opening exported file in browser:', result.exportedPath);
+                    
+                    // Create a proper file:// URI for the browser
+                    const uri = vscode.Uri.file(result.exportedPath);
+                    
+                    // Check if it's an HTML file (presentation export)
+                    if (result.exportedPath.endsWith('.html')) {
+                        // For HTML files, open directly in browser using file:// protocol
+                        const fileUri = uri.toString();
+                        await vscode.env.openExternal(vscode.Uri.parse(fileUri));
+                    } else {
+                        // For other files (like .md), try to open with system browser
+                        const command = process.platform === 'win32' ? 'start' :
+                                       process.platform === 'darwin' ? 'open' : 'xdg-open';
+                        
+                        const { exec } = require('child_process');
+                        exec(`${command} "${uri.fsPath}"`, (error: any) => {
+                            if (error) {
+                                console.error('[kanban.messageHandler.unifiedExport] Failed to open browser:', error);
+                                // Fallback to VS Code's openExternal
+                                vscode.env.openExternal(uri);
+                            }
+                        });
+                    }
+                } else {
+                    console.log('[kanban.messageHandler.unifiedExport] Not opening browser. Conditions not met.');
                 }
 
                 if (operationId) {
@@ -2693,6 +2724,42 @@ export class MessageHandler {
 
             if (result.success) {
                 vscode.window.showInformationMessage(result.message);
+                
+                // Open in browser if requested
+                console.log('[kanban.messageHandler.handleExportWithMarp] Checking browser open conditions:', {
+                    success: result.success,
+                    openAfterExport: options.openAfterExport,
+                    exportedPath: result.exportedPath
+                });
+                
+                if (result.success && options.openAfterExport && result.exportedPath) {
+                    console.log('[kanban.messageHandler.handleExportWithMarp] Opening exported file in browser:', result.exportedPath);
+                    
+                    // Create a proper file:// URI for the browser
+                    const uri = vscode.Uri.file(result.exportedPath);
+                    
+                    // Check if it's an HTML file (presentation export)
+                    if (result.exportedPath.endsWith('.html')) {
+                        // For HTML files, open directly in browser using file:// protocol
+                        const fileUri = uri.toString();
+                        await vscode.env.openExternal(vscode.Uri.parse(fileUri));
+                    } else {
+                        // For other files (like .md), try to open with system browser
+                        const command = process.platform === 'win32' ? 'start' :
+                                       process.platform === 'darwin' ? 'open' : 'xdg-open';
+                        
+                        const { exec } = require('child_process');
+                        exec(`${command} "${uri.fsPath}"`, (error: any) => {
+                            if (error) {
+                                console.error('[kanban.messageHandler.handleExportWithMarp] Failed to open browser:', error);
+                                // Fallback to VS Code's openExternal
+                                vscode.env.openExternal(uri);
+                            }
+                        });
+                    }
+                } else {
+                    console.log('[kanban.messageHandler.handleExportWithMarp] Not opening browser. Conditions not met.');
+                }
             } else {
                 vscode.window.showErrorMessage(result.message);
             }
