@@ -1,0 +1,22 @@
+/* @theme custom-theme */
+
+@import 'default';
+
+section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+h1, h2, h3 {
+  color: #ffffff;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+section::after {
+  content: 'Custom Theme';
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  font-size: 0.8em;
+  opacity: 0.7;
+}
