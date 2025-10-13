@@ -4704,6 +4704,12 @@ function executeQuickExport() {
     // Re-export with last settings
     const format = lastExportSettings.format;
 
+    // For Marp HTML with preview, don't re-export during auto-export since Marp handles file changes
+    if (autoExportActive && format === 'marp-html' && lastExportSettings.marpPreview) {
+        console.log('[kanban.webview.executeQuickExport] Skipping Marp HTML re-export during auto-export - Marp handles file changes automatically');
+        return;
+    }
+
     if (format && format.startsWith('marp')) {
         vscode.postMessage({
             type: 'exportWithMarp',

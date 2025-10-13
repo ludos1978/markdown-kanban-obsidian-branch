@@ -2986,6 +2986,13 @@ export class MessageHandler {
                             const format = this._autoExportSettings.format;
 
                             if (format && format.startsWith('marp')) {
+                                // For Marp HTML exports with preview, don't re-launch Marp since it has its own file change detection
+                                if (format === 'marp-html' && this._autoExportSettings.marpPreview) {
+                                    console.log('[kanban.messageHandler.autoExport] Skipping Marp HTML re-export - Marp handles file changes automatically');
+                                    return;
+                                }
+                                
+                                // For other Marp formats (PDF, PPTX) or HTML without preview, re-export
                                 const result = await ExportService.exportWithMarp(savedDoc, this._autoExportSettings);
 
                                 // Open in browser if requested
