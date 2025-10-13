@@ -69,14 +69,14 @@
                     <span class="sort-text">Sort</span>
                 </button>
 
-                <button id="refresh-btn" class="refresh-btn" onmousedown="event.preventDefault();" onclick="manualRefresh()" onmouseenter="if(window.scheduleDebugOverlayShow) window.scheduleDebugOverlayShow()" onmouseleave="if(window.cancelDebugOverlayShow) window.cancelDebugOverlayShow(); if(window.hideDebugOverlayDelayed) window.hideDebugOverlayDelayed()" title="Refresh from source markdown&#13;&#10;Hover to see debug info">
-                    <span class="refresh-icon">↻</span>
-                    <span class="refresh-text">Refresh</span>
-                </button>
-
                 <button id="auto-export-btn" class="auto-export-btn" style="display: none;" onmousedown="event.preventDefault();" onclick="toggleAutoExport()" title="Start/stop auto-export">
                     <span id="auto-export-icon" class="auto-export-icon">▶</span>
                     <span id="auto-export-text" class="auto-export-text">Auto Export</span>
+                </button>
+
+                <button id="refresh-btn" class="refresh-btn" onmousedown="event.preventDefault();" onclick="manualRefresh()" onmouseenter="if(window.scheduleDebugOverlayShow) window.scheduleDebugOverlayShow()" onmouseleave="if(window.cancelDebugOverlayShow) window.cancelDebugOverlayShow(); if(window.hideDebugOverlayDelayed) window.hideDebugOverlayDelayed()" title="Refresh from source markdown&#13;&#10;Hover to see debug info">
+                    <span class="refresh-icon">↻</span>
+                    <span class="refresh-text">Refresh</span>
                 </button>
 
                 <div class="layout-presets-menu-container">
