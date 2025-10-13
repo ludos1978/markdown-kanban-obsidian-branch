@@ -274,10 +274,6 @@
 														<option value="keep" selected>Keep Original Format</option>
 														<option value="kanban">Convert to Kanban Format</option>
 														<option value="presentation">Convert to Presentation Format</option>
-														<option value="marp-markdown">Marp Markdown</option>
-														<option value="marp-pdf">PDF via Marp</option>
-														<option value="marp-pptx">PowerPoint via Marp</option>
-														<option value="marp-html">Marp Presentation</option>
 												</select>
 										</div>
 										<div class="export-field-half">
@@ -292,9 +288,31 @@
 										</div>
 								</div>
 
-								<!-- Marp Options (shown when Marp format is selected) -->
-								<div id="marp-options" class="export-field" style="display: none;">
+								<!-- Auto-export option (moved here) -->
+								<div class="export-field">
+										<label class="export-checkbox">
+												<input type="checkbox" id="auto-export-on-save">
+												<span>Auto-export on save</span>
+										</label>
+								</div>
+
+						<!-- Use Marp option (always visible but disabled when not presentation format) -->
+						<div id="use-marp-container" class="export-field">
+							<label class="export-checkbox">
+								<input type="checkbox" id="use-marp" onchange="handleUseMarpChange()" disabled>
+								<span>Use Marp <span id="use-marp-hint" style="color: #666; font-size: 0.9em;">(requires presentation format)</span></span>
+							</label>
+						</div>						<!-- Marp Options (always visible but grayed out when Use Marp is not checked) -->
+						<div id="marp-options" class="export-field disabled-section" style="display: block; opacity: 0.5; pointer-events: none;">
 										<div class="export-field-row">
+												<div class="export-field-third">
+														<label for="marp-output-format">Output Format:</label>
+														<select id="marp-output-format" class="form-input">
+																<option value="html" selected>HTML</option>
+																<option value="pdf">PDF</option>
+																<option value="pptx">PowerPoint</option>
+														</select>
+												</div>
 												<div class="export-field-third">
 														<label for="marp-theme">Marp Theme:</label>
 														<select id="marp-theme" class="form-input">
@@ -312,6 +330,14 @@
 														</select>
 														<small class="form-help">Chrome has best Marp support</small>
 												</div>
+										</div>
+										<div class="export-field-row">
+												<div class="export-field-third">
+														<label class="export-checkbox">
+																<input type="checkbox" id="marp-preview">
+																<span>Live preview (--preview)</span>
+														</label>
+												</div>
 												<div class="export-field-third">
 														<div id="marp-status" class="marp-status">
 																<span class="status-label">Marp Status:</span>
@@ -321,20 +347,7 @@
 										</div>
 								</div>
 
-								<!-- Export Behavior Options -->
-								<div class="export-field">
-										<label>Export Behavior:</label>
-										<div class="export-checkboxes">
-												<label class="export-checkbox">
-														<input type="checkbox" id="auto-export-on-save">
-														<span>Auto-export on save</span>
-												</label>
-												<label class="export-checkbox">
-														<input type="checkbox" id="open-after-export">
-														<span>Open in browser after export</span>
-												</label>
-										</div>
-								</div>
+								
 
                 <div class="export-field">
 										<label>Select Content to Export:</label>

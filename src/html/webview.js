@@ -186,14 +186,18 @@ const baseOptions = {
 
 // Helper function to convert option value to CSS value
 function getCSS(optionType, value) {
-    if (!baseOptions[optionType]) return value;
+    if (!baseOptions[optionType]) {
+        return value;
+    }
     const option = baseOptions[optionType].find(opt => opt.value === value);
     return option ? option.css : value;
 }
 
 // Helper function to convert CSS value back to option value (for legacy support)
 function getValue(optionType, css) {
-    if (!baseOptions[optionType]) return css;
+    if (!baseOptions[optionType]) {
+        return css;
+    }
     const option = baseOptions[optionType].find(opt => opt.css === css);
     return option ? option.value : css;
 }
@@ -237,10 +241,18 @@ const menuConfig = {
                 label: option.label + (option.value !== 'auto' && option.value !== option.label ? ` (${option.description || option.value})` : ''),
                 value: option.value
             };
-            if (option.description) result.description = option.description;
-            if (option.icon) result.icon = option.icon;
-            if (option.iconStyle) result.iconStyle = option.iconStyle;
-            if (option.separator) result.separator = true;
+            if (option.description) {
+                result.description = option.description;
+            }
+            if (option.icon) {
+                result.icon = option.icon;
+            }
+            if (option.iconStyle) {
+                result.iconStyle = option.iconStyle;
+            }
+            if (option.separator) {
+                result.separator = true;
+            }
             return result;
         });
     }
@@ -1411,7 +1423,9 @@ function setShowHtmlComments(show) {
 
 // Helper function to filter tags from text based on export tag visibility setting
 function filterTagsForExport(text, tagVisibility = 'allexcludinglayout') {
-    if (!text) return text;
+    if (!text) {
+        return text;
+    }
 
     const setting = tagVisibility;
 
@@ -2273,10 +2287,15 @@ window.addEventListener('message', event => {
                     // Handle legacy row height values - convert CSS back to value
                     let rowHeight = message.rowHeight;
                     // Map legacy em values
-                    if (rowHeight === '19em') rowHeight = '300px';
-                    else if (rowHeight === '31em') rowHeight = '500px';
-                    else if (rowHeight === '44em') rowHeight = '700px';
-                    else rowHeight = getValue('rowHeight', rowHeight);
+                    if (rowHeight === '19em') {
+                        rowHeight = '300px';
+                    } else if (rowHeight === '31em') {
+                        rowHeight = '500px';
+                    } else if (rowHeight === '44em') {
+                        rowHeight = '700px';
+                    } else {
+                        rowHeight = getValue('rowHeight', rowHeight);
+                    }
 
                     applyRowHeightSetting(rowHeight);
                 } else {
@@ -2838,7 +2857,9 @@ function focusCard(card) {
 
 // Helper function to focus on a section and also set card focus
 function focusSection(section) {
-    if (!section) return;
+    if (!section) {
+        return;
+    }
 
     // Find the parent task card
     const taskCard = section.closest('.task-item');
@@ -4287,31 +4308,39 @@ function executeUnifiedExport() {
 
     // Get new export behavior options
     const autoExportOnSave = document.getElementById('auto-export-on-save')?.checked || false;
-    const openAfterExport = document.getElementById('open-after-export')?.checked || false;
+    // Get Marp options (only if using Marp)
+    const useMarp = document.getElementById('use-marp')?.checked || false;
+    let marpOutputFormat = null;
+    let marpTheme = null;
+    let marpBrowser = null;
+    let marpPreview = false;
 
-    // Get Marp options
-    const marpTheme = document.getElementById('marp-theme')?.value || 'default';
-    const marpBrowser = document.getElementById('marp-browser')?.value || 'chrome';
+    if (useMarp) {
+        marpOutputFormat = document.getElementById('marp-output-format')?.value || 'html';
+        marpTheme = document.getElementById('marp-theme')?.value || 'default';
+        marpBrowser = document.getElementById('marp-browser')?.value || 'chrome';
+        marpPreview = document.getElementById('marp-preview')?.checked || false;
+    }
 
     // Close modal
     closeExportModal();
 
     // Check if this is a Marp export
-    if (format.startsWith('marp')) {
+    if (useMarp && format === 'presentation') {
         // Export each selected item with Marp
         selectedItems.forEach(item => {
             const options = {
                 targetFolder: folderInput.value.trim(),
                 scope: item.scope,
-                format: format,
+                format: `marp-${marpOutputFormat}`,
                 tagVisibility: tagVisibility,
                 packAssets: packAssets,
                 packOptions: packOptions,
                 mergeIncludes: mergeIncludes,
                 marpTheme: marpTheme,
                 marpBrowser: marpBrowser,
+                marpPreview: marpPreview,
                 autoExportOnSave: autoExportOnSave,
-                openAfterExport: openAfterExport,
                 selection: {
                     rowNumber: item.rowNumber,
                     stackIndex: item.stackIndex,
@@ -4340,7 +4369,6 @@ function executeUnifiedExport() {
                 packOptions: packOptions,
                 mergeIncludes: mergeIncludes,
                 autoExportOnSave: autoExportOnSave,
-                openAfterExport: openAfterExport,
                 selection: {
                     rowNumber: item.rowNumber,
                     stackIndex: item.stackIndex,
@@ -4360,8 +4388,8 @@ function executeUnifiedExport() {
         });
     }
 
-    // Update auto-export mode tracking
-    autoExportBrowserMode = openAfterExport;
+    // Update auto-export mode tracking (for Marp preview)
+    autoExportBrowserMode = useMarp && marpPreview;
 
     // Show the auto-export button after first export
     const autoExportBtn = document.getElementById('auto-export-btn');
@@ -4408,22 +4436,66 @@ function handleExportResult(result) {
 }
 
 /**
- * Handle export format change - show/hide Marp options
+ * Handle export format change - enable/disable Marp options
  */
 function handleFormatChange() {
     const formatSelect = document.getElementById('export-format');
+    const useMarpCheckbox = document.getElementById('use-marp');
+    const useMarpHint = document.getElementById('use-marp-hint');
     const marpOptions = document.getElementById('marp-options');
 
-    if (formatSelect && marpOptions) {
+    if (formatSelect && useMarpCheckbox && marpOptions) {
         const format = formatSelect.value;
-        const isMarpFormat = format.startsWith('marp');
+        const isPresentationFormat = format === 'presentation';
 
-        if (isMarpFormat) {
-            marpOptions.style.display = 'block';
-            // Check Marp status when showing options
+        if (isPresentationFormat) {
+            // Enable Use Marp checkbox
+            useMarpCheckbox.disabled = false;
+            useMarpHint.style.display = 'none';
+            
+            // Check if Use Marp is already checked
+            if (useMarpCheckbox.checked) {
+                marpOptions.style.opacity = '1';
+                marpOptions.style.pointerEvents = 'auto';
+                marpOptions.classList.remove('disabled-section');
+                checkMarpStatus();
+            } else {
+                marpOptions.style.opacity = '0.5';
+                marpOptions.style.pointerEvents = 'none';
+                marpOptions.classList.add('disabled-section');
+            }
+        } else {
+            // Disable Use Marp checkbox
+            useMarpCheckbox.disabled = true;
+            useMarpCheckbox.checked = false;
+            useMarpHint.style.display = 'inline';
+            
+            // Disable Marp options
+            marpOptions.style.opacity = '0.5';
+            marpOptions.style.pointerEvents = 'none';
+            marpOptions.classList.add('disabled-section');
+        }
+    }
+}
+
+/**
+ * Handle Use Marp checkbox change
+ */
+function handleUseMarpChange() {
+    const useMarpCheckbox = document.getElementById('use-marp');
+    const marpOptions = document.getElementById('marp-options');
+
+    if (useMarpCheckbox && marpOptions) {
+        if (useMarpCheckbox.checked) {
+            marpOptions.style.opacity = '1';
+            marpOptions.style.pointerEvents = 'auto';
+            marpOptions.classList.remove('disabled-section');
+            // Check Marp status when enabling Marp
             checkMarpStatus();
         } else {
-            marpOptions.style.display = 'none';
+            marpOptions.style.opacity = '0.5';
+            marpOptions.style.pointerEvents = 'none';
+            marpOptions.classList.add('disabled-section');
         }
     }
 }
@@ -4599,7 +4671,9 @@ function updateAutoExportButton() {
     const icon = document.getElementById('auto-export-icon');
     const text = document.getElementById('auto-export-text');
 
-    if (!btn || !icon || !text) return;
+    if (!btn || !icon || !text) {
+        return;
+    }
 
     if (autoExportActive) {
         btn.classList.add('active');

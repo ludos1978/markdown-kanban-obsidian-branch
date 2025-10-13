@@ -57,6 +57,7 @@ export interface UnifiedExportOptions {
     openAfterExport?: boolean;   // If true, open exported file in browser/viewer after export
     marpTheme?: string;          // Marp theme (for Marp exports)
     marpBrowser?: string;        // Browser for Marp exports (chrome, edge, firefox, auto)
+    marpPreview?: boolean;       // If true, add --preview flag for live preview
 }
 
 export interface AssetInfo {
@@ -1303,7 +1304,9 @@ export class ExportService {
             // Convert slides to tasks ONLY (no column header)
             // The column header is reconstructed in processIncludedFiles using the prefix title, filename, and suffix
             // All slides become tasks (including the first one)
-            if (slides.length === 0) return '';
+            if (slides.length === 0) {
+            return '';
+        }
 
             let kanbanContent = '';
             const tasks = PresentationParser.slidesToTasks(slides);
@@ -1845,6 +1848,8 @@ export class ExportService {
         options: UnifiedExportOptions & {
             marpTheme?: string;
             marpEnginePath?: string;
+        } & {
+            format: string; // Allow marp-prefixed formats
         }
     ): Promise<{ success: boolean; message: string; exportedPath?: string }> {
         try {
@@ -1953,36 +1958,33 @@ export class ExportService {
                 fs.mkdirSync(options.targetFolder, { recursive: true });
             }
 
-            // Determine output format from options.format
-            switch (options.format) {
-                case 'marp-markdown':
-                    outputFormat = 'markdown';
-                    outputPath = path.join(options.targetFolder, `${targetBasename}-marp.md`);
-                    // Just save the Marp markdown
-                    fs.writeFileSync(outputPath, marpMarkdown, 'utf-8');
-                    return {
-                        success: true,
-                        message: `Marp markdown exported to ${outputPath}`,
-                        exportedPath: outputPath
-                    };
+            // Extract Marp output format from options.format (e.g., "marp-pdf" -> "pdf")
+            let marpOutputFormat: string;
+            if (options.format.startsWith('marp-')) {
+                marpOutputFormat = options.format.substring(5); // Remove "marp-" prefix
+            } else {
+                throw new Error(`Invalid Marp export format: ${options.format}`);
+            }
 
-                case 'marp-pdf':
+            // Determine output format
+            switch (marpOutputFormat) {
+                case 'pdf':
                     outputFormat = 'pdf';
                     outputPath = path.join(options.targetFolder, `${targetBasename}.pdf`);
                     break;
 
-                case 'marp-pptx':
+                case 'pptx':
                     outputFormat = 'pptx';
                     outputPath = path.join(options.targetFolder, `${targetBasename}.pptx`);
                     break;
 
-                case 'marp-html':
+                case 'html':
                     outputFormat = 'html';
                     outputPath = path.join(options.targetFolder, `${targetBasename}.html`);
                     break;
 
                 default:
-                    throw new Error(`Unsupported Marp export format: ${options.format}`);
+                    throw new Error(`Unsupported Marp export format: ${marpOutputFormat}`);
             }
 
             // Export using Marp CLI
@@ -1995,8 +1997,18 @@ export class ExportService {
             };
 
             // Add browser option if specified
+            const additionalArgs: string[] = [];
             if (options.marpBrowser && options.marpBrowser !== 'auto') {
-                exportOptions.additionalArgs = [`--browser`, options.marpBrowser];
+                additionalArgs.push(`--browser`, options.marpBrowser);
+            }
+
+            // Add preview option if specified
+            if (options.marpPreview) {
+                additionalArgs.push(`--preview`);
+            }
+
+            if (additionalArgs.length > 0) {
+                exportOptions.additionalArgs = additionalArgs;
             }
 
             await MarpExportService.export(marpMarkdown, exportOptions);

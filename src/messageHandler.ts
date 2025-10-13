@@ -2922,17 +2922,18 @@ export class MessageHandler {
                 throw new Error('No document available for presentation');
             }
 
-            // First, export to Marp format
+            // First, export to Marp format - use marp-html for preview since this is for presentation
             const result = await ExportService.exportWithMarp(document, {
                 scope: options.scope || 'full',
-                format: 'marp-markdown', // Always export to Marp markdown for presentation
+                format: 'marp-html', // Use marp-html for presentation preview
                 tagVisibility: options.tagVisibility || 'all',
                 packAssets: false,
                 mergeIncludes: options.mergeIncludes,
                 targetFolder: options.targetFolder || path.join(os.tmpdir(), 'marp-kanban-preview'),
                 selection: options.selection || {},
                 marpTheme: options.marpTheme,
-                marpEnginePath: options.marpEnginePath
+                marpEnginePath: options.marpEnginePath,
+                marpPreview: true // Enable preview for presentation
             });
 
             if (!result.success || !result.exportedPath) {

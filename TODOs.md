@@ -2,7 +2,16 @@
 kanban-plugin: board
 ---
 
-## Open Bugs
+## Open Todos
+
+- [ ] currently the export format also includes different marp export solutions. however the export format is only the first stage of data presentation. the second would be the conversion with marp. so i want you to remove the marp export variants from the export format. 
+
+add a checkbox "use marp" below that is available if the export format is "presentation format". within the use marp section:
+- the 3 options from marp (html, pdf, powerpoint) should be in a new dropdown that is activated when marp is active, the "marp markdown" can be removed. 
+- put the theme, the browser also in this submenu.
+- the open in browser could be removed, but we should add a checkbox that adds "--preview" for "live preview"
+
+move the "auto-export on save" to the main features (export format), as it should make sure that the export is repeated when the markdown or any included files are changed.
 
 - [ ] if i set 2 rows (or any number) and i "+ add column" in the second row, it places the new column in the first row. it also automatically reduces to the number of existing rows. this should not be modified without user intervention.
 

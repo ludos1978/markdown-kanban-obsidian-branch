@@ -47,6 +47,18 @@ body {
   right: 0;
 }
 
+/* Disabled section styling */
+.disabled-section {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.disabled-section input,
+.disabled-section select,
+.disabled-section button {
+  cursor: not-allowed;
+}
+
 .file-info-content {
   display: flex;
   justify-content: space-between;
