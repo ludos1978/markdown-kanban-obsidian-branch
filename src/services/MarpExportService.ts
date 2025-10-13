@@ -115,8 +115,35 @@ export class MarpExportService {
             args.push('--theme', options.theme);
         }
 
-        // Theme set - add custom theme directories if they exist
+        // Theme set - add configured theme directories
+        const configService = ConfigurationService.getInstance();
+        const configuredThemeFolders = configService.getNestedConfig('marp.themeFolders', []) as string[];
         const workspaceFolders = vscode.workspace.workspaceFolders;
+        
+        // Add configured theme folders first
+        if (configuredThemeFolders.length > 0 && workspaceFolders && workspaceFolders.length > 0) {
+            const workspaceRoot = workspaceFolders[0].uri.fsPath;
+            
+            for (const themeFolder of configuredThemeFolders) {
+                let resolvedPath: string;
+                
+                // Resolve relative paths against workspace root, keep absolute paths as-is
+                if (path.isAbsolute(themeFolder)) {
+                    resolvedPath = themeFolder;
+                } else {
+                    resolvedPath = path.resolve(workspaceRoot, themeFolder);
+                }
+                
+                if (fs.existsSync(resolvedPath)) {
+                    console.log(`[kanban.MarpExportService] Adding configured theme set directory: ${resolvedPath}`);
+                    args.push('--theme-set', resolvedPath);
+                } else {
+                    console.warn(`[kanban.MarpExportService] Configured theme directory not found: ${resolvedPath}`);
+                }
+            }
+        }
+        
+        // Fallback to common theme directories if no configured folders were found/added
         if (workspaceFolders && workspaceFolders.length > 0) {
             const workspaceRoot = workspaceFolders[0].uri.fsPath;
             
@@ -130,7 +157,7 @@ export class MarpExportService {
 
             for (const themePath of themePaths) {
                 if (fs.existsSync(themePath)) {
-                    console.log(`[kanban.MarpExportService] Adding theme set directory: ${themePath}`);
+                    console.log(`[kanban.MarpExportService] Adding fallback theme set directory: ${themePath}`);
                     args.push('--theme-set', themePath);
                     break; // Only add the first found theme directory
                 }
@@ -334,9 +361,45 @@ export class MarpExportService {
                 'uncover',
             ];
 
-            // Try to detect custom themes by checking common locations
+            // Get configured theme folders
+            const configService = ConfigurationService.getInstance();
+            const configuredThemeFolders = configService.getNestedConfig('marp.themeFolders', []) as string[];
             const workspaceFolders = vscode.workspace.workspaceFolders;
             console.log('[kanban.MarpExportService.getAvailableThemes] Workspace folders:', workspaceFolders);
+            console.log('[kanban.MarpExportService.getAvailableThemes] Configured theme folders:', configuredThemeFolders);
+            
+            // Check configured theme folders first
+            if (configuredThemeFolders.length > 0 && workspaceFolders && workspaceFolders.length > 0) {
+                const workspaceRoot = workspaceFolders[0].uri.fsPath;
+                
+                for (const themeFolder of configuredThemeFolders) {
+                    let resolvedPath: string;
+                    
+                    // Resolve relative paths against workspace root, keep absolute paths as-is
+                    if (path.isAbsolute(themeFolder)) {
+                        resolvedPath = themeFolder;
+                    } else {
+                        resolvedPath = path.resolve(workspaceRoot, themeFolder);
+                    }
+                    
+                    if (fs.existsSync(resolvedPath)) {
+                        console.log('[kanban.MarpExportService.getAvailableThemes] Found configured theme directory:', resolvedPath);
+                        const files = fs.readdirSync(resolvedPath);
+                        const cssFiles = files.filter((file: string) => file.endsWith('.css') || file.endsWith('.marp.css'));
+                        cssFiles.forEach((file: string) => {
+                            const themeName = file.replace(/\.(css|marp\.css)$/, '');
+                            if (!themes.includes(themeName)) {
+                                themes.push(themeName);
+                                console.log('[kanban.MarpExportService.getAvailableThemes] Found custom theme:', themeName);
+                            }
+                        });
+                    } else {
+                        console.warn('[kanban.MarpExportService.getAvailableThemes] Configured theme directory not found:', resolvedPath);
+                    }
+                }
+            }
+            
+            // Fallback to common theme directories
             if (workspaceFolders && workspaceFolders.length > 0) {
                 const workspaceRoot = workspaceFolders[0].uri.fsPath;
                 
@@ -350,14 +413,14 @@ export class MarpExportService {
 
                 for (const themePath of themePaths) {
                     if (fs.existsSync(themePath)) {
-                        console.log('[kanban.MarpExportService.getAvailableThemes] Found theme directory:', themePath);
+                        console.log('[kanban.MarpExportService.getAvailableThemes] Found fallback theme directory:', themePath);
                         const files = fs.readdirSync(themePath);
                         const cssFiles = files.filter((file: string) => file.endsWith('.css') || file.endsWith('.marp.css'));
                         cssFiles.forEach((file: string) => {
                             const themeName = file.replace(/\.(css|marp\.css)$/, '');
                             if (!themes.includes(themeName)) {
                                 themes.push(themeName);
-                                console.log('[kanban.MarpExportService.getAvailableThemes] Found custom theme:', themeName);
+                                console.log('[kanban.MarpExportService.getAvailableThemes] Found fallback custom theme:', themeName);
                             }
                         });
                     }

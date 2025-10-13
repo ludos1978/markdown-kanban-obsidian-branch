@@ -195,7 +195,7 @@ class ColorUtils {
         const luminance = this.getLuminance(backgroundColor);
         // If luminance is above 0.5, use dark text
         // This threshold ensures good contrast
-        return luminance > 0.5;
+        return luminance > 0.4;
     }
 
     /**
@@ -255,7 +255,9 @@ class ColorUtils {
         const outlineColor = this.shouldUseDarkText(backgroundColor) ? '#ffffff' : '#000000';
 
         // Create a multi-directional outline effect
-        return `0 0 2px ${outlineColor}, 0 0 2px ${outlineColor}, 0 0 2px ${outlineColor}`;
+        // return `0 0 2px ${outlineColor}, 0 0 2px ${outlineColor}, 0 0 2px ${outlineColor}`;
+        // Smoother and less obstucting
+        return `0 0 4px #888`;
     }
 }
 

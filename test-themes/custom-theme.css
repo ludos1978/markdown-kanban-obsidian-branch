@@ -1,0 +1,26 @@
+/* Custom Marp Theme for Testing */
+@theme default;
+
+section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+h1, h2, h3 {
+  color: #ffffff;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+code {
+  background-color: rgba(255,255,255,0.2);
+  color: #ffeb3b;
+}
+
+blockquote {
+  border-left: 4px solid #ffeb3b;
+  background-color: rgba(255,255,255,0.1);
+  padding: 1em;
+  margin: 1em 0;
+  font-style: italic;
+}

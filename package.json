@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.18.24",
+  "version": "0.18.25",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -3832,6 +3832,42 @@
           "minimum": 1,
           "maximum": 50,
           "description": "Maximum number of backups to keep per file (older backups will be deleted)"
+        },
+        "markdown-kanban.marp.enginePath": {
+          "type": "string",
+          "default": "./marp-engine/engine.js",
+          "description": "Path to the Marp engine JavaScript file"
+        },
+        "markdown-kanban.marp.defaultTheme": {
+          "type": "string",
+          "default": "default",
+          "description": "Default theme to use for Marp presentations"
+        },
+        "markdown-kanban.marp.allowLocalFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow Marp to access local files (images, etc.)"
+        },
+        "markdown-kanban.marp.browser": {
+          "type": "string",
+          "enum": ["auto", "chrome", "edge", "firefox"],
+          "default": "chrome",
+          "description": "Browser to use for Marp preview",
+          "enumDescriptions": [
+            "Auto-detect browser",
+            "Use Chrome",
+            "Use Edge",
+            "Use Firefox"
+          ]
+        },
+        "markdown-kanban.marp.themeFolders": {
+          "type": "array",
+          "default": [],
+          "description": "Additional theme folders for Marp. Add paths to directories containing custom Marp theme CSS files. Paths can be relative to workspace or absolute.",
+          "items": {
+            "type": "string",
+            "description": "Path to a directory containing Marp theme CSS files"
+          }
         }
       }
     },

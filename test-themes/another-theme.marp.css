@@ -1,0 +1,26 @@
+/* Another Custom Marp Theme */
+@theme default;
+
+section {
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+  color: #2c3e50;
+  font-family: 'Georgia', serif;
+}
+
+h1, h2, h3 {
+  color: #2c3e50;
+  border-bottom: 2px solid #ff6b6b;
+  padding-bottom: 0.3em;
+}
+
+strong {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+pre {
+  background-color: rgba(44, 62, 80, 0.9);
+  color: #ecf0f1;
+  border-radius: 8px;
+  padding: 1em;
+}

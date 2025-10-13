@@ -35,6 +35,7 @@ export interface KanbanConfiguration {
         defaultTheme: string;
         allowLocalFiles: boolean;
         browser: 'auto' | 'chrome' | 'edge' | 'firefox';
+        themeFolders: string[];
     };
 }
 
@@ -66,6 +67,7 @@ export interface ConfigurationDefaults {
         defaultTheme: string;
         allowLocalFiles: boolean;
         browser: 'auto' | 'chrome' | 'edge' | 'firefox';
+        themeFolders: string[];
     };
 }
 
@@ -102,7 +104,8 @@ export class ConfigurationService {
             enginePath: './marp-engine/engine.js',
             defaultTheme: 'default',
             allowLocalFiles: true,
-            browser: 'chrome' as 'auto' | 'chrome' | 'edge' | 'firefox'
+            browser: 'chrome' as 'auto' | 'chrome' | 'edge' | 'firefox',
+            themeFolders: []
         }
     };
 
