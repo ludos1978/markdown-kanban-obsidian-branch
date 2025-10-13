@@ -36,27 +36,49 @@ const copyStaticFilesPlugin = {
 			if (fs.existsSync(srcHtmlDir)) {
 				fs.mkdirSync(distHtmlDir, { recursive: true });
 
-				// Recursive function to copy directory contents
-				function copyDirRecursive(src, dist) {
-					const files = fs.readdirSync(src);
-					files.forEach(file => {
-						const srcFile = path.join(src, file);
-						const distFile = path.join(dist, file);
-						const stat = fs.statSync(srcFile);
+// Recursive function to copy directory contents with exclusions
+			function copyDirRecursive(src, dist) {
+				const files = fs.readdirSync(src);
+				files.forEach(file => {
+					const srcFile = path.join(src, file);
+					const distFile = path.join(dist, file);
+					const stat = fs.statSync(srcFile);
 
-						if (stat.isDirectory()) {
-							// Create subdirectory and copy its contents
-							fs.mkdirSync(distFile, { recursive: true });
-							copyDirRecursive(srcFile, distFile);
-						} else if (stat.isFile()) {
-							// Copy file
-							fs.copyFileSync(srcFile, distFile);
-							console.log(`Copied ${srcFile} to ${distFile}`);
-						}
-					});
-				}
+					// Skip hidden files/directories (starting with .)
+					if (file.startsWith('.')) {
+						console.log(`Skipping hidden file/directory: ${srcFile}`);
+						return;
+					}
 
-				copyDirRecursive(srcHtmlDir, distHtmlDir);
+					// Skip test files and directories
+					if (file.includes('test') || file.includes('spec')) {
+						console.log(`Skipping test file/directory: ${srcFile}`);
+						return;
+					}
+
+					// Skip temporary files
+					if (file.endsWith('.tmp') || file.endsWith('.temp')) {
+						console.log(`Skipping temporary file: ${srcFile}`);
+						return;
+					}
+
+					// Skip map files (sourcemaps)
+					if (file.endsWith('.map')) {
+						console.log(`Skipping sourcemap file: ${srcFile}`);
+						return;
+					}
+
+					if (stat.isDirectory()) {
+						// Create subdirectory and copy its contents
+						fs.mkdirSync(distFile, { recursive: true });
+						copyDirRecursive(srcFile, distFile);
+					} else if (stat.isFile()) {
+						// Copy file
+						fs.copyFileSync(srcFile, distFile);
+						console.log(`Copied ${srcFile} to ${distFile}`);
+					}
+				});
+			}				copyDirRecursive(srcHtmlDir, distHtmlDir);
 			}
 
 			// Convert markdown-it-media-lib CommonJS modules to browser-compatible IIFE format

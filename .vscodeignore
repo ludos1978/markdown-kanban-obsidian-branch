@@ -1,23 +1,27 @@
-# 排除源代码和开发文件
+# Exclude source code and test files
 src/**/*.ts
 src/test/**
 *.map
 
-# 排除构建工具配置
+# Exclude build tools and config
 esbuild.js
 tsconfig.json
 eslint.config.mjs
 
-# 排除依赖和锁定文件
+# Exclude dependencies and lock files
 node_modules
 .git
 .gitignore
 pnpm-lock.yaml
 package-lock.json
 
-# 排除开发文档
+# Exclude development docs
 CHANGELOG.md
 
-# 确保包含必要的静态资源
+# Exclude tests and tmp from build
+tests/**
+tmp/**
+
+# Ensure necessary static resources are included
 !src/html/**
 !imgs/**
