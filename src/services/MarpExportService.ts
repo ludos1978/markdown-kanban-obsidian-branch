@@ -40,36 +40,111 @@ export class MarpExportService {
             throw new Error('Marp CLI is not available. Please ensure @marp-team/marp-cli is installed.');
         }
 
+        // Get configuration for temp file handling
+        const configService = ConfigurationService.getInstance();
+        const keepTempFiles = configService.getNestedConfig('marp.keepTempFiles', false) as boolean;
+
         // Create temporary markdown file
         const tempDir = path.dirname(options.outputPath);
-        const tempMdPath = path.join(tempDir, '.temp-marp-export.md');
+        const tempMdPath = keepTempFiles 
+            ? path.join(tempDir, `${path.basename(options.outputPath, path.extname(options.outputPath))}.marp-temp.md`)
+            : path.join(tempDir, '.temp-marp-export.md');
 
+        // Get working directory for logging
+        const workingDir = process.cwd();
+        
         try {
             // Write markdown to temp file
             fs.writeFileSync(tempMdPath, markdownContent, 'utf-8');
+            console.log(`[kanban.MarpExportService] Created temp file: ${tempMdPath}`);
+            console.log(`[kanban.MarpExportService] Working directory: ${workingDir}`);
+            console.log(`[kanban.MarpExportService] Keep temp files: ${keepTempFiles}`);
 
             // Build Marp CLI arguments
             const args = this.buildMarpCliArgs(tempMdPath, options);
 
-            // Log for debugging
-            console.log(`[kanban.MarpExportService] Exporting with Marp CLI: ${args.join(' ')}`);
-            console.log(`[kanban.MarpExportService] Full args array:`, args);
+            // Enhanced logging for debugging
+            const fullCommand = `npx @marp-team/marp-cli ${args.join(' ')}`;
+            console.log(`[kanban.MarpExportService] === MARP EXPORT DEBUG INFO ===`);
+            console.log(`[kanban.MarpExportService] Working directory: ${workingDir}`);
+            console.log(`[kanban.MarpExportService] Temp file path: ${tempMdPath}`);
+            console.log(`[kanban.MarpExportService] Output path: ${options.outputPath}`);
+            console.log(`[kanban.MarpExportService] Full command: ${fullCommand}`);
+            console.log(`[kanban.MarpExportService] Args array:`, args);
             console.log(`[kanban.MarpExportService] Export options:`, JSON.stringify(options, null, 2));
-            console.log(`[kanban.MarpExportService] Marp CLI command: npx @marp-team/marp-cli ${args.join(' ')}`);
+            console.log(`[kanban.MarpExportService] Temp file exists: ${fs.existsSync(tempMdPath)}`);
+            console.log(`[kanban.MarpExportService] Temp file size: ${fs.statSync(tempMdPath).size} bytes`);
+            console.log(`[kanban.MarpExportService] ======================================`);
 
-            // Execute Marp CLI
-            const exitCode = await marpCli(args);
-
-            if (exitCode !== 0) {
-                throw new Error(`Marp export failed with exit code ${exitCode}`);
+            // Change working directory to workspace root for proper path resolution
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            const originalWorkingDir = process.cwd();
+            const enginePath = options.enginePath || this.getDefaultEnginePath();
+            const absoluteEnginePath = path.resolve(enginePath);
+            
+            console.log(`[kanban.MarpExportService] === PRE-EXECUTION DEBUG ===`);
+            console.log(`[kanban.MarpExportService] Original working directory: ${originalWorkingDir}`);
+            console.log(`[kanban.MarpExportService] Engine path: ${enginePath}`);
+            console.log(`[kanban.MarpExportService] Absolute engine path: ${absoluteEnginePath}`);
+            console.log(`[kanban.MarpExportService] Engine exists: ${fs.existsSync(absoluteEnginePath)}`);
+            console.log(`[kanban.MarpExportService] Temp file: ${tempMdPath}`);
+            console.log(`[kanban.MarpExportService] Temp file exists: ${fs.existsSync(tempMdPath)}`);
+            console.log(`[kanban.MarpExportService] Args before execution:`, args);
+            console.log(`[kanban.MarpExportService] Full args string: ${args.join(' ')}`);
+            
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                const workspaceRoot = workspaceFolders[0].uri.fsPath;
+                console.log(`[kanban.MarpExportService] Changing working directory to workspace root: ${workspaceRoot}`);
+                console.log(`[kanban.MarpExportService] Current working directory before change: ${process.cwd()}`);
+                process.chdir(workspaceRoot);
+                console.log(`[kanban.MarpExportService] Working directory after change: ${process.cwd()}`);
             }
 
-            console.log(`[kanban.MarpExportService] Export completed successfully: ${options.outputPath}`);
+            try {
+                // Execute Marp CLI
+                console.log(`[kanban.MarpExportService] Executing Marp CLI with args:`, args);
+                const exitCode = await marpCli(args);
+                console.log(`[kanban.MarpExportService] Marp CLI exit code: ${exitCode}`);
+                
+                if (exitCode !== 0) {
+                    // Enhanced error logging
+                    console.error(`[kanban.MarpExportService] === MARP EXPORT FAILED ===`);
+                    console.error(`[kanban.MarpExportService] Exit code: ${exitCode}`);
+                    console.error(`[kanban.MarpExportService] Original working directory: ${originalWorkingDir}`);
+                    console.error(`[kanban.MarpExportService] Marp CLI working directory: ${process.cwd()}`);
+                    console.error(`[kanban.MarpExportService] Command that failed: ${fullCommand}`);
+                    console.error(`[kanban.MarpExportService] Temp file: ${tempMdPath}`);
+                    console.error(`[kanban.MarpExportService] Output path: ${options.outputPath}`);
+                    console.error(`[kanban.MarpExportService] Engine path: ${enginePath}`);
+                    
+                    // Check if output file was partially created
+                    if (fs.existsSync(options.outputPath)) {
+                        const stats = fs.statSync(options.outputPath);
+                        console.error(`[kanban.MarpExportService] Partial output file exists: ${stats.size} bytes`);
+                    }
+                    
+                    console.error(`[kanban.MarpExportService] =========================`);
+                    
+                    throw new Error(`Marp export failed with exit code ${exitCode}. Original working directory: ${originalWorkingDir}, Marp CLI working directory: ${process.cwd()}, Command: ${fullCommand}, Temp file: ${tempMdPath}, Engine path: ${enginePath}`);
+                }
+
+                console.log(`[kanban.MarpExportService] Export completed successfully: ${options.outputPath}`);
+            } finally {
+                // Restore original working directory
+                process.chdir(originalWorkingDir);
+                console.log(`[kanban.MarpExportService] Restored working directory to: ${originalWorkingDir}`);
+            }
+
+            
+            if (keepTempFiles) {
+                console.log(`[kanban.MarpExportService] Temp file kept for debugging: ${tempMdPath}`);
+            }
         } finally {
-            // Cleanup temp file
-            if (fs.existsSync(tempMdPath)) {
+            // Cleanup temp file only if not configured to keep it
+            if (!keepTempFiles && fs.existsSync(tempMdPath)) {
                 try {
                     fs.unlinkSync(tempMdPath);
+                    console.log(`[kanban.MarpExportService] Temp file cleaned up: ${tempMdPath}`);
                 } catch (err) {
                     console.warn(`[kanban.MarpExportService] Failed to delete temp file: ${tempMdPath}`, err);
                 }
@@ -102,12 +177,16 @@ export class MarpExportService {
             args.push('--output', options.outputPath);
         }
 
-        // Engine path
+        // Engine path - use absolute path to avoid resolution issues
         const enginePath = options.enginePath || this.getDefaultEnginePath();
-        if (enginePath && fs.existsSync(enginePath)) {
-            args.push('--engine', enginePath);
+        const absoluteEnginePath = path.resolve(enginePath);
+        console.log(`[kanban.MarpExportService] Original engine path: ${enginePath}`);
+        console.log(`[kanban.MarpExportService] Absolute engine path: ${absoluteEnginePath}`);
+        console.log(`[kanban.MarpExportService] Engine file exists: ${fs.existsSync(absoluteEnginePath)}`);
+        if (absoluteEnginePath && fs.existsSync(absoluteEnginePath)) {
+            args.push('--engine', absoluteEnginePath);
         } else {
-            console.warn(`[kanban.MarpExportService] Engine file not found: ${enginePath}`);
+            console.warn(`[kanban.MarpExportService] Engine file not found: ${absoluteEnginePath}`);
         }
 
         // Theme

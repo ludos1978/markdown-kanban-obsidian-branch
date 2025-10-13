@@ -195,7 +195,7 @@ class ColorUtils {
         const luminance = this.getLuminance(backgroundColor);
         // If luminance is above 0.5, use dark text
         // This threshold ensures good contrast
-        return luminance > 0.4;
+        return luminance > 0.2;
     }
 
     /**

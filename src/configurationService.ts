@@ -36,6 +36,7 @@ export interface KanbanConfiguration {
         allowLocalFiles: boolean;
         browser: 'auto' | 'chrome' | 'edge' | 'firefox';
         themeFolders: string[];
+        keepTempFiles: boolean;
     };
 }
 
@@ -68,6 +69,7 @@ export interface ConfigurationDefaults {
         allowLocalFiles: boolean;
         browser: 'auto' | 'chrome' | 'edge' | 'firefox';
         themeFolders: string[];
+        keepTempFiles: boolean;
     };
 }
 
@@ -105,7 +107,8 @@ export class ConfigurationService {
             defaultTheme: 'default',
             allowLocalFiles: true,
             browser: 'chrome' as 'auto' | 'chrome' | 'edge' | 'firefox',
-            themeFolders: []
+            themeFolders: [],
+            keepTempFiles: false
         }
     };
 

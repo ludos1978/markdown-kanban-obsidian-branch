@@ -4,6 +4,15 @@ kanban-plugin: board
 
 ## Open Todos
 
+- [ ] if i set 2 rows (or any number) and i "+ add column" in the second row, it places the new column in the first row. it also automatically reduces to the number of existing rows. this should not be modified without user intervention.
+
+- [ ] exclude tests and tmp from being included in the build, also the .folders and files dont need to go in there. verify what is required and minimize build size
+
+- [ ] can you make an alternative for "Pack Assets into Export Folder" named "Rewrite PATHS", where the links to files within the exported files get rewritten to the new relative path (if it's relative).
+
+- [ ] move the option "Merge Includes into Main File" up to the export format, before the "tag visibility"
+
+
 - [x] currently the export format also includes different marp export solutions. however the export format is only the first stage of data presentation. the second would be the conversion with marp. so i want you to remove the marp export variants from the export format. 
 
 add a checkbox "use marp" below that is available if the export format is "presentation format". within the use marp section:
@@ -12,11 +21,6 @@ add a checkbox "use marp" below that is available if the export format is "prese
 - the open in browser could be removed, but we should add a checkbox that adds "--preview" for "live preview"
 
 move the "auto-export on save" to the main features (export format), as it should make sure that the export is repeated when the markdown or any included files are changed.
-
-- [ ] if i set 2 rows (or any number) and i "+ add column" in the second row, it places the new column in the first row. it also automatically reduces to the number of existing rows. this should not be modified without user intervention.
-
-- [ ] exclude tests and tmp from being included in the build, also the .folders and files dont need to go in there. verify what is required and minimize build size
-
 
 - [x] when opening as presentation with "open browser after export" it doesnt open a browser.
 

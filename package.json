@@ -3,7 +3,7 @@
   "displayName": "Markdown Kanban Obsidian",
   "description": "Kanban board for Markdown files, compatible with obsidian kanban boards",
   "publisher": "ludos",
-  "version": "0.18.25",
+  "version": "0.18.35",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -3868,6 +3868,11 @@
             "type": "string",
             "description": "Path to a directory containing Marp theme CSS files"
           }
+        },
+        "markdown-kanban.marp.keepTempFiles": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep temporary markdown files used during Marp export for debugging purposes. Files will be saved with .marp-temp.md extension in the output directory."
         }
       }
     },
