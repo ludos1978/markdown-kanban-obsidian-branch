@@ -193,7 +193,7 @@ async function main() {
 		sourcesContent: false,
 		platform: 'node',
 		outfile: 'dist/extension.js',
-		external: ['vscode', '@marp-team/marp-cli', '@marp-team/marp-core'],
+		external: ['vscode', 'tslib', 'emitter'],
 		logLevel: 'silent',
 		plugins: [
 			copyStaticFilesPlugin,

@@ -4,6 +4,7 @@ import { ExternalFileWatcher } from './externalFileWatcher';
 import { configService } from './configurationService';
 
 export function activate(context: vscode.ExtensionContext) {
+	console.log('[Kanban Extension] Activating markdown-kanban-obsidian extension...');
 	let fileListenerEnabled = true;
 
 	// Initialize the centralized file watcher
@@ -59,6 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register command to open kanban panel
 	const openKanbanCommand = vscode.commands.registerCommand('markdown-kanban.openKanban', async (uri?: vscode.Uri) => {
+		console.log('[Kanban Extension] openKanban command executed!');
 		let targetUri = uri;
 
 		// If no URI provided, try to get from active editor
