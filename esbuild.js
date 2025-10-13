@@ -30,6 +30,16 @@ const copyStaticFilesPlugin = {
 				fs.mkdirSync('dist', { recursive: true });
 			}
 
+			// Copy bespoke.js from Marp CLI if it exists
+			const bespokeSource = './node_modules/@marp-team/marp-cli/lib/bespoke.js';
+			const bespokeDistDest = './dist/bespoke.js';
+			const bespokeRootDest = './bespoke.js';
+			if (fs.existsSync(bespokeSource)) {
+				fs.copyFileSync(bespokeSource, bespokeDistDest);
+				fs.copyFileSync(bespokeSource, bespokeRootDest);
+				console.log('Copied bespoke.js to dist/ and workspace root');
+			}
+
 			const srcHtmlDir = 'src/html';
 			const distHtmlDir = 'dist/src/html';
 

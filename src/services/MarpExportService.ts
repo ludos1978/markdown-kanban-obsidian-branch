@@ -92,18 +92,41 @@ export class MarpExportService {
             console.log(`[kanban.MarpExportService] Args before execution:`, args);
             console.log(`[kanban.MarpExportService] Full args string: ${args.join(' ')}`);
             
+            // Ensure we're working from the workspace root, not the dist folder
+            let workspaceRoot = originalWorkingDir;
             if (workspaceFolders && workspaceFolders.length > 0) {
-                const workspaceRoot = workspaceFolders[0].uri.fsPath;
+                workspaceRoot = workspaceFolders[0].uri.fsPath;
                 console.log(`[kanban.MarpExportService] Changing working directory to workspace root: ${workspaceRoot}`);
                 console.log(`[kanban.MarpExportService] Current working directory before change: ${process.cwd()}`);
                 process.chdir(workspaceRoot);
                 console.log(`[kanban.MarpExportService] Working directory after change: ${process.cwd()}`);
             }
+            
+            // Create temp files in workspace root to avoid dist folder issues
+            const workspaceTempPath = path.join(workspaceRoot, '.temp-marp-export.md');
+            fs.writeFileSync(workspaceTempPath, markdownContent, 'utf-8');
+            console.log(`[kanban.MarpExportService] Created workspace temp file: ${workspaceTempPath}`);
+            
+            // Use absolute paths to avoid any working directory issues
+            // but ensure the engine path is correctly resolved
+            const finalEnginePath = fs.existsSync(absoluteEnginePath) ? absoluteEnginePath : undefined;
+            
+            // Rebuild args with workspace temp file
+            const updatedArgs = this.buildMarpCliArgs(workspaceTempPath, {
+                ...options,
+                outputPath: options.outputPath,
+                enginePath: finalEnginePath
+            });
+            
+            console.log(`[kanban.MarpExportService] Using workspace temp path: ${workspaceTempPath}`);
+            console.log(`[kanban.MarpExportService] Using absolute output path: ${options.outputPath}`);
+            console.log(`[kanban.MarpExportService] Final engine path: ${finalEnginePath}`);
+            console.log(`[kanban.MarpExportService] Updated args:`, updatedArgs);
 
             try {
-                // Execute Marp CLI
-                console.log(`[kanban.MarpExportService] Executing Marp CLI with args:`, args);
-                const exitCode = await marpCli(args);
+                // Execute Marp CLI with updated args
+                console.log(`[kanban.MarpExportService] Executing Marp CLI with args:`, updatedArgs);
+                const exitCode = await marpCli(updatedArgs);
                 console.log(`[kanban.MarpExportService] Marp CLI exit code: ${exitCode}`);
                 
                 if (exitCode !== 0) {
@@ -113,7 +136,7 @@ export class MarpExportService {
                     console.error(`[kanban.MarpExportService] Original working directory: ${originalWorkingDir}`);
                     console.error(`[kanban.MarpExportService] Marp CLI working directory: ${process.cwd()}`);
                     console.error(`[kanban.MarpExportService] Command that failed: ${fullCommand}`);
-                    console.error(`[kanban.MarpExportService] Temp file: ${tempMdPath}`);
+                    console.error(`[kanban.MarpExportService] Temp file: ${workspaceTempPath}`);
                     console.error(`[kanban.MarpExportService] Output path: ${options.outputPath}`);
                     console.error(`[kanban.MarpExportService] Engine path: ${enginePath}`);
                     
@@ -140,13 +163,23 @@ export class MarpExportService {
                 console.log(`[kanban.MarpExportService] Temp file kept for debugging: ${tempMdPath}`);
             }
         } finally {
-            // Cleanup temp file only if not configured to keep it
-            if (!keepTempFiles && fs.existsSync(tempMdPath)) {
-                try {
-                    fs.unlinkSync(tempMdPath);
-                    console.log(`[kanban.MarpExportService] Temp file cleaned up: ${tempMdPath}`);
-                } catch (err) {
-                    console.warn(`[kanban.MarpExportService] Failed to delete temp file: ${tempMdPath}`, err);
+            // Cleanup temp files only if not configured to keep it
+            if (!keepTempFiles) {
+                if (fs.existsSync(tempMdPath)) {
+                    try {
+                        fs.unlinkSync(tempMdPath);
+                        console.log(`[kanban.MarpExportService] Temp file cleaned up: ${tempMdPath}`);
+                    } catch (err) {
+                        console.warn(`[kanban.MarpExportService] Failed to delete temp file: ${tempMdPath}`, err);
+                    }
+                }
+                if (fs.existsSync(workspaceTempPath)) {
+                    try {
+                        fs.unlinkSync(workspaceTempPath);
+                        console.log(`[kanban.MarpExportService] Workspace temp file cleaned up: ${workspaceTempPath}`);
+                    } catch (err) {
+                        console.warn(`[kanban.MarpExportService] Failed to delete workspace temp file: ${workspaceTempPath}`, err);
+                    }
                 }
             }
         }

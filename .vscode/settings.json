@@ -10,5 +10,9 @@
     },
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
 		"typescript.tsc.autoDetect": "off",
-		"markdown-todo.sortByCount": false
+		"markdown-todo.sortByCount": false,
+    // Marp custom theme folders
+    "markdown-kanban.marp.themeFolders": [
+        "./test-themes"
+    ]
 }

@@ -16,3 +16,5 @@ src/test/extension.test.js
 .*.md
 tools/reports
 code-analysis-report.json
+# bespoke.js is copied during build and should be tracked
+!bespoke.js
